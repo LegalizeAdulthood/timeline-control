@@ -1,0 +1,75 @@
+name: CMake
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 0
+        submodules: true
+
+    #- name: Install Prerequisites Linux
+    #  if: ${{matrix.os == 'ubuntu-latest'}}
+    #  shell: bash
+    #  env:
+    #    DEBIAN_FRONTEND: noninteractive
+    #  run: |
+    #    ${{github.workspace}}/vcpkg/bootstrap-vcpkg.sh
+    #    echo "man-db man-db/auto-update boolean false" | sudo debconf-set-selections
+    #    sudo dpkg-reconfigure man-db
+
+    - name: Setup vcpkg package cache
+      id: vc
+      uses: LegalizeAdulthood/vcpkg-github-cache@4305d9f202bf0131458407402f0cc7efc3412394 # v1.1.0
+      with:
+        token: ${{github.token}}
+        bootstrap: "true"
+        install-nuget: "true"
+        debug: "false"
+        trace: "false"
+
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@0d6a7d60b009d01c9e7523be22153ff8f19460d3 # v2.2.0
+      with:
+        cmake-version: '4.3'
+
+    - name: CMake version
+      run: |
+        cmake --version
+
+    - name: CMake workflow
+      shell: pwsh
+      run: |
+        cmake --workflow --preset default 2>&1 |
+          Tee-Object -FilePath build.log
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+    - name: Analyze vcpkg package cache
+      if: always()
+      uses: LegalizeAdulthood/vcpkg-github-cache/analyze@4305d9f202bf0131458407402f0cc7efc3412394 # v1.1.0
+      with:
+        token: ${{github.token}}
+        build-log: build.log
+        artifact-name: vcpkg-cache-diagnostics-${{github.job}}-${{matrix.os}}
+        fail-on: "never"
+        debug: "false"
+        trace: "false"
