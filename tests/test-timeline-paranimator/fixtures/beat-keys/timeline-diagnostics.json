@@ -1,0 +1,17 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "features": [],
+  "events": [],
+  "diagnostics": {
+    "warnings": [
+      "tempo was approximated"
+    ],
+    "unsupported": [
+      "effect command 0x7f"
+    ],
+    "log": [
+      "loaded fixture"
+    ]
+  }
+}

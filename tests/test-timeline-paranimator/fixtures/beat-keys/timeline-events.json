@@ -1,0 +1,31 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "features": [],
+  "events": [
+    {
+      "kind": "note",
+      "frame": 0
+    },
+    {
+      "kind": "note",
+      "frame": 0
+    },
+    {
+      "kind": "effect",
+      "frame": 2
+    },
+    {
+      "kind": "row",
+      "frame": 0
+    },
+    {
+      "kind": "row",
+      "frame": 3
+    },
+    {
+      "kind": "note",
+      "frame": 4
+    }
+  ]
+}

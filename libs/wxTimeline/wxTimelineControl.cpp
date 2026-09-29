@@ -55,6 +55,30 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
             static_cast<long long>(frame_grid.frames_per_second_numerator()),
             static_cast<long long>(frame_grid.frames_per_second_denominator())));
     }
+    if (m_document->source_summary())
+    {
+        const auto &summary = *m_document->source_summary();
+        draw_line("Schema: " + wxString::FromUTF8(summary.schema().c_str()) +
+            wxString::Format(" v%llu", static_cast<unsigned long long>(summary.schema_version())));
+        draw_line(wxString::Format("Features: %llu", static_cast<unsigned long long>(summary.feature_count())));
+        draw_line(wxString::Format("Events: %llu", static_cast<unsigned long long>(summary.event_count())));
+        if (summary.first_frame())
+        {
+            draw_line(wxString::Format("Frame extent: %lld to %lld", static_cast<long long>(*summary.first_frame()),
+                static_cast<long long>(*summary.last_frame())));
+        }
+        if (summary.first_time())
+        {
+            draw_line(wxString::Format("Time extent: %.6f to %.6f seconds",
+                m_document->timebase().seconds(*summary.first_time()),
+                m_document->timebase().seconds(*summary.last_time())));
+        }
+        if (summary.frame_offset())
+        {
+            draw_line(wxString::Format(
+                "Frame offset: %.6f seconds", m_document->timebase().seconds(*summary.frame_offset())));
+        }
+    }
     draw_line(wxString::Format("Tracks: %llu", static_cast<unsigned long long>(m_document->track_count())));
     draw_line(wxString::Format("Keyframes: %llu", static_cast<unsigned long long>(m_document->keyframe_count())));
     draw_line(wxString::Format("Lanes: %llu", static_cast<unsigned long long>(m_document->lane_count())));

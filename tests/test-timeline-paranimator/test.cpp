@@ -22,6 +22,13 @@ const TimelineJsonImportOptions TEST_OPTIONS{
     1,
 };
 
+TimelineJsonImportOptions tracker_options()
+{
+    auto options = TimelineJsonImportOptions{};
+    options.beat_keys_config_path = fixture_path("beat-keys/adapter.beat-keys.json");
+    return options;
+}
+
 } // namespace
 
 TEST(TimelineJson, imports_minimal_paranimator_config)
@@ -72,4 +79,59 @@ TEST(TimelineJson, rejects_empty_source_path)
     EXPECT_FALSE(result.document.has_value());
     ASSERT_EQ(1U, result.diagnostics.size());
     EXPECT_EQ("No JSON file was selected.", result.diagnostics.front());
+}
+
+TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
+{
+    const auto result = import_timeline_json(fixture_path("beat-keys/timeline-events.json"), tracker_options());
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.document->source_summary().has_value());
+    const auto &summary = *result.document->source_summary();
+    EXPECT_EQ("par-beatdown.tracker-timeline", summary.schema());
+    EXPECT_EQ(1U, summary.schema_version());
+    EXPECT_EQ(0U, summary.feature_count());
+    EXPECT_EQ(6U, summary.event_count());
+    EXPECT_EQ(0, *summary.first_frame());
+    EXPECT_EQ(4, *summary.last_frame());
+    EXPECT_EQ(0, summary.first_time()->ticks());
+    EXPECT_EQ(16000, summary.last_time()->ticks());
+    EXPECT_EQ(0, summary.frame_offset()->ticks());
+    ASSERT_TRUE(result.document->frame_grid().has_value());
+    EXPECT_EQ(5, result.document->frame_grid()->frame_count());
+    EXPECT_EQ(30, result.document->frame_grid()->frames_per_second_numerator());
+    EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
+    EXPECT_TRUE(result.diagnostics.empty());
+}
+
+TEST(TimelineJson, imports_full_tracker_timeline_summary)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/gold-write-timeline-clock.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.document->source_summary().has_value());
+    const auto &summary = *result.document->source_summary();
+    EXPECT_EQ(0U, summary.feature_count());
+    EXPECT_EQ(1891U, summary.event_count());
+    EXPECT_EQ(0, *summary.first_frame());
+    EXPECT_EQ(4908, *summary.last_frame());
+    EXPECT_EQ(0, summary.first_time()->ticks());
+    EXPECT_EQ(19631430, summary.last_time()->ticks());
+    ASSERT_TRUE(result.document->frame_grid().has_value());
+    EXPECT_EQ(4909, result.document->frame_grid()->frame_count());
+    EXPECT_EQ(30, result.document->frame_grid()->frames_per_second_numerator());
+    EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
+    EXPECT_TRUE(result.diagnostics.empty());
+}
+
+TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
+{
+    const auto result = import_timeline_json(fixture_path("beat-keys/timeline-diagnostics.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.document->source_summary().has_value());
+    EXPECT_EQ(3U, result.diagnostics.size());
+    EXPECT_EQ("Warning: tempo was approximated", result.diagnostics[0]);
+    EXPECT_EQ("Unsupported: effect command 0x7f", result.diagnostics[1]);
+    EXPECT_EQ("Log: loaded fixture", result.diagnostics[2]);
 }

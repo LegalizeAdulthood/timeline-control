@@ -1,0 +1,14 @@
+{
+  "schema": "par-beatdown.beat-keys",
+  "version": 1,
+  "source": {
+    "timeline": "song.music.json",
+    "fps": 30.0,
+    "offset_seconds": 0.0
+  },
+  "output": {
+    "mode": "overlay",
+    "namespace": "music"
+  },
+  "bindings": []
+}

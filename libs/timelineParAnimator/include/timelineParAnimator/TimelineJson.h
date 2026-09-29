@@ -12,16 +12,17 @@
 namespace timeline_par_animator
 {
 
-/// Timing policy used when a ParAnimator config supplies frame numbers only.
+/// Timing policy and companion inputs used by timeline JSON adapters.
 ///
-/// The adapter projects source frames onto exact core timeline ticks using the
-/// configured rational frame rate.
+/// ParAnimator files use the rational frame rate directly. ParBeatdown files
+/// use an optional beat-keys config for source FPS and synchronization offset.
 ///
 struct TimelineJsonImportOptions
 {
     timeline::Ticks ticks_per_second{120000};
     timeline::Ticks frames_per_second_numerator{30};
     timeline::Ticks frames_per_second_denominator{1};
+    std::filesystem::path beat_keys_config_path;
 };
 
 /// Outcome of importing timeline JSON through the ParAnimator adapters.
@@ -39,7 +40,7 @@ struct TimelineJsonImportResult
     }
 };
 
-/// Imports ParAnimator frame and authored-content metadata from a JSON file.
+/// Imports supported ParAnimator or ParBeatdown metadata from a JSON file.
 TimelineJsonImportResult import_timeline_json(
     const std::filesystem::path &source_path, const TimelineJsonImportOptions &options = TimelineJsonImportOptions{});
 

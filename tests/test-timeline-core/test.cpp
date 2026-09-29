@@ -120,3 +120,23 @@ TEST(TimelineDocument, preserves_frame_and_authored_content_summary)
     EXPECT_EQ(4U, document.keyframe_count());
     EXPECT_TRUE(document.lanes_empty());
 }
+
+TEST(TimelineDocument, preserves_source_summary)
+{
+    const auto summary = TimelineSourceSummary("par-beatdown.tracker-timeline", 1, 3, 12, std::optional<Ticks>{2},
+        std::optional<Ticks>{8}, std::optional<TimelineTime>{TimelineTime::from_ticks(200)},
+        std::optional<TimelineTime>{TimelineTime::from_ticks(800)},
+        std::optional<TimelineDuration>{TimelineDuration::from_ticks(25)});
+    const auto document = TimelineDocument(Timebase(1000), summary);
+
+    ASSERT_TRUE(document.source_summary().has_value());
+    EXPECT_EQ("par-beatdown.tracker-timeline", document.source_summary()->schema());
+    EXPECT_EQ(1U, document.source_summary()->schema_version());
+    EXPECT_EQ(3U, document.source_summary()->feature_count());
+    EXPECT_EQ(12U, document.source_summary()->event_count());
+    EXPECT_EQ(2, *document.source_summary()->first_frame());
+    EXPECT_EQ(8, *document.source_summary()->last_frame());
+    EXPECT_EQ(200, document.source_summary()->first_time()->ticks());
+    EXPECT_EQ(800, document.source_summary()->last_time()->ticks());
+    EXPECT_EQ(25, document.source_summary()->frame_offset()->ticks());
+}

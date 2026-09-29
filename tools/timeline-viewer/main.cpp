@@ -7,6 +7,7 @@
 #include <wx/wx.h>
 
 #include <filesystem>
+#include <system_error>
 #include <utility>
 
 /// Main window that composes JSON adapters with the wx timeline control.
@@ -19,7 +20,7 @@ public:
 private:
     void on_open(wxCommandEvent &event);
     void on_exit(wxCommandEvent &event);
-    void show_import_error(const std::vector<std::string> &diagnostics);
+    void show_import_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
     wxTimelineControl *m_timeline_control;
 };
@@ -61,17 +62,28 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
     }
 
     const auto source_path = std::filesystem::path(dialog.GetPath().ToStdWstring());
-    const auto import_options = timeline_par_animator::TimelineJsonImportOptions{};
+    auto import_options = timeline_par_animator::TimelineJsonImportOptions{};
+    const auto beat_keys_config_path = source_path.parent_path() / "adapter.beat-keys.json";
+    auto filesystem_error = std::error_code{};
+    if (std::filesystem::is_regular_file(beat_keys_config_path, filesystem_error))
+    {
+        import_options.beat_keys_config_path = beat_keys_config_path;
+    }
+
     auto result = timeline_par_animator::import_timeline_json(source_path, import_options);
     if (!result.succeeded())
     {
-        show_import_error(result.diagnostics);
+        show_import_diagnostics(result.diagnostics, "Timeline import failed", wxOK | wxICON_ERROR);
         return;
     }
 
     m_timeline_control->set_document(std::move(*result.document));
     SetTitle("Timeline Viewer - " + dialog.GetFilename());
     SetStatusText("Loaded " + dialog.GetFilename());
+    if (!result.diagnostics.empty())
+    {
+        show_import_diagnostics(result.diagnostics, "Timeline import diagnostics", wxOK | wxICON_INFORMATION);
+    }
 }
 
 void TimelineViewerFrame::on_exit(wxCommandEvent &)
@@ -79,7 +91,8 @@ void TimelineViewerFrame::on_exit(wxCommandEvent &)
     Close(true);
 }
 
-void TimelineViewerFrame::show_import_error(const std::vector<std::string> &diagnostics)
+void TimelineViewerFrame::show_import_diagnostics(
+    const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style)
 {
     auto message = wxString{};
     for (const auto &diagnostic : diagnostics)
@@ -95,7 +108,7 @@ void TimelineViewerFrame::show_import_error(const std::vector<std::string> &diag
         message = "The selected file could not be imported.";
     }
 
-    wxMessageBox(message, "Timeline import failed", wxOK | wxICON_ERROR, this);
+    wxMessageBox(message, title, dialog_style, this);
 }
 
 bool TimelineViewerApp::OnInit()
