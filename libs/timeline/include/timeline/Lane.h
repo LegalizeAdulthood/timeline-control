@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <timeline/Curve.h>
 #include <timeline/Envelope.h>
 #include <timeline/Interval.h>
 #include <timeline/size_cast.h>
@@ -13,10 +14,10 @@
 namespace timeline
 {
 
-/// One generic piece of discrete timeline content.
-using Item = std::variant<Instant, Interval, Envelope>;
+/// One generic piece of timeline content.
+using Item = std::variant<Instant, Interval, Envelope, Curve>;
 
-/// Ordered collection of discrete timeline content within a finite range.
+/// Ordered collection of timeline content within a finite range.
 ///
 /// A lane owns its items, retains insertion order, and rejects items that do
 /// not fit completely inside its half-open time range.
@@ -58,6 +59,7 @@ public:
     void add(Instant instant);
     void add(Interval interval);
     void add(Envelope envelope);
+    void add(Curve curve);
     std::vector<Item> items_in_range(Time start, Time end) const;
 
 private:

@@ -606,6 +606,10 @@ TrackerExtent tracker_extent(const Json &config)
     auto extent = TrackerExtent{};
     expand_extent(config.at("events"), extent);
     expand_extent(config.at("features"), extent);
+    const auto item_first_frame = extent.first_frame;
+    const auto item_last_frame = extent.last_frame;
+    const auto item_first_seconds = extent.first_seconds;
+    const auto item_last_seconds = extent.last_seconds;
 
     if (config.contains("timeline"))
     {
@@ -637,11 +641,23 @@ TrackerExtent tracker_extent(const Json &config)
         }
         else
         {
-            extent.first_frame.reset();
-            extent.last_frame.reset();
+            extent.first_frame = item_first_frame;
+            extent.last_frame = item_last_frame;
+            if (extent.last_frame)
+            {
+                extent.frame_count = *extent.last_frame + 1;
+            }
         }
-        extent.first_seconds = 0.0;
-        extent.last_seconds = duration_seconds;
+        if (duration_seconds > 0.0 || !item_last_seconds)
+        {
+            extent.first_seconds = 0.0;
+            extent.last_seconds = duration_seconds;
+        }
+        else
+        {
+            extent.first_seconds = item_first_seconds;
+            extent.last_seconds = item_last_seconds;
+        }
     }
     else if (extent.last_frame)
     {
@@ -654,21 +670,21 @@ TrackerExtent tracker_extent(const Json &config)
     return extent;
 }
 
-std::optional<timeline::Time> tracker_event_time(
-    const Json &event, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
+std::optional<timeline::Time> tracker_item_time(
+    const Json &item, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
 {
-    if (event.contains("time_seconds"))
+    if (item.contains("time_seconds"))
     {
-        const auto seconds = event.at("time_seconds").get<double>();
+        const auto seconds = item.at("time_seconds").get<double>();
         if (!std::isfinite(seconds))
         {
             throw std::invalid_argument("ParBeatdown event time_seconds must be finite.");
         }
         return timebase.time_from_seconds(seconds, timeline::TimeRounding::NEAREST);
     }
-    if (event.contains("frame") && frame_grid)
+    if (item.contains("frame") && frame_grid)
     {
-        return frame_grid->frame_start(event.at("frame").get<timeline::Ticks>());
+        return frame_grid->frame_start(item.at("frame").get<timeline::Ticks>());
     }
     return std::nullopt;
 }
@@ -701,7 +717,7 @@ std::optional<timeline::Lane> tracker_event_lane(
         {
             throw std::invalid_argument("ParBeatdown events require a non-empty kind.");
         }
-        const auto time = tracker_event_time(event, timebase, frame_grid);
+        const auto time = tracker_item_time(event, timebase, frame_grid);
         if (!time)
         {
             ++index;
@@ -742,6 +758,45 @@ std::optional<timeline::Lane> tracker_event_lane(
     {
         lane.add(std::move(event));
     }
+    return lane;
+}
+
+std::optional<timeline::Lane> tracker_rms_lane(
+    const Json &config, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
+{
+    auto samples = std::vector<timeline::CurveSample>{};
+    for (const auto &feature : config.at("features"))
+    {
+        if (!feature.contains("rms"))
+        {
+            continue;
+        }
+        if (!feature.at("rms").is_number())
+        {
+            throw std::invalid_argument("ParBeatdown RMS features must be numeric.");
+        }
+        const auto time = tracker_item_time(feature, timebase, frame_grid);
+        if (time)
+        {
+            samples.emplace_back(*time, feature.at("rms").get<double>());
+        }
+    }
+    if (timeline::size_cast(samples) < 2)
+    {
+        return std::nullopt;
+    }
+
+    auto lane_start = samples.front().time();
+    auto lane_end = samples.back().time() + timeline::Duration::from_ticks(1);
+    if (frame_grid && frame_grid->duration().ticks() > 0)
+    {
+        lane_start = frame_grid->offset();
+        lane_end = frame_grid->end_time();
+    }
+
+    auto lane = timeline::Lane("tracker-rms", "RMS", "curve", lane_start, lane_end);
+    lane.add(timeline::Curve(
+        "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, 1.0));
     return lane;
 }
 
@@ -793,6 +848,7 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
 
         append_tracker_diagnostics(config, result.diagnostics);
         auto event_lane = tracker_event_lane(config, timebase, frame_grid);
+        auto rms_lane = tracker_rms_lane(config, timebase, frame_grid);
         auto source_summary =
             timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
                 timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")),
@@ -809,6 +865,10 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         if (event_lane)
         {
             result.document->add_lane(std::move(*event_lane));
+        }
+        if (rms_lane)
+        {
+            result.document->add_lane(std::move(*rms_lane));
         }
     }
     catch (const std::exception &error)

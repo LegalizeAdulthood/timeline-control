@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
 #include <timeline/Layout.h>
+#include <timeline/size_cast.h>
 
 #include <algorithm>
 #include <cmath>
@@ -36,6 +37,36 @@ void add_span(DisplayList &display_list, Time start, Time end, StyleRole style, 
 Ticks phase_ticks(const std::optional<Duration> &phase)
 {
     return phase ? phase->ticks() : 0;
+}
+
+std::pair<double, double> curve_range(const Curve &curve)
+{
+    const auto [sample_minimum, sample_maximum] = std::minmax_element(curve.samples().begin(), curve.samples().end(),
+        [](const CurveSample &lhs, const CurveSample &rhs) { return lhs.value() < rhs.value(); });
+    return {curve.minimum().value_or(sample_minimum->value()), curve.maximum().value_or(sample_maximum->value())};
+}
+
+void add_curve(DisplayList &display_list, const Curve &curve, int y, int height, const Viewport &viewport,
+    const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid)
+{
+    const auto samples = frame_grid ? curve.sample(*frame_grid) : curve.samples();
+    const auto [minimum, maximum] = curve_range(curve);
+    auto points = std::vector<Point>{};
+    for (const auto &sample : samples)
+    {
+        if (sample.time() < curve.start() || curve.end() < sample.time() || sample.time() < viewport.start() ||
+            viewport.end() < sample.time())
+        {
+            continue;
+        }
+        const auto normalized = maximum == minimum ? 0.5 : (sample.value() - minimum) / (maximum - minimum);
+        const auto point_y = y + height - 1 - static_cast<int>(std::lround(normalized * (height - 1)));
+        points.push_back(Point{time_x(sample.time(), viewport, metrics), point_y});
+    }
+    if (size_cast(points) >= 2)
+    {
+        display_list.add(Polyline{std::move(points), StyleRole::CURVE});
+    }
 }
 
 } // namespace
@@ -110,7 +141,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                         add_span(m_display_list, value.start(), value.end(), StyleRole::INTERVAL_SPAN, item_y,
                             item_height, viewport, metrics);
                     }
-                    else
+                    else if constexpr (std::is_same_v<Value, Envelope>)
                     {
                         auto phase_start = value.start();
                         auto phase_end = phase_start + Duration::from_ticks(phase_ticks(value.attack()));
@@ -124,6 +155,10 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                         phase_end = phase_start + Duration::from_ticks(phase_ticks(value.decay()));
                         add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_DECAY, item_y, item_height,
                             viewport, metrics);
+                    }
+                    else
+                    {
+                        add_curve(m_display_list, value, item_y, item_height, viewport, metrics, document.frame_grid());
                     }
                 },
                 item);

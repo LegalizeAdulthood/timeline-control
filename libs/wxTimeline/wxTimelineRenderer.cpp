@@ -2,6 +2,8 @@
 
 #include <wxTimeline/wxTimelineRenderer.h>
 
+#include <timeline/size_cast.h>
+
 #include <wx/brush.h>
 #include <wx/colour.h>
 #include <wx/pen.h>
@@ -34,6 +36,8 @@ wxColour style_colour(timeline::StyleRole style)
         return wxColour(67, 132, 78);
     case timeline::StyleRole::ENVELOPE_DECAY:
         return wxColour(66, 100, 166);
+    case timeline::StyleRole::CURVE:
+        return wxColour(126, 72, 154);
     }
     return wxColour(0, 0, 0);
 }
@@ -60,6 +64,20 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
                     dc.SetPen(wxPen(colour));
                     dc.SetBrush(wxBrush(colour));
                     dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
+                }
+                else if constexpr (std::is_same_v<Value, timeline::Polyline>)
+                {
+                    auto points = std::vector<wxPoint>{};
+                    points.reserve(value.points.size());
+                    for (const auto &point : value.points)
+                    {
+                        points.emplace_back(origin.x + point.x, origin.y + point.y);
+                    }
+                    if (timeline::size_cast(points) >= 2)
+                    {
+                        dc.SetPen(wxPen(colour, 2));
+                        dc.DrawLines(timeline::size_cast(points), points.data());
+                    }
                 }
                 else
                 {

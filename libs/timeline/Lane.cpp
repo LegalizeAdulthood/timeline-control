@@ -75,6 +75,11 @@ void Lane::add(Envelope envelope)
     add_item(std::move(envelope));
 }
 
+void Lane::add(Curve curve)
+{
+    add_item(std::move(curve));
+}
+
 std::vector<Item> Lane::items_in_range(Time start, Time end) const
 {
     if (end < start)

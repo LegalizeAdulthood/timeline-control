@@ -61,3 +61,29 @@ TEST(Layout, emits_event_and_interval_primitives)
     EXPECT_EQ(StyleRole::ENVELOPE_SUSTAIN, std::get<Rectangle>(primitives[7]).style);
     EXPECT_EQ(StyleRole::ENVELOPE_DECAY, std::get<Rectangle>(primitives[8]).style);
 }
+
+TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
+{
+    auto lane = Lane("rms", "RMS", "curve", at(0), at(40));
+    lane.add(
+        Curve("rms", "rms", {{at(0), 0.0}, {at(20), 1.0}, {at(40), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0));
+
+    auto document = Document(FrameGrid(Timebase(10), 4, 1, 1), 0, 0);
+    document.add_lane(std::move(lane));
+
+    const auto layout = Layout(document, Viewport(500, 100, at(0), at(40)), LayoutMetrics(100, 20, 30, 4));
+    const auto &primitives = layout.display_list().primitives();
+
+    ASSERT_EQ(5U, primitives.size());
+    const auto &polyline = std::get<Polyline>(primitives[4]);
+    ASSERT_EQ(4U, polyline.points.size());
+    EXPECT_EQ(100, polyline.points[0].x);
+    EXPECT_EQ(45, polyline.points[0].y);
+    EXPECT_EQ(200, polyline.points[1].x);
+    EXPECT_EQ(34, polyline.points[1].y);
+    EXPECT_EQ(300, polyline.points[2].x);
+    EXPECT_EQ(24, polyline.points[2].y);
+    EXPECT_EQ(400, polyline.points[3].x);
+    EXPECT_EQ(34, polyline.points[3].y);
+    EXPECT_EQ(StyleRole::CURVE, polyline.style);
+}

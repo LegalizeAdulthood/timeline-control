@@ -1,4 +1,5 @@
 add_library(timeline-core
+    include/timeline/Curve.h
     include/timeline/Document.h
     include/timeline/DisplayList.h
     include/timeline/Envelope.h
@@ -8,6 +9,7 @@ add_library(timeline-core
     include/timeline/Layout.h
     include/timeline/size_cast.h
     include/timeline/Time.h
+    Curve.cpp
     Document.cpp
     Envelope.cpp
     Event.cpp

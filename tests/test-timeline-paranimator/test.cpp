@@ -138,6 +138,27 @@ TEST(TimelineJson, imports_full_tracker_timeline_summary)
     EXPECT_TRUE(result.diagnostics.empty());
 }
 
+TEST(TimelineJson, imports_tracker_rms_curve)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/gold-write-windowed-features.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.document->frame_grid().has_value());
+    EXPECT_EQ(46, result.document->frame_grid()->frame_count());
+    ASSERT_EQ(1, result.document->lane_count());
+    const auto &lane = result.document->lanes().front();
+    EXPECT_EQ("tracker-rms", lane.id());
+    EXPECT_EQ("RMS", lane.label());
+    ASSERT_EQ(1, lane.item_count());
+    const auto &curve = std::get<timeline::Curve>(lane.items().front());
+    ASSERT_EQ(4, curve.sample_count());
+    EXPECT_EQ(60000, curve.samples()[1].time().ticks());
+    EXPECT_DOUBLE_EQ(0.11958, curve.samples()[1].value());
+    EXPECT_DOUBLE_EQ(0.0, *curve.minimum());
+    EXPECT_DOUBLE_EQ(1.0, *curve.maximum());
+    EXPECT_TRUE(result.diagnostics.empty());
+}
+
 TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
 {
     const auto result = import_timeline_json(fixture_path("beat-keys/timeline-diagnostics.json"));

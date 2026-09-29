@@ -10,6 +10,7 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/maxiter.json
     fixtures/multi-track.json
     fixtures/par-beatdown/gold-write-timeline-clock.json
+    fixtures/par-beatdown/gold-write-windowed-features.json
 )
 
 add_executable(test-timeline-paranimator

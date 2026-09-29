@@ -21,7 +21,8 @@ enum class StyleRole
     INTERVAL_SPAN,
     ENVELOPE_ATTACK,
     ENVELOPE_SUSTAIN,
-    ENVELOPE_DECAY
+    ENVELOPE_DECAY,
+    CURVE
 };
 
 /// Toolkit-neutral line drawing primitive.
@@ -53,8 +54,22 @@ struct Text
     StyleRole style;
 };
 
+/// Toolkit-neutral integral point.
+struct Point
+{
+    int x;
+    int y;
+};
+
+/// Toolkit-neutral connected line segments.
+struct Polyline
+{
+    std::vector<Point> points;
+    StyleRole style;
+};
+
 /// One toolkit-neutral drawing operation.
-using Primitive = std::variant<Line, Rectangle, Text>;
+using Primitive = std::variant<Line, Rectangle, Text, Polyline>;
 
 /// Ordered rendering operations produced by timeline layout.
 ///
@@ -75,6 +90,10 @@ public:
     void add(Text text)
     {
         m_primitives.emplace_back(std::move(text));
+    }
+    void add(Polyline polyline)
+    {
+        m_primitives.emplace_back(std::move(polyline));
     }
     const std::vector<Primitive> &primitives() const
     {

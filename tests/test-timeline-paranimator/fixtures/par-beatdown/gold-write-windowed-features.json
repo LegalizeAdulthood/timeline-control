@@ -1,0 +1,106 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "generator": {
+    "name": "par-beatdown",
+    "version": "0.1.0",
+    "backend": "tracker-file",
+    "library": "libopenmpt",
+    "library_version": "0.8.6"
+  },
+  "source": {
+    "file": "data/my_neighbors_kid_is_an_internet_addict.xm",
+    "size_bytes": 6414784,
+    "format": "xm",
+    "title": "",
+    "duration_seconds": 163.59525000000195,
+    "selected_subsong": 0,
+    "subsong_count": 1
+  },
+  "render": {
+    "fps": 30.0,
+    "sample_rate": 48000,
+    "channels": 2,
+    "offset_seconds": 0.0,
+    "feature_hop_seconds": 0.5,
+    "start_seconds": 1.0,
+    "duration_seconds": 2.0
+  },
+  "module": {
+    "channel_count": 0,
+    "order_count": 0,
+    "pattern_count": 0,
+    "instrument_count": 0,
+    "sample_count": 0,
+    "metadata": [],
+    "subsongs": [],
+    "orders": [],
+    "patterns": []
+  },
+  "timeline": {
+    "duration_seconds": 0.0,
+    "frames": 0,
+    "first_frame": 0,
+    "last_frame": -1
+  },
+  "events": [],
+  "features": [
+    {
+      "time_seconds": 0.0,
+      "frame": 0,
+      "rms": 0.109949,
+      "peak": 0.320158,
+      "active_channels": 4,
+      "channel_vu_mono": [
+        0.696058,
+        1.005417,
+        0.696058,
+        0.0
+      ]
+    },
+    {
+      "time_seconds": 0.5,
+      "frame": 15,
+      "rms": 0.11958,
+      "peak": 0.405974,
+      "active_channels": 5,
+      "channel_vu_mono": [
+        0.696058,
+        1.093806,
+        0.696058,
+        0.707107
+      ]
+    },
+    {
+      "time_seconds": 1.0,
+      "frame": 30,
+      "rms": 0.113234,
+      "peak": 0.415653,
+      "active_channels": 4,
+      "channel_vu_mono": [
+        0.696058,
+        0.696058,
+        0.696058,
+        0.508233
+      ]
+    },
+    {
+      "time_seconds": 1.5,
+      "frame": 45,
+      "rms": 0.146502,
+      "peak": 0.451295,
+      "active_channels": 6,
+      "channel_vu_mono": [
+        0.784447,
+        0.784447,
+        0.696058,
+        0.508233
+      ]
+    }
+  ],
+  "diagnostics": {
+    "warnings": [],
+    "unsupported": [],
+    "log": []
+  }
+}
