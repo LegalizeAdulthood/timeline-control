@@ -1,6 +1,6 @@
 #pragma once
 
-#include <timeline/Time.h>
+#include <timeline/Lane.h>
 
 #include <optional>
 #include <string>
@@ -225,6 +225,13 @@ public:
     {
         return m_source_summary;
     }
+    const std::vector<Lane> &lanes() const
+    {
+        return m_lanes;
+    }
+    std::optional<Time> content_start() const;
+    std::optional<Time> content_end() const;
+    void add_lane(Lane lane);
     int track_count() const
     {
         return m_track_count;
@@ -243,7 +250,7 @@ public:
     }
     int lane_count() const
     {
-        return 0;
+        return size_cast(m_lanes);
     }
 
 private:
@@ -251,6 +258,7 @@ private:
     Metadata m_metadata;
     std::optional<FrameGrid> m_frame_grid;
     std::optional<SourceSummary> m_source_summary;
+    std::vector<Lane> m_lanes;
     int m_track_count{0};
     int m_keyframe_count{0};
 };

@@ -1,7 +1,11 @@
 #include <wxTimeline/wxTimelineControl.h>
+#include <wxTimeline/wxTimelineRenderer.h>
+
+#include <timeline/Layout.h>
 
 #include <wx/dcbuffer.h>
 
+#include <algorithm>
 #include <utility>
 
 wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
@@ -107,4 +111,30 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     draw_line(wxString::Format("Tracks: %d", m_document->track_count()));
     draw_line(wxString::Format("Keyframes: %d", m_document->keyframe_count()));
     draw_line(wxString::Format("Lanes: %d", m_document->lane_count()));
+
+    const auto content_start = m_document->content_start();
+    const auto content_end = m_document->content_end();
+    if (!content_start || !content_end || *content_end <= *content_start)
+    {
+        return;
+    }
+
+    const auto client_size = GetClientSize();
+    const auto layout_top = position.y + 8;
+    const auto layout_height = client_size.GetHeight() - layout_top - 8;
+    if (client_size.GetWidth() <= 160 || layout_height <= 40)
+    {
+        return;
+    }
+
+    auto label_width = 80;
+    for (const auto &lane : m_document->lanes())
+    {
+        label_width = std::max(label_width, dc.GetTextExtent(wxString::FromUTF8(lane.label().c_str())).GetWidth() + 16);
+    }
+    label_width = std::min(label_width, client_size.GetWidth() / 2);
+    const auto metrics = timeline::LayoutMetrics(label_width, dc.GetCharHeight() + 8, dc.GetCharHeight() + 16, 4);
+    const auto viewport = timeline::Viewport(client_size.GetWidth(), layout_height, *content_start, *content_end);
+    const auto layout = timeline::Layout(*m_document, viewport, metrics);
+    draw_timeline_display_list(dc, layout.display_list(), wxPoint(0, layout_top));
 }

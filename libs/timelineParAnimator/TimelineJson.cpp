@@ -654,6 +654,97 @@ TrackerExtent tracker_extent(const Json &config)
     return extent;
 }
 
+std::optional<timeline::Time> tracker_event_time(
+    const Json &event, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
+{
+    if (event.contains("time_seconds"))
+    {
+        const auto seconds = event.at("time_seconds").get<double>();
+        if (!std::isfinite(seconds))
+        {
+            throw std::invalid_argument("ParBeatdown event time_seconds must be finite.");
+        }
+        return timebase.time_from_seconds(seconds, timeline::TimeRounding::NEAREST);
+    }
+    if (event.contains("frame") && frame_grid)
+    {
+        return frame_grid->frame_start(event.at("frame").get<timeline::Ticks>());
+    }
+    return std::nullopt;
+}
+
+timeline::Attributes tracker_event_attributes(const Json &event)
+{
+    auto result = timeline::Attributes{};
+    for (auto field = event.begin(); field != event.end(); ++field)
+    {
+        if (field.key() == "kind" || field.key() == "time_seconds" || field.key() == "frame" ||
+            field.key() == "strength" || field.key() == "confidence")
+        {
+            continue;
+        }
+        result.emplace(field.key(), field->is_string() ? field->get<std::string>() : field->dump());
+    }
+    return result;
+}
+
+std::optional<timeline::Lane> tracker_event_lane(
+    const Json &config, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
+{
+    auto events = std::vector<timeline::Instant>{};
+    auto first_time = std::optional<timeline::Time>{};
+    auto last_time = std::optional<timeline::Time>{};
+    auto index = 0;
+    for (const auto &event : config.at("events"))
+    {
+        if (!event.contains("kind") || !event.at("kind").is_string() || event.at("kind").get<std::string>().empty())
+        {
+            throw std::invalid_argument("ParBeatdown events require a non-empty kind.");
+        }
+        const auto time = tracker_event_time(event, timebase, frame_grid);
+        if (!time)
+        {
+            ++index;
+            continue;
+        }
+
+        const auto kind = event.at("kind").get<std::string>();
+        auto strength = std::optional<double>{};
+        if (event.contains("strength"))
+        {
+            strength = event.at("strength").get<double>();
+        }
+        else if (event.contains("confidence"))
+        {
+            strength = event.at("confidence").get<double>();
+        }
+        events.emplace_back(
+            "event-" + std::to_string(index), kind, *time, kind, strength, tracker_event_attributes(event));
+        first_time = first_time ? std::min(*first_time, *time) : *time;
+        last_time = last_time ? std::max(*last_time, *time) : *time;
+        ++index;
+    }
+    if (events.empty())
+    {
+        return std::nullopt;
+    }
+
+    auto lane_start = *first_time;
+    auto lane_end = *last_time + timeline::Duration::from_ticks(1);
+    if (frame_grid && frame_grid->duration().ticks() > 0)
+    {
+        lane_start = frame_grid->offset();
+        lane_end = frame_grid->end_time();
+    }
+
+    auto lane = timeline::Lane("tracker-events", "Music events", "events", lane_start, lane_end);
+    for (auto &event : events)
+    {
+        lane.add(std::move(event));
+    }
+    return lane;
+}
+
 void append_tracker_diagnostics(const Json &config, std::vector<std::string> &diagnostics)
 {
     if (!config.contains("diagnostics"))
@@ -701,6 +792,7 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         }
 
         append_tracker_diagnostics(config, result.diagnostics);
+        auto event_lane = tracker_event_lane(config, timebase, frame_grid);
         auto source_summary =
             timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
                 timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")),
@@ -713,6 +805,10 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         else
         {
             result.document.emplace(timebase, std::move(source_summary), std::move(metadata));
+        }
+        if (event_lane)
+        {
+            result.document->add_lane(std::move(*event_lane));
         }
     }
     catch (const std::exception &error)

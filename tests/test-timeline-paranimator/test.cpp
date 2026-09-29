@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <variant>
 
 using namespace timeline_par_animator;
 
@@ -101,6 +102,17 @@ TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
     EXPECT_EQ(5, result.document->frame_grid()->frame_count());
     EXPECT_EQ(30, result.document->frame_grid()->frames_per_second_numerator());
     EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
+    ASSERT_EQ(1, result.document->lane_count());
+    const auto &lane = result.document->lanes().front();
+    EXPECT_EQ("tracker-events", lane.id());
+    EXPECT_EQ("Music events", lane.label());
+    ASSERT_EQ(6, lane.item_count());
+    EXPECT_EQ("note", std::get<timeline::Instant>(lane.items()[0]).kind());
+    EXPECT_EQ(0, std::get<timeline::Instant>(lane.items()[0]).time().ticks());
+    EXPECT_EQ("effect", std::get<timeline::Instant>(lane.items()[2]).kind());
+    EXPECT_EQ(8000, std::get<timeline::Instant>(lane.items()[2]).time().ticks());
+    EXPECT_EQ("row", std::get<timeline::Instant>(lane.items()[3]).kind());
+    EXPECT_EQ(12000, std::get<timeline::Instant>(lane.items()[4]).time().ticks());
     EXPECT_TRUE(result.diagnostics.empty());
 }
 
@@ -121,6 +133,8 @@ TEST(TimelineJson, imports_full_tracker_timeline_summary)
     EXPECT_EQ(4909, result.document->frame_grid()->frame_count());
     EXPECT_EQ(30, result.document->frame_grid()->frames_per_second_numerator());
     EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
+    ASSERT_EQ(1, result.document->lane_count());
+    EXPECT_EQ(1891, result.document->lanes().front().item_count());
     EXPECT_TRUE(result.diagnostics.empty());
 }
 

@@ -147,4 +147,57 @@ Document::Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata 
 {
 }
 
+std::optional<Time> Document::content_start() const
+{
+    if (m_frame_grid)
+    {
+        return m_frame_grid->offset();
+    }
+    if (m_lanes.empty())
+    {
+        return std::nullopt;
+    }
+
+    auto result = m_lanes.front().start();
+    for (const auto &lane : m_lanes)
+    {
+        if (lane.start() < result)
+        {
+            result = lane.start();
+        }
+    }
+    return result;
+}
+
+std::optional<Time> Document::content_end() const
+{
+    if (m_frame_grid)
+    {
+        return m_frame_grid->end_time();
+    }
+    if (m_lanes.empty())
+    {
+        return std::nullopt;
+    }
+
+    auto result = m_lanes.front().end();
+    for (const auto &lane : m_lanes)
+    {
+        if (result < lane.end())
+        {
+            result = lane.end();
+        }
+    }
+    return result;
+}
+
+void Document::add_lane(Lane lane)
+{
+    if (m_frame_grid && (lane.start() < m_frame_grid->offset() || m_frame_grid->end_time() < lane.end()))
+    {
+        throw std::out_of_range("timeline lane is outside its document frame grid");
+    }
+    m_lanes.push_back(std::move(lane));
+}
+
 } // namespace timeline
