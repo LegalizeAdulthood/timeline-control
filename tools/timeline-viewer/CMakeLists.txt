@@ -1,3 +1,7 @@
-add_executable(timeline-viewer main.cpp)
-target_link_libraries(timeline-viewer PUBLIC timeline-wx)
+add_executable(timeline-viewer WIN32 main.cpp)
+target_link_libraries(timeline-viewer
+    PRIVATE
+        timeline-paranimator
+        timeline-wx
+)
 target_folder(timeline-viewer "Tools")

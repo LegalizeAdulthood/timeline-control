@@ -5,5 +5,16 @@
   "version-semver": "1.0.0",
   "dependencies": [
     "gtest"
-  ]
+  ],
+  "features": {
+    "wx": {
+      "description": "Build the wxWidgets timeline control",
+      "dependencies": [
+        {
+          "name": "wxwidgets",
+          "default-features": false
+        }
+      ]
+    }
+  }
 }

@@ -9,14 +9,22 @@ include(vs_startup_project)
 set_cxx_standard(17)
 
 set(TIMELINE_CONTROL_PROJECT_NAME "Timeline Control" CACHE "STRING" "Default project name for IDEs")
+option(TIMELINE_CONTROL_WITH_WX "Build the wxWidgets timeline control" ON)
+
+if(TIMELINE_CONTROL_WITH_WX)
+    list(APPEND VCPKG_MANIFEST_FEATURES "wx")
+    list(REMOVE_DUPLICATES VCPKG_MANIFEST_FEATURES)
+endif()
+
 project("${TIMELINE_CONTROL_PROJECT_NAME}" CXX)
 
 include(CTest)
 
 add_subdirectory(libs)
-add_subdirectory(tools)
-
-vs_startup_project(timeline-viewer)
+if(TIMELINE_CONTROL_WITH_WX)
+    add_subdirectory(tools)
+    vs_startup_project(timeline-viewer)
+endif()
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

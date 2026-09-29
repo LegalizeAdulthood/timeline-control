@@ -27,9 +27,25 @@
       "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
     },
     {
+      "name": "wx-on",
+      "hidden": true,
+      "description": "Build the wxWidgets control and viewer",
+      "cacheVariables": {
+        "TIMELINE_CONTROL_WITH_WX": "ON"
+      }
+    },
+    {
+      "name": "wx-off",
+      "hidden": true,
+      "description": "Build without wxWidgets targets",
+      "cacheVariables": {
+        "TIMELINE_CONTROL_WITH_WX": "OFF"
+      }
+    },
+    {
       "name": "default",
       "displayName": "Configure with default settings",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on" ]
     }
   ],
   "buildPresets": [
