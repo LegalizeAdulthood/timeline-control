@@ -11,7 +11,7 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     Bind(wxEVT_PAINT, &wxTimelineControl::on_paint, this);
 }
 
-void wxTimelineControl::set_document(timeline::TimelineDocument document)
+void wxTimelineControl::set_document(timeline::Document document)
 {
     m_document = std::move(document);
     Refresh(false);

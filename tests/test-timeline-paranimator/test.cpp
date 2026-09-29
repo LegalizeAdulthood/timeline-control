@@ -16,15 +16,15 @@ std::filesystem::path fixture_path(const char *name)
     return std::filesystem::path("fixtures") / name;
 }
 
-const TimelineJsonImportOptions TEST_OPTIONS{
+const JsonImportOptions TEST_OPTIONS{
     24000,
     24,
     1,
 };
 
-TimelineJsonImportOptions tracker_options()
+JsonImportOptions tracker_options()
 {
-    auto options = TimelineJsonImportOptions{};
+    auto options = JsonImportOptions{};
     options.beat_keys_config_path = fixture_path("beat-keys/adapter.beat-keys.json");
     return options;
 }

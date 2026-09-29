@@ -225,8 +225,8 @@ std::pair<std::size_t, std::size_t> summarize_par_animator_content(const Json &c
     return {track_count, keyframe_count};
 }
 
-void import_par_animator(const std::filesystem::path &source_path, const Json &config,
-    const TimelineJsonImportOptions &options, TimelineJsonImportResult &result)
+void import_par_animator(const std::filesystem::path &source_path, const Json &config, const JsonImportOptions &options,
+    JsonImportResult &result)
 {
     if (!validate_par_animator_root(config, result.diagnostics))
     {
@@ -236,7 +236,7 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
     try
     {
         const auto [track_count, keyframe_count] = summarize_par_animator_content(config);
-        auto metadata = timeline::TimelineMetadata(source_path.filename().string(), source_path.string());
+        auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
         auto frame_grid = timeline::FrameGrid(timeline::Timebase(options.ticks_per_second),
             config.at("num-frames").get<timeline::Ticks>(), options.frames_per_second_numerator,
             options.frames_per_second_denominator);
@@ -351,7 +351,7 @@ TrackerTiming timing_from_json(const Json &source, const char *label)
 }
 
 std::optional<TrackerTiming> tracker_timing(
-    const Json &config, const TimelineJsonImportOptions &options, std::vector<std::string> &diagnostics)
+    const Json &config, const JsonImportOptions &options, std::vector<std::string> &diagnostics)
 {
     if (!options.beat_keys_config_path.empty())
     {
@@ -506,7 +506,7 @@ void append_tracker_diagnostics(const Json &config, std::vector<std::string> &di
 }
 
 void import_tracker_timeline(const std::filesystem::path &source_path, const Json &config,
-    const TimelineJsonImportOptions &options, TimelineJsonImportResult &result)
+    const JsonImportOptions &options, JsonImportResult &result)
 {
     if (!validate_tracker_timeline(config, result.diagnostics))
     {
@@ -518,18 +518,18 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         const auto timebase = timeline::Timebase(options.ticks_per_second);
         const auto timing = tracker_timing(config, options, result.diagnostics);
         const auto extent = tracker_extent(config);
-        auto first_time = extent.first_seconds ? std::optional<timeline::TimelineTime>{timebase.time_from_seconds(
+        auto first_time = extent.first_seconds ? std::optional<timeline::Time>{timebase.time_from_seconds(
                                                      *extent.first_seconds, timeline::TimeRounding::NEAREST)}
                                                : std::nullopt;
-        auto last_time = extent.last_seconds ? std::optional<timeline::TimelineTime>{timebase.time_from_seconds(
+        auto last_time = extent.last_seconds ? std::optional<timeline::Time>{timebase.time_from_seconds(
                                                    *extent.last_seconds, timeline::TimeRounding::NEAREST)}
                                              : std::nullopt;
-        auto frame_offset = std::optional<timeline::TimelineDuration>{};
+        auto frame_offset = std::optional<timeline::Duration>{};
         auto frame_grid = std::optional<timeline::FrameGrid>{};
         if (timing)
         {
             frame_offset = timebase.duration_from_seconds(timing->offset_seconds, timeline::TimeRounding::NEAREST);
-            const auto grid_origin = timeline::TimelineTime::from_ticks(-frame_offset->ticks());
+            const auto grid_origin = timeline::Time::from_ticks(-frame_offset->ticks());
             frame_grid.emplace(timebase, extent.frame_count, timing->frames_per_second_numerator,
                 timing->frames_per_second_denominator, grid_origin);
             if (!first_time && extent.first_frame)
@@ -540,10 +540,10 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         }
 
         append_tracker_diagnostics(config, result.diagnostics);
-        auto source_summary = timeline::TimelineSourceSummary(config.at("schema").get<std::string>(),
+        auto source_summary = timeline::SourceSummary(config.at("schema").get<std::string>(),
             static_cast<std::size_t>(config.at("version").get<timeline::Ticks>()), config.at("features").size(),
             config.at("events").size(), extent.first_frame, extent.last_frame, first_time, last_time, frame_offset);
-        auto metadata = timeline::TimelineMetadata(source_path.filename().string(), source_path.string());
+        auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
         if (frame_grid)
         {
             result.document.emplace(std::move(*frame_grid), std::move(source_summary), std::move(metadata));
@@ -562,10 +562,9 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
 
 } // namespace
 
-TimelineJsonImportResult import_timeline_json(
-    const std::filesystem::path &source_path, const TimelineJsonImportOptions &options)
+JsonImportResult import_timeline_json(const std::filesystem::path &source_path, const JsonImportOptions &options)
 {
-    auto result = TimelineJsonImportResult{};
+    auto result = JsonImportResult{};
     if (source_path.empty())
     {
         result.diagnostics.emplace_back("No JSON file was selected.");

@@ -51,7 +51,7 @@ Ticks round_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding)
     throw std::invalid_argument("unknown timeline rounding mode");
 }
 
-TimelineDuration exact_duration(const Timebase &timebase, Ticks numerator, Ticks denominator)
+Duration exact_duration(const Timebase &timebase, Ticks numerator, Ticks denominator)
 {
     const auto floor_duration = timebase.duration_from_seconds_ratio(numerator, denominator, TimeRounding::FLOOR);
     const auto ceil_duration = timebase.duration_from_seconds_ratio(numerator, denominator, TimeRounding::CEIL);
@@ -64,7 +64,7 @@ TimelineDuration exact_duration(const Timebase &timebase, Ticks numerator, Ticks
     return floor_duration;
 }
 
-TimelineDuration validate_frame_grid_arguments(
+Duration validate_frame_grid_arguments(
     const Timebase &timebase, Ticks frame_count, Ticks frames_per_second_numerator, Ticks frames_per_second_denominator)
 {
     if (frame_count < 0)
@@ -94,7 +94,7 @@ Timebase::Timebase(Ticks ticks_per_second) :
     }
 }
 
-TimelineDuration Timebase::duration_from_seconds_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding) const
+Duration Timebase::duration_from_seconds_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding) const
 {
     if (denominator <= 0)
     {
@@ -106,28 +106,28 @@ TimelineDuration Timebase::duration_from_seconds_ratio(Ticks numerator, Ticks de
     const auto reduced_denominator = denominator / common;
     const auto scaled_numerator = checked_multiply(numerator, ticks_factor);
 
-    return TimelineDuration::from_ticks(round_ratio(scaled_numerator, reduced_denominator, rounding));
+    return Duration::from_ticks(round_ratio(scaled_numerator, reduced_denominator, rounding));
 }
 
-TimelineDuration Timebase::duration_from_seconds(double seconds, TimeRounding rounding) const
+Duration Timebase::duration_from_seconds(double seconds, TimeRounding rounding) const
 {
     const auto ticks = seconds * static_cast<double>(m_ticks_per_second);
 
     switch (rounding)
     {
     case TimeRounding::FLOOR:
-        return TimelineDuration::from_ticks(static_cast<Ticks>(std::floor(ticks)));
+        return Duration::from_ticks(static_cast<Ticks>(std::floor(ticks)));
     case TimeRounding::NEAREST:
-        return TimelineDuration::from_ticks(static_cast<Ticks>(std::round(ticks)));
+        return Duration::from_ticks(static_cast<Ticks>(std::round(ticks)));
     case TimeRounding::CEIL:
-        return TimelineDuration::from_ticks(static_cast<Ticks>(std::ceil(ticks)));
+        return Duration::from_ticks(static_cast<Ticks>(std::ceil(ticks)));
     }
 
     throw std::invalid_argument("unknown timeline rounding mode");
 }
 
 FrameGrid::FrameGrid(Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator,
-    Ticks frames_per_second_denominator, TimelineTime offset) :
+    Ticks frames_per_second_denominator, Time offset) :
     m_timebase(timebase),
     m_frame_count(frame_count),
     m_frames_per_second_numerator(frames_per_second_numerator),
@@ -138,22 +138,22 @@ FrameGrid::FrameGrid(Timebase timebase, Ticks frame_count, Ticks frames_per_seco
 {
 }
 
-TimelineDuration FrameGrid::duration() const
+Duration FrameGrid::duration() const
 {
-    return TimelineDuration::from_ticks(checked_multiply(m_frame_duration.ticks(), m_frame_count));
+    return Duration::from_ticks(checked_multiply(m_frame_duration.ticks(), m_frame_count));
 }
 
-TimelineTime FrameGrid::frame_start(Ticks frame_index) const
+Time FrameGrid::frame_start(Ticks frame_index) const
 {
     if (frame_index < 0 || frame_index >= m_frame_count)
     {
         throw std::out_of_range("timeline frame index is out of range");
     }
 
-    return m_offset + TimelineDuration::from_ticks(checked_multiply(m_frame_duration.ticks(), frame_index));
+    return m_offset + Duration::from_ticks(checked_multiply(m_frame_duration.ticks(), frame_index));
 }
 
-std::optional<Ticks> FrameGrid::frame_at_or_before(TimelineTime time) const
+std::optional<Ticks> FrameGrid::frame_at_or_before(Time time) const
 {
     if (m_frame_count == 0 || time < m_offset)
     {
@@ -171,7 +171,7 @@ std::optional<Ticks> FrameGrid::frame_at_or_before(TimelineTime time) const
     return frame_index;
 }
 
-std::optional<Ticks> FrameGrid::nearest_frame(TimelineTime time) const
+std::optional<Ticks> FrameGrid::nearest_frame(Time time) const
 {
     if (m_frame_count == 0)
     {

@@ -14,11 +14,11 @@ namespace timeline
 /// Metadata describes the document without affecting timeline coordinates,
 /// validation, or lane contents.
 ///
-class TimelineMetadata
+class Metadata
 {
 public:
-    TimelineMetadata() = default;
-    TimelineMetadata(std::string title, std::string description);
+    Metadata() = default;
+    Metadata(std::string title, std::string description);
 
     const std::string &title() const
     {
@@ -40,14 +40,13 @@ private:
 /// and preserves optional frame, time, and synchronization extents in exact
 /// core units.
 ///
-class TimelineSourceSummary
+class SourceSummary
 {
 public:
-    TimelineSourceSummary(std::string schema, std::size_t schema_version, std::size_t feature_count,
-        std::size_t event_count, std::optional<Ticks> first_frame = std::nullopt,
-        std::optional<Ticks> last_frame = std::nullopt, std::optional<TimelineTime> first_time = std::nullopt,
-        std::optional<TimelineTime> last_time = std::nullopt,
-        std::optional<TimelineDuration> frame_offset = std::nullopt);
+    SourceSummary(std::string schema, std::size_t schema_version, std::size_t feature_count, std::size_t event_count,
+        std::optional<Ticks> first_frame = std::nullopt, std::optional<Ticks> last_frame = std::nullopt,
+        std::optional<Time> first_time = std::nullopt, std::optional<Time> last_time = std::nullopt,
+        std::optional<Duration> frame_offset = std::nullopt);
 
     const std::string &schema() const
     {
@@ -73,15 +72,15 @@ public:
     {
         return m_last_frame;
     }
-    const std::optional<TimelineTime> &first_time() const
+    const std::optional<Time> &first_time() const
     {
         return m_first_time;
     }
-    const std::optional<TimelineTime> &last_time() const
+    const std::optional<Time> &last_time() const
     {
         return m_last_time;
     }
-    const std::optional<TimelineDuration> &frame_offset() const
+    const std::optional<Duration> &frame_offset() const
     {
         return m_frame_offset;
     }
@@ -93,9 +92,9 @@ private:
     std::size_t m_event_count;
     std::optional<Ticks> m_first_frame;
     std::optional<Ticks> m_last_frame;
-    std::optional<TimelineTime> m_first_time;
-    std::optional<TimelineTime> m_last_time;
-    std::optional<TimelineDuration> m_frame_offset;
+    std::optional<Time> m_first_time;
+    std::optional<Time> m_last_time;
+    std::optional<Duration> m_frame_offset;
 };
 
 /// Root model for timeline content and document-level metadata.
@@ -104,23 +103,20 @@ private:
 /// source-format facts, and exposes the lane collection. An empty document is
 /// valid and contains zero lanes.
 ///
-class TimelineDocument
+class Document
 {
 public:
-    explicit TimelineDocument(Ticks ticks_per_second, TimelineMetadata metadata = TimelineMetadata{});
-    explicit TimelineDocument(Timebase timebase, TimelineMetadata metadata = TimelineMetadata{});
-    TimelineDocument(
-        Timebase timebase, TimelineSourceSummary source_summary, TimelineMetadata metadata = TimelineMetadata{});
-    TimelineDocument(FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count,
-        TimelineMetadata metadata = TimelineMetadata{});
-    TimelineDocument(
-        FrameGrid frame_grid, TimelineSourceSummary source_summary, TimelineMetadata metadata = TimelineMetadata{});
+    explicit Document(Ticks ticks_per_second, Metadata metadata = Metadata{});
+    explicit Document(Timebase timebase, Metadata metadata = Metadata{});
+    Document(Timebase timebase, SourceSummary source_summary, Metadata metadata = Metadata{});
+    Document(FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count, Metadata metadata = Metadata{});
+    Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata = Metadata{});
 
     const Timebase &timebase() const
     {
         return m_timebase;
     }
-    const TimelineMetadata &metadata() const
+    const Metadata &metadata() const
     {
         return m_metadata;
     }
@@ -128,7 +124,7 @@ public:
     {
         return m_frame_grid;
     }
-    const std::optional<TimelineSourceSummary> &source_summary() const
+    const std::optional<SourceSummary> &source_summary() const
     {
         return m_source_summary;
     }
@@ -155,9 +151,9 @@ public:
 
 private:
     Timebase m_timebase;
-    TimelineMetadata m_metadata;
+    Metadata m_metadata;
     std::optional<FrameGrid> m_frame_grid;
-    std::optional<TimelineSourceSummary> m_source_summary;
+    std::optional<SourceSummary> m_source_summary;
     std::size_t m_track_count{0};
     std::size_t m_keyframe_count{0};
 };

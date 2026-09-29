@@ -17,7 +17,7 @@ namespace timeline_par_animator
 /// ParAnimator files use the rational frame rate directly. ParBeatdown files
 /// use an optional beat-keys config for source FPS and synchronization offset.
 ///
-struct TimelineJsonImportOptions
+struct JsonImportOptions
 {
     timeline::Ticks ticks_per_second{120000};
     timeline::Ticks frames_per_second_numerator{30};
@@ -29,9 +29,9 @@ struct TimelineJsonImportOptions
 ///
 /// A successful result owns a timeline document. Diagnostics remain adapter
 /// concerns and are never stored in the core document.
-struct TimelineJsonImportResult
+struct JsonImportResult
 {
-    std::optional<timeline::TimelineDocument> document;
+    std::optional<timeline::Document> document;
     std::vector<std::string> diagnostics;
 
     bool succeeded() const
@@ -41,7 +41,7 @@ struct TimelineJsonImportResult
 };
 
 /// Imports supported ParAnimator or ParBeatdown metadata from a JSON file.
-TimelineJsonImportResult import_timeline_json(
-    const std::filesystem::path &source_path, const TimelineJsonImportOptions &options = TimelineJsonImportOptions{});
+JsonImportResult import_timeline_json(
+    const std::filesystem::path &source_path, const JsonImportOptions &options = JsonImportOptions{});
 
 } // namespace timeline_par_animator

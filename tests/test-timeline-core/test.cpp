@@ -19,7 +19,7 @@ TEST(Timebase, converts_exact_ratios_to_ticks)
 
     EXPECT_EQ(1000, timebase.duration_from_seconds_ratio(1, 24, TimeRounding::NEAREST).ticks());
     EXPECT_EQ(60000, timebase.time_from_seconds_ratio(5, 2, TimeRounding::NEAREST).ticks());
-    EXPECT_DOUBLE_EQ(2.5, timebase.seconds(TimelineTime::from_ticks(60000)));
+    EXPECT_DOUBLE_EQ(2.5, timebase.seconds(Time::from_ticks(60000)));
 }
 
 TEST(Timebase, rounds_fractional_seconds_explicitly)
@@ -52,7 +52,7 @@ TEST(FrameGrid, handles_final_frame_boundary)
     EXPECT_EQ(99, grid.frame_start(99).ticks());
     EXPECT_THROW(grid.frame_start(100), std::out_of_range);
     EXPECT_EQ(99, *grid.frame_at_or_before(grid.end_time()));
-    EXPECT_EQ(99, *grid.nearest_frame(TimelineTime::from_ticks(1000)));
+    EXPECT_EQ(99, *grid.nearest_frame(Time::from_ticks(1000)));
 }
 
 TEST(FrameGrid, applies_offset)
@@ -64,10 +64,10 @@ TEST(FrameGrid, applies_offset)
     EXPECT_EQ(500, grid.offset().ticks());
     EXPECT_EQ(40, grid.frame_duration().ticks());
     EXPECT_EQ(580, grid.frame_start(2).ticks());
-    EXPECT_EQ(std::nullopt, grid.frame_at_or_before(TimelineTime::from_ticks(499)));
-    EXPECT_EQ(0, *grid.frame_at_or_before(TimelineTime::from_ticks(500)));
-    EXPECT_EQ(1, *grid.frame_at_or_before(TimelineTime::from_ticks(579)));
-    EXPECT_EQ(2, *grid.frame_at_or_before(TimelineTime::from_ticks(580)));
+    EXPECT_EQ(std::nullopt, grid.frame_at_or_before(Time::from_ticks(499)));
+    EXPECT_EQ(0, *grid.frame_at_or_before(Time::from_ticks(500)));
+    EXPECT_EQ(1, *grid.frame_at_or_before(Time::from_ticks(579)));
+    EXPECT_EQ(2, *grid.frame_at_or_before(Time::from_ticks(580)));
 }
 
 TEST(FrameGrid, rejects_non_integral_frame_durations)
@@ -77,41 +77,41 @@ TEST(FrameGrid, rejects_non_integral_frame_durations)
     EXPECT_THROW((FrameGrid(timebase, 10, 24, 1)), std::invalid_argument);
 }
 
-TEST(TimelineDocument, constructs_empty_document)
+TEST(Document, constructs_empty_document)
 {
-    const auto document = TimelineDocument(1000);
+    const auto document = Document(1000);
 
     EXPECT_TRUE(document.is_valid());
     EXPECT_EQ(1000, document.timebase().ticks_per_second());
 }
 
-TEST(TimelineDocument, rejects_invalid_timebase)
+TEST(Document, rejects_invalid_timebase)
 {
-    EXPECT_THROW(TimelineDocument(0), std::invalid_argument);
-    EXPECT_THROW(TimelineDocument(-1), std::invalid_argument);
+    EXPECT_THROW(Document(0), std::invalid_argument);
+    EXPECT_THROW(Document(-1), std::invalid_argument);
 }
 
-TEST(TimelineDocument, preserves_metadata)
+TEST(Document, preserves_metadata)
 {
-    const auto metadata = TimelineMetadata("Demo", "Empty timeline");
-    const auto document = TimelineDocument(1000, metadata);
+    const auto metadata = Metadata("Demo", "Empty timeline");
+    const auto document = Document(1000, metadata);
 
     EXPECT_EQ("Demo", document.metadata().title());
     EXPECT_EQ("Empty timeline", document.metadata().description());
 }
 
-TEST(TimelineDocument, reports_zero_lanes)
+TEST(Document, reports_zero_lanes)
 {
-    const auto document = TimelineDocument(1000);
+    const auto document = Document(1000);
 
     EXPECT_TRUE(document.lanes_empty());
     EXPECT_EQ(0U, document.lane_count());
 }
 
-TEST(TimelineDocument, preserves_frame_and_authored_content_summary)
+TEST(Document, preserves_frame_and_authored_content_summary)
 {
     const auto frame_grid = FrameGrid(Timebase(24000), 3, 24, 1);
-    const auto document = TimelineDocument(frame_grid, 2, 4);
+    const auto document = Document(frame_grid, 2, 4);
 
     EXPECT_EQ(24000, document.timebase().ticks_per_second());
     ASSERT_TRUE(document.frame_grid().has_value());
@@ -121,13 +121,12 @@ TEST(TimelineDocument, preserves_frame_and_authored_content_summary)
     EXPECT_TRUE(document.lanes_empty());
 }
 
-TEST(TimelineDocument, preserves_source_summary)
+TEST(Document, preserves_source_summary)
 {
-    const auto summary = TimelineSourceSummary("par-beatdown.tracker-timeline", 1, 3, 12, std::optional<Ticks>{2},
-        std::optional<Ticks>{8}, std::optional<TimelineTime>{TimelineTime::from_ticks(200)},
-        std::optional<TimelineTime>{TimelineTime::from_ticks(800)},
-        std::optional<TimelineDuration>{TimelineDuration::from_ticks(25)});
-    const auto document = TimelineDocument(Timebase(1000), summary);
+    const auto summary = SourceSummary("par-beatdown.tracker-timeline", 1, 3, 12, std::optional<Ticks>{2},
+        std::optional<Ticks>{8}, std::optional<Time>{Time::from_ticks(200)}, std::optional<Time>{Time::from_ticks(800)},
+        std::optional<Duration>{Duration::from_ticks(25)});
+    const auto document = Document(Timebase(1000), summary);
 
     ASSERT_TRUE(document.source_summary().has_value());
     EXPECT_EQ("par-beatdown.tracker-timeline", document.source_summary()->schema());

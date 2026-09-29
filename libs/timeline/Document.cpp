@@ -6,16 +6,15 @@
 namespace timeline
 {
 
-TimelineMetadata::TimelineMetadata(std::string title, std::string description) :
+Metadata::Metadata(std::string title, std::string description) :
     m_title(std::move(title)),
     m_description(std::move(description))
 {
 }
 
-TimelineSourceSummary::TimelineSourceSummary(std::string schema, std::size_t schema_version, std::size_t feature_count,
+SourceSummary::SourceSummary(std::string schema, std::size_t schema_version, std::size_t feature_count,
     std::size_t event_count, std::optional<Ticks> first_frame, std::optional<Ticks> last_frame,
-    std::optional<TimelineTime> first_time, std::optional<TimelineTime> last_time,
-    std::optional<TimelineDuration> frame_offset) :
+    std::optional<Time> first_time, std::optional<Time> last_time, std::optional<Duration> frame_offset) :
     m_schema(std::move(schema)),
     m_schema_version(schema_version),
     m_feature_count(feature_count),
@@ -48,26 +47,25 @@ TimelineSourceSummary::TimelineSourceSummary(std::string schema, std::size_t sch
     }
 }
 
-TimelineDocument::TimelineDocument(Ticks ticks_per_second, TimelineMetadata metadata) :
-    TimelineDocument(Timebase(ticks_per_second), std::move(metadata))
+Document::Document(Ticks ticks_per_second, Metadata metadata) :
+    Document(Timebase(ticks_per_second), std::move(metadata))
 {
 }
 
-TimelineDocument::TimelineDocument(Timebase timebase, TimelineMetadata metadata) :
+Document::Document(Timebase timebase, Metadata metadata) :
     m_timebase(timebase),
     m_metadata(std::move(metadata))
 {
 }
 
-TimelineDocument::TimelineDocument(Timebase timebase, TimelineSourceSummary source_summary, TimelineMetadata metadata) :
+Document::Document(Timebase timebase, SourceSummary source_summary, Metadata metadata) :
     m_timebase(timebase),
     m_metadata(std::move(metadata)),
     m_source_summary(std::move(source_summary))
 {
 }
 
-TimelineDocument::TimelineDocument(
-    FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count, TimelineMetadata metadata) :
+Document::Document(FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count, Metadata metadata) :
     m_timebase(frame_grid.timebase()),
     m_metadata(std::move(metadata)),
     m_frame_grid(std::move(frame_grid)),
@@ -76,8 +74,7 @@ TimelineDocument::TimelineDocument(
 {
 }
 
-TimelineDocument::TimelineDocument(
-    FrameGrid frame_grid, TimelineSourceSummary source_summary, TimelineMetadata metadata) :
+Document::Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata) :
     m_timebase(frame_grid.timebase()),
     m_metadata(std::move(metadata)),
     m_frame_grid(std::move(frame_grid)),

@@ -16,19 +16,19 @@ class wxTimelineControl : public wxPanel
 public:
     explicit wxTimelineControl(wxWindow *parent, wxWindowID id = wxID_ANY);
 
-    void set_document(timeline::TimelineDocument document);
+    void set_document(timeline::Document document);
 
     bool has_document() const
     {
         return m_document.has_value();
     }
-    const timeline::TimelineDocument *document() const
+    const std::optional<timeline::Document> &document() const
     {
-        return m_document ? &*m_document : nullptr;
+        return m_document;
     }
 
 private:
     void on_paint(wxPaintEvent &event);
 
-    std::optional<timeline::TimelineDocument> m_document;
+    std::optional<timeline::Document> m_document;
 };

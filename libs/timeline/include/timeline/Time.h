@@ -22,17 +22,17 @@ enum class TimeRounding
 
 /// Signed elapsed interval on a timeline.
 ///
-/// A duration has no origin until it is combined with a TimelineTime. Its value
+/// A duration has no origin until it is combined with a Time. Its value
 /// is an exact count of ticks in the associated timebase.
 ///
-class TimelineDuration
+class Duration
 {
 public:
-    constexpr TimelineDuration() = default;
+    constexpr Duration() = default;
 
-    static TimelineDuration from_ticks(Ticks ticks)
+    static Duration from_ticks(Ticks ticks)
     {
-        return TimelineDuration(ticks);
+        return Duration(ticks);
     }
 
     Ticks ticks() const
@@ -41,7 +41,7 @@ public:
     }
 
 private:
-    explicit TimelineDuration(Ticks ticks) :
+    explicit Duration(Ticks ticks) :
         m_ticks(ticks)
     {
     }
@@ -54,14 +54,14 @@ private:
 /// A timeline time is an exact tick coordinate. Applications choose the meaning
 /// of zero by placing content relative to a timebase and optional offsets.
 ///
-class TimelineTime
+class Time
 {
 public:
-    constexpr TimelineTime() = default;
+    constexpr Time() = default;
 
-    static TimelineTime from_ticks(Ticks ticks)
+    static Time from_ticks(Ticks ticks)
     {
-        return TimelineTime(ticks);
+        return Time(ticks);
     }
 
     Ticks ticks() const
@@ -70,7 +70,7 @@ public:
     }
 
 private:
-    explicit TimelineTime(Ticks ticks) :
+    explicit Time(Ticks ticks) :
         m_ticks(ticks)
     {
     }
@@ -78,37 +78,37 @@ private:
     Ticks m_ticks{0};
 };
 
-inline bool operator==(TimelineDuration lhs, TimelineDuration rhs)
+inline bool operator==(Duration lhs, Duration rhs)
 {
     return lhs.ticks() == rhs.ticks();
 }
-inline bool operator!=(TimelineDuration lhs, TimelineDuration rhs)
+inline bool operator!=(Duration lhs, Duration rhs)
 {
     return !(lhs == rhs);
 }
-inline bool operator==(TimelineTime lhs, TimelineTime rhs)
+inline bool operator==(Time lhs, Time rhs)
 {
     return lhs.ticks() == rhs.ticks();
 }
-inline bool operator!=(TimelineTime lhs, TimelineTime rhs)
+inline bool operator!=(Time lhs, Time rhs)
 {
     return !(lhs == rhs);
 }
-inline bool operator<(TimelineTime lhs, TimelineTime rhs)
+inline bool operator<(Time lhs, Time rhs)
 {
     return lhs.ticks() < rhs.ticks();
 }
-inline bool operator<=(TimelineTime lhs, TimelineTime rhs)
+inline bool operator<=(Time lhs, Time rhs)
 {
     return lhs.ticks() <= rhs.ticks();
 }
-inline TimelineTime operator+(TimelineTime lhs, TimelineDuration rhs)
+inline Time operator+(Time lhs, Duration rhs)
 {
-    return TimelineTime::from_ticks(lhs.ticks() + rhs.ticks());
+    return Time::from_ticks(lhs.ticks() + rhs.ticks());
 }
-inline TimelineDuration operator-(TimelineTime lhs, TimelineTime rhs)
+inline Duration operator-(Time lhs, Time rhs)
 {
-    return TimelineDuration::from_ticks(lhs.ticks() - rhs.ticks());
+    return Duration::from_ticks(lhs.ticks() - rhs.ticks());
 }
 
 /// Tick rate that maps exact timeline ticks to seconds.
@@ -125,21 +125,21 @@ public:
     {
         return m_ticks_per_second;
     }
-    TimelineDuration duration_from_seconds_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding) const;
-    TimelineTime time_from_seconds_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding) const
+    Duration duration_from_seconds_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding) const;
+    Time time_from_seconds_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding) const
     {
-        return TimelineTime::from_ticks(duration_from_seconds_ratio(numerator, denominator, rounding).ticks());
+        return Time::from_ticks(duration_from_seconds_ratio(numerator, denominator, rounding).ticks());
     }
-    TimelineDuration duration_from_seconds(double seconds, TimeRounding rounding) const;
-    TimelineTime time_from_seconds(double seconds, TimeRounding rounding) const
+    Duration duration_from_seconds(double seconds, TimeRounding rounding) const;
+    Time time_from_seconds(double seconds, TimeRounding rounding) const
     {
-        return TimelineTime::from_ticks(duration_from_seconds(seconds, rounding).ticks());
+        return Time::from_ticks(duration_from_seconds(seconds, rounding).ticks());
     }
-    double seconds(TimelineDuration duration) const
+    double seconds(Duration duration) const
     {
         return static_cast<double>(duration.ticks()) / static_cast<double>(m_ticks_per_second);
     }
-    double seconds(TimelineTime time) const
+    double seconds(Time time) const
     {
         return static_cast<double>(time.ticks()) / static_cast<double>(m_ticks_per_second);
     }
@@ -158,7 +158,7 @@ class FrameGrid
 {
 public:
     FrameGrid(Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator,
-        Ticks frames_per_second_denominator, TimelineTime offset = TimelineTime{});
+        Ticks frames_per_second_denominator, Time offset = Time{});
 
     const Timebase &timebase() const
     {
@@ -176,30 +176,30 @@ public:
     {
         return m_frames_per_second_denominator;
     }
-    TimelineDuration frame_duration() const
+    Duration frame_duration() const
     {
         return m_frame_duration;
     }
-    TimelineTime offset() const
+    Time offset() const
     {
         return m_offset;
     }
-    TimelineDuration duration() const;
-    TimelineTime end_time() const
+    Duration duration() const;
+    Time end_time() const
     {
         return m_offset + duration();
     }
-    TimelineTime frame_start(Ticks frame_index) const;
-    std::optional<Ticks> frame_at_or_before(TimelineTime time) const;
-    std::optional<Ticks> nearest_frame(TimelineTime time) const;
+    Time frame_start(Ticks frame_index) const;
+    std::optional<Ticks> frame_at_or_before(Time time) const;
+    std::optional<Ticks> nearest_frame(Time time) const;
 
 private:
     Timebase m_timebase;
     Ticks m_frame_count;
     Ticks m_frames_per_second_numerator;
     Ticks m_frames_per_second_denominator;
-    TimelineDuration m_frame_duration;
-    TimelineTime m_offset;
+    Duration m_frame_duration;
+    Time m_offset;
 };
 
 } // namespace timeline

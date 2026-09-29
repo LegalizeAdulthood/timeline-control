@@ -62,7 +62,7 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
     }
 
     const auto source_path = std::filesystem::path(dialog.GetPath().ToStdWstring());
-    auto import_options = timeline_par_animator::TimelineJsonImportOptions{};
+    auto import_options = timeline_par_animator::JsonImportOptions{};
     const auto beat_keys_config_path = source_path.parent_path() / "adapter.beat-keys.json";
     auto filesystem_error = std::error_code{};
     if (std::filesystem::is_regular_file(beat_keys_config_path, filesystem_error))
