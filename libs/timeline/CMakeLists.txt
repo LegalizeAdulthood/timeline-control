@@ -8,6 +8,7 @@ add_library(timeline-core
     include/timeline/Keyframe.h
     include/timeline/Lane.h
     include/timeline/Layout.h
+    include/timeline/Query.h
     include/timeline/size_cast.h
     include/timeline/Time.h
     Curve.cpp
@@ -18,6 +19,7 @@ add_library(timeline-core
     Keyframe.cpp
     Lane.cpp
     Layout.cpp
+    Query.cpp
     Time.cpp
 )
 

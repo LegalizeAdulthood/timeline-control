@@ -237,4 +237,19 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
     }
 }
 
+Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    if (metrics.lane_label_width() >= viewport.width())
+    {
+        throw std::invalid_argument("timeline lane labels leave no content width");
+    }
+
+    const auto left = metrics.lane_label_width();
+    const auto position = std::clamp(x, left, viewport.width()) - left;
+    const auto width = viewport.width() - left;
+    const auto duration = viewport.end().ticks() - viewport.start().ticks();
+    const auto elapsed = static_cast<Ticks>(std::llround(static_cast<double>(position) * duration / width));
+    return Time::from_ticks(viewport.start().ticks() + elapsed);
+}
+
 } // namespace timeline

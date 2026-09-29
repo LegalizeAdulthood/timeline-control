@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <utility>
 
+wxDEFINE_EVENT(wxEVT_TIMELINE_INSPECTION_CHANGED, wxCommandEvent);
+
 wxTimelineControl::wxTimelineControl(wxWindow *parent) :
     wxTimelineControl(parent, wxID_ANY)
 {
@@ -18,13 +20,47 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     wxPanel(parent, id)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
+    Bind(wxEVT_MOTION, &wxTimelineControl::on_mouse_move, this);
     Bind(wxEVT_PAINT, &wxTimelineControl::on_paint, this);
 }
 
 void wxTimelineControl::set_document(timeline::Document document)
 {
     m_document = std::move(document);
+    m_inspection.reset();
+    if (m_document->frame_grid() && m_document->frame_grid()->frame_count() > 0)
+    {
+        m_inspection = timeline::inspect_frame(*m_document, 0);
+    }
+    notify_inspection_changed();
     Refresh(false);
+}
+
+void wxTimelineControl::notify_inspection_changed()
+{
+    auto event = wxCommandEvent(wxEVT_TIMELINE_INSPECTION_CHANGED, GetId());
+    event.SetEventObject(this);
+    ProcessWindowEvent(event);
+}
+
+void wxTimelineControl::on_mouse_move(wxMouseEvent &event)
+{
+    if (!m_document || !m_document->frame_grid() || !m_layout_metrics || !m_viewport ||
+        event.GetX() < m_layout_metrics->lane_label_width() || m_viewport->width() < event.GetX() ||
+        event.GetY() < m_layout_top || m_layout_top + m_viewport->height() <= event.GetY())
+    {
+        event.Skip();
+        return;
+    }
+
+    const auto time = timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics);
+    const auto frame = m_document->frame_grid()->nearest_frame(time);
+    if (frame && (!m_inspection || m_inspection->frame != *frame))
+    {
+        m_inspection = timeline::inspect_frame(*m_document, *frame);
+        notify_inspection_changed();
+    }
+    event.Skip();
 }
 
 void wxTimelineControl::on_paint(wxPaintEvent &)
@@ -33,6 +69,9 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     dc.SetBackground(wxBrush(GetBackgroundColour()));
     dc.Clear();
     dc.SetTextForeground(GetForegroundColour());
+    m_layout_metrics.reset();
+    m_viewport.reset();
+    m_layout_top = 0;
 
     auto position = wxPoint(12, 12);
     const auto draw_line = [&dc, &position](const wxString &text)
@@ -110,8 +149,8 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     }
 
     const auto client_size = GetClientSize();
-    const auto layout_top = position.y + 8;
-    const auto layout_height = client_size.GetHeight() - layout_top - 8;
+    m_layout_top = position.y + 8;
+    const auto layout_height = client_size.GetHeight() - m_layout_top - 8;
     if (client_size.GetWidth() <= 160 || layout_height <= 40)
     {
         return;
@@ -123,8 +162,8 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
         label_width = std::max(label_width, dc.GetTextExtent(wxString::FromUTF8(lane.label().c_str())).GetWidth() + 16);
     }
     label_width = std::min(label_width, client_size.GetWidth() / 2);
-    const auto metrics = timeline::LayoutMetrics(label_width, dc.GetCharHeight() + 8, dc.GetCharHeight() + 16, 4);
-    const auto viewport = timeline::Viewport(client_size.GetWidth(), layout_height, *content_start, *content_end);
-    const auto layout = timeline::Layout(*m_document, viewport, metrics);
-    draw_timeline_display_list(dc, layout.display_list(), wxPoint(0, layout_top));
+    m_layout_metrics.emplace(label_width, dc.GetCharHeight() + 8, dc.GetCharHeight() + 16, 4);
+    m_viewport.emplace(client_size.GetWidth(), layout_height, *content_start, *content_end);
+    const auto layout = timeline::Layout(*m_document, *m_viewport, *m_layout_metrics);
+    draw_timeline_display_list(dc, layout.display_list(), wxPoint(0, m_layout_top));
 }

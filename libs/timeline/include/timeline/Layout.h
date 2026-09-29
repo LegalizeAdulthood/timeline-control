@@ -95,4 +95,7 @@ private:
     DisplayList m_display_list;
 };
 
+/// Maps a horizontal host position into the viewport's exact time range.
+Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics);
+
 } // namespace timeline

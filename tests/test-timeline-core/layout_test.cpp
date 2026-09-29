@@ -124,3 +124,15 @@ TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
     EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[7]).style);
     EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[8]).style);
 }
+
+TEST(Layout, maps_horizontal_positions_to_timeline_time)
+{
+    const auto viewport = Viewport(300, 100, at(0), at(100));
+    const auto metrics = LayoutMetrics(100, 20, 30, 4);
+
+    EXPECT_EQ(0, time_at_x(0, viewport, metrics).ticks());
+    EXPECT_EQ(0, time_at_x(100, viewport, metrics).ticks());
+    EXPECT_EQ(50, time_at_x(200, viewport, metrics).ticks());
+    EXPECT_EQ(100, time_at_x(300, viewport, metrics).ticks());
+    EXPECT_EQ(100, time_at_x(400, viewport, metrics).ticks());
+}

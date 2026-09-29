@@ -4,11 +4,54 @@
 #include <wxTimeline/wxTimelineControl.h>
 
 #include <wx/filedlg.h>
+#include <wx/sizer.h>
+#include <wx/textctrl.h>
 #include <wx/wx.h>
 
 #include <filesystem>
 #include <system_error>
 #include <utility>
+
+namespace
+{
+
+const char *item_type_name(timeline::InspectionItemType type)
+{
+    switch (type)
+    {
+    case timeline::InspectionItemType::INSTANT:
+        return "instant";
+    case timeline::InspectionItemType::INTERVAL:
+        return "interval";
+    case timeline::InspectionItemType::ENVELOPE:
+        return "envelope";
+    case timeline::InspectionItemType::CURVE:
+        return "curve";
+    case timeline::InspectionItemType::KEYFRAME:
+        return "keyframe";
+    }
+    return "item";
+}
+
+const char *item_role_name(timeline::InspectionItemRole role)
+{
+    switch (role)
+    {
+    case timeline::InspectionItemRole::ACTIVE:
+        return "active";
+    case timeline::InspectionItemRole::SAMPLED:
+        return "sampled";
+    case timeline::InspectionItemRole::BEFORE:
+        return "before";
+    case timeline::InspectionItemRole::AFTER:
+        return "after";
+    case timeline::InspectionItemRole::EXACT:
+        return "exact";
+    }
+    return "item";
+}
+
+} // namespace
 
 /// Main window that composes JSON adapters with the wx timeline control.
 ///
@@ -18,11 +61,13 @@ public:
     TimelineViewerFrame();
 
 private:
+    void on_inspection_changed(wxCommandEvent &event);
     void on_open(wxCommandEvent &event);
     void on_exit(wxCommandEvent &event);
     void show_import_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
     wxTimelineControl *m_timeline_control;
+    wxTextCtrl *m_inspector;
 };
 
 /// wxWidgets application for manually exercising the timeline control.
@@ -35,7 +80,9 @@ public:
 
 TimelineViewerFrame::TimelineViewerFrame() :
     wxFrame(nullptr, wxID_ANY, "Timeline Viewer", wxDefaultPosition, wxSize(800, 500)),
-    m_timeline_control(new wxTimelineControl(this))
+    m_timeline_control(new wxTimelineControl(this)),
+    m_inspector(new wxTextCtrl(
+        this, wxID_ANY, "No frame inspection.", wxDefaultPosition, wxSize(280, -1), wxTE_MULTILINE | wxTE_READONLY))
 {
     auto *file_menu = new wxMenu;
     file_menu->Append(wxID_OPEN, "&Open...\tCtrl+O");
@@ -48,8 +95,48 @@ TimelineViewerFrame::TimelineViewerFrame() :
     CreateStatusBar();
     SetStatusText("No timeline loaded");
 
+    auto *content = new wxBoxSizer(wxHORIZONTAL);
+    content->Add(m_timeline_control, 1, wxEXPAND);
+    content->Add(m_inspector, 0, wxEXPAND | wxLEFT, 1);
+    SetSizer(content);
+
+    m_timeline_control->Bind(wxEVT_TIMELINE_INSPECTION_CHANGED, &TimelineViewerFrame::on_inspection_changed, this);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_open, this, wxID_OPEN);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_exit, this, wxID_EXIT);
+}
+
+void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
+{
+    const auto &inspection = m_timeline_control->inspection();
+    if (!inspection)
+    {
+        m_inspector->SetValue("No frame inspection.");
+        return;
+    }
+
+    auto text = wxString::Format("Frame: %lld\nTime: %.6f seconds\n", static_cast<long long>(inspection->frame),
+        m_timeline_control->document()->timebase().seconds(inspection->time));
+    for (const auto &lane : inspection->lanes)
+    {
+        text += "\n" + wxString::FromUTF8(lane.label.c_str()) + " [" + wxString::FromUTF8(lane.kind.c_str()) + "]";
+        text += wxString::Format("\n  Source items: %d", lane.item_count);
+        if (lane.items.empty())
+        {
+            text += "\n  No activity";
+            continue;
+        }
+        for (const auto &item : lane.items)
+        {
+            text += "\n  " + wxString::FromUTF8(item_type_name(item.type)) + " " + wxString::FromUTF8(item.id.c_str()) +
+                " (" + wxString::FromUTF8(item_role_name(item.role)) + ")";
+            if (item.value)
+            {
+                text += wxString::Format(": %.6f", *item.value);
+            }
+        }
+    }
+    m_inspector->SetValue(text);
+    SetStatusText(wxString::Format("Frame %lld", static_cast<long long>(inspection->frame)));
 }
 
 void TimelineViewerFrame::on_open(wxCommandEvent &)
