@@ -47,5 +47,15 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     draw_line(m_document->is_valid() ? "Valid: yes" : "Valid: no");
     draw_line(
         wxString::Format("Ticks per second: %lld", static_cast<long long>(m_document->timebase().ticks_per_second())));
+    if (m_document->frame_grid())
+    {
+        const auto &frame_grid = *m_document->frame_grid();
+        draw_line(wxString::Format("Frames: %lld", static_cast<long long>(frame_grid.frame_count())));
+        draw_line(wxString::Format("Frame rate: %lld/%lld fps",
+            static_cast<long long>(frame_grid.frames_per_second_numerator()),
+            static_cast<long long>(frame_grid.frames_per_second_denominator())));
+    }
+    draw_line(wxString::Format("Tracks: %llu", static_cast<unsigned long long>(m_document->track_count())));
+    draw_line(wxString::Format("Keyframes: %llu", static_cast<unsigned long long>(m_document->keyframe_count())));
     draw_line(wxString::Format("Lanes: %llu", static_cast<unsigned long long>(m_document->lane_count())));
 }

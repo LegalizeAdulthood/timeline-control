@@ -160,6 +160,10 @@ public:
     FrameGrid(Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator,
         Ticks frames_per_second_denominator, TimelineTime offset = TimelineTime{});
 
+    const Timebase &timebase() const
+    {
+        return m_timebase;
+    }
     Ticks frame_count() const
     {
         return m_frame_count;

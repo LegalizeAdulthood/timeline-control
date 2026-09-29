@@ -4,7 +4,8 @@
   "description": "Sample code for the Utah C++ Programmers video Timeline Control",
   "version-semver": "1.0.0",
   "dependencies": [
-    "gtest"
+    "gtest",
+    "nlohmann-json"
   ],
   "features": {
     "wx": {

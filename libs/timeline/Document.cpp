@@ -22,4 +22,14 @@ TimelineDocument::TimelineDocument(Timebase timebase, TimelineMetadata metadata)
 {
 }
 
+TimelineDocument::TimelineDocument(
+    FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count, TimelineMetadata metadata) :
+    m_timebase(frame_grid.timebase()),
+    m_metadata(std::move(metadata)),
+    m_frame_grid(std::move(frame_grid)),
+    m_track_count(track_count),
+    m_keyframe_count(keyframe_count)
+{
+}
+
 } // namespace timeline

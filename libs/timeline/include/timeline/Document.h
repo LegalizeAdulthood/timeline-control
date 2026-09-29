@@ -3,6 +3,7 @@
 #include <timeline/Time.h>
 
 #include <cstddef>
+#include <optional>
 #include <string>
 
 namespace timeline
@@ -43,6 +44,8 @@ class TimelineDocument
 public:
     explicit TimelineDocument(Ticks ticks_per_second, TimelineMetadata metadata = TimelineMetadata{});
     explicit TimelineDocument(Timebase timebase, TimelineMetadata metadata = TimelineMetadata{});
+    TimelineDocument(FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count,
+        TimelineMetadata metadata = TimelineMetadata{});
 
     const Timebase &timebase() const
     {
@@ -51,6 +54,18 @@ public:
     const TimelineMetadata &metadata() const
     {
         return m_metadata;
+    }
+    const std::optional<FrameGrid> &frame_grid() const
+    {
+        return m_frame_grid;
+    }
+    std::size_t track_count() const
+    {
+        return m_track_count;
+    }
+    std::size_t keyframe_count() const
+    {
+        return m_keyframe_count;
     }
     bool is_valid() const
     {
@@ -68,6 +83,9 @@ public:
 private:
     Timebase m_timebase;
     TimelineMetadata m_metadata;
+    std::optional<FrameGrid> m_frame_grid;
+    std::size_t m_track_count{0};
+    std::size_t m_keyframe_count{0};
 };
 
 } // namespace timeline

@@ -107,3 +107,16 @@ TEST(TimelineDocument, reports_zero_lanes)
     EXPECT_TRUE(document.lanes_empty());
     EXPECT_EQ(0U, document.lane_count());
 }
+
+TEST(TimelineDocument, preserves_frame_and_authored_content_summary)
+{
+    const auto frame_grid = FrameGrid(Timebase(24000), 3, 24, 1);
+    const auto document = TimelineDocument(frame_grid, 2, 4);
+
+    EXPECT_EQ(24000, document.timebase().ticks_per_second());
+    ASSERT_TRUE(document.frame_grid().has_value());
+    EXPECT_EQ(3, document.frame_grid()->frame_count());
+    EXPECT_EQ(2U, document.track_count());
+    EXPECT_EQ(4U, document.keyframe_count());
+    EXPECT_TRUE(document.lanes_empty());
+}

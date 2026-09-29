@@ -61,7 +61,8 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
     }
 
     const auto source_path = std::filesystem::path(dialog.GetPath().ToStdWstring());
-    auto result = timeline_par_animator::import_timeline_json(source_path);
+    const auto import_options = timeline_par_animator::TimelineJsonImportOptions{};
+    auto result = timeline_par_animator::import_timeline_json(source_path, import_options);
     if (!result.succeeded())
     {
         show_import_error(result.diagnostics);
