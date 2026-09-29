@@ -25,15 +25,23 @@ jobs:
         fetch-depth: 0
         submodules: true
 
-    #- name: Install Prerequisites Linux
-    #  if: ${{matrix.os == 'ubuntu-latest'}}
-    #  shell: bash
-    #  env:
-    #    DEBIAN_FRONTEND: noninteractive
-    #  run: |
-    #    ${{github.workspace}}/vcpkg/bootstrap-vcpkg.sh
-    #    echo "man-db man-db/auto-update boolean false" | sudo debconf-set-selections
-    #    sudo dpkg-reconfigure man-db
+    - name: Install Prerequisites Linux
+      if: ${{matrix.os == 'ubuntu-latest'}}
+      shell: bash
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        echo "man-db man-db/auto-update boolean false" | sudo debconf-set-selections
+        sudo dpkg-reconfigure man-db
+        sudo apt-get update
+        sed 's/#.*//' ${{github.workspace}}/.github/workflows/wx-requirements.txt | xargs sudo apt-get install
+
+    - name: Install Prerequisites macOS
+      if: ${{startsWith(matrix.os, 'macos-')}}
+      shell: bash
+      run: |
+        brew untap aws/tap || true
+        brew install autoconf automake libtool pkg-config
 
     - name: Setup vcpkg package cache
       id: vc
