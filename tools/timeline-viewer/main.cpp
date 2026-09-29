@@ -64,6 +64,9 @@ private:
     void on_inspection_changed(wxCommandEvent &event);
     void on_open(wxCommandEvent &event);
     void on_exit(wxCommandEvent &event);
+    void on_zoom_in(wxCommandEvent &event);
+    void on_zoom_out(wxCommandEvent &event);
+    void on_fit_view(wxCommandEvent &event);
     void show_import_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
     wxTimelineControl *m_timeline_control;
@@ -89,8 +92,14 @@ TimelineViewerFrame::TimelineViewerFrame() :
     file_menu->AppendSeparator();
     file_menu->Append(wxID_EXIT, "E&xit");
 
+    auto *view_menu = new wxMenu;
+    view_menu->Append(wxID_ZOOM_IN, "Zoom &In\tCtrl++");
+    view_menu->Append(wxID_ZOOM_OUT, "Zoom &Out\tCtrl+-");
+    view_menu->Append(wxID_ZOOM_100, "&Fit\tCtrl+0");
+
     auto *menu_bar = new wxMenuBar;
     menu_bar->Append(file_menu, "&File");
+    menu_bar->Append(view_menu, "&View");
     SetMenuBar(menu_bar);
     CreateStatusBar();
     SetStatusText("No timeline loaded");
@@ -103,6 +112,9 @@ TimelineViewerFrame::TimelineViewerFrame() :
     m_timeline_control->Bind(wxEVT_TIMELINE_INSPECTION_CHANGED, &TimelineViewerFrame::on_inspection_changed, this);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_open, this, wxID_OPEN);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_exit, this, wxID_EXIT);
+    Bind(wxEVT_MENU, &TimelineViewerFrame::on_zoom_in, this, wxID_ZOOM_IN);
+    Bind(wxEVT_MENU, &TimelineViewerFrame::on_zoom_out, this, wxID_ZOOM_OUT);
+    Bind(wxEVT_MENU, &TimelineViewerFrame::on_fit_view, this, wxID_ZOOM_100);
 }
 
 void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
@@ -176,6 +188,21 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
 void TimelineViewerFrame::on_exit(wxCommandEvent &)
 {
     Close(true);
+}
+
+void TimelineViewerFrame::on_zoom_in(wxCommandEvent &)
+{
+    m_timeline_control->zoom_in();
+}
+
+void TimelineViewerFrame::on_zoom_out(wxCommandEvent &)
+{
+    m_timeline_control->zoom_out();
+}
+
+void TimelineViewerFrame::on_fit_view(wxCommandEvent &)
+{
+    m_timeline_control->fit_view();
 }
 
 void TimelineViewerFrame::show_import_diagnostics(

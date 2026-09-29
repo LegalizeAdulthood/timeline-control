@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Richard Thomson
 
 #include <timeline/Layout.h>
+#include <timeline/size_cast.h>
 
 #include <gtest/gtest.h>
 
+#include <type_traits>
 #include <variant>
 
 using namespace timeline;
@@ -19,6 +21,47 @@ Time at(Ticks ticks)
 Duration lasting(Ticks ticks)
 {
     return Duration::from_ticks(ticks);
+}
+
+void expect_same_geometry(const Primitive &lhs, const Primitive &rhs)
+{
+    ASSERT_EQ(lhs.index(), rhs.index());
+    std::visit(
+        [&rhs](const auto &left)
+        {
+            using Value = std::decay_t<decltype(left)>;
+            const auto &right = std::get<Value>(rhs);
+            if constexpr (std::is_same_v<Value, Line>)
+            {
+                EXPECT_EQ(left.x1, right.x1);
+                EXPECT_EQ(left.y1, right.y1);
+                EXPECT_EQ(left.x2, right.x2);
+                EXPECT_EQ(left.y2, right.y2);
+            }
+            else if constexpr (std::is_same_v<Value, Rectangle>)
+            {
+                EXPECT_EQ(left.x, right.x);
+                EXPECT_EQ(left.y, right.y);
+                EXPECT_EQ(left.width, right.width);
+                EXPECT_EQ(left.height, right.height);
+            }
+            else if constexpr (std::is_same_v<Value, Text>)
+            {
+                EXPECT_EQ(left.x, right.x);
+                EXPECT_EQ(left.y, right.y);
+            }
+            else
+            {
+                ASSERT_EQ(left.points.size(), right.points.size());
+                for (auto index = 0; index < size_cast(left.points); ++index)
+                {
+                    EXPECT_EQ(left.points[index].x, right.points[index].x);
+                    EXPECT_EQ(left.points[index].y, right.points[index].y);
+                }
+            }
+            EXPECT_EQ(left.style, right.style);
+        },
+        lhs);
 }
 
 } // namespace
@@ -135,4 +178,101 @@ TEST(Layout, maps_horizontal_positions_to_timeline_time)
     EXPECT_EQ(50, time_at_x(200, viewport, metrics).ticks());
     EXPECT_EQ(100, time_at_x(300, viewport, metrics).ticks());
     EXPECT_EQ(100, time_at_x(400, viewport, metrics).ticks());
+}
+
+TEST(Layout, computes_visible_frame_range)
+{
+    const auto grid = FrameGrid(Timebase(100), 10, 10, 1);
+    const auto range = visible_frame_range(grid, Viewport(300, 100, at(25), at(65)));
+
+    ASSERT_TRUE(range.has_value());
+    EXPECT_EQ(2, range->first());
+    EXPECT_EQ(6, range->last());
+}
+
+TEST(Layout, maps_frames_to_pixels_and_back)
+{
+    const auto grid = FrameGrid(Timebase(100), 10, 10, 1);
+    const auto viewport = Viewport(300, 100, at(20), at(60));
+    const auto metrics = LayoutMetrics(100, 20, 20, 4);
+
+    EXPECT_EQ(100, frame_x(2, grid, viewport, metrics));
+    EXPECT_EQ(200, frame_x(4, grid, viewport, metrics));
+    EXPECT_EQ(300, frame_x(6, grid, viewport, metrics));
+    EXPECT_EQ(3, *frame_at_x(150, grid, viewport, metrics));
+    EXPECT_EQ(5, *frame_at_x(250, grid, viewport, metrics));
+}
+
+TEST(Layout, keeps_lane_heights_stable_while_scrolling)
+{
+    auto document = Document(100);
+    document.add_lane(Lane("a", "Lane A", "events", at(0), at(100)));
+    document.add_lane(Lane("b", "Lane B", "events", at(0), at(100)));
+    document.add_lane(Lane("c", "Lane C", "events", at(0), at(100)));
+    document.add_lane(Lane("d", "Lane D", "events", at(0), at(100)));
+    const auto viewport = Viewport(300, 75, at(0), at(100), 1);
+    const auto metrics = LayoutMetrics(100, 20, 20, 4);
+    const auto layout = Layout(document, viewport, metrics);
+    const auto &primitives = layout.display_list().primitives();
+
+    EXPECT_EQ(2, visible_lane_count(viewport, metrics));
+    EXPECT_EQ(20, *lane_y(1, viewport, metrics));
+    EXPECT_EQ(40, *lane_y(2, viewport, metrics));
+    EXPECT_FALSE(lane_y(3, viewport, metrics).has_value());
+    EXPECT_EQ(1, *lane_at_y(20, document.lane_count(), viewport, metrics));
+    EXPECT_EQ(2, *lane_at_y(59, document.lane_count(), viewport, metrics));
+    EXPECT_FALSE(lane_at_y(60, document.lane_count(), viewport, metrics).has_value());
+
+    ASSERT_EQ(6U, primitives.size());
+    EXPECT_EQ(20, std::get<Rectangle>(primitives[2]).height);
+    EXPECT_EQ("Lane B", std::get<Text>(primitives[3]).value);
+    EXPECT_EQ(20, std::get<Rectangle>(primitives[4]).height);
+    EXPECT_EQ("Lane C", std::get<Text>(primitives[5]).value);
+}
+
+TEST(Layout, navigates_exact_ranges_without_changing_document_data)
+{
+    auto document = Document(100);
+    document.add_lane(Lane("lane", "Lane", "events", at(0), at(100)));
+    auto navigation = Navigation(at(0), at(100), 5);
+
+    navigation.zoom_by(2.0, at(50));
+    auto viewport = navigation.viewport(300, 100);
+    EXPECT_EQ(25, viewport.start().ticks());
+    EXPECT_EQ(75, viewport.end().ticks());
+    EXPECT_DOUBLE_EQ(2.0, navigation.zoom_scale());
+
+    navigation.scroll_to(at(90));
+    viewport = navigation.viewport(300, 100);
+    EXPECT_EQ(50, viewport.start().ticks());
+    EXPECT_EQ(100, viewport.end().ticks());
+    EXPECT_EQ(50, navigation.horizontal_offset().ticks());
+
+    navigation.scroll_to_fraction(0.0);
+    navigation.scroll_to_lane(99, 2);
+    viewport = navigation.viewport(300, 100);
+    EXPECT_EQ(0, viewport.start().ticks());
+    EXPECT_EQ(3, viewport.first_lane());
+    EXPECT_EQ(1, document.lane_count());
+    EXPECT_EQ("lane", document.lanes()[0].id());
+}
+
+TEST(Layout, produces_identical_geometry_for_identical_metrics)
+{
+    auto lane = Lane("music", "Music", "events", at(0), at(100));
+    lane.add(Instant("beat", "beat", at(50)));
+    auto document = Document(100);
+    document.add_lane(std::move(lane));
+    const auto viewport = Viewport(320, 80, at(0), at(100));
+    const auto metrics = LayoutMetrics(100, 20, 30, 4);
+    const auto first = Layout(document, viewport, metrics);
+    const auto second = Layout(document, viewport, metrics);
+    const auto &first_primitives = first.display_list().primitives();
+    const auto &second_primitives = second.display_list().primitives();
+
+    ASSERT_EQ(first_primitives.size(), second_primitives.size());
+    for (auto index = 0; index < size_cast(first_primitives); ++index)
+    {
+        expect_same_geometry(first_primitives[index], second_primitives[index]);
+    }
 }

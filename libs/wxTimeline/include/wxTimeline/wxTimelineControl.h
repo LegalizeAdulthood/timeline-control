@@ -21,6 +21,9 @@ public:
     wxTimelineControl(wxWindow *parent, wxWindowID id);
 
     void set_document(timeline::Document document);
+    void zoom_in();
+    void zoom_out();
+    void fit_view();
 
     bool has_document() const
     {
@@ -38,11 +41,17 @@ public:
 private:
     void notify_inspection_changed();
     void on_mouse_move(wxMouseEvent &event);
+    void on_mouse_wheel(wxMouseEvent &event);
     void on_paint(wxPaintEvent &event);
+    void on_resize(wxSizeEvent &event);
+    void on_scroll(wxScrollWinEvent &event);
+    void update_scrollbars();
+    void zoom_by(double factor);
 
     std::optional<timeline::Document> m_document;
     std::optional<timeline::FrameInspection> m_inspection;
     std::optional<timeline::LayoutMetrics> m_layout_metrics;
+    std::optional<timeline::Navigation> m_navigation;
     std::optional<timeline::Viewport> m_viewport;
     int m_layout_top{0};
 };

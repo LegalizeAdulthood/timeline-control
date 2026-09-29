@@ -141,14 +141,31 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
 } // namespace
 
 Viewport::Viewport(int width, int height, Time start, Time end) :
+    Viewport(width, height, start, end, 0)
+{
+}
+
+Viewport::Viewport(int width, int height, Time start, Time end, int first_lane) :
     m_width(width),
     m_height(height),
     m_start(start),
-    m_end(end)
+    m_end(end),
+    m_first_lane(first_lane)
 {
-    if (m_width <= 0 || m_height <= 0 || m_end <= m_start)
+    if (m_width <= 0 || m_height <= 0 || m_end <= m_start || m_first_lane < 0)
     {
-        throw std::invalid_argument("timeline viewport requires positive dimensions and duration");
+        throw std::invalid_argument(
+            "timeline viewport requires positive dimensions and duration, and a nonnegative lane offset");
+    }
+}
+
+FrameRange::FrameRange(Ticks first, Ticks last) :
+    m_first(first),
+    m_last(last)
+{
+    if (m_first < 0 || m_last < m_first)
+    {
+        throw std::invalid_argument("timeline frame range is invalid");
     }
 }
 
@@ -165,6 +182,106 @@ LayoutMetrics::LayoutMetrics(int lane_label_width, int ruler_height, int lane_he
     }
 }
 
+Navigation::Navigation(Time content_start, Time content_end, int lane_count) :
+    m_content_start(content_start),
+    m_content_end(content_end),
+    m_start(content_start),
+    m_end(content_end),
+    m_lane_count(lane_count)
+{
+    if (m_content_end <= m_content_start || m_lane_count < 0)
+    {
+        throw std::invalid_argument("timeline navigation requires a positive extent and lane count");
+    }
+}
+
+Viewport Navigation::viewport(int width, int height) const
+{
+    return Viewport(width, height, m_start, m_end, m_first_lane);
+}
+
+double Navigation::zoom_scale() const
+{
+    const auto content_duration = static_cast<double>(m_content_end.ticks() - m_content_start.ticks());
+    const auto visible_duration = static_cast<double>(m_end.ticks() - m_start.ticks());
+    return content_duration / visible_duration;
+}
+
+Duration Navigation::horizontal_offset() const
+{
+    return m_start - m_content_start;
+}
+
+double Navigation::horizontal_fraction() const
+{
+    const auto visible_duration = m_end.ticks() - m_start.ticks();
+    const auto maximum_offset = m_content_end.ticks() - m_content_start.ticks() - visible_duration;
+    if (maximum_offset == 0)
+    {
+        return 0.0;
+    }
+    return static_cast<double>(horizontal_offset().ticks()) / static_cast<double>(maximum_offset);
+}
+
+void Navigation::fit()
+{
+    m_start = m_content_start;
+    m_end = m_content_end;
+    m_first_lane = 0;
+}
+
+void Navigation::zoom_by(double factor, Time anchor)
+{
+    if (!std::isfinite(factor) || factor <= 0.0)
+    {
+        throw std::invalid_argument("timeline zoom factor must be finite and positive");
+    }
+
+    const auto content_duration = m_content_end.ticks() - m_content_start.ticks();
+    const auto visible_duration = m_end.ticks() - m_start.ticks();
+    const auto next_duration = std::clamp(
+        static_cast<Ticks>(std::llround(static_cast<double>(visible_duration) / factor)), Ticks{1}, content_duration);
+    const auto anchor_ticks = std::clamp(anchor.ticks(), m_start.ticks(), m_end.ticks());
+    const auto anchor_fraction =
+        static_cast<double>(anchor_ticks - m_start.ticks()) / static_cast<double>(visible_duration);
+    const auto anchored_start = anchor_ticks - static_cast<Ticks>(std::llround(anchor_fraction * next_duration));
+    const auto maximum_start = m_content_end.ticks() - next_duration;
+    const auto next_start = std::clamp(anchored_start, m_content_start.ticks(), maximum_start);
+    m_start = Time::from_ticks(next_start);
+    m_end = Time::from_ticks(next_start + next_duration);
+}
+
+void Navigation::scroll_to(Time start)
+{
+    const auto visible_duration = m_end.ticks() - m_start.ticks();
+    const auto maximum_start = m_content_end.ticks() - visible_duration;
+    const auto next_start = std::clamp(start.ticks(), m_content_start.ticks(), maximum_start);
+    m_start = Time::from_ticks(next_start);
+    m_end = Time::from_ticks(next_start + visible_duration);
+}
+
+void Navigation::scroll_to_fraction(double fraction)
+{
+    if (!std::isfinite(fraction))
+    {
+        throw std::invalid_argument("timeline scroll fraction must be finite");
+    }
+
+    const auto visible_duration = m_end.ticks() - m_start.ticks();
+    const auto maximum_offset = m_content_end.ticks() - m_content_start.ticks() - visible_duration;
+    const auto offset = static_cast<Ticks>(std::llround(std::clamp(fraction, 0.0, 1.0) * maximum_offset));
+    scroll_to(Time::from_ticks(m_content_start.ticks() + offset));
+}
+
+void Navigation::scroll_to_lane(int first_lane, int visible_lanes)
+{
+    if (visible_lanes <= 0)
+    {
+        throw std::invalid_argument("timeline navigation requires a visible lane count");
+    }
+    m_first_lane = std::clamp(first_lane, 0, std::max(0, m_lane_count - visible_lanes));
+}
+
 Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metrics)
 {
     if (metrics.lane_label_width() >= viewport.width())
@@ -176,19 +293,20 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         metrics.ruler_height() - 1, StyleRole::RULER});
     m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL});
 
-    auto y = metrics.ruler_height();
-    for (const auto &lane : document.lanes())
+    for (auto lane_index = viewport.first_lane(); lane_index < document.lane_count(); ++lane_index)
     {
-        if (y >= viewport.height())
+        const auto y = lane_y(lane_index, viewport, metrics);
+        if (!y)
         {
             break;
         }
-        const auto row_height = std::min(metrics.lane_height(), viewport.height() - y);
-        m_display_list.add(Rectangle{metrics.lane_label_width(), y, viewport.width() - metrics.lane_label_width(),
+        const auto &lane = document.lanes()[lane_index];
+        const auto row_height = metrics.lane_height();
+        m_display_list.add(Rectangle{metrics.lane_label_width(), *y, viewport.width() - metrics.lane_label_width(),
             row_height, StyleRole::LANE_BACKGROUND});
-        m_display_list.add(Text{4, y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL});
+        m_display_list.add(Text{4, *y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL});
 
-        const auto item_y = y + metrics.item_padding();
+        const auto item_y = *y + metrics.item_padding();
         const auto item_height = std::max(1, row_height - metrics.item_padding() * 2);
         add_keyframes(m_display_list, lane, item_y, item_height, viewport, metrics);
         for (const auto &item : lane.items())
@@ -233,7 +351,6 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                 },
                 item);
         }
-        y += metrics.lane_height();
     }
 }
 
@@ -250,6 +367,63 @@ Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics)
     const auto duration = viewport.end().ticks() - viewport.start().ticks();
     const auto elapsed = static_cast<Ticks>(std::llround(static_cast<double>(position) * duration / width));
     return Time::from_ticks(viewport.start().ticks() + elapsed);
+}
+
+std::optional<FrameRange> visible_frame_range(const FrameGrid &grid, const Viewport &viewport)
+{
+    if (grid.frame_count() == 0 || viewport.end() < grid.offset() || grid.end_time() < viewport.start())
+    {
+        return std::nullopt;
+    }
+
+    const auto start = Time::from_ticks(std::max(viewport.start().ticks(), grid.offset().ticks()));
+    const auto end = Time::from_ticks(std::min(viewport.end().ticks(), grid.end_time().ticks()));
+    return FrameRange(*grid.frame_at_or_before(start), *grid.frame_at_or_before(end));
+}
+
+int frame_x(Ticks frame, const FrameGrid &grid, const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    return time_x(grid.frame_start(frame), viewport, metrics);
+}
+
+std::optional<Ticks> frame_at_x(int x, const FrameGrid &grid, const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    return grid.nearest_frame(time_at_x(x, viewport, metrics));
+}
+
+int visible_lane_count(const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    return std::max(0, viewport.height() - metrics.ruler_height()) / metrics.lane_height();
+}
+
+std::optional<int> lane_y(int lane, const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    const auto relative_lane = lane - viewport.first_lane();
+    if (relative_lane < 0 || visible_lane_count(viewport, metrics) <= relative_lane)
+    {
+        return std::nullopt;
+    }
+    return metrics.ruler_height() + relative_lane * metrics.lane_height();
+}
+
+std::optional<int> lane_at_y(int y, int lane_count, const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    if (lane_count < 0)
+    {
+        throw std::invalid_argument("timeline lane count cannot be negative");
+    }
+    if (y < metrics.ruler_height())
+    {
+        return std::nullopt;
+    }
+
+    const auto relative_lane = (y - metrics.ruler_height()) / metrics.lane_height();
+    if (relative_lane < 0 || visible_lane_count(viewport, metrics) <= relative_lane)
+    {
+        return std::nullopt;
+    }
+    const auto lane = viewport.first_lane() + relative_lane;
+    return lane < lane_count ? std::optional<int>{lane} : std::nullopt;
 }
 
 } // namespace timeline
