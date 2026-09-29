@@ -208,6 +208,8 @@ public:
         Metadata metadata = Metadata{});
     Document(FrameGrid frame_grid, int track_count, int keyframe_count, Metadata metadata = Metadata{});
     Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata = Metadata{});
+    Document(FrameGrid frame_grid, SourceSummary source_summary, int track_count, int keyframe_count,
+        Metadata metadata = Metadata{});
 
     const Timebase &timebase() const
     {

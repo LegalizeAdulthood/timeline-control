@@ -2,6 +2,7 @@
 #include <wxTimeline/wxTimelineRenderer.h>
 
 #include <timeline/Layout.h>
+#include <timeline/size_cast.h>
 
 #include <wx/dcbuffer.h>
 
@@ -71,25 +72,9 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
             const auto &generation = *summary.generation_summary();
             draw_line("Generator: " + wxString::FromUTF8(generation.generator_name().c_str()) + " " +
                 wxString::FromUTF8(generation.generator_version().c_str()));
-            for (const auto &source : generation.source_references())
-            {
-                draw_line("Input " + wxString::FromUTF8(source.role().c_str()) + ": " +
-                    wxString::FromUTF8(source.location().c_str()));
-            }
-            draw_line(wxString::Format(
-                "Generated target groups: %llu", static_cast<unsigned long long>(generation.target_counts().size())));
-            for (const auto &target : generation.target_counts())
-            {
-                draw_line("Target " + wxString::FromUTF8(target.name().c_str()) +
-                    wxString::Format(": %d keyframes", target.count()));
-            }
-            draw_line(wxString::Format(
-                "Music source groups: %llu", static_cast<unsigned long long>(generation.source_counts().size())));
-            for (const auto &source : generation.source_counts())
-            {
-                draw_line("Source " + wxString::FromUTF8(source.name().c_str()) +
-                    wxString::Format(": %d keyframes", source.count()));
-            }
+            draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
+            draw_line(wxString::Format("Generated target groups: %d", timeline::size_cast(generation.target_counts())));
+            draw_line(wxString::Format("Music source groups: %d", timeline::size_cast(generation.source_counts())));
         }
         if (summary.first_frame())
         {

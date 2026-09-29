@@ -398,13 +398,38 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
         auto last_frame = std::optional<timeline::Ticks>{};
         auto target_counts = std::map<std::string, int>{};
         auto source_counts = std::map<std::string, int>{};
+        auto keyframes_by_target = std::map<std::string, std::vector<timeline::Keyframe>>{};
         for (const auto &keyframe : config.at("keyframes"))
         {
             const auto frame = keyframe.at("frame").get<timeline::Ticks>();
             first_frame = first_frame ? std::min(*first_frame, frame) : frame;
             last_frame = last_frame ? std::max(*last_frame, frame) : frame;
-            ++target_counts[keyframe.at("target").get<std::string>()];
-            ++source_counts[keyframe.at("source").get<std::string>()];
+            const auto target = keyframe.at("target").get<std::string>();
+            const auto source_name = keyframe.at("source").get<std::string>();
+            ++target_counts[target];
+            ++source_counts[source_name];
+        }
+
+        auto frame_grid = std::optional<timeline::FrameGrid>{};
+        if (last_frame)
+        {
+            if (*last_frame == std::numeric_limits<timeline::Ticks>::max())
+            {
+                throw std::overflow_error("beat-keys frame extent is too large");
+            }
+            frame_grid.emplace(timeline::Timebase(options.ticks_per_second), *last_frame + 1,
+                options.frames_per_second_numerator, options.frames_per_second_denominator);
+            auto keyframe_index = 0;
+            for (const auto &keyframe : config.at("keyframes"))
+            {
+                const auto target = keyframe.at("target").get<std::string>();
+                auto attributes = timeline::Attributes{{"operation", keyframe.at("op").get<std::string>()},
+                    {"source", keyframe.at("source").get<std::string>()}};
+                keyframes_by_target[target].emplace_back("keyframe-" + std::to_string(keyframe_index),
+                    frame_grid->frame_start(keyframe.at("frame").get<timeline::Ticks>()),
+                    keyframe.at("value").get<double>(), timeline::KeyframeInterpolation::HOLD, std::move(attributes));
+                ++keyframe_index;
+            }
         }
 
         const auto &generator = config.at("generator");
@@ -415,13 +440,35 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
                 timeline::SourceReference("timeline", source.at("timeline").get<std::string>()),
                 timeline::SourceReference("adapter_config", source.at("adapter_config").get<std::string>())},
             named_counts(target_counts), named_counts(source_counts));
+        const auto first_time =
+            first_frame ? std::optional<timeline::Time>{frame_grid->frame_start(*first_frame)} : std::nullopt;
+        const auto last_time =
+            last_frame ? std::optional<timeline::Time>{frame_grid->frame_start(*last_frame)} : std::nullopt;
         auto source_summary =
             timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(), 0, 0,
-                first_frame, last_frame, std::nullopt, std::nullopt, std::nullopt, std::move(generation_summary));
+                first_frame, last_frame, first_time, last_time, std::nullopt, std::move(generation_summary));
         auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
         append_diagnostic_array(config.at("diagnostics"), "warnings", "Warning: ", result.diagnostics);
-        result.document.emplace(timeline::Timebase(options.ticks_per_second), std::move(source_summary),
-            timeline::size_cast(target_counts), timeline::size_cast(config.at("keyframes")), std::move(metadata));
+        if (frame_grid)
+        {
+            result.document.emplace(std::move(*frame_grid), std::move(source_summary),
+                timeline::size_cast(target_counts), timeline::size_cast(config.at("keyframes")), std::move(metadata));
+            for (auto &[target, keyframes] : keyframes_by_target)
+            {
+                auto lane = timeline::Lane(target, target, "keyframes", result.document->frame_grid()->offset(),
+                    result.document->frame_grid()->end_time());
+                for (auto &keyframe : keyframes)
+                {
+                    lane.add(std::move(keyframe));
+                }
+                result.document->add_lane(std::move(lane));
+            }
+        }
+        else
+        {
+            result.document.emplace(timeline::Timebase(options.ticks_per_second), std::move(source_summary),
+                timeline::size_cast(target_counts), timeline::size_cast(config.at("keyframes")), std::move(metadata));
+        }
     }
     catch (const std::exception &error)
     {

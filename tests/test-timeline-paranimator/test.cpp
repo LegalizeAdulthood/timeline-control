@@ -224,5 +224,19 @@ TEST(TimelineJson, imports_rms_overlay_summary)
     EXPECT_EQ(9, generation.source_counts()[0].count());
     EXPECT_EQ(3, result.document->track_count());
     EXPECT_EQ(9, result.document->keyframe_count());
+    ASSERT_TRUE(result.document->frame_grid().has_value());
+    EXPECT_EQ(5, result.document->frame_grid()->frame_count());
+    ASSERT_EQ(3, result.document->lane_count());
+    const auto &zoom = result.document->lanes()[0];
+    EXPECT_EQ("camera.zoom", zoom.id());
+    EXPECT_EQ("camera.zoom", zoom.label());
+    ASSERT_EQ(3, zoom.item_count());
+    const auto &first = std::get<timeline::Keyframe>(zoom.items()[0]);
+    EXPECT_EQ(0, first.time().ticks());
+    EXPECT_DOUBLE_EQ(0.25, first.value());
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
+    EXPECT_EQ("replace", first.attributes().at("operation"));
+    EXPECT_EQ("music.rms", first.attributes().at("source"));
+    EXPECT_DOUBLE_EQ(0.25, *zoom.evaluate_keyframes(result.document->frame_grid()->frame_start(1)));
     EXPECT_TRUE(result.diagnostics.empty());
 }

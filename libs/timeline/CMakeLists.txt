@@ -5,6 +5,7 @@ add_library(timeline-core
     include/timeline/Envelope.h
     include/timeline/Event.h
     include/timeline/Interval.h
+    include/timeline/Keyframe.h
     include/timeline/Lane.h
     include/timeline/Layout.h
     include/timeline/size_cast.h
@@ -14,6 +15,7 @@ add_library(timeline-core
     Envelope.cpp
     Event.cpp
     Interval.cpp
+    Keyframe.cpp
     Lane.cpp
     Layout.cpp
     Time.cpp

@@ -14,7 +14,8 @@ Time item_start(const Item &item)
     return std::visit(
         [](const auto &value)
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, Instant>)
+            using Value = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<Value, Instant> || std::is_same_v<Value, Keyframe>)
             {
                 return value.time();
             }
@@ -31,7 +32,8 @@ Time item_end(const Item &item)
     return std::visit(
         [](const auto &value)
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, Instant>)
+            using Value = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<Value, Instant> || std::is_same_v<Value, Keyframe>)
             {
                 return value.time();
             }
@@ -80,6 +82,19 @@ void Lane::add(Curve curve)
     add_item(std::move(curve));
 }
 
+void Lane::add(Keyframe keyframe)
+{
+    for (const auto &item : m_items)
+    {
+        const auto existing = std::get_if<Keyframe>(&item);
+        if (existing && existing->time() == keyframe.time())
+        {
+            throw std::invalid_argument("timeline keyframe times must be unique within a lane");
+        }
+    }
+    add_item(std::move(keyframe));
+}
+
 std::vector<Item> Lane::items_in_range(Time start, Time end) const
 {
     if (end < start)
@@ -96,6 +111,57 @@ std::vector<Item> Lane::items_in_range(Time start, Time end) const
         }
     }
     return result;
+}
+
+KeyframeNeighbors Lane::neighboring_keyframes(Time time) const
+{
+    auto before = std::optional<KeyframeNeighbors::Reference>{};
+    auto after = std::optional<KeyframeNeighbors::Reference>{};
+    for (const auto &item : m_items)
+    {
+        const auto keyframe = std::get_if<Keyframe>(&item);
+        if (!keyframe)
+        {
+            continue;
+        }
+        if (keyframe->time() <= time && (!before || before->get().time() < keyframe->time()))
+        {
+            before = std::cref(*keyframe);
+        }
+        if (time <= keyframe->time() && (!after || keyframe->time() < after->get().time()))
+        {
+            after = std::cref(*keyframe);
+        }
+    }
+    return KeyframeNeighbors(before, after);
+}
+
+std::optional<double> Lane::evaluate_keyframes(Time time) const
+{
+    const auto neighbors = neighboring_keyframes(time);
+    if (!neighbors.before() && !neighbors.after())
+    {
+        return std::nullopt;
+    }
+    if (!neighbors.before())
+    {
+        return neighbors.after()->get().value();
+    }
+    if (!neighbors.after())
+    {
+        return neighbors.before()->get().value();
+    }
+
+    const auto &before = neighbors.before()->get();
+    const auto &after = neighbors.after()->get();
+    if (before.time() == after.time() || before.interpolation() == KeyframeInterpolation::HOLD)
+    {
+        return before.value();
+    }
+
+    const auto elapsed = static_cast<double>((time - before.time()).ticks());
+    const auto duration = static_cast<double>((after.time() - before.time()).ticks());
+    return before.value() + (after.value() - before.value()) * elapsed / duration;
 }
 
 void Lane::add_item(Item item)

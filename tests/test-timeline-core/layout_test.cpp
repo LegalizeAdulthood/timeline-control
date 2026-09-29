@@ -87,3 +87,40 @@ TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
     EXPECT_EQ(34, polyline.points[3].y);
     EXPECT_EQ(StyleRole::CURVE, polyline.style);
 }
+
+TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
+{
+    auto lane = Lane("zoom", "camera.zoom", "keyframes", at(0), at(50));
+    lane.add(Keyframe("zoom-0", at(0), 0.0, KeyframeInterpolation::LINEAR));
+    lane.add(Keyframe("zoom-20", at(20), 1.0, KeyframeInterpolation::HOLD));
+    lane.add(Keyframe("zoom-40", at(40), 0.0));
+
+    auto document = Document(FrameGrid(Timebase(10), 5, 1, 1), 1, 3);
+    document.add_lane(std::move(lane));
+
+    const auto layout = Layout(document, Viewport(500, 100, at(0), at(50)), LayoutMetrics(100, 20, 30, 4));
+    const auto &primitives = layout.display_list().primitives();
+
+    ASSERT_EQ(9U, primitives.size());
+    const auto &linear = std::get<Polyline>(primitives[4]);
+    ASSERT_EQ(2U, linear.points.size());
+    EXPECT_EQ(100, linear.points[0].x);
+    EXPECT_EQ(45, linear.points[0].y);
+    EXPECT_EQ(260, linear.points[1].x);
+    EXPECT_EQ(24, linear.points[1].y);
+    EXPECT_EQ(StyleRole::KEYFRAME_SEGMENT, linear.style);
+
+    const auto &hold = std::get<Polyline>(primitives[5]);
+    ASSERT_EQ(3U, hold.points.size());
+    EXPECT_EQ(260, hold.points[0].x);
+    EXPECT_EQ(24, hold.points[0].y);
+    EXPECT_EQ(420, hold.points[1].x);
+    EXPECT_EQ(24, hold.points[1].y);
+    EXPECT_EQ(420, hold.points[2].x);
+    EXPECT_EQ(45, hold.points[2].y);
+    EXPECT_EQ(StyleRole::KEYFRAME_SEGMENT, hold.style);
+
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[6]).style);
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[7]).style);
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[8]).style);
+}

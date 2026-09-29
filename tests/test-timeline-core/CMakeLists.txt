@@ -4,6 +4,7 @@ find_package(GTest CONFIG REQUIRED)
 
 add_executable(test-timeline-core
     curve_test.cpp
+    keyframe_test.cpp
     test.cpp
     lane_test.cpp
     layout_test.cpp

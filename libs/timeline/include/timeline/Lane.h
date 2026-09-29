@@ -5,8 +5,10 @@
 #include <timeline/Curve.h>
 #include <timeline/Envelope.h>
 #include <timeline/Interval.h>
+#include <timeline/Keyframe.h>
 #include <timeline/size_cast.h>
 
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -15,7 +17,7 @@ namespace timeline
 {
 
 /// One generic piece of timeline content.
-using Item = std::variant<Instant, Interval, Envelope, Curve>;
+using Item = std::variant<Instant, Interval, Envelope, Curve, Keyframe>;
 
 /// Ordered collection of timeline content within a finite range.
 ///
@@ -60,7 +62,10 @@ public:
     void add(Interval interval);
     void add(Envelope envelope);
     void add(Curve curve);
+    void add(Keyframe keyframe);
     std::vector<Item> items_in_range(Time start, Time end) const;
+    KeyframeNeighbors neighboring_keyframes(Time time) const;
+    std::optional<double> evaluate_keyframes(Time time) const;
 
 private:
     void add_item(Item item);

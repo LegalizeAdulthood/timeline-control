@@ -147,6 +147,18 @@ Document::Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata 
 {
 }
 
+Document::Document(
+    FrameGrid frame_grid, SourceSummary source_summary, int track_count, int keyframe_count, Metadata metadata) :
+    m_timebase(frame_grid.timebase()),
+    m_metadata(std::move(metadata)),
+    m_frame_grid(std::move(frame_grid)),
+    m_source_summary(std::move(source_summary)),
+    m_track_count(track_count),
+    m_keyframe_count(keyframe_count)
+{
+    validate_document_counts(m_track_count, m_keyframe_count);
+}
+
 std::optional<Time> Document::content_start() const
 {
     if (m_frame_grid)

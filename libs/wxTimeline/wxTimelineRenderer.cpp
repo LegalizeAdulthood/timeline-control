@@ -38,6 +38,10 @@ wxColour style_colour(timeline::StyleRole style)
         return wxColour(66, 100, 166);
     case timeline::StyleRole::CURVE:
         return wxColour(126, 72, 154);
+    case timeline::StyleRole::KEYFRAME_SEGMENT:
+        return wxColour(47, 95, 164);
+    case timeline::StyleRole::KEYFRAME_MARKER:
+        return wxColour(226, 132, 28);
     }
     return wxColour(0, 0, 0);
 }

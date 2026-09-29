@@ -22,7 +22,9 @@ enum class StyleRole
     ENVELOPE_ATTACK,
     ENVELOPE_SUSTAIN,
     ENVELOPE_DECAY,
-    CURVE
+    CURVE,
+    KEYFRAME_SEGMENT,
+    KEYFRAME_MARKER
 };
 
 /// Toolkit-neutral line drawing primitive.
