@@ -1,5 +1,7 @@
 add_library(timeline-core
+    include/timeline/Document.h
     include/timeline/Time.h
+    Document.cpp
     Time.cpp
 )
 

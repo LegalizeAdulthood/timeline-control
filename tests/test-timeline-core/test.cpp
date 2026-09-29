@@ -1,3 +1,4 @@
+#include <timeline/Document.h>
 #include <timeline/Time.h>
 
 #include <gtest/gtest.h>
@@ -14,7 +15,7 @@ TEST(Timebase, rejects_invalid_tick_rate)
 
 TEST(Timebase, converts_exact_ratios_to_ticks)
 {
-    auto const timebase = Timebase(24000);
+    const auto timebase = Timebase(24000);
 
     EXPECT_EQ(1000, timebase.duration_from_seconds_ratio(1, 24, TimeRounding::NEAREST).ticks());
     EXPECT_EQ(60000, timebase.time_from_seconds_ratio(5, 2, TimeRounding::NEAREST).ticks());
@@ -23,7 +24,7 @@ TEST(Timebase, converts_exact_ratios_to_ticks)
 
 TEST(Timebase, rounds_fractional_seconds_explicitly)
 {
-    auto const timebase = Timebase(1000);
+    const auto timebase = Timebase(1000);
 
     EXPECT_EQ(1234, timebase.time_from_seconds(1.2345, TimeRounding::FLOOR).ticks());
     EXPECT_EQ(1235, timebase.time_from_seconds(1.2345, TimeRounding::NEAREST).ticks());
@@ -32,8 +33,8 @@ TEST(Timebase, rounds_fractional_seconds_explicitly)
 
 TEST(FrameGrid, converts_common_frame_rates_exactly)
 {
-    auto const timebase = Timebase(24000);
-    auto const grid = FrameGrid(timebase, 10, 24, 1);
+    const auto timebase = Timebase(24000);
+    const auto grid = FrameGrid(timebase, 10, 24, 1);
 
     EXPECT_EQ(10, grid.frame_count());
     EXPECT_EQ(1000, grid.frame_duration().ticks());
@@ -45,8 +46,8 @@ TEST(FrameGrid, converts_common_frame_rates_exactly)
 
 TEST(FrameGrid, handles_final_frame_boundary)
 {
-    auto const timebase = Timebase(30);
-    auto const grid = FrameGrid(timebase, 100, 30, 1);
+    const auto timebase = Timebase(30);
+    const auto grid = FrameGrid(timebase, 100, 30, 1);
 
     EXPECT_EQ(99, grid.frame_start(99).ticks());
     EXPECT_THROW(grid.frame_start(100), std::out_of_range);
@@ -56,9 +57,9 @@ TEST(FrameGrid, handles_final_frame_boundary)
 
 TEST(FrameGrid, applies_offset)
 {
-    auto const timebase = Timebase(1000);
-    auto const offset = timebase.time_from_seconds_ratio(1, 2, TimeRounding::NEAREST);
-    auto const grid = FrameGrid(timebase, 5, 25, 1, offset);
+    const auto timebase = Timebase(1000);
+    const auto offset = timebase.time_from_seconds_ratio(1, 2, TimeRounding::NEAREST);
+    const auto grid = FrameGrid(timebase, 5, 25, 1, offset);
 
     EXPECT_EQ(500, grid.offset().ticks());
     EXPECT_EQ(40, grid.frame_duration().ticks());
@@ -71,7 +72,38 @@ TEST(FrameGrid, applies_offset)
 
 TEST(FrameGrid, rejects_non_integral_frame_durations)
 {
-    auto const timebase = Timebase(1000);
+    const auto timebase = Timebase(1000);
 
     EXPECT_THROW((FrameGrid(timebase, 10, 24, 1)), std::invalid_argument);
+}
+
+TEST(TimelineDocument, constructs_empty_document)
+{
+    const auto document = TimelineDocument(1000);
+
+    EXPECT_TRUE(document.is_valid());
+    EXPECT_EQ(1000, document.timebase().ticks_per_second());
+}
+
+TEST(TimelineDocument, rejects_invalid_timebase)
+{
+    EXPECT_THROW(TimelineDocument(0), std::invalid_argument);
+    EXPECT_THROW(TimelineDocument(-1), std::invalid_argument);
+}
+
+TEST(TimelineDocument, preserves_metadata)
+{
+    const auto metadata = TimelineMetadata("Demo", "Empty timeline");
+    const auto document = TimelineDocument(1000, metadata);
+
+    EXPECT_EQ("Demo", document.metadata().title());
+    EXPECT_EQ("Empty timeline", document.metadata().description());
+}
+
+TEST(TimelineDocument, reports_zero_lanes)
+{
+    const auto document = TimelineDocument(1000);
+
+    EXPECT_TRUE(document.lanes_empty());
+    EXPECT_EQ(0U, document.lane_count());
 }

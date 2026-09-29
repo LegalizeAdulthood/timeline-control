@@ -51,10 +51,10 @@ Ticks round_ratio(Ticks numerator, Ticks denominator, TimeRounding rounding)
     throw std::invalid_argument("unknown timeline rounding mode");
 }
 
-TimelineDuration exact_duration(Timebase const &timebase, Ticks numerator, Ticks denominator)
+TimelineDuration exact_duration(const Timebase &timebase, Ticks numerator, Ticks denominator)
 {
-    auto const floor_duration = timebase.duration_from_seconds_ratio(numerator, denominator, TimeRounding::FLOOR);
-    auto const ceil_duration = timebase.duration_from_seconds_ratio(numerator, denominator, TimeRounding::CEIL);
+    const auto floor_duration = timebase.duration_from_seconds_ratio(numerator, denominator, TimeRounding::FLOOR);
+    const auto ceil_duration = timebase.duration_from_seconds_ratio(numerator, denominator, TimeRounding::CEIL);
 
     if (floor_duration != ceil_duration)
     {
@@ -65,7 +65,7 @@ TimelineDuration exact_duration(Timebase const &timebase, Ticks numerator, Ticks
 }
 
 TimelineDuration validate_frame_grid_arguments(
-    Timebase const &timebase, Ticks frame_count, Ticks frames_per_second_numerator, Ticks frames_per_second_denominator)
+    const Timebase &timebase, Ticks frame_count, Ticks frames_per_second_numerator, Ticks frames_per_second_denominator)
 {
     if (frame_count < 0)
     {
@@ -101,17 +101,17 @@ TimelineDuration Timebase::duration_from_seconds_ratio(Ticks numerator, Ticks de
         throw std::invalid_argument("timeline ratio denominator must be positive");
     }
 
-    auto const common = std::gcd(m_ticks_per_second, denominator);
-    auto const ticks_factor = m_ticks_per_second / common;
-    auto const reduced_denominator = denominator / common;
-    auto const scaled_numerator = checked_multiply(numerator, ticks_factor);
+    const auto common = std::gcd(m_ticks_per_second, denominator);
+    const auto ticks_factor = m_ticks_per_second / common;
+    const auto reduced_denominator = denominator / common;
+    const auto scaled_numerator = checked_multiply(numerator, ticks_factor);
 
     return TimelineDuration::from_ticks(round_ratio(scaled_numerator, reduced_denominator, rounding));
 }
 
 TimelineDuration Timebase::duration_from_seconds(double seconds, TimeRounding rounding) const
 {
-    auto const ticks = seconds * static_cast<double>(m_ticks_per_second);
+    const auto ticks = seconds * static_cast<double>(m_ticks_per_second);
 
     switch (rounding)
     {
@@ -160,8 +160,8 @@ std::optional<Ticks> FrameGrid::frame_at_or_before(TimelineTime time) const
         return std::nullopt;
     }
 
-    auto const elapsed = time - m_offset;
-    auto const frame_index = elapsed.ticks() / m_frame_duration.ticks();
+    const auto elapsed = time - m_offset;
+    const auto frame_index = elapsed.ticks() / m_frame_duration.ticks();
 
     if (frame_index >= m_frame_count)
     {
@@ -182,8 +182,8 @@ std::optional<Ticks> FrameGrid::nearest_frame(TimelineTime time) const
         return 0;
     }
 
-    auto const elapsed = time - m_offset;
-    auto const frame_index = (elapsed.ticks() + m_frame_duration.ticks() / 2) / m_frame_duration.ticks();
+    const auto elapsed = time - m_offset;
+    const auto frame_index = (elapsed.ticks() + m_frame_duration.ticks() / 2) / m_frame_duration.ticks();
 
     if (frame_index >= m_frame_count)
     {
