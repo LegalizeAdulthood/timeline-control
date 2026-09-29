@@ -9,6 +9,11 @@
 #include <algorithm>
 #include <utility>
 
+wxTimelineControl::wxTimelineControl(wxWindow *parent) :
+    wxTimelineControl(parent, wxID_ANY)
+{
+}
+
 wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     wxPanel(parent, id)
 {

@@ -126,6 +126,12 @@ Duration Timebase::duration_from_seconds(double seconds, TimeRounding rounding) 
     throw std::invalid_argument("unknown timeline rounding mode");
 }
 
+FrameGrid::FrameGrid(
+    Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator, Ticks frames_per_second_denominator) :
+    FrameGrid(timebase, frame_count, frames_per_second_numerator, frames_per_second_denominator, Time{})
+{
+}
+
 FrameGrid::FrameGrid(Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator,
     Ticks frames_per_second_denominator, Time offset) :
     m_timebase(timebase),

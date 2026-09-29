@@ -9,6 +9,11 @@
 namespace timeline
 {
 
+Instant::Instant(std::string id, std::string kind, Time time) :
+    Instant(std::move(id), std::move(kind), time, {}, std::nullopt, {})
+{
+}
+
 Instant::Instant(std::string id, std::string kind, Time time, std::string label, std::optional<double> strength,
     Attributes attributes) :
     m_id(std::move(id)),

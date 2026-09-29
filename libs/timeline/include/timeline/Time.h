@@ -157,8 +157,10 @@ private:
 class FrameGrid
 {
 public:
+    FrameGrid(
+        Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator, Ticks frames_per_second_denominator);
     FrameGrid(Timebase timebase, Ticks frame_count, Ticks frames_per_second_numerator,
-        Ticks frames_per_second_denominator, Time offset = Time{});
+        Ticks frames_per_second_denominator, Time offset);
 
     const Timebase &timebase() const
     {

@@ -21,8 +21,8 @@ Time at(Ticks ticks)
 
 TEST(Curve, stores_exact_samples_and_interpolates)
 {
-    const auto curve =
-        Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.0}, {at(20), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0);
+    const auto curve = Curve(
+        "rms", "rms", {{at(0), 0.0}, {at(10), 1.0}, {at(20), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {});
 
     ASSERT_EQ(3, curve.sample_count());
     EXPECT_EQ(10, curve.samples()[1].time().ticks());
@@ -34,7 +34,8 @@ TEST(Curve, stores_exact_samples_and_interpolates)
 
 TEST(Curve, supports_step_interpolation)
 {
-    const auto curve = Curve("rms", "rms", {{at(0), 0.25}, {at(10), 0.75}}, "RMS", CurveInterpolation::STEP);
+    const auto curve = Curve(
+        "rms", "rms", {{at(0), 0.25}, {at(10), 0.75}}, "RMS", CurveInterpolation::STEP, std::nullopt, std::nullopt, {});
 
     EXPECT_DOUBLE_EQ(0.25, curve.sample(at(5)));
     EXPECT_DOUBLE_EQ(0.75, curve.sample(at(10)));
@@ -42,7 +43,8 @@ TEST(Curve, supports_step_interpolation)
 
 TEST(Curve, samples_at_frame_grid_boundaries)
 {
-    const auto curve = Curve("rms", "rms", {{at(0), 0.0}, {at(20), 1.0}}, "RMS");
+    const auto curve = Curve(
+        "rms", "rms", {{at(0), 0.0}, {at(20), 1.0}}, "RMS", CurveInterpolation::LINEAR, std::nullopt, std::nullopt, {});
     const auto grid = FrameGrid(Timebase(10), 3, 1, 1);
 
     const auto samples = curve.sample(grid);
@@ -64,8 +66,8 @@ TEST(Curve, rejects_invalid_samples_and_bounds)
     EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}}), std::invalid_argument);
     EXPECT_THROW(Curve("rms", "rms", {{at(10), 0.0}, {at(0), 1.0}}), std::invalid_argument);
     EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), infinity}}), std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.0}}, "RMS", CurveInterpolation::LINEAR, 1.0, 0.0),
+    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.0}}, "RMS", CurveInterpolation::LINEAR, 1.0, 0.0, {}),
         std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.5}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0),
+    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.5}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}),
         std::out_of_range);
 }

@@ -125,7 +125,7 @@ TEST(Document, preserves_source_summary)
 {
     const auto summary = SourceSummary("par-beatdown.tracker-timeline", 1, 3, 12, std::optional<Ticks>{2},
         std::optional<Ticks>{8}, std::optional<Time>{Time::from_ticks(200)}, std::optional<Time>{Time::from_ticks(800)},
-        std::optional<Duration>{Duration::from_ticks(25)});
+        std::optional<Duration>{Duration::from_ticks(25)}, std::nullopt);
     const auto document = Document(Timebase(1000), summary);
 
     ASSERT_TRUE(document.source_summary().has_value());

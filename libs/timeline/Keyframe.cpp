@@ -9,6 +9,11 @@
 namespace timeline
 {
 
+Keyframe::Keyframe(std::string id, Time time, double value) :
+    Keyframe(std::move(id), time, value, KeyframeInterpolation::HOLD, {})
+{
+}
+
 Keyframe::Keyframe(
     std::string id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes) :
     m_id(std::move(id)),

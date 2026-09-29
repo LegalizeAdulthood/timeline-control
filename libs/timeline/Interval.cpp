@@ -9,6 +9,11 @@
 namespace timeline
 {
 
+Interval::Interval(std::string id, std::string kind, Time start, Time end) :
+    Interval(std::move(id), std::move(kind), start, end, {}, std::nullopt, {})
+{
+}
+
 Interval::Interval(std::string id, std::string kind, Time start, Time end, std::string label,
     std::optional<double> strength, Attributes attributes) :
     m_id(std::move(id)),

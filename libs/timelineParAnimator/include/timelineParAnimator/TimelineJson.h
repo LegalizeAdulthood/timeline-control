@@ -41,7 +41,10 @@ struct JsonImportResult
 };
 
 /// Imports supported ParAnimator or ParBeatdown metadata from a JSON file.
-JsonImportResult import_timeline_json(
-    const std::filesystem::path &source_path, const JsonImportOptions &options = JsonImportOptions{});
+JsonImportResult import_timeline_json(const std::filesystem::path &source_path, const JsonImportOptions &options);
+inline JsonImportResult import_timeline_json(const std::filesystem::path &source_path)
+{
+    return import_timeline_json(source_path, JsonImportOptions{});
+}
 
 } // namespace timeline_par_animator

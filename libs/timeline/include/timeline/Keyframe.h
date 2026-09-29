@@ -27,8 +27,8 @@ enum class KeyframeInterpolation
 class Keyframe
 {
 public:
-    Keyframe(std::string id, Time time, double value, KeyframeInterpolation interpolation = KeyframeInterpolation::HOLD,
-        Attributes attributes = {});
+    Keyframe(std::string id, Time time, double value);
+    Keyframe(std::string id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes);
 
     const std::string &id() const
     {

@@ -28,7 +28,7 @@ TEST(Layout, emits_event_and_interval_primitives)
     auto lane = Lane("music", "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(25)));
     lane.add(Interval("phrase-1", "phrase", at(40), at(60)));
-    lane.add(Envelope("pulse-1", "pulse", at(70), lasting(10), lasting(10), lasting(10)));
+    lane.add(Envelope("pulse-1", "pulse", at(70), lasting(10), lasting(10), lasting(10), {}, std::nullopt, {}));
 
     auto document = Document(1000);
     document.add_lane(std::move(lane));
@@ -65,8 +65,8 @@ TEST(Layout, emits_event_and_interval_primitives)
 TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
 {
     auto lane = Lane("rms", "RMS", "curve", at(0), at(40));
-    lane.add(
-        Curve("rms", "rms", {{at(0), 0.0}, {at(20), 1.0}, {at(40), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0));
+    lane.add(Curve(
+        "rms", "rms", {{at(0), 0.0}, {at(20), 1.0}, {at(40), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}));
 
     auto document = Document(FrameGrid(Timebase(10), 4, 1, 1), 0, 0);
     document.add_lane(std::move(lane));
@@ -91,8 +91,8 @@ TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
 TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
 {
     auto lane = Lane("zoom", "camera.zoom", "keyframes", at(0), at(50));
-    lane.add(Keyframe("zoom-0", at(0), 0.0, KeyframeInterpolation::LINEAR));
-    lane.add(Keyframe("zoom-20", at(20), 1.0, KeyframeInterpolation::HOLD));
+    lane.add(Keyframe("zoom-0", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
+    lane.add(Keyframe("zoom-20", at(20), 1.0, KeyframeInterpolation::HOLD, {}));
     lane.add(Keyframe("zoom-40", at(40), 0.0));
 
     auto document = Document(FrameGrid(Timebase(10), 5, 1, 1), 1, 3);

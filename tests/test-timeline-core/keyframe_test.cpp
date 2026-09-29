@@ -56,7 +56,7 @@ TEST(Lane, finds_neighboring_keyframes)
 TEST(Lane, evaluates_hold_and_linear_keyframes)
 {
     auto hold = Lane("hold", "Hold", "keyframes", at(0), at(30));
-    hold.add(Keyframe("hold-0", at(0), 2.0, KeyframeInterpolation::HOLD));
+    hold.add(Keyframe("hold-0", at(0), 2.0, KeyframeInterpolation::HOLD, {}));
     hold.add(Keyframe("hold-20", at(20), 6.0));
 
     ASSERT_TRUE(hold.evaluate_keyframes(at(10)).has_value());
@@ -64,7 +64,7 @@ TEST(Lane, evaluates_hold_and_linear_keyframes)
     EXPECT_DOUBLE_EQ(6.0, *hold.evaluate_keyframes(at(25)));
 
     auto linear = Lane("linear", "Linear", "keyframes", at(0), at(30));
-    linear.add(Keyframe("linear-0", at(0), 2.0, KeyframeInterpolation::LINEAR));
+    linear.add(Keyframe("linear-0", at(0), 2.0, KeyframeInterpolation::LINEAR, {}));
     linear.add(Keyframe("linear-20", at(20), 6.0));
 
     ASSERT_TRUE(linear.evaluate_keyframes(at(10)).has_value());

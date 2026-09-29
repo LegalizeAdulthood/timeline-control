@@ -14,7 +14,8 @@
 class wxTimelineControl : public wxPanel
 {
 public:
-    explicit wxTimelineControl(wxWindow *parent, wxWindowID id = wxID_ANY);
+    explicit wxTimelineControl(wxWindow *parent);
+    wxTimelineControl(wxWindow *parent, wxWindowID id);
 
     void set_document(timeline::Document document);
 

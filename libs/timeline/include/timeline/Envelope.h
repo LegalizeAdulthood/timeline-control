@@ -15,9 +15,10 @@ namespace timeline
 class Envelope
 {
 public:
-    Envelope(std::string id, std::string kind, Time start, std::optional<Duration> attack = std::nullopt,
-        std::optional<Duration> sustain = std::nullopt, std::optional<Duration> decay = std::nullopt,
-        std::string label = {}, std::optional<double> strength = std::nullopt, Attributes attributes = {});
+    Envelope(std::string id, std::string kind, Time start);
+    Envelope(std::string id, std::string kind, Time start, std::optional<Duration> attack,
+        std::optional<Duration> sustain, std::optional<Duration> decay, std::string label,
+        std::optional<double> strength, Attributes attributes);
 
     const std::string &id() const
     {

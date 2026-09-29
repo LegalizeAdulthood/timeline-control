@@ -22,8 +22,9 @@ using Attributes = std::map<std::string, std::string>;
 class Instant
 {
 public:
-    Instant(std::string id, std::string kind, Time time, std::string label = {},
-        std::optional<double> strength = std::nullopt, Attributes attributes = {});
+    Instant(std::string id, std::string kind, Time time);
+    Instant(std::string id, std::string kind, Time time, std::string label, std::optional<double> strength,
+        Attributes attributes);
 
     const std::string &id() const
     {

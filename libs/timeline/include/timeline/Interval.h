@@ -15,8 +15,9 @@ namespace timeline
 class Interval
 {
 public:
-    Interval(std::string id, std::string kind, Time start, Time end, std::string label = {},
-        std::optional<double> strength = std::nullopt, Attributes attributes = {});
+    Interval(std::string id, std::string kind, Time start, Time end);
+    Interval(std::string id, std::string kind, Time start, Time end, std::string label, std::optional<double> strength,
+        Attributes attributes);
 
     const std::string &id() const
     {

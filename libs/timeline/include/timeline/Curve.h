@@ -53,9 +53,10 @@ private:
 class Curve
 {
 public:
-    Curve(std::string id, std::string kind, std::vector<CurveSample> samples, std::string label = {},
-        CurveInterpolation interpolation = CurveInterpolation::LINEAR, std::optional<double> minimum = std::nullopt,
-        std::optional<double> maximum = std::nullopt, Attributes attributes = {});
+    Curve(std::string id, std::string kind, std::vector<CurveSample> samples);
+    Curve(std::string id, std::string kind, std::vector<CurveSample> samples, std::string label,
+        CurveInterpolation interpolation, std::optional<double> minimum, std::optional<double> maximum,
+        Attributes attributes);
 
     const std::string &id() const
     {

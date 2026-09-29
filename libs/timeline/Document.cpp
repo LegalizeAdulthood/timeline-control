@@ -59,6 +59,12 @@ GenerationSummary::GenerationSummary(std::string generator_name, std::string gen
     }
 }
 
+SourceSummary::SourceSummary(std::string schema, int schema_version, int feature_count, int event_count) :
+    SourceSummary(std::move(schema), schema_version, feature_count, event_count, std::nullopt, std::nullopt,
+        std::nullopt, std::nullopt, std::nullopt, std::nullopt)
+{
+}
+
 SourceSummary::SourceSummary(std::string schema, int schema_version, int feature_count, int event_count,
     std::optional<Ticks> first_frame, std::optional<Ticks> last_frame, std::optional<Time> first_time,
     std::optional<Time> last_time, std::optional<Duration> frame_offset,
@@ -100,8 +106,18 @@ SourceSummary::SourceSummary(std::string schema, int schema_version, int feature
     }
 }
 
+Document::Document(Ticks ticks_per_second) :
+    Document(ticks_per_second, Metadata{})
+{
+}
+
 Document::Document(Ticks ticks_per_second, Metadata metadata) :
     Document(Timebase(ticks_per_second), std::move(metadata))
+{
+}
+
+Document::Document(Timebase timebase) :
+    Document(timebase, Metadata{})
 {
 }
 
@@ -111,10 +127,20 @@ Document::Document(Timebase timebase, Metadata metadata) :
 {
 }
 
+Document::Document(Timebase timebase, SourceSummary source_summary) :
+    Document(timebase, std::move(source_summary), Metadata{})
+{
+}
+
 Document::Document(Timebase timebase, SourceSummary source_summary, Metadata metadata) :
     m_timebase(timebase),
     m_metadata(std::move(metadata)),
     m_source_summary(std::move(source_summary))
+{
+}
+
+Document::Document(Timebase timebase, SourceSummary source_summary, int track_count, int keyframe_count) :
+    Document(timebase, std::move(source_summary), track_count, keyframe_count, Metadata{})
 {
 }
 
@@ -129,6 +155,11 @@ Document::Document(
     validate_document_counts(m_track_count, m_keyframe_count);
 }
 
+Document::Document(FrameGrid frame_grid, int track_count, int keyframe_count) :
+    Document(std::move(frame_grid), track_count, keyframe_count, Metadata{})
+{
+}
+
 Document::Document(FrameGrid frame_grid, int track_count, int keyframe_count, Metadata metadata) :
     m_timebase(frame_grid.timebase()),
     m_metadata(std::move(metadata)),
@@ -139,11 +170,21 @@ Document::Document(FrameGrid frame_grid, int track_count, int keyframe_count, Me
     validate_document_counts(m_track_count, m_keyframe_count);
 }
 
+Document::Document(FrameGrid frame_grid, SourceSummary source_summary) :
+    Document(std::move(frame_grid), std::move(source_summary), Metadata{})
+{
+}
+
 Document::Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata) :
     m_timebase(frame_grid.timebase()),
     m_metadata(std::move(metadata)),
     m_frame_grid(std::move(frame_grid)),
     m_source_summary(std::move(source_summary))
+{
+}
+
+Document::Document(FrameGrid frame_grid, SourceSummary source_summary, int track_count, int keyframe_count) :
+    Document(std::move(frame_grid), std::move(source_summary), track_count, keyframe_count, Metadata{})
 {
 }
 

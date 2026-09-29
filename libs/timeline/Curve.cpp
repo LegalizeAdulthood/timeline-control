@@ -20,6 +20,12 @@ CurveSample::CurveSample(Time time, double value) :
     }
 }
 
+Curve::Curve(std::string id, std::string kind, std::vector<CurveSample> samples) :
+    Curve(std::move(id), std::move(kind), std::move(samples), {}, CurveInterpolation::LINEAR, std::nullopt,
+        std::nullopt, {})
+{
+}
+
 Curve::Curve(std::string id, std::string kind, std::vector<CurveSample> samples, std::string label,
     CurveInterpolation interpolation, std::optional<double> minimum, std::optional<double> maximum,
     Attributes attributes) :

@@ -843,7 +843,7 @@ std::optional<timeline::Lane> tracker_rms_lane(
 
     auto lane = timeline::Lane("tracker-rms", "RMS", "curve", lane_start, lane_end);
     lane.add(timeline::Curve(
-        "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, 1.0));
+        "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, 1.0, {}));
     return lane;
 }
 
@@ -899,7 +899,7 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         auto source_summary =
             timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
                 timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")),
-                extent.first_frame, extent.last_frame, first_time, last_time, frame_offset);
+                extent.first_frame, extent.last_frame, first_time, last_time, frame_offset, std::nullopt);
         auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
         if (frame_grid)
         {

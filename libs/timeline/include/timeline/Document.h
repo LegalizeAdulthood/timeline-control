@@ -132,11 +132,11 @@ private:
 class SourceSummary
 {
 public:
+    SourceSummary(std::string schema, int schema_version, int feature_count, int event_count);
     SourceSummary(std::string schema, int schema_version, int feature_count, int event_count,
-        std::optional<Ticks> first_frame = std::nullopt, std::optional<Ticks> last_frame = std::nullopt,
-        std::optional<Time> first_time = std::nullopt, std::optional<Time> last_time = std::nullopt,
-        std::optional<Duration> frame_offset = std::nullopt,
-        std::optional<GenerationSummary> generation_summary = std::nullopt);
+        std::optional<Ticks> first_frame, std::optional<Ticks> last_frame, std::optional<Time> first_time,
+        std::optional<Time> last_time, std::optional<Duration> frame_offset,
+        std::optional<GenerationSummary> generation_summary);
 
     const std::string &schema() const
     {
@@ -201,15 +201,21 @@ private:
 class Document
 {
 public:
-    explicit Document(Ticks ticks_per_second, Metadata metadata = Metadata{});
-    explicit Document(Timebase timebase, Metadata metadata = Metadata{});
-    Document(Timebase timebase, SourceSummary source_summary, Metadata metadata = Metadata{});
-    Document(Timebase timebase, SourceSummary source_summary, int track_count, int keyframe_count,
-        Metadata metadata = Metadata{});
-    Document(FrameGrid frame_grid, int track_count, int keyframe_count, Metadata metadata = Metadata{});
-    Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata = Metadata{});
-    Document(FrameGrid frame_grid, SourceSummary source_summary, int track_count, int keyframe_count,
-        Metadata metadata = Metadata{});
+    explicit Document(Ticks ticks_per_second);
+    Document(Ticks ticks_per_second, Metadata metadata);
+    explicit Document(Timebase timebase);
+    Document(Timebase timebase, Metadata metadata);
+    Document(Timebase timebase, SourceSummary source_summary);
+    Document(Timebase timebase, SourceSummary source_summary, Metadata metadata);
+    Document(Timebase timebase, SourceSummary source_summary, int track_count, int keyframe_count);
+    Document(Timebase timebase, SourceSummary source_summary, int track_count, int keyframe_count, Metadata metadata);
+    Document(FrameGrid frame_grid, int track_count, int keyframe_count);
+    Document(FrameGrid frame_grid, int track_count, int keyframe_count, Metadata metadata);
+    Document(FrameGrid frame_grid, SourceSummary source_summary);
+    Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata);
+    Document(FrameGrid frame_grid, SourceSummary source_summary, int track_count, int keyframe_count);
+    Document(
+        FrameGrid frame_grid, SourceSummary source_summary, int track_count, int keyframe_count, Metadata metadata);
 
     const Timebase &timebase() const
     {
