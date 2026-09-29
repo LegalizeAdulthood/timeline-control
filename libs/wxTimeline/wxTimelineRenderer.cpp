@@ -59,11 +59,11 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
                 const auto colour = style_colour(value.style);
                 if constexpr (std::is_same_v<Value, timeline::Line>)
                 {
-                    const auto width = value.style == timeline::StyleRole::INSTANT_MARKER ? 2 : 1;
-                    dc.SetPen(wxPen(colour, width));
+                    dc.SetPen(wxPen(colour));
                     dc.DrawLine(origin.x + value.x1, origin.y + value.y1, origin.x + value.x2, origin.y + value.y2);
                 }
-                else if constexpr (std::is_same_v<Value, timeline::Rectangle>)
+                else if constexpr (std::is_same_v<Value, timeline::Rectangle> ||
+                    std::is_same_v<Value, timeline::Marker>)
                 {
                     dc.SetPen(wxPen(colour));
                     dc.SetBrush(wxBrush(colour));

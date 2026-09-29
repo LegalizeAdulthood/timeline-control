@@ -2,6 +2,8 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
+#include <timeline/Layout.h>
+
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -157,6 +159,40 @@ TEST(TimelineJson, imports_tracker_rms_curve)
     EXPECT_DOUBLE_EQ(0.0, *curve.minimum());
     EXPECT_DOUBLE_EQ(1.0, *curve.maximum());
     EXPECT_TRUE(result.diagnostics.empty());
+}
+
+TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(2, result.document->lane_count());
+    ASSERT_TRUE(result.document->frame_grid().has_value());
+    const auto layout = timeline::Layout(*result.document,
+        timeline::Viewport(600, 120, timeline::Time::from_ticks(0), result.document->frame_grid()->end_time()),
+        timeline::LayoutMetrics(100, 20, 30, 4));
+
+    auto marker_count = 0;
+    auto curve_count = 0;
+    for (const auto &primitive : layout.display_list().primitives())
+    {
+        if (const auto marker = std::get_if<timeline::Marker>(&primitive))
+        {
+            EXPECT_EQ(timeline::StyleRole::INSTANT_MARKER, marker->style);
+            EXPECT_EQ("tracker-events", marker->id.lane_id);
+            EXPECT_FALSE(marker->id.item_id.empty());
+            ++marker_count;
+        }
+        if (const auto curve = std::get_if<timeline::Polyline>(&primitive))
+        {
+            EXPECT_EQ(timeline::StyleRole::CURVE, curve->style);
+            EXPECT_EQ("tracker-rms", curve->id.lane_id);
+            EXPECT_EQ("tracker-rms", curve->id.item_id);
+            ++curve_count;
+        }
+    }
+    EXPECT_EQ(2, marker_count);
+    EXPECT_EQ(1, curve_count);
 }
 
 TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)

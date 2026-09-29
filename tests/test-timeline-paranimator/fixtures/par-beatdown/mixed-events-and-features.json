@@ -1,0 +1,32 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "render": {
+    "fps": 30.0,
+    "offset_seconds": 0.0
+  },
+  "events": [
+    {
+      "kind": "note",
+      "frame": 0
+    },
+    {
+      "kind": "effect",
+      "frame": 15
+    }
+  ],
+  "features": [
+    {
+      "frame": 0,
+      "rms": 0.1
+    },
+    {
+      "frame": 15,
+      "rms": 0.8
+    },
+    {
+      "frame": 30,
+      "rms": 0.2
+    }
+  ]
+}

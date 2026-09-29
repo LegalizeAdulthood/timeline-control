@@ -23,7 +23,7 @@ int time_x(Time time, const Viewport &viewport, const LayoutMetrics &metrics)
     return metrics.lane_label_width() + static_cast<int>(std::lround(elapsed * timeline_width / duration));
 }
 
-void add_span(DisplayList &display_list, Time start, Time end, StyleRole style, int y, int height,
+void add_span(DisplayList &display_list, Time start, Time end, StyleRole style, DisplayId id, int y, int height,
     const Viewport &viewport, const LayoutMetrics &metrics)
 {
     if (end <= viewport.start() || viewport.end() <= start || end <= start)
@@ -32,7 +32,7 @@ void add_span(DisplayList &display_list, Time start, Time end, StyleRole style, 
     }
     const auto x1 = time_x(start, viewport, metrics);
     const auto x2 = time_x(end, viewport, metrics);
-    display_list.add(Rectangle{x1, y, std::max(1, x2 - x1), height, style});
+    display_list.add(Rectangle{x1, y, std::max(1, x2 - x1), height, style, std::move(id)});
 }
 
 Ticks phase_ticks(const std::optional<Duration> &phase)
@@ -48,7 +48,7 @@ std::pair<double, double> curve_range(const Curve &curve)
 }
 
 void add_curve(DisplayList &display_list, const Curve &curve, int y, int height, const Viewport &viewport,
-    const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid)
+    const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid, const std::string &lane_id)
 {
     const auto samples = frame_grid ? curve.sample(*frame_grid) : curve.samples();
     const auto [minimum, maximum] = curve_range(curve);
@@ -66,7 +66,7 @@ void add_curve(DisplayList &display_list, const Curve &curve, int y, int height,
     }
     if (size_cast(points) >= 2)
     {
-        display_list.add(Polyline{std::move(points), StyleRole::CURVE});
+        display_list.add(Polyline{std::move(points), StyleRole::CURVE, DisplayId{lane_id, curve.id()}});
     }
 }
 
@@ -117,7 +117,7 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
             points.push_back(Point{right_point.x, left_point.y});
         }
         points.push_back(right_point);
-        display_list.add(Polyline{std::move(points), StyleRole::KEYFRAME_SEGMENT});
+        display_list.add(Polyline{std::move(points), StyleRole::KEYFRAME_SEGMENT, DisplayId{lane.id(), left.id()}});
     }
 
     for (const auto &reference : keyframes)
@@ -134,7 +134,8 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
         const auto marker_x =
             std::clamp(x - marker_width / 2, metrics.lane_label_width(), viewport.width() - marker_width);
         const auto marker_y = std::clamp(point_y - marker_height / 2, y, y + height - marker_height);
-        display_list.add(Rectangle{marker_x, marker_y, marker_width, marker_height, StyleRole::KEYFRAME_MARKER});
+        display_list.add(Marker{marker_x, marker_y, marker_width, marker_height, StyleRole::KEYFRAME_MARKER,
+            DisplayId{lane.id(), keyframe.id()}});
     }
 }
 
@@ -290,8 +291,8 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
     }
 
     m_display_list.add(Line{metrics.lane_label_width(), metrics.ruler_height() - 1, viewport.width() - 1,
-        metrics.ruler_height() - 1, StyleRole::RULER});
-    m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL});
+        metrics.ruler_height() - 1, StyleRole::RULER, DisplayId{"", "ruler"}});
+    m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL, DisplayId{"", "ruler"}});
 
     for (auto lane_index = viewport.first_lane(); lane_index < document.lane_count(); ++lane_index)
     {
@@ -303,8 +304,9 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         const auto &lane = document.lanes()[lane_index];
         const auto row_height = metrics.lane_height();
         m_display_list.add(Rectangle{metrics.lane_label_width(), *y, viewport.width() - metrics.lane_label_width(),
-            row_height, StyleRole::LANE_BACKGROUND});
-        m_display_list.add(Text{4, *y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL});
+            row_height, StyleRole::LANE_BACKGROUND, DisplayId{lane.id(), ""}});
+        m_display_list.add(
+            Text{4, *y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL, DisplayId{lane.id(), ""}});
 
         const auto item_y = *y + metrics.item_padding();
         const auto item_height = std::max(1, row_height - metrics.item_padding() * 2);
@@ -322,31 +324,36 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                     if constexpr (std::is_same_v<Value, Instant>)
                     {
                         const auto x = time_x(value.time(), viewport, metrics);
-                        m_display_list.add(Line{x, item_y, x, item_y + item_height, StyleRole::INSTANT_MARKER});
+                        const auto marker_width = std::min(2, viewport.width() - metrics.lane_label_width());
+                        const auto marker_x = std::clamp(
+                            x - marker_width / 2, metrics.lane_label_width(), viewport.width() - marker_width);
+                        m_display_list.add(Marker{marker_x, item_y, marker_width, item_height,
+                            StyleRole::INSTANT_MARKER, DisplayId{lane.id(), value.id()}});
                     }
                     else if constexpr (std::is_same_v<Value, Interval>)
                     {
-                        add_span(m_display_list, value.start(), value.end(), StyleRole::INTERVAL_SPAN, item_y,
-                            item_height, viewport, metrics);
+                        add_span(m_display_list, value.start(), value.end(), StyleRole::INTERVAL_SPAN,
+                            DisplayId{lane.id(), value.id()}, item_y, item_height, viewport, metrics);
                     }
                     else if constexpr (std::is_same_v<Value, Envelope>)
                     {
                         auto phase_start = value.start();
                         auto phase_end = phase_start + Duration::from_ticks(phase_ticks(value.attack()));
-                        add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_ATTACK, item_y,
-                            item_height, viewport, metrics);
+                        add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_ATTACK,
+                            DisplayId{lane.id(), value.id()}, item_y, item_height, viewport, metrics);
                         phase_start = phase_end;
                         phase_end = phase_start + Duration::from_ticks(phase_ticks(value.sustain()));
-                        add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_SUSTAIN, item_y,
-                            item_height, viewport, metrics);
+                        add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_SUSTAIN,
+                            DisplayId{lane.id(), value.id()}, item_y, item_height, viewport, metrics);
                         phase_start = phase_end;
                         phase_end = phase_start + Duration::from_ticks(phase_ticks(value.decay()));
-                        add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_DECAY, item_y, item_height,
-                            viewport, metrics);
+                        add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_DECAY,
+                            DisplayId{lane.id(), value.id()}, item_y, item_height, viewport, metrics);
                     }
                     else if constexpr (std::is_same_v<Value, Curve>)
                     {
-                        add_curve(m_display_list, value, item_y, item_height, viewport, metrics, document.frame_grid());
+                        add_curve(m_display_list, value, item_y, item_height, viewport, metrics, document.frame_grid(),
+                            lane.id());
                     }
                 },
                 item);

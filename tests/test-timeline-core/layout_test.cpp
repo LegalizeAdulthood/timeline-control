@@ -38,7 +38,7 @@ void expect_same_geometry(const Primitive &lhs, const Primitive &rhs)
                 EXPECT_EQ(left.x2, right.x2);
                 EXPECT_EQ(left.y2, right.y2);
             }
-            else if constexpr (std::is_same_v<Value, Rectangle>)
+            else if constexpr (std::is_same_v<Value, Rectangle> || std::is_same_v<Value, Marker>)
             {
                 EXPECT_EQ(left.x, right.x);
                 EXPECT_EQ(left.y, right.y);
@@ -60,11 +60,30 @@ void expect_same_geometry(const Primitive &lhs, const Primitive &rhs)
                 }
             }
             EXPECT_EQ(left.style, right.style);
+            EXPECT_EQ(left.id.lane_id, right.id.lane_id);
+            EXPECT_EQ(left.id.item_id, right.id.item_id);
         },
         lhs);
 }
 
 } // namespace
+
+TEST(Layout, emits_ruler_and_empty_lane_scaffolding)
+{
+    auto document = Document(100);
+    document.add_lane(Lane("empty", "Empty lane", "events", at(0), at(100)));
+
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+    const auto &primitives = layout.display_list().primitives();
+
+    ASSERT_EQ(4U, primitives.size());
+    EXPECT_EQ("ruler", std::get<Line>(primitives[0]).id.item_id);
+    EXPECT_EQ("ruler", std::get<Text>(primitives[1]).id.item_id);
+    EXPECT_EQ("empty", std::get<Rectangle>(primitives[2]).id.lane_id);
+    EXPECT_TRUE(std::get<Rectangle>(primitives[2]).id.item_id.empty());
+    EXPECT_EQ("empty", std::get<Text>(primitives[3]).id.lane_id);
+    EXPECT_TRUE(std::get<Text>(primitives[3]).id.item_id.empty());
+}
 
 TEST(Layout, emits_event_and_interval_primitives)
 {
@@ -91,18 +110,26 @@ TEST(Layout, emits_event_and_interval_primitives)
     EXPECT_EQ(StyleRole::LANE_BACKGROUND, lane_background.style);
     EXPECT_EQ("Music events", std::get<Text>(primitives[3]).value);
 
-    const auto &instant = std::get<Line>(primitives[4]);
-    EXPECT_EQ(175, instant.x1);
+    const auto &instant = std::get<Marker>(primitives[4]);
+    EXPECT_EQ(174, instant.x);
+    EXPECT_EQ(2, instant.width);
     EXPECT_EQ(StyleRole::INSTANT_MARKER, instant.style);
+    EXPECT_EQ("music", instant.id.lane_id);
+    EXPECT_EQ("beat-1", instant.id.item_id);
 
     const auto &interval = std::get<Rectangle>(primitives[5]);
     EXPECT_EQ(220, interval.x);
     EXPECT_EQ(60, interval.width);
     EXPECT_EQ(StyleRole::INTERVAL_SPAN, interval.style);
+    EXPECT_EQ("music", interval.id.lane_id);
+    EXPECT_EQ("phrase-1", interval.id.item_id);
 
     EXPECT_EQ(StyleRole::ENVELOPE_ATTACK, std::get<Rectangle>(primitives[6]).style);
     EXPECT_EQ(StyleRole::ENVELOPE_SUSTAIN, std::get<Rectangle>(primitives[7]).style);
     EXPECT_EQ(StyleRole::ENVELOPE_DECAY, std::get<Rectangle>(primitives[8]).style);
+    EXPECT_EQ("pulse-1", std::get<Rectangle>(primitives[6]).id.item_id);
+    EXPECT_EQ("pulse-1", std::get<Rectangle>(primitives[7]).id.item_id);
+    EXPECT_EQ("pulse-1", std::get<Rectangle>(primitives[8]).id.item_id);
 }
 
 TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
@@ -129,6 +156,8 @@ TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
     EXPECT_EQ(400, polyline.points[3].x);
     EXPECT_EQ(34, polyline.points[3].y);
     EXPECT_EQ(StyleRole::CURVE, polyline.style);
+    EXPECT_EQ("rms", polyline.id.lane_id);
+    EXPECT_EQ("rms", polyline.id.item_id);
 }
 
 TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
@@ -162,10 +191,17 @@ TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
     EXPECT_EQ(420, hold.points[2].x);
     EXPECT_EQ(45, hold.points[2].y);
     EXPECT_EQ(StyleRole::KEYFRAME_SEGMENT, hold.style);
+    EXPECT_EQ("zoom", linear.id.lane_id);
+    EXPECT_EQ("zoom-0", linear.id.item_id);
+    EXPECT_EQ("zoom", hold.id.lane_id);
+    EXPECT_EQ("zoom-20", hold.id.item_id);
 
-    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[6]).style);
-    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[7]).style);
-    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Rectangle>(primitives[8]).style);
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Marker>(primitives[6]).style);
+    EXPECT_EQ("zoom-0", std::get<Marker>(primitives[6]).id.item_id);
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Marker>(primitives[7]).style);
+    EXPECT_EQ("zoom-20", std::get<Marker>(primitives[7]).id.item_id);
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Marker>(primitives[8]).style);
+    EXPECT_EQ("zoom-40", std::get<Marker>(primitives[8]).id.item_id);
 }
 
 TEST(Layout, maps_horizontal_positions_to_timeline_time)

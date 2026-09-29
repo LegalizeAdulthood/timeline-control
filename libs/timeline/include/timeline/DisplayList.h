@@ -27,6 +27,13 @@ enum class StyleRole
     KEYFRAME_MARKER
 };
 
+/// Stable source identity carried by a display-list primitive.
+struct DisplayId
+{
+    std::string lane_id;
+    std::string item_id;
+};
+
 /// Toolkit-neutral line drawing primitive.
 struct Line
 {
@@ -35,6 +42,7 @@ struct Line
     int x2;
     int y2;
     StyleRole style;
+    DisplayId id;
 };
 
 /// Toolkit-neutral filled rectangle drawing primitive.
@@ -45,6 +53,7 @@ struct Rectangle
     int width;
     int height;
     StyleRole style;
+    DisplayId id;
 };
 
 /// Toolkit-neutral text drawing primitive.
@@ -54,6 +63,18 @@ struct Text
     int y;
     std::string value;
     StyleRole style;
+    DisplayId id;
+};
+
+/// Toolkit-neutral marker with rectangular hit-test bounds.
+struct Marker
+{
+    int x;
+    int y;
+    int width;
+    int height;
+    StyleRole style;
+    DisplayId id;
 };
 
 /// Toolkit-neutral integral point.
@@ -68,10 +89,11 @@ struct Polyline
 {
     std::vector<Point> points;
     StyleRole style;
+    DisplayId id;
 };
 
 /// One toolkit-neutral drawing operation.
-using Primitive = std::variant<Line, Rectangle, Text, Polyline>;
+using Primitive = std::variant<Line, Rectangle, Text, Marker, Polyline>;
 
 /// Ordered rendering operations produced by timeline layout.
 ///
@@ -92,6 +114,10 @@ public:
     void add(Text text)
     {
         m_primitives.emplace_back(std::move(text));
+    }
+    void add(Marker marker)
+    {
+        m_primitives.emplace_back(std::move(marker));
     }
     void add(Polyline polyline)
     {
