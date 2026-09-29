@@ -2,6 +2,8 @@ find_package(GTest CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/beat-keys/adapter.beat-keys.json
+    fixtures/beat-keys/gold-write-rms-keyframes.json
+    fixtures/beat-keys/gold-write-row-pulses.json
     fixtures/beat-keys/timeline-diagnostics.json
     fixtures/beat-keys/timeline-events.json
     fixtures/invalid-schema.json

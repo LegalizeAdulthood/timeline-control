@@ -46,8 +46,8 @@ TEST(TimelineJson, imports_minimal_paranimator_config)
     EXPECT_EQ(3, result.document->frame_grid()->frame_count());
     EXPECT_EQ(24, result.document->frame_grid()->frames_per_second_numerator());
     EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
-    EXPECT_EQ(1U, result.document->track_count());
-    EXPECT_EQ(2U, result.document->keyframe_count());
+    EXPECT_EQ(1, result.document->track_count());
+    EXPECT_EQ(2, result.document->keyframe_count());
     EXPECT_TRUE(result.document->lanes_empty());
 }
 
@@ -57,8 +57,8 @@ TEST(TimelineJson, reports_multi_track_counts)
 
     ASSERT_TRUE(result.succeeded());
     EXPECT_EQ(3, result.document->frame_grid()->frame_count());
-    EXPECT_EQ(2U, result.document->track_count());
-    EXPECT_EQ(4U, result.document->keyframe_count());
+    EXPECT_EQ(2, result.document->track_count());
+    EXPECT_EQ(4, result.document->keyframe_count());
 }
 
 TEST(TimelineJson, rejects_invalid_schema)
@@ -89,9 +89,9 @@ TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
     ASSERT_TRUE(result.document->source_summary().has_value());
     const auto &summary = *result.document->source_summary();
     EXPECT_EQ("par-beatdown.tracker-timeline", summary.schema());
-    EXPECT_EQ(1U, summary.schema_version());
-    EXPECT_EQ(0U, summary.feature_count());
-    EXPECT_EQ(6U, summary.event_count());
+    EXPECT_EQ(1, summary.schema_version());
+    EXPECT_EQ(0, summary.feature_count());
+    EXPECT_EQ(6, summary.event_count());
     EXPECT_EQ(0, *summary.first_frame());
     EXPECT_EQ(4, *summary.last_frame());
     EXPECT_EQ(0, summary.first_time()->ticks());
@@ -111,8 +111,8 @@ TEST(TimelineJson, imports_full_tracker_timeline_summary)
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
     const auto &summary = *result.document->source_summary();
-    EXPECT_EQ(0U, summary.feature_count());
-    EXPECT_EQ(1891U, summary.event_count());
+    EXPECT_EQ(0, summary.feature_count());
+    EXPECT_EQ(1891, summary.event_count());
     EXPECT_EQ(0, *summary.first_frame());
     EXPECT_EQ(4908, *summary.last_frame());
     EXPECT_EQ(0, summary.first_time()->ticks());
@@ -134,4 +134,60 @@ TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
     EXPECT_EQ("Warning: tempo was approximated", result.diagnostics[0]);
     EXPECT_EQ("Unsupported: effect command 0x7f", result.diagnostics[1]);
     EXPECT_EQ("Log: loaded fixture", result.diagnostics[2]);
+}
+
+TEST(TimelineJson, imports_row_pulse_overlay_summary)
+{
+    const auto result = import_timeline_json(fixture_path("beat-keys/gold-write-row-pulses.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.document->source_summary().has_value());
+    const auto &source = *result.document->source_summary();
+    EXPECT_EQ("par-beatdown.beat-keys-overlay", source.schema());
+    EXPECT_EQ(0, *source.first_frame());
+    EXPECT_EQ(4, *source.last_frame());
+    ASSERT_TRUE(source.generation_summary().has_value());
+    const auto &generation = *source.generation_summary();
+    EXPECT_EQ("beat-keys", generation.generator_name());
+    EXPECT_EQ("0.1.0", generation.generator_version());
+    ASSERT_EQ(3U, generation.source_references().size());
+    EXPECT_EQ("base_animation", generation.source_references()[0].role());
+    EXPECT_EQ("tests/beat-keys/base-animation.json", generation.source_references()[0].location());
+    EXPECT_EQ("timeline", generation.source_references()[1].role());
+    EXPECT_EQ("tests/beat-keys/timeline-events.json", generation.source_references()[1].location());
+    EXPECT_EQ("adapter_config", generation.source_references()[2].role());
+    EXPECT_EQ("tests/beat-keys/row-pulses.beat-keys.json", generation.source_references()[2].location());
+    ASSERT_EQ(1U, generation.target_counts().size());
+    EXPECT_EQ("row.flash", generation.target_counts()[0].name());
+    EXPECT_EQ(4, generation.target_counts()[0].count());
+    ASSERT_EQ(1U, generation.source_counts().size());
+    EXPECT_EQ("music.row_pulse", generation.source_counts()[0].name());
+    EXPECT_EQ(4, generation.source_counts()[0].count());
+    EXPECT_EQ(1, result.document->track_count());
+    EXPECT_EQ(4, result.document->keyframe_count());
+    EXPECT_TRUE(result.diagnostics.empty());
+}
+
+TEST(TimelineJson, imports_rms_overlay_summary)
+{
+    const auto result = import_timeline_json(fixture_path("beat-keys/gold-write-rms-keyframes.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.document->source_summary().has_value());
+    const auto &source = *result.document->source_summary();
+    ASSERT_TRUE(source.generation_summary().has_value());
+    const auto &generation = *source.generation_summary();
+    ASSERT_EQ(3U, generation.target_counts().size());
+    EXPECT_EQ("camera.zoom", generation.target_counts()[0].name());
+    EXPECT_EQ(3, generation.target_counts()[0].count());
+    EXPECT_EQ("color.brightness", generation.target_counts()[1].name());
+    EXPECT_EQ(3, generation.target_counts()[1].count());
+    EXPECT_EQ("layer.opacity", generation.target_counts()[2].name());
+    EXPECT_EQ(3, generation.target_counts()[2].count());
+    ASSERT_EQ(1U, generation.source_counts().size());
+    EXPECT_EQ("music.rms", generation.source_counts()[0].name());
+    EXPECT_EQ(9, generation.source_counts()[0].count());
+    EXPECT_EQ(3, result.document->track_count());
+    EXPECT_EQ(9, result.document->keyframe_count());
+    EXPECT_TRUE(result.diagnostics.empty());
 }

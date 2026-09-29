@@ -1,0 +1,46 @@
+{
+  "schema": "par-beatdown.beat-keys-overlay",
+  "version": 1,
+  "generator": {
+    "name": "beat-keys",
+    "version": "0.1.0"
+  },
+  "source": {
+    "base_animation": "tests/beat-keys/base-animation.json",
+    "timeline": "tests/beat-keys/timeline-events.json",
+    "adapter_config": "tests/beat-keys/row-pulses.beat-keys.json"
+  },
+  "keyframes": [
+    {
+      "frame": 0,
+      "target": "row.flash",
+      "op": "replace",
+      "value": 1.0,
+      "source": "music.row_pulse"
+    },
+    {
+      "frame": 1,
+      "target": "row.flash",
+      "op": "replace",
+      "value": 0.0,
+      "source": "music.row_pulse"
+    },
+    {
+      "frame": 3,
+      "target": "row.flash",
+      "op": "replace",
+      "value": 1.0,
+      "source": "music.row_pulse"
+    },
+    {
+      "frame": 4,
+      "target": "row.flash",
+      "op": "replace",
+      "value": 0.0,
+      "source": "music.row_pulse"
+    }
+  ],
+  "diagnostics": {
+    "warnings": []
+  }
+}

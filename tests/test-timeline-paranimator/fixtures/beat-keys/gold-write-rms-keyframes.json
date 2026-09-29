@@ -1,0 +1,81 @@
+{
+  "schema": "par-beatdown.beat-keys-overlay",
+  "version": 1,
+  "generator": {
+    "name": "beat-keys",
+    "version": "0.1.0"
+  },
+  "source": {
+    "base_animation": "tests/beat-keys/base-animation.json",
+    "timeline": "tests/beat-keys/timeline-features.json",
+    "adapter_config": "tests/beat-keys/rms.beat-keys.json"
+  },
+  "keyframes": [
+    {
+      "frame": 0,
+      "target": "camera.zoom",
+      "op": "replace",
+      "value": 0.25,
+      "source": "music.rms"
+    },
+    {
+      "frame": 0,
+      "target": "color.brightness",
+      "op": "add",
+      "value": 0.125,
+      "source": "music.rms"
+    },
+    {
+      "frame": 0,
+      "target": "layer.opacity",
+      "op": "multiply",
+      "value": 0.3125,
+      "source": "music.rms"
+    },
+    {
+      "frame": 2,
+      "target": "camera.zoom",
+      "op": "replace",
+      "value": 0.5,
+      "source": "music.rms"
+    },
+    {
+      "frame": 2,
+      "target": "color.brightness",
+      "op": "add",
+      "value": 0.25,
+      "source": "music.rms"
+    },
+    {
+      "frame": 2,
+      "target": "layer.opacity",
+      "op": "multiply",
+      "value": 0.375,
+      "source": "music.rms"
+    },
+    {
+      "frame": 4,
+      "target": "camera.zoom",
+      "op": "replace",
+      "value": 0.875,
+      "source": "music.rms"
+    },
+    {
+      "frame": 4,
+      "target": "color.brightness",
+      "op": "add",
+      "value": 0.75,
+      "source": "music.rms"
+    },
+    {
+      "frame": 4,
+      "target": "layer.opacity",
+      "op": "multiply",
+      "value": 0.5,
+      "source": "music.rms"
+    }
+  ],
+  "diagnostics": {
+    "warnings": []
+  }
+}

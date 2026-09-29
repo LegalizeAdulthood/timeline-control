@@ -5,6 +5,18 @@
 
 namespace timeline
 {
+namespace
+{
+
+void validate_document_counts(int track_count, int keyframe_count)
+{
+    if (track_count < 0 || keyframe_count < 0)
+    {
+        throw std::invalid_argument("timeline document counts cannot be negative");
+    }
+}
+
+} // namespace
 
 Metadata::Metadata(std::string title, std::string description) :
     m_title(std::move(title)),
@@ -12,9 +24,45 @@ Metadata::Metadata(std::string title, std::string description) :
 {
 }
 
-SourceSummary::SourceSummary(std::string schema, std::size_t schema_version, std::size_t feature_count,
-    std::size_t event_count, std::optional<Ticks> first_frame, std::optional<Ticks> last_frame,
-    std::optional<Time> first_time, std::optional<Time> last_time, std::optional<Duration> frame_offset) :
+SourceReference::SourceReference(std::string role, std::string location) :
+    m_role(std::move(role)),
+    m_location(std::move(location))
+{
+    if (m_role.empty() || m_location.empty())
+    {
+        throw std::invalid_argument("timeline source references require a role and location");
+    }
+}
+
+NamedCount::NamedCount(std::string name, int count) :
+    m_name(std::move(name)),
+    m_count(count)
+{
+    if (m_name.empty() || m_count < 0)
+    {
+        throw std::invalid_argument("timeline named counts require a name and nonnegative count");
+    }
+}
+
+GenerationSummary::GenerationSummary(std::string generator_name, std::string generator_version,
+    std::vector<SourceReference> source_references, std::vector<NamedCount> target_counts,
+    std::vector<NamedCount> source_counts) :
+    m_generator_name(std::move(generator_name)),
+    m_generator_version(std::move(generator_version)),
+    m_source_references(std::move(source_references)),
+    m_target_counts(std::move(target_counts)),
+    m_source_counts(std::move(source_counts))
+{
+    if (m_generator_name.empty() || m_generator_version.empty())
+    {
+        throw std::invalid_argument("timeline generation summaries require a generator name and version");
+    }
+}
+
+SourceSummary::SourceSummary(std::string schema, int schema_version, int feature_count, int event_count,
+    std::optional<Ticks> first_frame, std::optional<Ticks> last_frame, std::optional<Time> first_time,
+    std::optional<Time> last_time, std::optional<Duration> frame_offset,
+    std::optional<GenerationSummary> generation_summary) :
     m_schema(std::move(schema)),
     m_schema_version(schema_version),
     m_feature_count(feature_count),
@@ -23,11 +71,16 @@ SourceSummary::SourceSummary(std::string schema, std::size_t schema_version, std
     m_last_frame(last_frame),
     m_first_time(first_time),
     m_last_time(last_time),
-    m_frame_offset(frame_offset)
+    m_frame_offset(frame_offset),
+    m_generation_summary(std::move(generation_summary))
 {
     if (m_schema.empty())
     {
         throw std::invalid_argument("timeline source schema cannot be empty");
+    }
+    if (m_schema_version < 0 || m_feature_count < 0 || m_event_count < 0)
+    {
+        throw std::invalid_argument("timeline source summary counts cannot be negative");
     }
     if (m_first_frame.has_value() != m_last_frame.has_value())
     {
@@ -65,13 +118,25 @@ Document::Document(Timebase timebase, SourceSummary source_summary, Metadata met
 {
 }
 
-Document::Document(FrameGrid frame_grid, std::size_t track_count, std::size_t keyframe_count, Metadata metadata) :
+Document::Document(
+    Timebase timebase, SourceSummary source_summary, int track_count, int keyframe_count, Metadata metadata) :
+    m_timebase(timebase),
+    m_metadata(std::move(metadata)),
+    m_source_summary(std::move(source_summary)),
+    m_track_count(track_count),
+    m_keyframe_count(keyframe_count)
+{
+    validate_document_counts(m_track_count, m_keyframe_count);
+}
+
+Document::Document(FrameGrid frame_grid, int track_count, int keyframe_count, Metadata metadata) :
     m_timebase(frame_grid.timebase()),
     m_metadata(std::move(metadata)),
     m_frame_grid(std::move(frame_grid)),
     m_track_count(track_count),
     m_keyframe_count(keyframe_count)
 {
+    validate_document_counts(m_track_count, m_keyframe_count);
 }
 
 Document::Document(FrameGrid frame_grid, SourceSummary source_summary, Metadata metadata) :

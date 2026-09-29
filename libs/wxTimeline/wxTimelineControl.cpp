@@ -59,9 +59,34 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     {
         const auto &summary = *m_document->source_summary();
         draw_line("Schema: " + wxString::FromUTF8(summary.schema().c_str()) +
-            wxString::Format(" v%llu", static_cast<unsigned long long>(summary.schema_version())));
-        draw_line(wxString::Format("Features: %llu", static_cast<unsigned long long>(summary.feature_count())));
-        draw_line(wxString::Format("Events: %llu", static_cast<unsigned long long>(summary.event_count())));
+            wxString::Format(" v%d", summary.schema_version()));
+        draw_line(wxString::Format("Features: %d", summary.feature_count()));
+        draw_line(wxString::Format("Events: %d", summary.event_count()));
+        if (summary.generation_summary())
+        {
+            const auto &generation = *summary.generation_summary();
+            draw_line("Generator: " + wxString::FromUTF8(generation.generator_name().c_str()) + " " +
+                wxString::FromUTF8(generation.generator_version().c_str()));
+            for (const auto &source : generation.source_references())
+            {
+                draw_line("Input " + wxString::FromUTF8(source.role().c_str()) + ": " +
+                    wxString::FromUTF8(source.location().c_str()));
+            }
+            draw_line(wxString::Format(
+                "Generated target groups: %llu", static_cast<unsigned long long>(generation.target_counts().size())));
+            for (const auto &target : generation.target_counts())
+            {
+                draw_line("Target " + wxString::FromUTF8(target.name().c_str()) +
+                    wxString::Format(": %d keyframes", target.count()));
+            }
+            draw_line(wxString::Format(
+                "Music source groups: %llu", static_cast<unsigned long long>(generation.source_counts().size())));
+            for (const auto &source : generation.source_counts())
+            {
+                draw_line("Source " + wxString::FromUTF8(source.name().c_str()) +
+                    wxString::Format(": %d keyframes", source.count()));
+            }
+        }
         if (summary.first_frame())
         {
             draw_line(wxString::Format("Frame extent: %lld to %lld", static_cast<long long>(*summary.first_frame()),
@@ -79,7 +104,7 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
                 "Frame offset: %.6f seconds", m_document->timebase().seconds(*summary.frame_offset())));
         }
     }
-    draw_line(wxString::Format("Tracks: %llu", static_cast<unsigned long long>(m_document->track_count())));
-    draw_line(wxString::Format("Keyframes: %llu", static_cast<unsigned long long>(m_document->keyframe_count())));
-    draw_line(wxString::Format("Lanes: %llu", static_cast<unsigned long long>(m_document->lane_count())));
+    draw_line(wxString::Format("Tracks: %d", m_document->track_count()));
+    draw_line(wxString::Format("Keyframes: %d", m_document->keyframe_count()));
+    draw_line(wxString::Format("Lanes: %d", m_document->lane_count()));
 }

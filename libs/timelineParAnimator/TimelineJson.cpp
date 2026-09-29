@@ -2,6 +2,8 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
+#include <timeline/size_cast.h>
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -9,6 +11,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <stdexcept>
 #include <string_view>
@@ -33,6 +36,7 @@ constexpr auto SUPPORTED_PAR_ANIMATOR_ROOT_FIELDS = std::array<std::string_view,
 };
 constexpr std::string_view TRACKER_TIMELINE_SCHEMA = "par-beatdown.tracker-timeline";
 constexpr std::string_view BEAT_KEYS_SCHEMA = "par-beatdown.beat-keys";
+constexpr std::string_view BEAT_KEYS_OVERLAY_SCHEMA = "par-beatdown.beat-keys-overlay";
 
 /// Frame-rate and synchronization policy selected for a tracker timeline.
 struct TrackerTiming
@@ -155,9 +159,9 @@ bool validate_par_animator_root(const Json &config, std::vector<std::string> &di
     return valid;
 }
 
-std::size_t count_keyframes(const Json &value)
+int count_keyframes(const Json &value)
 {
-    auto result = std::size_t{0};
+    auto result = 0;
     if (value.is_array())
     {
         for (const auto &element : value)
@@ -175,7 +179,7 @@ std::size_t count_keyframes(const Json &value)
                 {
                     throw std::invalid_argument("ParAnimator track property 'keys' must be an array.");
                 }
-                result += field->size();
+                result += timeline::size_cast(*field);
             }
             else
             {
@@ -186,7 +190,7 @@ std::size_t count_keyframes(const Json &value)
     return result;
 }
 
-void summarize_tracks(const Json &tracks, std::size_t &track_count, std::size_t &keyframe_count)
+void summarize_tracks(const Json &tracks, int &track_count, int &keyframe_count)
 {
     if (!tracks.is_array())
     {
@@ -203,10 +207,10 @@ void summarize_tracks(const Json &tracks, std::size_t &track_count, std::size_t 
     }
 }
 
-std::pair<std::size_t, std::size_t> summarize_par_animator_content(const Json &config)
+std::pair<int, int> summarize_par_animator_content(const Json &config)
 {
-    auto track_count = std::size_t{0};
-    auto keyframe_count = std::size_t{0};
+    auto track_count = 0;
+    auto keyframe_count = 0;
     if (config.contains("tracks"))
     {
         summarize_tracks(config.at("tracks"), track_count, keyframe_count);
@@ -245,6 +249,184 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
     catch (const std::exception &error)
     {
         result.diagnostics.emplace_back("Unable to import ParAnimator config: " + std::string(error.what()));
+    }
+}
+
+bool validate_overlay_string_field(
+    const Json &object, std::string_view field, std::string_view context, std::vector<std::string> &diagnostics)
+{
+    const auto name = std::string(field);
+    if (!object.contains(name) || !object.at(name).is_string() || object.at(name).get<std::string>().empty())
+    {
+        diagnostics.emplace_back(std::string(context) + " requires non-empty string property '" + name + "'.");
+        return false;
+    }
+    return true;
+}
+
+bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &diagnostics)
+{
+    if (!config.is_object())
+    {
+        diagnostics.emplace_back("Beat-keys overlay must be a JSON object.");
+        return false;
+    }
+
+    auto valid = true;
+    if (!config.contains("version") || !config.at("version").is_number_integer() ||
+        config.at("version").get<timeline::Ticks>() != 1)
+    {
+        diagnostics.emplace_back("Unsupported beat-keys overlay version.");
+        valid = false;
+    }
+    if (!config.contains("generator") || !config.at("generator").is_object())
+    {
+        diagnostics.emplace_back("Beat-keys overlay requires a generator object.");
+        valid = false;
+    }
+    else
+    {
+        const auto &generator = config.at("generator");
+        valid = validate_overlay_string_field(generator, "name", "Beat-keys generator", diagnostics) && valid;
+        valid = validate_overlay_string_field(generator, "version", "Beat-keys generator", diagnostics) && valid;
+        if (generator.contains("name") && generator.at("name").is_string() &&
+            generator.at("name").get<std::string>() != "beat-keys")
+        {
+            diagnostics.emplace_back("Unsupported beat-keys overlay generator.");
+            valid = false;
+        }
+    }
+    if (!config.contains("source") || !config.at("source").is_object())
+    {
+        diagnostics.emplace_back("Beat-keys overlay requires a source object.");
+        valid = false;
+    }
+    else
+    {
+        const auto &source = config.at("source");
+        valid = validate_overlay_string_field(source, "base_animation", "Beat-keys source", diagnostics) && valid;
+        valid = validate_overlay_string_field(source, "timeline", "Beat-keys source", diagnostics) && valid;
+        valid = validate_overlay_string_field(source, "adapter_config", "Beat-keys source", diagnostics) && valid;
+    }
+    if (!config.contains("keyframes") || !config.at("keyframes").is_array())
+    {
+        diagnostics.emplace_back("Beat-keys overlay requires a keyframes array.");
+        valid = false;
+    }
+    else
+    {
+        constexpr auto OPERATIONS = std::array<std::string_view, 3>{"add", "multiply", "replace"};
+        constexpr auto SOURCES = std::array<std::string_view, 5>{
+            "music.rms", "music.peak", "music.note_pulse", "music.effect_pulse", "music.row_pulse"};
+        for (const auto &keyframe : config.at("keyframes"))
+        {
+            if (!keyframe.is_object() || !keyframe.contains("frame") || !keyframe.at("frame").is_number_integer() ||
+                keyframe.at("frame").get<timeline::Ticks>() < 0 ||
+                !validate_overlay_string_field(keyframe, "target", "Beat-keys keyframe", diagnostics) ||
+                !validate_overlay_string_field(keyframe, "op", "Beat-keys keyframe", diagnostics) ||
+                !keyframe.contains("value") || !keyframe.at("value").is_number() ||
+                !validate_overlay_string_field(keyframe, "source", "Beat-keys keyframe", diagnostics))
+            {
+                diagnostics.emplace_back("Beat-keys overlay contains an invalid keyframe.");
+                valid = false;
+                continue;
+            }
+            const auto operation = keyframe.at("op").get<std::string>();
+            const auto source = keyframe.at("source").get<std::string>();
+            const auto value = keyframe.at("value").get<double>();
+            if (std::find(OPERATIONS.begin(), OPERATIONS.end(), operation) == OPERATIONS.end() ||
+                std::find(SOURCES.begin(), SOURCES.end(), source) == SOURCES.end() || !std::isfinite(value))
+            {
+                diagnostics.emplace_back("Beat-keys overlay contains an invalid keyframe.");
+                valid = false;
+            }
+        }
+    }
+    if (!config.contains("diagnostics") || !config.at("diagnostics").is_object() ||
+        !config.at("diagnostics").contains("warnings") || !config.at("diagnostics").at("warnings").is_array())
+    {
+        diagnostics.emplace_back("Beat-keys overlay requires diagnostics warnings.");
+        valid = false;
+    }
+    return valid;
+}
+
+std::vector<timeline::NamedCount> named_counts(const std::map<std::string, int> &counts)
+{
+    auto result = std::vector<timeline::NamedCount>{};
+    result.reserve(counts.size());
+    for (const auto &[name, count] : counts)
+    {
+        result.emplace_back(name, count);
+    }
+    return result;
+}
+
+void append_diagnostic_array(
+    const Json &diagnostics, std::string_view field, std::string_view prefix, std::vector<std::string> &result)
+{
+    const auto field_name = std::string(field);
+    if (!diagnostics.contains(field_name))
+    {
+        return;
+    }
+    if (!diagnostics.at(field_name).is_array())
+    {
+        throw std::invalid_argument("ParBeatdown diagnostics fields must be arrays.");
+    }
+    for (const auto &message : diagnostics.at(field_name))
+    {
+        if (!message.is_string())
+        {
+            throw std::invalid_argument("ParBeatdown diagnostics entries must be strings.");
+        }
+        result.emplace_back(std::string(prefix) + message.get<std::string>());
+    }
+}
+
+void import_beat_keys_overlay(const std::filesystem::path &source_path, const Json &config,
+    const JsonImportOptions &options, JsonImportResult &result)
+{
+    if (!validate_beat_keys_overlay(config, result.diagnostics))
+    {
+        return;
+    }
+
+    try
+    {
+        auto first_frame = std::optional<timeline::Ticks>{};
+        auto last_frame = std::optional<timeline::Ticks>{};
+        auto target_counts = std::map<std::string, int>{};
+        auto source_counts = std::map<std::string, int>{};
+        for (const auto &keyframe : config.at("keyframes"))
+        {
+            const auto frame = keyframe.at("frame").get<timeline::Ticks>();
+            first_frame = first_frame ? std::min(*first_frame, frame) : frame;
+            last_frame = last_frame ? std::max(*last_frame, frame) : frame;
+            ++target_counts[keyframe.at("target").get<std::string>()];
+            ++source_counts[keyframe.at("source").get<std::string>()];
+        }
+
+        const auto &generator = config.at("generator");
+        const auto &source = config.at("source");
+        auto generation_summary = timeline::GenerationSummary(generator.at("name").get<std::string>(),
+            generator.at("version").get<std::string>(),
+            {timeline::SourceReference("base_animation", source.at("base_animation").get<std::string>()),
+                timeline::SourceReference("timeline", source.at("timeline").get<std::string>()),
+                timeline::SourceReference("adapter_config", source.at("adapter_config").get<std::string>())},
+            named_counts(target_counts), named_counts(source_counts));
+        auto source_summary =
+            timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(), 0, 0,
+                first_frame, last_frame, std::nullopt, std::nullopt, std::nullopt, std::move(generation_summary));
+        auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
+        append_diagnostic_array(config.at("diagnostics"), "warnings", "Warning: ", result.diagnostics);
+        result.document.emplace(timeline::Timebase(options.ticks_per_second), std::move(source_summary),
+            timeline::size_cast(target_counts), timeline::size_cast(config.at("keyframes")), std::move(metadata));
+    }
+    catch (const std::exception &error)
+    {
+        result.document.reset();
+        result.diagnostics.emplace_back("Unable to import beat-keys overlay: " + std::string(error.what()));
     }
 }
 
@@ -472,27 +654,6 @@ TrackerExtent tracker_extent(const Json &config)
     return extent;
 }
 
-void append_diagnostic_array(
-    const Json &diagnostics, const char *field, const char *prefix, std::vector<std::string> &result)
-{
-    if (!diagnostics.contains(field))
-    {
-        return;
-    }
-    if (!diagnostics.at(field).is_array())
-    {
-        throw std::invalid_argument("ParBeatdown diagnostics fields must be arrays.");
-    }
-    for (const auto &message : diagnostics.at(field))
-    {
-        if (!message.is_string())
-        {
-            throw std::invalid_argument("ParBeatdown diagnostics entries must be strings.");
-        }
-        result.emplace_back(std::string(prefix) + message.get<std::string>());
-    }
-}
-
 void append_tracker_diagnostics(const Json &config, std::vector<std::string> &diagnostics)
 {
     if (!config.contains("diagnostics"))
@@ -540,9 +701,10 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         }
 
         append_tracker_diagnostics(config, result.diagnostics);
-        auto source_summary = timeline::SourceSummary(config.at("schema").get<std::string>(),
-            static_cast<std::size_t>(config.at("version").get<timeline::Ticks>()), config.at("features").size(),
-            config.at("events").size(), extent.first_frame, extent.last_frame, first_time, last_time, frame_offset);
+        auto source_summary =
+            timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
+                timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")),
+                extent.first_frame, extent.last_frame, first_time, last_time, frame_offset);
         auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
         if (frame_grid)
         {
@@ -579,12 +741,24 @@ JsonImportResult import_timeline_json(const std::filesystem::path &source_path, 
 
     if (config.is_object() && config.contains("schema"))
     {
-        if (!config.at("schema").is_string() || config.at("schema").get<std::string>() != TRACKER_TIMELINE_SCHEMA)
+        if (!config.at("schema").is_string())
         {
             result.diagnostics.emplace_back("Unsupported timeline JSON schema.");
             return result;
         }
-        import_tracker_timeline(source_path, config, options, result);
+        const auto schema = config.at("schema").get<std::string>();
+        if (schema == TRACKER_TIMELINE_SCHEMA)
+        {
+            import_tracker_timeline(source_path, config, options, result);
+        }
+        else if (schema == BEAT_KEYS_OVERLAY_SCHEMA)
+        {
+            import_beat_keys_overlay(source_path, config, options, result);
+        }
+        else
+        {
+            result.diagnostics.emplace_back("Unsupported timeline JSON schema.");
+        }
     }
     else
     {
