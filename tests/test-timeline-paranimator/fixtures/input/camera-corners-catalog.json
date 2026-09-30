@@ -1,0 +1,18 @@
+{
+  "parameters": {
+    "corners": {
+      "type": "corners",
+      "description": "Affine image view defined by corner coordinates.",
+      "format": "slash",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "center_mag": {
+      "type": "double",
+      "description": "Non-corners target for output type validation.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    }
+  }
+}

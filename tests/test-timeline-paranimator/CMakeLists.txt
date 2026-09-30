@@ -2,6 +2,22 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/camera2d-corners.json
+    fixtures/gold-camera2d-corners.par
+    fixtures/camera2d-eye-corners.json
+    fixtures/gold-camera2d-eye-corners.par
+    fixtures/camera2d-corners-rotated-source.json
+    fixtures/gold-camera2d-corners-rotated-source.par
+    fixtures/camera2d-corners-reversed-source.json
+    fixtures/gold-camera2d-corners-reversed-source.par
+    fixtures/input/camera-corners-catalog.json
+    fixtures/input/camera-corners-source.par
+    fixtures/invalid-camera2d-corners-BadArity.json
+    fixtures/invalid-camera2d-corners-ZeroWidth.json
+    fixtures/invalid-camera2d-corners-ZeroHeight.json
+    fixtures/invalid-camera2d-corners-ZeroRotatedWidth.json
+    fixtures/invalid-camera2d-corners-Missing.json
+    fixtures/invalid-camera2d-corners-catalog.json
     fixtures/camera2d-nested-linear.json
     fixtures/gold-camera2d-nested-linear.par
     fixtures/camera2d-nested-hold.json
@@ -170,6 +186,7 @@ add_executable(test-timeline-paranimator
     mapping_test.cpp
     animation_test.cpp
     camera_test.cpp
+    camera_corners_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

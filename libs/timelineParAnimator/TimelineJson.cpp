@@ -1504,6 +1504,31 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     }
 }
 
+double camera2d_corners_aspect(const std::vector<double> &view)
+{
+    double width;
+    double height;
+    if (view.size() == 4)
+    {
+        width = std::abs(view[1] - view[0]);
+        height = std::abs(view[3] - view[2]);
+    }
+    else if (view.size() == 6)
+    {
+        width = std::hypot(view[1] - view[4], view[2] - view[5]);
+        height = std::hypot(view[0] - view[4], view[3] - view[5]);
+    }
+    else
+    {
+        throw std::invalid_argument("Camera2D source corners requires four or six components");
+    }
+    if (!std::isfinite(width) || !std::isfinite(height) || width <= 0 || height <= 0)
+    {
+        throw std::invalid_argument("Camera2D source corners has invalid width or height");
+    }
+    return width / height;
+}
+
 void animation_camera2d_lanes(const Json &track, const Json &catalog, const std::filesystem::path &source_path,
     const Json &config, const std::string &video, const std::string &id, const std::string &layer,
     const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes)
@@ -1518,12 +1543,14 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         throw std::invalid_argument("Camera2D skew and non-keyframe modes are not supported yet");
     }
     const std::string output = track.at("output").get<std::string>();
+    const bool corners = output == "corners";
     const Json &parameters = catalog.at("parameters");
-    if (output != "center-mag" || !parameters.contains(output) || parameters.at(output).at("type") != "center-mag")
+    if ((!corners && output != "center-mag") || !parameters.contains(output) ||
+        parameters.at(output).at("type") != output)
     {
-        throw std::invalid_argument("Camera2D requires a catalog-declared center-mag output");
+        throw std::invalid_argument("Camera2D requires a catalog-declared corners or center-mag output");
     }
-    if (track.at("aspect") != "source" || video != "F6")
+    if (track.at("aspect") != "source" || (!corners && video != "F6"))
     {
         throw std::invalid_argument("Camera2D requires source aspect and supported video mode F6");
     }
@@ -1533,12 +1560,16 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         throw std::invalid_argument("Camera2D output is missing from the source PAR entry");
     }
     const std::vector<double> source_view = animation_value(source.at(output));
-    if (timeline::size_cast(source_view) < 3 || timeline::size_cast(source_view) > 6)
+    if (!corners && (timeline::size_cast(source_view) < 3 || timeline::size_cast(source_view) > 6))
     {
         throw std::invalid_argument("Camera2D source center-mag requires three through six components");
     }
-    const double stretch = source_view.size() < 4 || source_view[3] == 0 ? 1 : source_view[3];
-    const double aspect = (4.0 / 3.0) / std::abs(stretch);
+    const double stretch = corners || source_view.size() < 4 || source_view[3] == 0 ? 1 : source_view[3];
+    const double aspect = corners ? camera2d_corners_aspect(source_view) : (4.0 / 3.0) / std::abs(stretch);
+    if (!std::isfinite(aspect) || aspect <= 0)
+    {
+        throw std::invalid_argument("Camera2D source aspect must be finite and positive");
+    }
     const std::string label = layer.empty() ? name : layer + " / " + name;
     std::vector<timeline::Lane> signals;
     camera2d_look_lanes(track.at("look-at"), id, label, layer, grid, signals);
@@ -1598,33 +1629,65 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     {
         return 4 / (aspect * *height.evaluate_keyframes(time));
     };
-    const double from_mag = magnification(start);
-    const double to_mag = magnification(end);
-    if (!std::isfinite(from_mag) || !std::isfinite(to_mag) || from_mag <= 0 || to_mag <= 0)
+    const double from_mag = corners ? 0 : magnification(start);
+    const double to_mag = corners ? 0 : magnification(end);
+    if (!corners && (!std::isfinite(from_mag) || !std::isfinite(to_mag) || from_mag <= 0 || to_mag <= 0))
     {
         throw std::invalid_argument("Camera2D magnification must be finite and positive");
     }
-    const std::array<std::string, 6> components{
-        "center-x", "center-y", "magnification", "x-mag-factor", "rotation", "skew"};
-    const std::array<std::pair<double, double>, 6> bounds{camera2d_bounds(signals[0], start, end),
+    const std::array<std::string, 6> components = corners
+        ? std::array<std::string, 6>{"top-left-x", "bottom-right-x", "bottom-right-y", "top-left-y", "bottom-left-x",
+              "bottom-left-y"}
+        : std::array<std::string, 6>{"center-x", "center-y", "magnification", "x-mag-factor", "rotation", "skew"};
+    std::array<std::pair<double, double>, 6> bounds{camera2d_bounds(signals[0], start, end),
         camera2d_bounds(signals[1], start, end), std::minmax(from_mag, to_mag), {stretch, stretch}, {-180, 180},
         {0, 0}};
+    if (corners)
+    {
+        // A rotating corner stays within the enclosing circle at the largest keyed height.
+        const double height = camera2d_bounds(signals[4], start, end).second;
+        const double radius = std::hypot(height * aspect / 2, height / 2);
+        for (int component = 0; component < 6; ++component)
+        {
+            const int coordinate = component == 0 || component == 1 || component == 4 ? 0 : 1;
+            const std::pair<double, double> center = camera2d_bounds(signals[coordinate], start, end);
+            bounds[component] = {center.first - radius, center.second + radius};
+            if (!std::isfinite(bounds[component].first) || !std::isfinite(bounds[component].second))
+            {
+                throw std::invalid_argument("Camera2D corners output requires finite bounds");
+            }
+        }
+    }
     const timeline::Attributes attributes{{"camera2d", track.dump()}, {"track", id}, {"layer", layer}, {"camera", name},
         {"source-value", source.at(output)}, {"aspect", std::to_string(aspect)},
         {"source-entry", config.at("source").at("name").get<std::string>()},
         {"source-file", (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()}};
     for (int component = 0; component < 6; ++component)
     {
-        const auto evaluate = [x = signals[0], y = signals[1], normalized_up, magnification, stretch, component](
-                                  timeline::Time time)
+        const auto evaluate = [x = signals[0], y = signals[1], height = signals[4], normalized_up, magnification,
+                                  stretch, aspect, corners, component](timeline::Time time)
         {
             const std::array<double, 2> up = normalized_up(time);
+            const double center_x = camera2d_sample(x, time);
+            const double center_y = camera2d_sample(y, time);
+            if (corners)
+            {
+                const double half_height = camera2d_sample(height, time) / 2;
+                const double half_width = camera2d_sample(height, time) * aspect / 2;
+                const std::array<double, 6> values{center_x - half_width * up[1] + half_height * up[0],
+                    center_x + half_width * up[1] - half_height * up[0],
+                    center_y - half_width * up[0] - half_height * up[1],
+                    center_y + half_width * up[0] + half_height * up[1],
+                    center_x - half_width * up[1] - half_height * up[0],
+                    center_y + half_width * up[0] - half_height * up[1]};
+                return clean_path_value(values[component]);
+            }
             constexpr double PI = 3.141592653589793238462643383279502884;
-            const std::array<double, 6> values{camera2d_sample(x, time), camera2d_sample(y, time), magnification(time),
-                stretch, std::atan2(up[0], up[1]) * 180 / PI, 0};
+            const std::array<double, 6> values{
+                center_x, center_y, magnification(time), stretch, std::atan2(up[0], up[1]) * 180 / PI, 0};
             return clean_path_value(values[component]);
         };
-        const std::string suffix = "-center-mag[" + std::to_string(component) + "]";
+        const std::string suffix = "-" + output + "[" + std::to_string(component) + "]";
         timeline::Attributes output_attributes = attributes;
         output_attributes["parameter"] = output;
         output_attributes["component"] = components[component];

@@ -1,0 +1,18 @@
+frame-0001 {
+    reset
+    type=mandel
+    corners=-3/3/-2/2
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    corners=-1.62132034356/2.62132034356/-0.914213562373/1.9142135623\
+        7
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    corners=-0.5/2.5/0/2
+}

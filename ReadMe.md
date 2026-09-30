@@ -136,20 +136,29 @@ only the selected slot and pads missing slots with `ident`. The inspector
 retains the complete source function list, source entry, slot, and recipe.
 Layer tracks resolve their own source entries.
 
-Keyed Camera2D center-mag tracks expose six output components and five
-nested input components. Look-at is point2, view-up is vector2, and height
-is a positive double. Keyed inputs require two full-range keys. Look-at
-and eye also accept constant and line paths, represented by endpoint
-keys with the original path recipes retained. View-up
-is normalized after interpolation regardless of its authored normalize
-flag. Height supports linear, hold/step, and geometric interpolation;
+Keyed Camera2D center-mag and corners tracks expose six output components
+and five nested input components. Look-at is point2, view-up is vector2,
+and height is a positive double. Keyed inputs require two full-range keys.
+Look-at and eye also accept constant and line paths, represented by
+endpoint keys with the original path recipes retained. View-up is
+normalized after interpolation; an authored normalize flag must be true.
+Height supports linear, hold/step, and geometric interpolation;
 vector inputs do not support geometric interpolation.
 
-Camera aspect comes from the source PAR center-mag stretch and video mode
-F6. A missing or zero x-magnification factor means one; negative stretch
+Center-mag aspect comes from the source PAR stretch and video mode F6.
+A missing or zero x-magnification factor means one; negative stretch
 is retained in output while aspect uses its magnitude. Output and
 normalized view-up are owned analytic curves, not baked frame samples.
 The inspector retains the complete camera recipe and nested signal keys.
+
+Corners output derives aspect from the source PAR's four-value extents or
+six-value edge lengths, independently of video mode. Six stable analytic
+lanes represent top-left x, bottom-right x/y, top-left y, and bottom-left
+x/y. Compact axis-aligned output expands to the same affine components;
+rotated views retain all three corners. Bounds enclose every orientation
+over the full camera interval. Degenerate source views are diagnosed by
+the importer.
+
 Eye inputs may also use circle/ellipse orbits with positive radii and a
 fixed look-at, including offsets from the orbit center. The importer
 checks the authored arc for singular directions, including collisions
@@ -182,8 +191,7 @@ Without eye, look-at also accepts circle, ellipse, Lissajous, spiral,
 Bezier, and Catmull-Rom paths with keyed view-up and height. Output center
 curves reuse the owned analytic definitions and bounds, including interior
 extrema. Nested look-at curves retain their original recipes and distinct
-hit identities. Curved look-at with eye, moving look-at with curved eye,
-corners output, and skew remain pending.
+hit identities. Skew remains pending.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
@@ -269,6 +277,16 @@ and source entry. Open `camera2d-keyed-variants.json` to replace the
 comparison with twenty-two lanes. At frame 1, the first camera rotation
 is 45 degrees, both view-up components are `0.707107`, and magnification
 is `1.333333`; its source x-magnification factor remains `-2`.
+
+`camera2d-corners.json` and `camera2d-eye-corners.json` are copied from
+ParAnimator's integration tests, with source-generated golden PAR output.
+Open the eye fixture for thirteen lanes and add
+`beat-keys/rms.beat-keys.json` for seventeen comparison lanes. At frame 1,
+the corners are `-2/2/1/-1/2/-1`. Click a corner curve to inspect its
+identity and source recipe. Open `camera2d-corners-rotated-source.json`
+to replace the comparison with eleven lanes; its six-value source view
+supplies aspect 2 even with video mode F7. Invalid corners fixtures report
+importer errors without replacing the displayed document.
 
 `camera2d-eye-center-mag.json` and its golden PAR output are copied from
 ParAnimator's integration tests. Open the eye fixture for thirteen lanes
