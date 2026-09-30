@@ -5,6 +5,7 @@
 #include <timeline/Event.h>
 #include <timeline/size_cast.h>
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -12,12 +13,17 @@
 namespace timeline
 {
 
-/// Policy for evaluating a curve between exact samples.
+/// Policy for evaluating a curve from samples or an analytic definition.
 enum class CurveInterpolation
 {
     LINEAR,
-    STEP
+    STEP,
+    ANALYTIC
 };
+
+/// Owned callable that evaluates a numeric curve at an exact timeline time.
+/// Captured recipe data must be owned by value and evaluation must be pure.
+using CurveEvaluator = std::function<double(Time)>;
 
 /// One numeric curve value stored at an exact timeline time.
 ///
@@ -43,12 +49,12 @@ private:
     double m_value;
 };
 
-/// Analytic numeric curve defined by ordered exact-time samples.
+/// Numeric curve defined by ordered samples or an owned analytic evaluator.
 ///
-/// A curve owns at least two strictly ordered samples, evaluates according to
-/// its interpolation policy, and clamps queries outside its sample domain to
-/// the nearest endpoint. Optional bounds are metadata and reject samples that
-/// lie outside the declared range.
+/// Sample-defined curves own at least two strictly ordered samples. Analytic
+/// curves own an evaluator and a finite time domain, without storing sampled
+/// caches. Both clamp queries to their domain. Bounds reject stored or evaluated
+/// values outside the declared range; evaluated values must be finite.
 ///
 class Curve
 {
@@ -57,6 +63,9 @@ public:
     Curve(std::string id, std::string kind, std::vector<CurveSample> samples, std::string label,
         CurveInterpolation interpolation, std::optional<double> minimum, std::optional<double> maximum,
         Attributes attributes);
+    Curve(std::string id, std::string kind, Time start, Time end, CurveEvaluator evaluator);
+    Curve(std::string id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
+        std::optional<double> minimum, std::optional<double> maximum, Attributes attributes);
 
     const std::string &id() const
     {
@@ -96,11 +105,11 @@ public:
     }
     Time start() const
     {
-        return m_samples.front().time();
+        return m_start;
     }
     Time end() const
     {
-        return m_samples.back().time();
+        return m_end;
     }
 
     double sample(Time time) const;
@@ -115,6 +124,9 @@ private:
     std::optional<double> m_maximum;
     Attributes m_attributes;
     std::vector<CurveSample> m_samples;
+    Time m_start;
+    Time m_end;
+    CurveEvaluator m_evaluator;
 };
 
 } // namespace timeline

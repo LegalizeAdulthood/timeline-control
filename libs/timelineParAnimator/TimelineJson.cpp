@@ -313,6 +313,76 @@ timeline::KeyframeInterpolation animation_interpolation(std::string_view curve)
     throw std::invalid_argument("unknown interpolation curve: " + std::string(curve));
 }
 
+double path_number(const Json &path, const char *name)
+{
+    const double value = path.at(name).get<double>();
+    if (!std::isfinite(value))
+    {
+        throw std::invalid_argument("path numeric fields must be finite");
+    }
+    return value;
+}
+
+double clean_path_value(double value)
+{
+    return std::abs(value) < 1e-12 ? 0.0 : value;
+}
+
+void animation_planar_lanes(const Json &path, const Json &metadata, const std::string &id, const std::string &label,
+    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    if (grid.frame_count() < 2)
+    {
+        throw std::invalid_argument("path tracks require at least two frames");
+    }
+    const std::string type = metadata.value("type", std::string{});
+    if (!type.empty() && type != "complex" && type != "point2")
+    {
+        throw std::invalid_argument("circle and ellipse paths require a complex or point2 target");
+    }
+    const std::vector<double> center = animation_value(path.at("center").get<std::string>());
+    if (timeline::size_cast(center) != 2)
+    {
+        throw std::invalid_argument("planar path center must have two components");
+    }
+    const bool circle = path.at("kind").get<std::string>() == "circle";
+    const double x_radius = path_number(path, circle ? "radius" : "x-radius");
+    const double y_radius = circle ? x_radius : path_number(path, "y-radius");
+    const double phase = path.contains("phase") ? path_number(path, "phase") : 0.0;
+    const double turns = path.contains("turns") ? path_number(path, "turns") : 1.0;
+    if (x_radius < 0.0 || y_radius < 0.0)
+    {
+        throw std::invalid_argument("path radii must be nonnegative");
+    }
+    if (!std::isfinite(360.0 * turns) || !std::isfinite(phase + 360.0 * turns))
+    {
+        throw std::invalid_argument("path angle range must be finite");
+    }
+    const timeline::Time start = grid.offset();
+    const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+    for (int component = 0; component < 2; ++component)
+    {
+        const double origin = center[component];
+        const double radius = component == 0 ? x_radius : y_radius;
+        const std::string suffix = "[" + std::to_string(component) + "]";
+        const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
+            {"path", path.dump()}, {"component", std::to_string(component)}};
+        const auto evaluate = [origin, radius, phase, turns, component, start, end](timeline::Time time)
+        {
+            constexpr double PI = 3.141592653589793238462643383279502884;
+            const double fraction =
+                static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
+            const double radians = (phase + 360.0 * turns * fraction) * PI / 180.0;
+            return clean_path_value(origin + radius * (component == 0 ? std::cos(radians) : std::sin(radians)));
+        };
+        timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
+        lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
+            clean_path_value(origin - radius), clean_path_value(origin + radius), attributes));
+        lanes.push_back(std::move(lane));
+    }
+}
+
 Json animation_path_keys(const Json &path, const timeline::FrameGrid &grid)
 {
     if (!path.is_object())
@@ -489,7 +559,17 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             {
                 throw std::invalid_argument("track requires keys or path");
             }
-            animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+            const std::string path_kind = track.contains("path") && track.at("path").is_object()
+                ? track.at("path").value("kind", std::string{})
+                : "";
+            if (path_kind == "circle" || path_kind == "ellipse")
+            {
+                animation_planar_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
+            }
+            else
+            {
+                animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+            }
             for (timeline::Lane &lane : track_lanes)
             {
                 lanes.push_back(std::move(lane));

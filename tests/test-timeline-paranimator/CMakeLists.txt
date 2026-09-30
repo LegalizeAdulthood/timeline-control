@@ -11,6 +11,10 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/gold-path-generators.par
     fixtures/partial-paths.json
     fixtures/single-frame-path.json
+    fixtures/ellipse-path.json
+    fixtures/gold-ellipse-path.par
+    fixtures/circle-path.json
+    fixtures/partial-planar-paths.json
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
     fixtures/missing-catalog.json

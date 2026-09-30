@@ -73,9 +73,10 @@ bool contains(const Polyline &polyline, Point point, int tolerance)
     return false;
 }
 
-std::pair<double, double> curve_range(const Curve &curve)
+std::pair<double, double> curve_range(const Curve &curve, const std::vector<CurveSample> &rendered_samples)
 {
-    const auto [sample_minimum, sample_maximum] = std::minmax_element(curve.samples().begin(), curve.samples().end(),
+    const std::vector<CurveSample> &samples = curve.samples().empty() ? rendered_samples : curve.samples();
+    const auto [sample_minimum, sample_maximum] = std::minmax_element(samples.begin(), samples.end(),
         [](const CurveSample &lhs, const CurveSample &rhs) { return lhs.value() < rhs.value(); });
     return {curve.minimum().value_or(sample_minimum->value()), curve.maximum().value_or(sample_maximum->value())};
 }
@@ -83,8 +84,28 @@ std::pair<double, double> curve_range(const Curve &curve)
 void add_curve(DisplayList &display_list, const Curve &curve, int y, int height, const Viewport &viewport,
     const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid, const std::string &lane_id)
 {
-    const std::vector<CurveSample> samples = frame_grid ? curve.sample(*frame_grid) : curve.samples();
-    const auto [minimum, maximum] = curve_range(curve);
+    std::vector<CurveSample> samples = frame_grid ? curve.sample(*frame_grid) : curve.samples();
+    if (!frame_grid && samples.empty())
+    {
+        const Time start = std::max(curve.start(), viewport.start());
+        const Time end = std::min(curve.end(), viewport.end());
+        if (end < start)
+        {
+            return;
+        }
+        const int width = std::max(1, viewport.width() - metrics.lane_label_width());
+        for (int step = 0; step <= width; ++step)
+        {
+            const Ticks ticks = static_cast<Ticks>(static_cast<double>((end - start).ticks()) * step / width);
+            const Time time = step == width ? end : start + Duration::from_ticks(ticks);
+            samples.emplace_back(time, curve.sample(time));
+        }
+    }
+    if (samples.empty())
+    {
+        return;
+    }
+    const auto [minimum, maximum] = curve_range(curve, samples);
     std::vector<Point> points{};
     for (const CurveSample &sample : samples)
     {

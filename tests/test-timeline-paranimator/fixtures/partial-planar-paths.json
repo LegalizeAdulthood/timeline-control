@@ -1,0 +1,20 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Julia_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "params.c", "path": { "kind": "circle", "center": "0/0", "radius": -1 } },
+    { "parameter": "params.c", "path": { "kind": "ellipse", "center": "0/0", "x-radius": 1, "y-radius": -1 } },
+    { "parameter": "params.c", "path": { "kind": "circle", "center": "0/0/0", "radius": 1 } },
+    { "parameter": "params.c", "path": { "kind": "circle", "center": "nan/0", "radius": 1 } },
+    { "parameter": "params.c", "path": { "kind": "circle", "center": "0/0", "radius": 1, "phase": "bad" } },
+    { "parameter": "params.c", "path": { "kind": "circle", "center": "0/0", "radius": 1, "turns": 1e308 } },
+    { "parameter": "maxiter", "path": { "kind": "circle", "center": "0/0", "radius": 1 } },
+    { "parameter": "params.c", "mode": "pwm", "path": { "kind": "circle", "center": "0/0", "radius": 1 } },
+    { "parameter": "params.c", "keys": [ { "frame": 0, "value": "0/0" } ], "path": { "kind": "circle", "center": "0/0", "radius": 1 } },
+    { "parameter": "params.c", "path": { "kind": "lissajous" } },
+    { "parameter": "params.c", "path": { "kind": "circle", "center": "1/-2", "radius": 0 } }
+  ]
+}

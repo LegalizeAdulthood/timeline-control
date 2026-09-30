@@ -73,6 +73,15 @@ malformed recipes, unsupported kinds, and tracks with both keys and a
 path receive importer diagnostics. Generated endpoints do not inflate
 the authored keyframe count.
 
+Circle and ellipse paths use owned analytic evaluators, with one curve
+lane per component and no stored per-frame cache. Phase is in degrees;
+turns span frame 0 through the final frame. Phase defaults to zero and
+turns to one. Reverse turns and zero-radius paths are supported. Original
+recipes remain in the inspector. Catalog-declared targets must be complex
+or point2, centers must have two finite components, and radii must be
+nonnegative. The control samples these definitions at frame boundaries;
+without a frame grid, core layout samples at display resolution.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -92,8 +101,16 @@ with source music and mapped outputs. This fixture and
 tests. At frame 1, `maxiter` is 321 and the `params.c` components are 1
 and 2; the inspector retains the recipes beside their sampled values.
 
-Nonlinear paths, PWM, specialized track kinds, non-clamp extrapolation,
-and parameter-specific output quantization remain unsupported.
+`ellipse-path.json` and `gold-ellipse-path.par` are copied from
+ParAnimator's integration tests. Open the ellipse fixture directly, or
+open the RMS mapping and add the ellipse and `circle-path.json` fixtures.
+The resulting eight lanes compare source music, mapped output, and both
+analytic paths. At frame 2 the ellipse is `-2/0`, and the reverse-turn
+circle is `3/-2`. Clicking either curve inspects its identity and recipe.
+
+Lissajous, spiral, Bezier, and Catmull-Rom paths, PWM, specialized track
+kinds, non-clamp extrapolation, and parameter-specific output quantization
+remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 

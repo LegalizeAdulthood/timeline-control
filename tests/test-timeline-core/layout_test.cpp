@@ -112,6 +112,33 @@ TEST(Layout, emits_ruler_and_empty_lane_scaffolding)
     EXPECT_TRUE(std::get<Text>(primitives[3]).id.item_id.empty());
 }
 
+TEST(Layout, samples_analytic_curves_without_a_frame_grid)
+{
+    Document document(100);
+    Lane lane("signal", "Signal", "curve", at(0), at(100));
+    lane.add(Curve("analytic", "signal", at(0), at(100),
+        [](Time time) { return static_cast<double>(time.ticks() * time.ticks()); }));
+    document.add_lane(std::move(lane));
+    const Layout layout(document, Viewport(200, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+    bool found = false;
+    for (const Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<Polyline>(primitive))
+        {
+            const Polyline &line = std::get<Polyline>(primitive);
+            if (line.style == StyleRole::CURVE)
+            {
+                found = true;
+                ASSERT_EQ(101, size_cast(line.points));
+                EXPECT_EQ(100, line.points.front().x);
+                EXPECT_EQ(200, line.points.back().x);
+                EXPECT_EQ(40, line.points[50].y);
+            }
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
 TEST(Layout, emits_event_and_interval_primitives)
 {
     Lane lane("music", "Music events", "events", at(0), at(100));

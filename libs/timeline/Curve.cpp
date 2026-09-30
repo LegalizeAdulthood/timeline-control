@@ -9,6 +9,36 @@
 
 namespace timeline
 {
+namespace
+{
+
+void validate_curve_metadata(const std::string &id, const std::string &kind, const std::optional<double> &minimum,
+    const std::optional<double> &maximum)
+{
+    if (id.empty() || kind.empty())
+    {
+        throw std::invalid_argument("timeline curves require an id and kind");
+    }
+    if ((minimum && !std::isfinite(*minimum)) || (maximum && !std::isfinite(*maximum)) ||
+        (minimum && maximum && *maximum < *minimum))
+    {
+        throw std::invalid_argument("timeline curve bounds are invalid");
+    }
+}
+
+void validate_curve_value(double value, const std::optional<double> &minimum, const std::optional<double> &maximum)
+{
+    if (!std::isfinite(value))
+    {
+        throw std::invalid_argument("timeline curve values must be finite");
+    }
+    if ((minimum && value < *minimum) || (maximum && *maximum < value))
+    {
+        throw std::out_of_range("timeline curve sample is outside its declared bounds");
+    }
+}
+
+} // namespace
 
 CurveSample::CurveSample(Time time, double value) :
     m_time(time),
@@ -38,18 +68,14 @@ Curve::Curve(std::string id, std::string kind, std::vector<CurveSample> samples,
     m_attributes(std::move(attributes)),
     m_samples(std::move(samples))
 {
-    if (m_id.empty() || m_kind.empty())
-    {
-        throw std::invalid_argument("timeline curves require an id and kind");
-    }
+    validate_curve_metadata(m_id, m_kind, m_minimum, m_maximum);
     if (sample_count() < 2)
     {
         throw std::invalid_argument("timeline curves require at least two samples");
     }
-    if ((m_minimum && !std::isfinite(*m_minimum)) || (m_maximum && !std::isfinite(*m_maximum)) ||
-        (m_minimum && m_maximum && *m_maximum < *m_minimum))
+    if (m_interpolation != CurveInterpolation::LINEAR && m_interpolation != CurveInterpolation::STEP)
     {
-        throw std::invalid_argument("timeline curve bounds are invalid");
+        throw std::invalid_argument("sample-defined curves require linear or step interpolation");
     }
 
     for (int index = 0; index < sample_count(); ++index)
@@ -59,15 +85,47 @@ Curve::Curve(std::string id, std::string kind, std::vector<CurveSample> samples,
         {
             throw std::invalid_argument("timeline curve sample times must be strictly increasing");
         }
-        if ((m_minimum && sample.value() < *m_minimum) || (m_maximum && *m_maximum < sample.value()))
-        {
-            throw std::out_of_range("timeline curve sample is outside its declared bounds");
-        }
+        validate_curve_value(sample.value(), m_minimum, m_maximum);
     }
+    m_start = m_samples.front().time();
+    m_end = m_samples.back().time();
+}
+
+Curve::Curve(std::string id, std::string kind, Time start, Time end, CurveEvaluator evaluator) :
+    Curve(std::move(id), std::move(kind), start, end, std::move(evaluator), {}, std::nullopt, std::nullopt, {})
+{
+}
+
+Curve::Curve(std::string id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
+    std::optional<double> minimum, std::optional<double> maximum, Attributes attributes) :
+    m_id(std::move(id)),
+    m_kind(std::move(kind)),
+    m_label(std::move(label)),
+    m_interpolation(CurveInterpolation::ANALYTIC),
+    m_minimum(minimum),
+    m_maximum(maximum),
+    m_attributes(std::move(attributes)),
+    m_start(start),
+    m_end(end),
+    m_evaluator(std::move(evaluator))
+{
+    validate_curve_metadata(m_id, m_kind, m_minimum, m_maximum);
+    if (!m_evaluator || m_end <= m_start)
+    {
+        throw std::invalid_argument("analytic curves require an evaluator and a positive time domain");
+    }
+    static_cast<void>(sample(start));
+    static_cast<void>(sample(end));
 }
 
 double Curve::sample(Time time) const
 {
+    if (m_evaluator)
+    {
+        const double value = m_evaluator(std::clamp(time, start(), end()));
+        validate_curve_value(value, m_minimum, m_maximum);
+        return value;
+    }
     if (time <= start())
     {
         return m_samples.front().value();
@@ -89,8 +147,8 @@ double Curve::sample(Time time) const
         return left.value();
     }
 
-    const auto elapsed = static_cast<double>((time - left.time()).ticks());
-    const auto duration = static_cast<double>((right->time() - left.time()).ticks());
+    const double elapsed = static_cast<double>((time - left.time()).ticks());
+    const double duration = static_cast<double>((right->time() - left.time()).ticks());
     return left.value() + (right->value() - left.value()) * elapsed / duration;
 }
 
