@@ -160,6 +160,11 @@ and end radii. Expanding and shrinking spirals check direction at the
 analytic radius-crossing time, including collisions between frames;
 constant-radius spirals use the orbit check. Reverse and stationary
 spirals retain their authored recipes and analytic component bounds.
+Lissajous eyes support positive radii, equal positive axis frequencies,
+and fixed look-at. Phase applies only to x. Two analytic collision
+candidates cover the traveled cycles, including partial cycles and
+singular directions between frames. Independent axis frequencies remain
+pending for eye paths.
 Eye takes precedence over authored view-up. The viewer retains both
 authored signals and separate
 derived-view-up curves, normalized from eye minus look-at. Keyed motion
@@ -309,6 +314,16 @@ lanes; its offset look-at and reverse half-turn give frame-1 rotation
 crossing and constant-radius zero-turn motion. All four golden PAR files
 were generated with ParAnimator; rotations are compared modulo 360 degrees
 to allow equivalent orientations at either end of the angle range.
+
+Open `camera2d-eye-lissajous-centered.json` for fifteen camera lanes and
+add `beat-keys/rms.beat-keys.json` for nineteen comparison lanes. At frame
+1, eye is `0/1` and rotation is zero. Click an eye curve to inspect its
+path identity and original recipe. Open `camera2d-eye-lissajous-phase.json`
+to replace the comparison with fifteen lanes; its x-only phase gives
+frame-1 eye `-0.414214/-1` and rotation `-54.735610` degrees.
+`camera2d-eye-lissajous-partial.json` covers a safe partial cycle with
+look-at on the supporting circle but outside the traveled arc. All three
+golden PAR files were generated with ParAnimator.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.

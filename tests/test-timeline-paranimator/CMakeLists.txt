@@ -82,6 +82,13 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/camera2d-eye-spiral-offset.json
     fixtures/camera2d-eye-spiral-stationary.json
     fixtures/partial-camera2d-eye-spirals.json
+    fixtures/camera2d-eye-lissajous-centered.json
+    fixtures/camera2d-eye-lissajous-phase.json
+    fixtures/camera2d-eye-lissajous-partial.json
+    fixtures/partial-camera2d-eye-lissajous.json
+    fixtures/gold-camera2d-eye-lissajous-centered.par
+    fixtures/gold-camera2d-eye-lissajous-phase.par
+    fixtures/gold-camera2d-eye-lissajous-partial.par
     fixtures/gold-camera2d-eye-spiral-expanding.par
     fixtures/gold-camera2d-eye-spiral-shrinking.par
     fixtures/gold-camera2d-eye-spiral-offset.par

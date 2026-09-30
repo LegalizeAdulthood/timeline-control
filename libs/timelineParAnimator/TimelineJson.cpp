@@ -1134,6 +1134,30 @@ double camera2d_segment_end(const timeline::Lane &lane, timeline::Time start, ti
     return camera2d_sample(lane, key.interpolation() == timeline::KeyframeInterpolation::HOLD ? start : end);
 }
 
+void camera2d_validate_lissajous_eye(const Json &path, double x, double y, double phase)
+{
+    const double frequency = path_number(path, "x-frequency");
+    if (frequency != path_number(path, "y-frequency"))
+    {
+        throw std::invalid_argument("Camera2D Lissajous eye with independent axis frequencies is not supported yet");
+    }
+    if (std::abs(x) > 1 + 1e-12 || std::abs(y) > 1 + 1e-12)
+    {
+        return;
+    }
+    constexpr double PI = 3.141592653589793238462643383279502884;
+    const double root = std::acos(std::clamp(x, -1.0, 1.0)) / (2 * PI);
+    // Only x has a phase offset; its two roots identify all possible collisions.
+    for (const double angle : {root - phase / 360, -root - phase / 360})
+    {
+        const double winding = std::ceil(-angle - 1e-12);
+        if (angle + winding <= frequency + 1e-12 && std::abs(std::sin(2 * PI * angle) - y) < 1e-12)
+        {
+            throw std::invalid_argument("Camera2D Lissajous eye reaches a singular direction at look-at");
+        }
+    }
+}
+
 void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::string &label, const std::string &layer,
     const timeline::FrameGrid &grid, std::vector<timeline::Lane> &signals)
 {
@@ -1154,9 +1178,11 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
         return;
     }
     const bool spiral = kind == "spiral";
-    if (kind != "circle" && kind != "ellipse" && !spiral)
+    const bool lissajous = kind == "lissajous";
+    if (kind != "circle" && kind != "ellipse" && !spiral && !lissajous)
     {
-        throw std::invalid_argument("Camera2D eye currently supports only circle, ellipse, and spiral paths");
+        throw std::invalid_argument(
+            "Camera2D eye currently supports only circle, ellipse, spiral, and Lissajous paths");
     }
     const std::vector<double> center = animation_value(path.at("center"));
     const timeline::Time start = grid.offset();
@@ -1173,7 +1199,7 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
         }
     }
     const double x_radius = path_number(path, spiral ? "from-radius" : kind == "circle" ? "radius" : "x-radius");
-    const double y_radius = kind == "ellipse" ? path_number(path, "y-radius") : x_radius;
+    const double y_radius = kind == "ellipse" || lissajous ? path_number(path, "y-radius") : x_radius;
     const double to_radius = spiral ? path_number(path, "to-radius") : x_radius;
     if (x_radius <= 0 || y_radius <= 0 || to_radius <= 0)
     {
@@ -1184,6 +1210,11 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     const double dx = camera2d_sample(signals[0], start) - center[0];
     const double dy = camera2d_sample(signals[1], start) - center[1];
     const double phase = path.contains("phase") ? path_number(path, "phase") : 0;
+    if (lissajous)
+    {
+        camera2d_validate_lissajous_eye(path, dx / x_radius, dy / y_radius, phase);
+        return;
+    }
     const double turns = path.contains("turns") ? path_number(path, "turns") : 1;
     if (spiral && to_radius != x_radius)
     {
