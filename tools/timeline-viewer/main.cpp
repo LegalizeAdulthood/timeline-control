@@ -183,6 +183,7 @@ private:
     wxPanel *m_content;
     wxTimelineControl *m_timeline_control;
     wxTextCtrl *m_inspector;
+    std::optional<timeline_par_animator::BeatKeysMapping> m_mapping;
 };
 
 /// wxWidgets application for manually exercising the timeline control.
@@ -261,6 +262,25 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     if (document)
     {
         text += "\n" + document_summary(*document);
+    }
+    if (m_mapping)
+    {
+        text += "\nMusic input: " + wxString::FromUTF8(m_mapping->source_document().metadata().description().c_str()) +
+            "\n";
+        text += "Output: " + wxString::FromUTF8(m_mapping->output().mode.c_str()) + " / " +
+            wxString::FromUTF8(m_mapping->output().namespace_name.c_str()) + "\n";
+        text += wxString::Format("Mapping recipes: %d\n", timeline::size_cast(m_mapping->recipes()));
+        for (const timeline_par_animator::MappingRecipe &recipe : m_mapping->recipes())
+        {
+            text += wxString::FromUTF8(recipe.source.c_str()) + " -> " + wxString::FromUTF8(recipe.target.c_str()) +
+                " (" + wxString::FromUTF8(recipe.operation.c_str()) + ")\n";
+            text += wxString::Format(
+                "Scale: %g  Offset: %g  Decay: %g seconds\n", recipe.scale, recipe.offset, recipe.decay_seconds);
+            if (recipe.clamp)
+            {
+                text += wxString::Format("Clamp: %g to %g\n", recipe.clamp->first, recipe.clamp->second);
+            }
+        }
     }
     const std::optional<timeline::Interaction> &interaction = m_timeline_control->interaction();
     if (interaction)
@@ -355,6 +375,7 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
         return;
     }
 
+    m_mapping = std::move(result.mapping);
     m_timeline_control->set_document(std::move(*result.document));
     SetTitle("Timeline Viewer - " + dialog.GetFilename());
     SetStatusText("Loaded " + dialog.GetFilename());

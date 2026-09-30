@@ -1,0 +1,22 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "features": [
+    {
+      "frame": 0,
+      "rms": 0.125,
+      "peak": 0.5
+    },
+    {
+      "frame": 2,
+      "rms": 0.25,
+      "peak": 0.75
+    },
+    {
+      "frame": 4,
+      "rms": 0.75,
+      "peak": 0.25
+    }
+  ],
+  "events": []
+}

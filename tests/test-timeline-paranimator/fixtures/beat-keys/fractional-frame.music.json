@@ -1,0 +1,6 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "features": [{"frame": 0.5, "rms": 0.25}],
+  "events": []
+}

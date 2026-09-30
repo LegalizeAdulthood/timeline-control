@@ -884,16 +884,16 @@ std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord
     return lane;
 }
 
-std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> &records,
-    const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid,
-    std::vector<std::string> &diagnostics)
+std::optional<timeline::Lane> tracker_feature_lane(const std::vector<TrackerRecord> &records,
+    const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid, const char *field,
+    const char *label, std::vector<std::string> &diagnostics)
 {
     std::vector<timeline::CurveSample> samples{};
     double maximum = 1.0;
     for (const TrackerRecord &record : records)
     {
         const Json &feature = record.fields;
-        if (!feature.contains("rms"))
+        if (!feature.contains(field))
         {
             continue;
         }
@@ -906,14 +906,14 @@ std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> 
             }
             if (!samples.empty() && *time <= samples.back().time())
             {
-                throw std::invalid_argument("RMS sample times must be strictly increasing");
+                throw std::invalid_argument(std::string(label) + " sample times must be strictly increasing");
             }
             static_cast<void>(*time + timeline::Duration::from_ticks(1));
             if (frame_grid && (*time < frame_grid->offset() || frame_grid->end_time() <= *time))
             {
-                throw std::out_of_range("RMS sample time is outside the document frame grid");
+                throw std::out_of_range(std::string(label) + " sample time is outside the document frame grid");
             }
-            const auto value = feature.at("rms").get<double>();
+            const double value = feature.at(field).get<double>();
             samples.emplace_back(*time, value);
             maximum = std::max(maximum, value);
         }
@@ -927,7 +927,8 @@ std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> 
     {
         if (!samples.empty())
         {
-            diagnostics.emplace_back("ParBeatdown RMS curve requires at least two valid samples.");
+            diagnostics.emplace_back(
+                std::string("ParBeatdown ") + label + " curve requires at least two valid samples.");
         }
         return std::nullopt;
     }
@@ -940,9 +941,10 @@ std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> 
         lane_end = frame_grid->end_time();
     }
 
-    timeline::Lane lane("tracker-rms", "RMS", "curve", lane_start, lane_end);
-    lane.add(timeline::Curve(
-        "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, maximum, {}));
+    const std::string id = std::string("tracker-") + field;
+    timeline::Lane lane(id, label, "curve", lane_start, lane_end);
+    lane.add(
+        timeline::Curve(id, field, std::move(samples), label, timeline::CurveInterpolation::LINEAR, 0.0, maximum, {}));
     return lane;
 }
 
@@ -1082,7 +1084,8 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
 
         append_tracker_diagnostics(config, result.diagnostics);
         std::optional<timeline::Lane> event_lane = tracker_event_lane(events, timebase, frame_grid, result.diagnostics);
-        std::optional<timeline::Lane> rms_lane = tracker_rms_lane(features, timebase, frame_grid, result.diagnostics);
+        std::optional<timeline::Lane> rms_lane =
+            tracker_feature_lane(features, timebase, frame_grid, "rms", "RMS", result.diagnostics);
         timeline::Metadata metadata = tracker_metadata(source_path, config, result.diagnostics);
         std::optional<timeline::GenerationSummary> generation = tracker_generation_summary(config, result.diagnostics);
         timeline::SourceSummary source_summary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
@@ -1109,6 +1112,143 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
     {
         result.document.reset();
         result.diagnostics.emplace_back("Unable to import ParBeatdown timeline: " + std::string(error.what()));
+    }
+}
+
+timeline::Ticks mapping_frame(const Json &record)
+{
+    const Json &frame = record.at("frame");
+    if (!frame.is_number_integer() ||
+        (frame.is_number_unsigned() &&
+            frame.get<Json::number_unsigned_t>() >= std::numeric_limits<timeline::Ticks>::max()) ||
+        frame.get<timeline::Ticks>() < 0 || frame.get<timeline::Ticks>() == std::numeric_limits<timeline::Ticks>::max())
+    {
+        throw std::invalid_argument("mapping input frame must be a nonnegative representable integer");
+    }
+    return frame.get<timeline::Ticks>();
+}
+
+MappingRecipe mapping_recipe(const Json &binding)
+{
+    MappingRecipe recipe;
+    recipe.source = binding.at("source").get<std::string>();
+    recipe.target = binding.at("target").get<std::string>();
+    recipe.operation = binding.at("op").get<std::string>();
+    recipe.scale = binding.value("scale", 1.0);
+    recipe.offset = binding.value("offset", 0.0);
+    recipe.decay_seconds = binding.value("decay_seconds", 0.0);
+    if (binding.contains("clamp"))
+    {
+        recipe.clamp = std::pair<double, double>{
+            binding.at("clamp").at("min").get<double>(), binding.at("clamp").at("max").get<double>()};
+    }
+    return recipe;
+}
+
+std::vector<MappingInput> mapping_inputs(const Json &source, const std::vector<MappingRecipe> &recipes)
+{
+    std::vector<MappingInput> inputs;
+    for (const char *field : {"features", "events"})
+    {
+        for (const Json &record : source.at(field))
+        {
+            if (std::string_view(field) == "features")
+            {
+                for (const char *feature : {"rms", "peak"})
+                {
+                    const std::string name = std::string("music.") + feature;
+                    const bool used = std::any_of(recipes.begin(), recipes.end(),
+                        [&name](const MappingRecipe &recipe) { return recipe.source == name; });
+                    if (used)
+                    {
+                        inputs.push_back(MappingInput{name, mapping_frame(record), record.at(feature).get<double>()});
+                    }
+                }
+            }
+            else
+            {
+                const std::string kind = record.at("kind").get<std::string>();
+                const std::string name = "music." + kind + "_pulse";
+                const bool used = std::any_of(recipes.begin(), recipes.end(),
+                    [&name](const MappingRecipe &recipe) { return recipe.source == name; });
+                if (used)
+                {
+                    inputs.push_back(MappingInput{name, mapping_frame(record), 1.0});
+                }
+            }
+        }
+    }
+    return inputs;
+}
+
+void import_beat_keys_mapping(const std::filesystem::path &config_path, const Json &config,
+    const JsonImportOptions &options, JsonImportResult &result)
+{
+    try
+    {
+        if (!config.contains("version") || !config.at("version").is_number_integer() ||
+            config.at("version").get<timeline::Ticks>() != 1)
+        {
+            throw std::invalid_argument("unsupported beat-keys config version");
+        }
+        if (!config.at("bindings").is_array())
+        {
+            throw std::invalid_argument("beat-keys bindings must be an array");
+        }
+        std::vector<MappingRecipe> recipes;
+        for (const Json &binding : config.at("bindings"))
+        {
+            recipes.push_back(mapping_recipe(binding));
+        }
+        const std::string location = config.at("source").at("timeline").get<std::string>();
+        if (location.empty())
+        {
+            throw std::invalid_argument("source timeline reference must not be empty");
+        }
+        const std::filesystem::path source_path = (config_path.parent_path() / location).lexically_normal();
+        Json source;
+        if (!read_json_file(source_path, "beat-keys source timeline", source, result.diagnostics))
+        {
+            return;
+        }
+        // Feature-only beat-keys inputs may omit their unused event array.
+        if (source.is_object() && !source.contains("events"))
+        {
+            source["events"] = Json::array();
+        }
+        JsonImportOptions source_options = options;
+        source_options.beat_keys_config_path = config_path;
+        JsonImportResult music;
+        import_tracker_timeline(source_path, source, source_options, music);
+        result.diagnostics.insert(result.diagnostics.end(), music.diagnostics.begin(), music.diagnostics.end());
+        if (!music.document)
+        {
+            return;
+        }
+        const bool uses_peak = std::any_of(
+            recipes.begin(), recipes.end(), [](const MappingRecipe &recipe) { return recipe.source == "music.peak"; });
+        if (uses_peak)
+        {
+            const std::vector<TrackerRecord> records =
+                tracker_records(source.at("features"), "features", music.document->timebase(), result.diagnostics);
+            std::optional<timeline::Lane> peak = tracker_feature_lane(
+                records, music.document->timebase(), music.document->frame_grid(), "peak", "Peak", result.diagnostics);
+            if (peak)
+            {
+                music.document->add_lane(std::move(*peak));
+            }
+        }
+        std::vector<MappingInput> inputs = mapping_inputs(source, recipes);
+        const MappingOutput output{
+            config.at("output").at("mode").get<std::string>(), config.at("output").at("namespace").get<std::string>()};
+        result.mapping.emplace(std::move(*music.document), std::move(recipes), std::move(inputs), output, config_path);
+        result.document = result.mapping->materialize();
+    }
+    catch (const std::exception &error)
+    {
+        result.document.reset();
+        result.mapping.reset();
+        result.diagnostics.emplace_back("Unable to import beat-keys mapping: " + std::string(error.what()));
     }
 }
 
@@ -1144,6 +1284,10 @@ JsonImportResult import_timeline_json(const std::filesystem::path &source_path, 
         else if (schema == BEAT_KEYS_OVERLAY_SCHEMA)
         {
             import_beat_keys_overlay(source_path, config, options, result);
+        }
+        else if (schema == BEAT_KEYS_SCHEMA)
+        {
+            import_beat_keys_mapping(source_path, config, options, result);
         }
         else
         {

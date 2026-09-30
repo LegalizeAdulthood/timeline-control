@@ -1,0 +1,39 @@
+{
+  "schema": "par-beatdown.beat-keys-overlay",
+  "version": 1,
+  "generator": {
+    "name": "beat-keys",
+    "version": "0.1.0"
+  },
+  "source": {
+    "base_animation": "tests/beat-keys/base-animation.json",
+    "timeline": "tests/beat-keys/timeline-features.json",
+    "adapter_config": "tests/beat-keys/peak.beat-keys.json"
+  },
+  "keyframes": [
+    {
+      "frame": 0,
+      "target": "shake.amount",
+      "op": "add",
+      "value": 0.25,
+      "source": "music.peak"
+    },
+    {
+      "frame": 2,
+      "target": "shake.amount",
+      "op": "add",
+      "value": 0.375,
+      "source": "music.peak"
+    },
+    {
+      "frame": 4,
+      "target": "shake.amount",
+      "op": "add",
+      "value": 0.125,
+      "source": "music.peak"
+    }
+  ],
+  "diagnostics": {
+    "warnings": []
+  }
+}

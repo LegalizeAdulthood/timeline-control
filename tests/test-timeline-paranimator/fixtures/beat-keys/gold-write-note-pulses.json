@@ -1,0 +1,74 @@
+{
+  "schema": "par-beatdown.beat-keys-overlay",
+  "version": 1,
+  "generator": {
+    "name": "beat-keys",
+    "version": "0.1.0"
+  },
+  "source": {
+    "base_animation": "tests/beat-keys/base-animation.json",
+    "timeline": "tests/beat-keys/timeline-events.json",
+    "adapter_config": "tests/beat-keys/note-pulses.beat-keys.json"
+  },
+  "keyframes": [
+    {
+      "frame": 0,
+      "target": "note.energy",
+      "op": "add",
+      "value": 1,
+      "source": "music.note_pulse"
+    },
+    {
+      "frame": 1,
+      "target": "note.energy",
+      "op": "add",
+      "value": 0.606531,
+      "source": "music.note_pulse"
+    },
+    {
+      "frame": 2,
+      "target": "note.energy",
+      "op": "add",
+      "value": 0,
+      "source": "music.note_pulse"
+    },
+    {
+      "frame": 2,
+      "target": "effect.flash",
+      "op": "replace",
+      "value": 1,
+      "source": "music.effect_pulse"
+    },
+    {
+      "frame": 3,
+      "target": "effect.flash",
+      "op": "replace",
+      "value": 0,
+      "source": "music.effect_pulse"
+    },
+    {
+      "frame": 4,
+      "target": "note.energy",
+      "op": "add",
+      "value": 0.5,
+      "source": "music.note_pulse"
+    },
+    {
+      "frame": 5,
+      "target": "note.energy",
+      "op": "add",
+      "value": 0.303265,
+      "source": "music.note_pulse"
+    },
+    {
+      "frame": 6,
+      "target": "note.energy",
+      "op": "add",
+      "value": 0,
+      "source": "music.note_pulse"
+    }
+  ],
+  "diagnostics": {
+    "warnings": []
+  }
+}

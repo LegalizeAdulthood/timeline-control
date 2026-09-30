@@ -3,6 +3,7 @@
 #pragma once
 
 #include <timeline/Document.h>
+#include <timelineParAnimator/BeatKeysMapping.h>
 
 #include <filesystem>
 #include <optional>
@@ -28,10 +29,12 @@ struct JsonImportOptions
 /// Outcome of importing timeline JSON through the ParAnimator adapters.
 ///
 /// A successful result owns a timeline document. Diagnostics remain adapter
-/// concerns and are never stored in the core document.
+/// concerns and are never stored in the core document. Mapping imports also
+/// retain recipes and measured inputs; their document is a disposable cache.
 struct JsonImportResult
 {
     std::optional<timeline::Document> document;
+    std::optional<BeatKeysMapping> mapping;
     std::vector<std::string> diagnostics;
 
     bool succeeded() const

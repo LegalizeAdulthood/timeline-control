@@ -1,0 +1,26 @@
+{
+  "schema": "par-beatdown.beat-keys",
+  "version": 1,
+  "source": {
+    "timeline": "timeline-features.json",
+    "fps": 30,
+    "offset_seconds": 0
+  },
+  "output": {
+    "mode": "overlay",
+    "namespace": "music"
+  },
+  "bindings": [
+    {
+      "source": "music.peak",
+      "target": "shake.amount",
+      "op": "add",
+      "scale": 0.5,
+      "offset": 0,
+      "clamp": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ]
+}

@@ -1,7 +1,9 @@
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(timeline-paranimator
+    include/timelineParAnimator/BeatKeysMapping.h
     include/timelineParAnimator/TimelineJson.h
+    BeatKeysMapping.cpp
     TimelineJson.cpp
 )
 

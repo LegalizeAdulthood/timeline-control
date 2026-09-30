@@ -1,0 +1,31 @@
+{
+  "schema": "par-beatdown.beat-keys",
+  "version": 1,
+  "source": {
+    "timeline": "timeline-events.json",
+    "fps": 10,
+    "offset_seconds": 0
+  },
+  "output": {
+    "mode": "overlay",
+    "namespace": "music"
+  },
+  "bindings": [
+    {
+      "source": "music.note_pulse",
+      "target": "note.energy",
+      "op": "add",
+      "scale": 0.5,
+      "offset": 0,
+      "decay_seconds": 0.2
+    },
+    {
+      "source": "music.effect_pulse",
+      "target": "effect.flash",
+      "op": "replace",
+      "scale": 1,
+      "offset": 0,
+      "decay_seconds": 0.1
+    }
+  ]
+}

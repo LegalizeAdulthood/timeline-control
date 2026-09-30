@@ -1,0 +1,44 @@
+{
+  "schema": "par-beatdown.beat-keys",
+  "version": 1,
+  "source": {
+    "timeline": "missing.music.json",
+    "fps": 30,
+    "offset_seconds": 0
+  },
+  "output": {
+    "mode": "overlay",
+    "namespace": "music"
+  },
+  "bindings": [
+    {
+      "source": "music.rms",
+      "target": "camera.zoom",
+      "op": "replace",
+      "scale": 2,
+      "offset": 0,
+      "clamp": {
+        "min": 0,
+        "max": 0.875
+      }
+    },
+    {
+      "source": "music.rms",
+      "target": "color.brightness",
+      "op": "add",
+      "scale": 1,
+      "offset": 0
+    },
+    {
+      "source": "music.rms",
+      "target": "layer.opacity",
+      "op": "multiply",
+      "scale": 0.5,
+      "offset": 0.25,
+      "clamp": {
+        "min": 0,
+        "max": 0.5
+      }
+    }
+  ]
+}

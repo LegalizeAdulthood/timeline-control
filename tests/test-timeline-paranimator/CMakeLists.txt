@@ -1,7 +1,20 @@
 find_package(GTest CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/beat-keys/adapter.beat-keys.json
+    fixtures/beat-keys/rms.beat-keys.json
+    fixtures/beat-keys/fractional-frame.beat-keys.json
+    fixtures/beat-keys/fractional-frame.music.json
+    fixtures/beat-keys/offset-pulses.beat-keys.json
+    fixtures/beat-keys/peak.beat-keys.json
+    fixtures/beat-keys/row-pulses.beat-keys.json
+    fixtures/beat-keys/note-pulses.beat-keys.json
+    fixtures/beat-keys/invalid-binding.beat-keys.json
+    fixtures/beat-keys/missing-input.beat-keys.json
+    fixtures/beat-keys/timeline-features.json
+    fixtures/beat-keys/gold-write-note-pulses.json
+    fixtures/beat-keys/gold-write-peak-keyframes.json
     fixtures/beat-keys/gold-write-rms-keyframes.json
     fixtures/beat-keys/gold-write-row-pulses.json
     fixtures/beat-keys/timeline-diagnostics.json
@@ -25,11 +38,13 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
 add_executable(test-timeline-paranimator
     ${TIMELINE_PARANIMATOR_TEST_FIXTURES}
     test.cpp
+    mapping_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator
     PRIVATE
         timeline-paranimator
+        nlohmann_json::nlohmann_json
         GTest::gtest_main
 )
 target_folder(test-timeline-paranimator "Tests")

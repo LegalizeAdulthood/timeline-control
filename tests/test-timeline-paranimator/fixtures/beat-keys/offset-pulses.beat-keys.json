@@ -1,0 +1,27 @@
+{
+  "schema": "par-beatdown.beat-keys",
+  "version": 1,
+  "source": {
+    "timeline": "timeline-events.json",
+    "fps": 10,
+    "offset_seconds": 0.15
+  },
+  "output": {
+    "mode": "overlay",
+    "namespace": "music"
+  },
+  "bindings": [
+    {
+      "source": "music.row_pulse",
+      "target": "row.flash",
+      "op": "replace",
+      "scale": 1,
+      "offset": 0.25,
+      "decay_seconds": 0.1,
+      "clamp": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ]
+}

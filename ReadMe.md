@@ -28,6 +28,29 @@ cmake --workflow --preset default
 Places the build outputs in a sibling directory of the source code directory, e.g. up
 and outside of the source directory.
 
+# Beat-Keys Mappings
+
+File > Open in `timeline-viewer` accepts `par-beatdown.beat-keys` mapping
+configurations. Companion music paths are resolved relative to the
+configuration. Source music and generated parameter lanes appear together;
+the inspector retains the mapping recipes and output policy.
+
+Supported sources are RMS, peak, and counted note, effect, and row pulses.
+Generated keys match beat-keys scaling, offsets, clamping, six-decimal
+rounding, overlapping exponential decay, and literal zero returns. Source
+and generated lanes share the same frame rate and synchronization offset.
+
+`timeline_par_animator::BeatKeysMapping` owns recipes and measured inputs.
+Its `materialize()` method rebuilds a disposable generic document; the
+viewer retains the mapping while the wx control owns the displayed
+document. Mapping operations and output modes are preserved without
+merging into authored animation. Already-realized overlays remain ordinary
+imported keyframe lanes.
+
+Fixtures under `tests/test-timeline-paranimator/fixtures/beat-keys` include
+representative par-beatdown configurations and golden outputs, with input
+paths adjusted to the copied music fixtures.
+
 # Native Timeline Control
 
 The wx control uses its full client area for the timeline; document
