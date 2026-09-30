@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/path-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Julia_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 1,
+  "tracks": [
+    { "parameter": "position2", "path": { "kind": "bezier", "control-points": [ "0/0", "4/8" ] } }
+  ]
+}

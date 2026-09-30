@@ -23,6 +23,12 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/gold-spiral-path.par
     fixtures/spiral-variants.json
     fixtures/partial-spiral-paths.json
+    fixtures/bezier-path.json
+    fixtures/gold-bezier-path.par
+    fixtures/bezier-tuples.json
+    fixtures/partial-bezier-paths.json
+    fixtures/single-frame-bezier.json
+    fixtures/input/path-catalog.json
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
     fixtures/missing-catalog.json

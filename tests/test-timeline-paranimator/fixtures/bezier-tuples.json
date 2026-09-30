@@ -1,0 +1,15 @@
+{
+  "parameter-catalogs": [ "input/path-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Julia_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "position2", "path": { "kind": "bezier", "control-points": [ "0/0", "4/8" ] } },
+    { "parameter": "direction2", "path": { "kind": "bezier", "control-points": [ "1/0", "0/1" ] } },
+    { "parameter": "position3", "path": { "kind": "bezier", "control-points": [ "0/0/0", "2/4/6", "4/0/8" ] } },
+    { "parameter": "direction3", "path": { "kind": "bezier", "control-points": [ "0/0/0", "0/4/0", "4/4/0", "4/0/8" ] } },
+    { "parameter": "tuple4", "path": { "kind": "bezier", "control-points": [ "0/0/0/0", "0/0/0/0", "0/0/0/0", "0/0/0/0", "16/32/48/64" ] } },
+    { "parameter": "tuple1", "path": { "kind": "bezier", "control-points": [ "1", "3" ] } }
+  ]
+}

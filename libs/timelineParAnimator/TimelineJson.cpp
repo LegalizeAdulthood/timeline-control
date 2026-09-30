@@ -399,6 +399,113 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
     }
 }
 
+int animation_path_arity(const Json &metadata, int inferred_arity)
+{
+    const std::string type = metadata.value("type", std::string{});
+    if (type.empty())
+    {
+        return inferred_arity;
+    }
+    if (type == "complex")
+    {
+        return 2;
+    }
+    int arity = 0;
+    if (type == "point2" || type == "vector2")
+    {
+        arity = 2;
+    }
+    else if (type == "point3" || type == "vector3")
+    {
+        arity = 3;
+    }
+    else if (type != "numeric-tuple")
+    {
+        throw std::invalid_argument("Bezier paths require a complex or numeric tuple target");
+    }
+    if (type == "numeric-tuple" || metadata.contains("arity"))
+    {
+        const Json &declared = metadata.at("arity");
+        if (!declared.is_number_integer() || declared <= 0 || declared > std::numeric_limits<int>::max())
+        {
+            throw std::invalid_argument("path target arity must be a positive integer");
+        }
+        const int declared_arity = declared.get<int>();
+        if (arity != 0 && arity != declared_arity)
+        {
+            throw std::invalid_argument("path target arity does not match its type");
+        }
+        arity = declared_arity;
+    }
+    return arity;
+}
+
+void animation_bezier_lanes(const Json &path, const Json &metadata, const std::string &id, const std::string &label,
+    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    if (grid.frame_count() < 2)
+    {
+        throw std::invalid_argument("path tracks require at least two frames");
+    }
+    const std::string type = metadata.value("type", std::string{});
+    if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
+    {
+        throw std::invalid_argument("Bezier vector normalization is not supported");
+    }
+    const Json &points = path.at("control-points");
+    if (!points.is_array() || points.size() < 2)
+    {
+        throw std::invalid_argument("Bezier paths require at least two control points");
+    }
+    std::vector<std::vector<double>> control_points;
+    for (const Json &point : points)
+    {
+        control_points.push_back(animation_value(point.get<std::string>()));
+    }
+    const int arity = animation_path_arity(metadata, timeline::size_cast(control_points.front()));
+    for (const std::vector<double> &point : control_points)
+    {
+        if (timeline::size_cast(point) != arity)
+        {
+            throw std::invalid_argument("Bezier control point arity does not match its target");
+        }
+    }
+    const timeline::Time start = grid.offset();
+    const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+    for (int component = 0; component < arity; ++component)
+    {
+        std::vector<double> values;
+        for (const std::vector<double> &point : control_points)
+        {
+            values.push_back(point[component]);
+        }
+        const auto [minimum, maximum] = std::minmax_element(values.begin(), values.end());
+        const std::string suffix = arity == 1 ? "" : "[" + std::to_string(component) + "]";
+        const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
+            {"path", path.dump()}, {"component", std::to_string(component)}};
+        const auto evaluate = [values, start, end](timeline::Time time)
+        {
+            const double fraction =
+                static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
+            std::vector<double> interpolated(values);
+            // De Casteljau reduces the owned control points to the curve value.
+            for (int order = timeline::size_cast(interpolated) - 1; order > 0; --order)
+            {
+                for (int point = 0; point < order; ++point)
+                {
+                    interpolated[point] += fraction * (interpolated[point + 1] - interpolated[point]);
+                }
+            }
+            return clean_path_value(interpolated.front());
+        };
+        timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
+        lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
+            clean_path_value(*minimum), clean_path_value(*maximum), attributes));
+        lanes.push_back(std::move(lane));
+    }
+}
+
 Json animation_path_keys(const Json &path, const timeline::FrameGrid &grid)
 {
     if (!path.is_object())
@@ -581,6 +688,10 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous" || path_kind == "spiral")
             {
                 animation_planar_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
+            }
+            else if (path_kind == "bezier")
+            {
+                animation_bezier_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
             }
             else
             {

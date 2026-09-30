@@ -16,6 +16,132 @@
 
 using namespace timeline_par_animator;
 
+TEST(AnimationImport, samples_analytic_bezier_like_paranimator_and_preserves_control_points)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/bezier-path.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty());
+    ASSERT_EQ(2, result.document->lane_count());
+    EXPECT_EQ(1, result.document->track_count());
+    EXPECT_EQ(0, result.document->keyframe_count());
+    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    const std::array<double, 5> x{0.0, 1.0, 2.0, 3.0, 4.0};
+    const std::array<double, 5> y{0.0, 1.5, 2.0, 1.5, 0.0};
+    const std::array<std::string, 5> parameters{"0/0", "1/1.5", "2/2", "3/1.5", "4/0"};
+    std::ifstream golden_file("fixtures/gold-bezier-path.par");
+    ASSERT_TRUE(golden_file);
+    const std::string golden{std::istreambuf_iterator<char>(golden_file), std::istreambuf_iterator<char>()};
+    for (int frame = 0; frame < 5; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        ASSERT_TRUE(inspection);
+        ASSERT_EQ(2, timeline::size_cast(inspection->lanes));
+        for (int component = 0; component < 2; ++component)
+        {
+            const timeline::LaneInspection &lane = inspection->lanes[component];
+            ASSERT_EQ(1, timeline::size_cast(lane.items));
+            ASSERT_TRUE(lane.items.front().value);
+            EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *lane.items.front().value);
+            EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, lane.items.front().role);
+            EXPECT_EQ("params.c", lane.items.front().attributes.at("parameter"));
+            EXPECT_EQ("animation-0", lane.items.front().attributes.at("track"));
+            EXPECT_EQ(std::to_string(component), lane.items.front().attributes.at("component"));
+            EXPECT_EQ("{\"control-points\":[\"0/0\",\"2/4\",\"4/0\"],\"kind\":\"bezier\"}",
+                lane.items.front().attributes.at("path"));
+        }
+        const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
+        ASSERT_NE(std::string::npos, start);
+        const std::string entry = golden.substr(start, golden.find('}', start) - start);
+        EXPECT_NE(std::string::npos, entry.find("params=" + parameters[frame]));
+    }
+    const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
+    EXPECT_EQ(timeline::CurveInterpolation::ANALYTIC, curve.interpolation());
+    EXPECT_EQ(0, curve.sample_count());
+    EXPECT_DOUBLE_EQ(0.0, *curve.minimum());
+    EXPECT_DOUBLE_EQ(4.0, *curve.maximum());
+    EXPECT_DOUBLE_EQ(
+        0.875, curve.sample(grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2)));
+    const timeline::Layout layout(*result.document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 30, 4));
+    int curve_count = 0;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<timeline::Polyline>(primitive))
+        {
+            const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
+            if (line.style == timeline::StyleRole::CURVE)
+            {
+                ++curve_count;
+                EXPECT_EQ(5, timeline::size_cast(line.points));
+                const std::optional<timeline::HitResult> hit = layout.hit_test(line.points[2], 2);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(line.id.item_id, hit->id.item_id);
+            }
+        }
+    }
+    EXPECT_EQ(2, curve_count);
+}
+
+TEST(AnimationImport, owns_bezier_tuple_definitions_across_degrees_and_comparison)
+{
+    const timeline::Document document = []
+    {
+        const JsonImportResult imported = import_timeline_json("fixtures/bezier-tuples.json");
+        if (!imported.succeeded() || !imported.diagnostics.empty())
+        {
+            throw std::runtime_error("Bezier tuple import failed");
+        }
+        return *imported.document;
+    }();
+    const std::array<double, 15> midpoint{2.0, 4.0, 0.5, 0.5, 2.0, 2.0, 5.0, 2.0, 3.0, 1.0, 1.0, 2.0, 3.0, 4.0, 2.0};
+    ASSERT_EQ(15, document.lane_count());
+    EXPECT_EQ(6, document.track_count());
+    EXPECT_EQ(0, document.keyframe_count());
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    for (int index = 0; index < document.lane_count(); ++index)
+    {
+        const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[index].items().front());
+        EXPECT_DOUBLE_EQ(midpoint[index], curve.sample(grid.frame_start(2)));
+        EXPECT_EQ(0, curve.sample_count());
+        EXPECT_NE(std::string::npos, curve.attributes().at("path").find("control-points"));
+    }
+    EXPECT_EQ("animation-5", document.lanes()[14].id());
+    const timeline::Curve &quartic = std::get<timeline::Curve>(document.lanes()[10].items().front());
+    EXPECT_DOUBLE_EQ(0.0, quartic.sample(grid.frame_start(0)));
+    EXPECT_DOUBLE_EQ(16.0, quartic.sample(grid.frame_start(4)));
+    EXPECT_DOUBLE_EQ(0.0625, quartic.sample(grid.frame_start(1)));
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document combined = timeline::combine_documents(*music.document, document);
+    ASSERT_EQ(19, combined.lane_count());
+    const timeline::Curve &copy = std::get<timeline::Curve>(combined.lanes()[14].items().front());
+    EXPECT_DOUBLE_EQ(1.0, copy.sample(grid.frame_start(2)));
+    EXPECT_EQ(quartic.attributes(), copy.attributes());
+}
+
+TEST(AnimationImport, diagnoses_malformed_bezier_points_and_unsupported_targets)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-bezier-paths.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(11, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(4, result.document->lane_count());
+    for (int index = 0; index < 11; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+    }
+    EXPECT_NE(std::string::npos, result.diagnostics[7].find("normalization"));
+    EXPECT_EQ("animation-11[0]", result.document->lanes()[0].id());
+    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    const timeline::Curve &constant = std::get<timeline::Curve>(result.document->lanes()[0].items().front());
+    EXPECT_DOUBLE_EQ(1.0, constant.sample(grid.frame_start(2)));
+    const timeline::Curve &line = std::get<timeline::Curve>(result.document->lanes()[3].items().front());
+    EXPECT_DOUBLE_EQ(4.0, line.sample(grid.frame_start(2)));
+    const JsonImportResult single = import_timeline_json("fixtures/single-frame-bezier.json");
+    EXPECT_FALSE(single.succeeded());
+    ASSERT_FALSE(single.diagnostics.empty());
+    EXPECT_NE(std::string::npos, single.diagnostics.front().find("at least two frames"));
+}
+
 TEST(AnimationImport, samples_analytic_spirals_like_paranimator_and_preserves_the_recipe)
 {
     const JsonImportResult result = import_timeline_json("fixtures/spiral-path.json");

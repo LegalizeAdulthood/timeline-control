@@ -1,0 +1,24 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Julia_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "parameter": "params.c",
+      "path": {
+        "kind": "bezier",
+        "control-points": [ "0/0", "2/4", "4/0" ]
+      }
+    }
+  ]
+}

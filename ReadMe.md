@@ -95,6 +95,16 @@ turns, shrinking paths, constant radii, and zero radii are supported.
 Component bounds use the larger endpoint radius. Definitions and recipes
 remain owned by the document, without cached frame keys.
 
+Bezier paths use owned de Casteljau evaluators with at least two control
+points. Complex, numeric-tuple, point2/point3, and unnormalized
+vector2/vector3 targets produce one curve lane per component. Numeric
+tuples require a positive catalog arity; point/vector aliases validate any
+declared arity. Control points must be finite slash-delimited strings of
+the target arity. The original recipe remains inspectable; component
+bounds use the control-point hull, not a cached set of frame samples.
+Normalized vectors receive an explicit importer diagnostic until their
+parameter-specific evaluation is supported.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -136,7 +146,15 @@ At frame 4 the shrinking reverse-turn path is `1/-3`, and the
 constant-radius path is `1/-4`. Curve inspection retains each recipe and
 its distinct hit identity.
 
-Bezier and Catmull-Rom paths, PWM, specialized track
+`bezier-path.json` and `gold-bezier-path.par` are copied from ParAnimator's
+integration tests. Open the Bezier fixture and add
+`beat-keys/rms.beat-keys.json` for six lanes. At frame 2 the path is `2/2`;
+click either component to inspect its control points and hit identity.
+Open `bezier-tuples.json` to replace the comparison with fifteen lanes
+covering linear through quartic paths and tuple arities one through four.
+At frame 2 the quartic tuple is `1/2/3/4`.
+
+Catmull-Rom paths, PWM, specialized track
 kinds, non-clamp extrapolation, and parameter-specific output quantization
 remain unsupported.
 Unsupported tracks receive importer diagnostics.
