@@ -1,0 +1,32 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Julia_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "parameter": "maxiter",
+      "path": {
+        "kind": "constant",
+        "value": "321"
+      }
+    },
+    {
+      "parameter": "params.c",
+      "path": {
+        "kind": "line",
+        "from": "0/1",
+        "to": "2/3"
+      }
+    }
+  ]
+}

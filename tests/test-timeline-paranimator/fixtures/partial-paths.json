@@ -1,0 +1,17 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Julia_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    { "parameter": "maxiter", "path": { "kind": "circle" } },
+    { "parameter": "maxiter", "path": { "kind": "line", "from": "0" } },
+    { "parameter": "maxiter", "path": { "kind": "line", "from": "0/1", "to": "2" } },
+    { "parameter": "maxiter", "path": { "kind": "constant", "value": "nan" } },
+    { "parameter": "maxiter", "path": { "kind": "constant", "value": "3" }, "keys": [ { "frame": 0, "value": "1" } ] },
+    { "parameter": "maxiter", "path": { "kind": "constant", "value": 3 } },
+    { "parameter": "maxiter", "path": "line" },
+    { "parameter": "inside", "path": { "kind": "constant", "value": "bof60" } }
+  ]
+}

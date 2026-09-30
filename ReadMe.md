@@ -65,6 +65,14 @@ numeric values. The inspector shows source attributes and evaluated numeric
 frame values. Missing catalogs or unusable documents fail import; invalid
 tracks are diagnosed independently when other valid tracks remain.
 
+Constant and line path recipes use exact hold and linear endpoint
+definitions, matching ParAnimator's evaluator without per-frame caches.
+Original path objects remain in inspection attributes. Constant paths
+also support categorical values. Paths require at least two frames;
+malformed recipes, unsupported kinds, and tracks with both keys and a
+path receive importer diagnostics. Generated endpoints do not inflate
+the authored keyframe count.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -78,9 +86,15 @@ control. Fixture catalogs contain the needed entries from ParAnimator's
 catalog; `maxiter-step.json`, `single-layer.json`, and `inside-hold.json`
 cover interpolation, layers, and categorical values.
 
-Procedural paths, PWM, specialized track kinds, non-clamp extrapolation,
-and parameter-specific output quantization remain outside the supported
-realized-track subset. Unsupported tracks receive importer diagnostics.
+Add `fixtures/path-generators.json` to compare constant and line paths
+with source music and mapped outputs. This fixture and
+`gold-path-generators.par` are copied from ParAnimator's integration
+tests. At frame 1, `maxiter` is 321 and the `params.c` components are 1
+and 2; the inspector retains the recipes beside their sampled values.
+
+Nonlinear paths, PWM, specialized track kinds, non-clamp extrapolation,
+and parameter-specific output quantization remain unsupported.
+Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 
 # Native Timeline Control

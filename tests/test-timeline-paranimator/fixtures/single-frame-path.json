@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Julia_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 1,
+  "tracks": [
+    { "parameter": "maxiter", "path": { "kind": "constant", "value": "321" } }
+  ]
+}

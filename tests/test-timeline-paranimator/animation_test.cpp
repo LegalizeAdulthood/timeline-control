@@ -9,9 +9,90 @@
 
 #include <cmath>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <variant>
 
 using namespace timeline_par_animator;
+
+TEST(AnimationImport, samples_constant_and_line_paths_like_paranimator)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/path-generators.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty());
+    ASSERT_EQ(3, result.document->lane_count());
+    EXPECT_EQ(2, result.document->track_count());
+    EXPECT_EQ(0, result.document->keyframe_count());
+    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    std::ifstream golden_file("fixtures/gold-path-generators.par");
+    ASSERT_TRUE(golden_file);
+    const std::string golden{std::istreambuf_iterator<char>(golden_file), std::istreambuf_iterator<char>()};
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        ASSERT_TRUE(inspection);
+        ASSERT_EQ(3, timeline::size_cast(inspection->lanes));
+        ASSERT_TRUE(inspection->lanes[0].value);
+        ASSERT_TRUE(inspection->lanes[1].value);
+        ASSERT_TRUE(inspection->lanes[2].value);
+        EXPECT_DOUBLE_EQ(321.0, *inspection->lanes[0].value);
+        EXPECT_DOUBLE_EQ(static_cast<double>(frame), *inspection->lanes[1].value);
+        EXPECT_DOUBLE_EQ(static_cast<double>(frame + 1), *inspection->lanes[2].value);
+        const std::string entry = "frame-000" + std::to_string(frame + 1) + " {";
+        const std::size_t start = golden.find(entry);
+        ASSERT_NE(std::string::npos, start);
+        const std::string reference = golden.substr(start, golden.find('}', start) - start);
+        EXPECT_NE(std::string::npos, reference.find("maxiter=321"));
+        EXPECT_NE(
+            std::string::npos, reference.find("params=" + std::to_string(frame) + "/" + std::to_string(frame + 1)));
+    }
+    const timeline::Lane &line = result.document->lanes()[1];
+    EXPECT_DOUBLE_EQ(0.5,
+        *line.evaluate_keyframes(
+            grid.frame_start(0) + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2)));
+    const timeline::Keyframe &constant = std::get<timeline::Keyframe>(result.document->lanes()[0].items().front());
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, constant.interpolation());
+    EXPECT_EQ("{\"kind\":\"constant\",\"value\":\"321\"}", constant.attributes().at("path"));
+    for (const timeline::Item &item : line.items())
+    {
+        const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
+        EXPECT_EQ("{\"from\":\"0/1\",\"kind\":\"line\",\"to\":\"2/3\"}", key.attributes().at("path"));
+        EXPECT_EQ("params.c", key.attributes().at("parameter"));
+    }
+    const timeline::Layout layout(*result.document, timeline::Viewport(400, 160, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 30, 4));
+    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    EXPECT_NE(std::string::npos, snapshot.find("params.c[0]"));
+    EXPECT_NE(std::string::npos, snapshot.find("params.c[1]"));
+    EXPECT_NE(std::string::npos, snapshot.find("KEYFRAME_MARKER"));
+}
+
+TEST(AnimationImport, diagnoses_invalid_paths_without_discarding_a_valid_constant)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-paths.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(7, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(1, result.document->lane_count());
+    EXPECT_EQ("animation-7", result.document->lanes().front().id());
+    for (int index = 0; index < 7; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+    }
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 1);
+    ASSERT_TRUE(inspection);
+    ASSERT_EQ(1, timeline::size_cast(inspection->lanes.front().items));
+    const timeline::Attributes &attributes = inspection->lanes.front().items.front().attributes;
+    EXPECT_EQ("bof60", attributes.at("value"));
+    EXPECT_EQ("{\"kind\":\"constant\",\"value\":\"bof60\"}", attributes.at("path"));
+}
+
+TEST(AnimationImport, rejects_paths_with_fewer_than_two_frames)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/single-frame-path.json");
+    EXPECT_FALSE(result.succeeded());
+    ASSERT_FALSE(result.diagnostics.empty());
+    EXPECT_NE(std::string::npos, result.diagnostics.front().find("at least two frames"));
+}
 
 TEST(AnimationImport, translates_destination_curve_to_outgoing_segment)
 {

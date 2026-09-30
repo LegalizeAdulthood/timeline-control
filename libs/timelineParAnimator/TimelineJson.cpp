@@ -313,10 +313,34 @@ timeline::KeyframeInterpolation animation_interpolation(std::string_view curve)
     throw std::invalid_argument("unknown interpolation curve: " + std::string(curve));
 }
 
-void animation_key_lanes(const Json &keys, const Json &metadata, const std::string &id, const std::string &label,
+Json animation_path_keys(const Json &path, const timeline::FrameGrid &grid)
+{
+    if (!path.is_object())
+    {
+        throw std::invalid_argument("track path must be an object");
+    }
+    if (grid.frame_count() < 2)
+    {
+        throw std::invalid_argument("path tracks require at least two frames");
+    }
+    const std::string kind = path.at("kind").get<std::string>();
+    if (kind != "constant" && kind != "line")
+    {
+        throw std::invalid_argument("unsupported procedural path kind: " + kind);
+    }
+    const std::string from = path.at(kind == "constant" ? "value" : "from").get<std::string>();
+    const std::string to = kind == "constant" ? from : path.at("to").get<std::string>();
+    const std::string curve = kind == "constant" ? "hold" : "linear";
+    // ParAnimator uses endpoint keys for these exact analytic definitions.
+    return Json::array({Json{{"frame", 0}, {"value", from}, {"curve", curve}},
+        Json{{"frame", grid.frame_count() - 1}, {"value", to}, {"curve", curve}}});
+}
+
+void animation_key_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
 {
+    const Json keys = track.contains("path") ? animation_path_keys(track.at("path"), grid) : track.at("keys");
     if (!keys.is_array() || keys.empty())
     {
         throw std::invalid_argument("track keys must be a nonempty array");
@@ -373,8 +397,12 @@ void animation_key_lanes(const Json &keys, const Json &metadata, const std::stri
             const timeline::Time end = index + 1 < timeline::size_cast(keys)
                 ? grid.frame_start(source_frame(keys[index + 1]))
                 : grid.end_time();
-            const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"value", value},
+            timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"value", value},
                 {"curve", curve}, {"outgoing-curve", outgoing}, {"track", id}};
+            if (track.contains("path"))
+            {
+                attributes["path"] = track.at("path").dump();
+            }
             const std::string key_id = id + "-key-" + std::to_string(index);
             lane.add(timeline::Instant(key_id, "keyframe", start, value, std::nullopt, attributes));
             lane.add(timeline::Interval(key_id + "-hold", "keyframe-value", index == 0 ? grid.offset() : start, end,
@@ -412,6 +440,10 @@ void animation_key_lanes(const Json &keys, const Json &metadata, const std::stri
             timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer},
                 {"value", key.at("value").dump()}, {"curve", authored_curve}, {"outgoing-curve", outgoing_curve},
                 {"track", id}};
+            if (track.contains("path"))
+            {
+                attributes["path"] = track.at("path").dump();
+            }
             if (key.at("value").is_string())
             {
                 attributes["value"] = key.at("value").get<std::string>();
@@ -444,16 +476,20 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             }
             const std::string label = layer.empty() ? parameter : layer + " / " + parameter;
             std::vector<timeline::Lane> track_lanes;
-            if (track.contains("path") || track.value("mode", std::string("keyframes")) != "keyframes" ||
+            if (track.value("mode", std::string("keyframes")) != "keyframes" ||
                 track.value("type", std::string("parameter")) != "parameter")
             {
-                throw std::invalid_argument("procedural and specialized tracks require realized keyframes");
+                throw std::invalid_argument("unsupported track mode or specialized track type");
             }
-            if (!track.contains("keys"))
+            if (track.contains("keys") && track.contains("path"))
             {
-                throw std::invalid_argument("only realized numeric keyframe tracks are supported");
+                throw std::invalid_argument("track cannot contain both keys and path");
             }
-            animation_key_lanes(track.at("keys"), metadata, id, label, parameter, layer, grid, track_lanes);
+            if (!track.contains("keys") && !track.contains("path"))
+            {
+                throw std::invalid_argument("track requires keys or path");
+            }
+            animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
             for (timeline::Lane &lane : track_lanes)
             {
                 lanes.push_back(std::move(lane));

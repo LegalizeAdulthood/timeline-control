@@ -7,6 +7,10 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/maxiter-step.json
     fixtures/single-layer.json
     fixtures/inside-hold.json
+    fixtures/path-generators.json
+    fixtures/gold-path-generators.par
+    fixtures/partial-paths.json
+    fixtures/single-frame-path.json
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
     fixtures/missing-catalog.json
