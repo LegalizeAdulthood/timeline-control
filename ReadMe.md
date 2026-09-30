@@ -82,6 +82,12 @@ or point2, centers must have two finite components, and radii must be
 nonnegative. The control samples these definitions at frame boundaries;
 without a frame grid, core layout samples at display resolution.
 
+Lissajous paths use the same owned analytic component curves. Each
+component has a required positive frequency and a nonnegative radius.
+Phase defaults to zero and affects only the x component, matching
+ParAnimator; the y component has no phase shift. Frequencies may be
+fractional, and `turns` does not affect a Lissajous recipe.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -108,7 +114,14 @@ The resulting eight lanes compare source music, mapped output, and both
 analytic paths. At frame 2 the ellipse is `-2/0`, and the reverse-turn
 circle is `3/-2`. Clicking either curve inspects its identity and recipe.
 
-Lissajous, spiral, Bezier, and Catmull-Rom paths, PWM, specialized track
+`lissajous-path.json` and `gold-lissajous-path.par` are copied from
+ParAnimator's integration tests. Open the Lissajous fixture and add
+`beat-keys/rms.beat-keys.json` to compare six lanes, then add
+`lissajous-phase.json` for eight lanes. At frame 2 the copied path is
+`-2/0`; the phase-shifted path is approximately `-0.732051/-5`. Click a
+component curve to inspect its distinct identity and original recipe.
+
+Spiral, Bezier, and Catmull-Rom paths, PWM, specialized track
 kinds, non-clamp extrapolation, and parameter-specific output quantization
 remain unsupported.
 Unsupported tracks receive importer diagnostics.
