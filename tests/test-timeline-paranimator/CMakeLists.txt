@@ -50,6 +50,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/camera2d-keyed-variants.json
     fixtures/partial-camera2d.json
     fixtures/camera2d-layer-sources.json
+    fixtures/camera2d-eye-center-mag.json
+    fixtures/gold-camera2d-eye-center-mag.par
+    fixtures/camera2d-eye-variants.json
+    fixtures/partial-camera2d-eye.json
+    fixtures/camera2d-tiny-view-up.json
     fixtures/input/camera-sources.par
     fixtures/input/function-sources.par
     fixtures/partial-animation.json

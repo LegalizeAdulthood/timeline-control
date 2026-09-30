@@ -148,7 +148,13 @@ F6. A missing or zero x-magnification factor means one; negative stretch
 is retained in output while aspect uses its magnitude. Output and
 normalized view-up are owned analytic curves, not baked frame samples.
 The inspector retains the complete camera recipe and nested signal keys.
-Eye, nested paths, corners output, and skew remain pending camera slices.
+Eye inputs may use keyed point2 motion or circle/ellipse orbits with
+positive radii centered on a fixed look-at. Eye takes precedence over
+authored view-up. The viewer retains both authored signals and separate
+derived-view-up curves, normalized from eye minus look-at. Keyed motion
+is rejected if its direction crosses zero, including mixed hold/linear
+inputs and crossings between frame boundaries. Other nested paths,
+non-centered moving-eye orbits, corners output, and skew remain pending.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
@@ -234,6 +240,16 @@ and source entry. Open `camera2d-keyed-variants.json` to replace the
 comparison with twenty-two lanes. At frame 1, the first camera rotation
 is 45 degrees, both view-up components are `0.707107`, and magnification
 is `1.333333`; its source x-magnification factor remains `-2`.
+
+`camera2d-eye-center-mag.json` and its golden PAR output are copied from
+ParAnimator's integration tests. Open the eye fixture for thirteen lanes
+and add `beat-keys/rms.beat-keys.json` for seventeen comparison lanes.
+At frame 1, eye is `-1/0`, derived view-up is `-1/0`, and rotation is -90
+degrees. Click an eye curve to inspect its identity and circle recipe.
+Open `camera2d-eye-variants.json` to replace the comparison with
+twenty-eight lanes. The reversed ellipse rotates 90 degrees at frame 1
+despite the authored vertical view-up. The keyed camera moves its look-at
+and eye together, retaining zero rotation and a vertical derived direction.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.
