@@ -1153,9 +1153,10 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
         camera2d_key_lanes(eye, "eye", "point2", id, label, layer, grid, signals);
         return;
     }
-    if (kind != "circle" && kind != "ellipse")
+    const bool spiral = kind == "spiral";
+    if (kind != "circle" && kind != "ellipse" && !spiral)
     {
-        throw std::invalid_argument("Camera2D eye currently supports only circle and ellipse paths");
+        throw std::invalid_argument("Camera2D eye currently supports only circle, ellipse, and spiral paths");
     }
     const std::vector<double> center = animation_value(path.at("center"));
     const timeline::Time start = grid.offset();
@@ -1171,25 +1172,44 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
             throw std::invalid_argument("Camera2D eye orbit with moving look-at is not supported yet");
         }
     }
-    const double x_radius = path_number(path, kind == "circle" ? "radius" : "x-radius");
-    const double y_radius = kind == "circle" ? x_radius : path_number(path, "y-radius");
-    if (x_radius <= 0 || y_radius <= 0)
+    const double x_radius = path_number(path, spiral ? "from-radius" : kind == "circle" ? "radius" : "x-radius");
+    const double y_radius = kind == "ellipse" ? path_number(path, "y-radius") : x_radius;
+    const double to_radius = spiral ? path_number(path, "to-radius") : x_radius;
+    if (x_radius <= 0 || y_radius <= 0 || to_radius <= 0)
     {
         throw std::invalid_argument("Camera2D eye orbit radii must be positive to avoid singular directions");
     }
     animation_planar_lanes(path, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
-    const double x = (camera2d_sample(signals[0], start) - center[0]) / x_radius;
-    const double y = (camera2d_sample(signals[1], start) - center[1]) / y_radius;
+    constexpr double PI = 3.141592653589793238462643383279502884;
+    const double dx = camera2d_sample(signals[0], start) - center[0];
+    const double dy = camera2d_sample(signals[1], start) - center[1];
+    const double phase = path.contains("phase") ? path_number(path, "phase") : 0;
+    const double turns = path.contains("turns") ? path_number(path, "turns") : 1;
+    if (spiral && to_radius != x_radius)
+    {
+        // A changing radius can reach the fixed look-at only once, independent of the frame grid.
+        const double distance = std::hypot(dx, dy);
+        const double fraction = (distance - x_radius) / (to_radius - x_radius);
+        if (fraction >= 0 && fraction <= 1)
+        {
+            const double radians = (phase + 360 * turns * fraction) * PI / 180;
+            if (std::hypot(dx / distance - std::cos(radians), dy / distance - std::sin(radians)) < 1e-12)
+            {
+                throw std::invalid_argument("Camera2D spiral eye reaches a singular direction at look-at");
+            }
+        }
+        return;
+    }
+    const double x = dx / x_radius;
+    const double y = dy / y_radius;
     if (std::abs(std::hypot(x, y) - 1) < 1e-12)
     {
         // A look-at on the supporting ellipse is singular only on the traveled arc.
-        constexpr double PI = 3.141592653589793238462643383279502884;
         const double angle = std::atan2(y, x) / (2 * PI);
-        const double phase = (path.contains("phase") ? path_number(path, "phase") : 0) / 360;
-        const double turns = path.contains("turns") ? path_number(path, "turns") : 1;
-        const double end_phase = phase + turns;
-        const double first = std::min(phase, end_phase);
-        const double last = std::max(phase, end_phase);
+        const double start_phase = phase / 360;
+        const double end_phase = start_phase + turns;
+        const double first = std::min(start_phase, end_phase);
+        const double last = std::max(start_phase, end_phase);
         const double winding = std::ceil(first - angle - 1e-12);
         if (angle + winding <= last + 1e-12)
         {

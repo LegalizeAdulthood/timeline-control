@@ -1,0 +1,76 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "name": "expanding-eye",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "1/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2",
+          "from-radius": 1,
+          "to-radius": 3,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    }
+  ]
+}

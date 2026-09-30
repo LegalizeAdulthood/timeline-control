@@ -155,8 +155,13 @@ fixed look-at, including offsets from the orbit center. The importer
 checks the authored arc for singular directions, including collisions
 between frames, reverse turns, phase wrapping, and stationary paths.
 A look-at on the supporting ellipse is allowed if the traveled arc does
-not reach it. Eye takes precedence over
-authored view-up. The viewer retains both authored signals and separate
+not reach it. Spiral eyes also support fixed look-at with positive start
+and end radii. Expanding and shrinking spirals check direction at the
+analytic radius-crossing time, including collisions between frames;
+constant-radius spirals use the orbit check. Reverse and stationary
+spirals retain their authored recipes and analytic component bounds.
+Eye takes precedence over authored view-up. The viewer retains both
+authored signals and separate
 derived-view-up curves, normalized from eye minus look-at. Keyed motion
 is rejected if its direction crosses zero, including mixed hold/linear
 inputs and crossings between frame boundaries.
@@ -293,6 +298,17 @@ lanes; its reverse half-turn gives frame-1 rotation `65.625583` degrees.
 `camera2d-offset-partial.json` covers a look-at on the supporting circle
 outside the traveled arc. Golden PAR values for all three fixtures were
 generated with ParAnimator.
+
+Open `camera2d-eye-spiral-expanding.json` for fifteen camera lanes and add
+`beat-keys/rms.beat-keys.json` for nineteen comparison lanes. At frame 1,
+eye is `-0.5/-2` and rotation is `-90` degrees. Clicking an eye curve
+inspects its path identity and original recipe. Open
+`camera2d-eye-spiral-shrinking.json` to replace the comparison with fifteen
+lanes; its offset look-at and reverse half-turn give frame-1 rotation
+`141.623325` degrees. Offset and stationary fixtures cover a safe radius
+crossing and constant-radius zero-turn motion. All four golden PAR files
+were generated with ParAnimator; rotations are compared modulo 360 degrees
+to allow equivalent orientations at either end of the angle range.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.

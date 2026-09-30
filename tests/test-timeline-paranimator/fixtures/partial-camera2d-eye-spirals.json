@@ -1,0 +1,532 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "name": "between-frames",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2"
+          },
+          {
+            "frame": 4,
+            "value": "0/2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "0/0",
+          "from-radius": 1,
+          "to-radius": 4,
+          "turns": 0.75,
+          "phase": 0
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "reverse-collision",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2"
+          },
+          {
+            "frame": 4,
+            "value": "0/2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "0/0",
+          "from-radius": 4,
+          "to-radius": 1,
+          "turns": -0.75,
+          "phase": 270
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "constant-radius-collision",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2"
+          },
+          {
+            "frame": 4,
+            "value": "0/2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "0/0",
+          "from-radius": 2,
+          "to-radius": 2,
+          "turns": 1,
+          "phase": 0
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-start",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "1/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2",
+          "from-radius": 0,
+          "to-radius": 3,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-end",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "1/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2",
+          "from-radius": 1,
+          "to-radius": 0,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "negative-radius",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "1/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2",
+          "from-radius": -1,
+          "to-radius": 3,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bad-center",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "1/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2/0",
+          "from-radius": 1,
+          "to-radius": 3,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "moving-look",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "2/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2",
+          "from-radius": 1,
+          "to-radius": 3,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "expanding-eye",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/-2"
+          },
+          {
+            "frame": 4,
+            "value": "1/-2"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "spiral",
+          "center": "1/-2",
+          "from-radius": 1,
+          "to-radius": 3,
+          "turns": 1,
+          "phase": 90
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    }
+  ]
+}

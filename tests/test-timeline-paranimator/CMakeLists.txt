@@ -77,6 +77,15 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/camera2d-offset-ellipse.json
     fixtures/camera2d-offset-partial.json
     fixtures/partial-camera2d-offset-orbits.json
+    fixtures/camera2d-eye-spiral-expanding.json
+    fixtures/camera2d-eye-spiral-shrinking.json
+    fixtures/camera2d-eye-spiral-offset.json
+    fixtures/camera2d-eye-spiral-stationary.json
+    fixtures/partial-camera2d-eye-spirals.json
+    fixtures/gold-camera2d-eye-spiral-expanding.par
+    fixtures/gold-camera2d-eye-spiral-shrinking.par
+    fixtures/gold-camera2d-eye-spiral-offset.par
+    fixtures/gold-camera2d-eye-spiral-stationary.par
     fixtures/gold-camera2d-offset-circle.par
     fixtures/gold-camera2d-offset-ellipse.par
     fixtures/gold-camera2d-offset-partial.par
