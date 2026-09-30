@@ -17,10 +17,10 @@ namespace
 
 int time_x(Time time, const Viewport &viewport, const LayoutMetrics &metrics)
 {
-    const auto ticks = std::clamp(time.ticks(), viewport.start().ticks(), viewport.end().ticks());
-    const auto elapsed = static_cast<double>(ticks - viewport.start().ticks());
-    const auto duration = static_cast<double>(viewport.end().ticks() - viewport.start().ticks());
-    const auto timeline_width = viewport.width() - metrics.lane_label_width();
+    const Ticks ticks = std::clamp(time.ticks(), viewport.start().ticks(), viewport.end().ticks());
+    const double elapsed = static_cast<double>(ticks - viewport.start().ticks());
+    const double duration = static_cast<double>(viewport.end().ticks() - viewport.start().ticks());
+    const int timeline_width = viewport.width() - metrics.lane_label_width();
     return metrics.lane_label_width() + static_cast<int>(std::lround(elapsed * timeline_width / duration));
 }
 
@@ -31,8 +31,8 @@ void add_span(DisplayList &display_list, Time start, Time end, StyleRole style, 
     {
         return;
     }
-    const auto x1 = time_x(start, viewport, metrics);
-    const auto x2 = time_x(end, viewport, metrics);
+    const int x1 = time_x(start, viewport, metrics);
+    const int x2 = time_x(end, viewport, metrics);
     display_list.add(Rectangle{x1, y, std::max(1, x2 - x1), height, style, std::move(id)});
 }
 
@@ -44,26 +44,27 @@ Ticks phase_ticks(const std::optional<Duration> &phase)
 template <typename Bounds>
 bool contains(const Bounds &bounds, Point point, int tolerance)
 {
-    const auto x = static_cast<double>(point.x) - bounds.x;
-    const auto y = static_cast<double>(point.y) - bounds.y;
+    const double x = static_cast<double>(point.x) - bounds.x;
+    const double y = static_cast<double>(point.y) - bounds.y;
     return -tolerance <= x && x < static_cast<double>(bounds.width) + tolerance && -tolerance <= y &&
         y < static_cast<double>(bounds.height) + tolerance;
 }
 
 bool contains(const Polyline &polyline, Point point, int tolerance)
 {
-    for (auto index = 1; index < size_cast(polyline.points); ++index)
+    for (int index = 1; index < size_cast(polyline.points); ++index)
     {
-        const auto &start = polyline.points[index - 1];
-        const auto &end = polyline.points[index];
-        const auto dx = static_cast<double>(end.x) - start.x;
-        const auto dy = static_cast<double>(end.y) - start.y;
-        const auto px = static_cast<double>(point.x) - start.x;
-        const auto py = static_cast<double>(point.y) - start.y;
-        const auto length_squared = dx * dx + dy * dy;
-        const auto fraction = length_squared == 0.0 ? 0.0 : std::clamp((px * dx + py * dy) / length_squared, 0.0, 1.0);
-        const auto distance_x = px - fraction * dx;
-        const auto distance_y = py - fraction * dy;
+        const Point &start = polyline.points[index - 1];
+        const Point &end = polyline.points[index];
+        const double dx = static_cast<double>(end.x) - start.x;
+        const double dy = static_cast<double>(end.y) - start.y;
+        const double px = static_cast<double>(point.x) - start.x;
+        const double py = static_cast<double>(point.y) - start.y;
+        const double length_squared = dx * dx + dy * dy;
+        const double fraction =
+            length_squared == 0.0 ? 0.0 : std::clamp((px * dx + py * dy) / length_squared, 0.0, 1.0);
+        const double distance_x = px - fraction * dx;
+        const double distance_y = py - fraction * dy;
         if (distance_x * distance_x + distance_y * distance_y <= static_cast<double>(tolerance) * tolerance)
         {
             return true;
@@ -82,18 +83,18 @@ std::pair<double, double> curve_range(const Curve &curve)
 void add_curve(DisplayList &display_list, const Curve &curve, int y, int height, const Viewport &viewport,
     const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid, const std::string &lane_id)
 {
-    const auto samples = frame_grid ? curve.sample(*frame_grid) : curve.samples();
+    const std::vector<CurveSample> samples = frame_grid ? curve.sample(*frame_grid) : curve.samples();
     const auto [minimum, maximum] = curve_range(curve);
-    auto points = std::vector<Point>{};
-    for (const auto &sample : samples)
+    std::vector<Point> points{};
+    for (const CurveSample &sample : samples)
     {
         if (sample.time() < curve.start() || curve.end() < sample.time() || sample.time() < viewport.start() ||
             viewport.end() < sample.time())
         {
             continue;
         }
-        const auto normalized = maximum == minimum ? 0.5 : (sample.value() - minimum) / (maximum - minimum);
-        const auto point_y = y + height - 1 - static_cast<int>(std::lround(normalized * (height - 1)));
+        const double normalized = maximum == minimum ? 0.5 : (sample.value() - minimum) / (maximum - minimum);
+        const int point_y = y + height - 1 - static_cast<int>(std::lround(normalized * (height - 1)));
         points.push_back(Point{time_x(sample.time(), viewport, metrics), point_y});
     }
     if (size_cast(points) >= 2)
@@ -104,15 +105,15 @@ void add_curve(DisplayList &display_list, const Curve &curve, int y, int height,
 
 int keyframe_y(double value, double minimum, double maximum, int y, int height)
 {
-    const auto normalized = maximum == minimum ? 0.5 : (value - minimum) / (maximum - minimum);
+    const double normalized = maximum == minimum ? 0.5 : (value - minimum) / (maximum - minimum);
     return y + height - 1 - static_cast<int>(std::lround(normalized * (height - 1)));
 }
 
 void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int height, const Viewport &viewport,
     const LayoutMetrics &metrics)
 {
-    auto keyframes = std::vector<std::reference_wrapper<const Keyframe>>{};
-    for (const auto &item : lane.items())
+    std::vector<std::reference_wrapper<const Keyframe>> keyframes{};
+    for (const Item &item : lane.items())
     {
         const auto keyframe = std::get_if<Keyframe>(&item);
         if (keyframe)
@@ -125,25 +126,27 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
         return;
     }
     std::sort(keyframes.begin(), keyframes.end(),
-        [](const auto &lhs, const auto &rhs) { return lhs.get().time() < rhs.get().time(); });
+        [](const std::reference_wrapper<const Keyframe> &lhs, const std::reference_wrapper<const Keyframe> &rhs)
+        { return lhs.get().time() < rhs.get().time(); });
     const auto [minimum, maximum] = std::minmax_element(keyframes.begin(), keyframes.end(),
-        [](const auto &lhs, const auto &rhs) { return lhs.get().value() < rhs.get().value(); });
-    const auto minimum_value = minimum->get().value();
-    const auto maximum_value = maximum->get().value();
+        [](const std::reference_wrapper<const Keyframe> &lhs, const std::reference_wrapper<const Keyframe> &rhs)
+        { return lhs.get().value() < rhs.get().value(); });
+    const double minimum_value = minimum->get().value();
+    const double maximum_value = maximum->get().value();
 
-    for (auto index = 1; index < size_cast(keyframes); ++index)
+    for (int index = 1; index < size_cast(keyframes); ++index)
     {
-        const auto &left = keyframes[index - 1].get();
-        const auto &right = keyframes[index].get();
+        const Keyframe &left = keyframes[index - 1].get();
+        const Keyframe &right = keyframes[index].get();
         if (right.time() < viewport.start() || viewport.end() < left.time())
         {
             continue;
         }
-        const auto left_point = Point{
+        const Point left_point{
             time_x(left.time(), viewport, metrics), keyframe_y(left.value(), minimum_value, maximum_value, y, height)};
-        const auto right_point = Point{time_x(right.time(), viewport, metrics),
+        const Point right_point{time_x(right.time(), viewport, metrics),
             keyframe_y(right.value(), minimum_value, maximum_value, y, height)};
-        auto points = std::vector<Point>{left_point};
+        std::vector<Point> points{left_point};
         if (left.interpolation() == KeyframeInterpolation::HOLD)
         {
             points.push_back(Point{right_point.x, left_point.y});
@@ -152,20 +155,20 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
         display_list.add(Polyline{std::move(points), StyleRole::KEYFRAME_SEGMENT, DisplayId{lane.id(), left.id()}});
     }
 
-    for (const auto &reference : keyframes)
+    for (const std::reference_wrapper<const Keyframe> &reference : keyframes)
     {
-        const auto &keyframe = reference.get();
+        const Keyframe &keyframe = reference.get();
         if (keyframe.time() < viewport.start() || viewport.end() < keyframe.time())
         {
             continue;
         }
-        const auto x = time_x(keyframe.time(), viewport, metrics);
-        const auto point_y = keyframe_y(keyframe.value(), minimum_value, maximum_value, y, height);
-        const auto marker_width = std::min(5, viewport.width() - metrics.lane_label_width());
-        const auto marker_height = std::min(5, height);
-        const auto marker_x =
+        const int x = time_x(keyframe.time(), viewport, metrics);
+        const int point_y = keyframe_y(keyframe.value(), minimum_value, maximum_value, y, height);
+        const int marker_width = std::min(5, viewport.width() - metrics.lane_label_width());
+        const int marker_height = std::min(5, height);
+        const int marker_x =
             std::clamp(x - marker_width / 2, metrics.lane_label_width(), viewport.width() - marker_width);
-        const auto marker_y = std::clamp(point_y - marker_height / 2, y, y + height - marker_height);
+        const int marker_y = std::clamp(point_y - marker_height / 2, y, y + height - marker_height);
         display_list.add(Marker{marker_x, marker_y, marker_width, marker_height, StyleRole::KEYFRAME_MARKER,
             DisplayId{lane.id(), keyframe.id()}});
     }
@@ -235,8 +238,8 @@ Viewport Navigation::viewport(int width, int height) const
 
 double Navigation::zoom_scale() const
 {
-    const auto content_duration = static_cast<double>(m_content_end.ticks() - m_content_start.ticks());
-    const auto visible_duration = static_cast<double>(m_end.ticks() - m_start.ticks());
+    const double content_duration = static_cast<double>(m_content_end.ticks() - m_content_start.ticks());
+    const double visible_duration = static_cast<double>(m_end.ticks() - m_start.ticks());
     return content_duration / visible_duration;
 }
 
@@ -247,8 +250,8 @@ Duration Navigation::horizontal_offset() const
 
 double Navigation::horizontal_fraction() const
 {
-    const auto visible_duration = m_end.ticks() - m_start.ticks();
-    const auto maximum_offset = m_content_end.ticks() - m_content_start.ticks() - visible_duration;
+    const Ticks visible_duration = m_end.ticks() - m_start.ticks();
+    const Ticks maximum_offset = m_content_end.ticks() - m_content_start.ticks() - visible_duration;
     if (maximum_offset == 0)
     {
         return 0.0;
@@ -270,25 +273,25 @@ void Navigation::zoom_by(double factor, Time anchor)
         throw std::invalid_argument("timeline zoom factor must be finite and positive");
     }
 
-    const auto content_duration = m_content_end.ticks() - m_content_start.ticks();
-    const auto visible_duration = m_end.ticks() - m_start.ticks();
-    const auto next_duration = std::clamp(
+    const Ticks content_duration = m_content_end.ticks() - m_content_start.ticks();
+    const Ticks visible_duration = m_end.ticks() - m_start.ticks();
+    const Ticks next_duration = std::clamp(
         static_cast<Ticks>(std::llround(static_cast<double>(visible_duration) / factor)), Ticks{1}, content_duration);
-    const auto anchor_ticks = std::clamp(anchor.ticks(), m_start.ticks(), m_end.ticks());
-    const auto anchor_fraction =
+    const Ticks anchor_ticks = std::clamp(anchor.ticks(), m_start.ticks(), m_end.ticks());
+    const double anchor_fraction =
         static_cast<double>(anchor_ticks - m_start.ticks()) / static_cast<double>(visible_duration);
-    const auto anchored_start = anchor_ticks - static_cast<Ticks>(std::llround(anchor_fraction * next_duration));
-    const auto maximum_start = m_content_end.ticks() - next_duration;
-    const auto next_start = std::clamp(anchored_start, m_content_start.ticks(), maximum_start);
+    const Ticks anchored_start = anchor_ticks - static_cast<Ticks>(std::llround(anchor_fraction * next_duration));
+    const Ticks maximum_start = m_content_end.ticks() - next_duration;
+    const Ticks next_start = std::clamp(anchored_start, m_content_start.ticks(), maximum_start);
     m_start = Time::from_ticks(next_start);
     m_end = Time::from_ticks(next_start + next_duration);
 }
 
 void Navigation::scroll_to(Time start)
 {
-    const auto visible_duration = m_end.ticks() - m_start.ticks();
-    const auto maximum_start = m_content_end.ticks() - visible_duration;
-    const auto next_start = std::clamp(start.ticks(), m_content_start.ticks(), maximum_start);
+    const Ticks visible_duration = m_end.ticks() - m_start.ticks();
+    const Ticks maximum_start = m_content_end.ticks() - visible_duration;
+    const Ticks next_start = std::clamp(start.ticks(), m_content_start.ticks(), maximum_start);
     m_start = Time::from_ticks(next_start);
     m_end = Time::from_ticks(next_start + visible_duration);
 }
@@ -300,8 +303,8 @@ void Navigation::scroll_to_fraction(double fraction)
         throw std::invalid_argument("timeline scroll fraction must be finite");
     }
 
-    const auto visible_duration = m_end.ticks() - m_start.ticks();
-    const auto maximum_offset = m_content_end.ticks() - m_content_start.ticks() - visible_duration;
+    const Ticks visible_duration = m_end.ticks() - m_start.ticks();
+    const Ticks maximum_offset = m_content_end.ticks() - m_content_start.ticks() - visible_duration;
     const auto offset = static_cast<Ticks>(std::llround(std::clamp(fraction, 0.0, 1.0) * maximum_offset));
     scroll_to(Time::from_ticks(m_content_start.ticks() + offset));
 }
@@ -334,24 +337,24 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         metrics.ruler_height() - 1, StyleRole::RULER, DisplayId{"", "ruler"}});
     m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL, DisplayId{"", "ruler"}});
 
-    for (auto lane_index = viewport.first_lane(); lane_index < document.lane_count(); ++lane_index)
+    for (int lane_index = viewport.first_lane(); lane_index < document.lane_count(); ++lane_index)
     {
-        const auto y = lane_y(lane_index, viewport, metrics);
+        const std::optional<int> y = lane_y(lane_index, viewport, metrics);
         if (!y)
         {
             break;
         }
-        const auto &lane = document.lanes()[lane_index];
-        const auto row_height = metrics.lane_height();
+        const Lane &lane = document.lanes()[lane_index];
+        const int row_height = metrics.lane_height();
         m_display_list.add(Rectangle{metrics.lane_label_width(), *y, viewport.width() - metrics.lane_label_width(),
             row_height, StyleRole::LANE_BACKGROUND, DisplayId{lane.id(), ""}});
         m_display_list.add(
             Text{4, *y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL, DisplayId{lane.id(), ""}});
 
-        const auto item_y = *y + metrics.item_padding();
-        const auto item_height = std::max(1, row_height - metrics.item_padding() * 2);
+        const int item_y = *y + metrics.item_padding();
+        const int item_height = std::max(1, row_height - metrics.item_padding() * 2);
         add_keyframes(m_display_list, lane, item_y, item_height, viewport, metrics);
-        for (const auto &item : lane.items())
+        for (const Item &item : lane.items())
         {
             if (item_end(item) < viewport.start() || viewport.end() < item_start(item))
             {
@@ -363,9 +366,9 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                     using Value = std::decay_t<decltype(value)>;
                     if constexpr (std::is_same_v<Value, Instant>)
                     {
-                        const auto x = time_x(value.time(), viewport, metrics);
-                        const auto marker_width = std::min(2, viewport.width() - metrics.lane_label_width());
-                        const auto marker_x = std::clamp(
+                        const int x = time_x(value.time(), viewport, metrics);
+                        const int marker_width = std::min(2, viewport.width() - metrics.lane_label_width());
+                        const int marker_x = std::clamp(
                             x - marker_width / 2, metrics.lane_label_width(), viewport.width() - marker_width);
                         m_display_list.add(Marker{marker_x, item_y, marker_width, item_height,
                             StyleRole::INSTANT_MARKER, DisplayId{lane.id(), value.id()}});
@@ -377,8 +380,8 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                     }
                     else if constexpr (std::is_same_v<Value, Envelope>)
                     {
-                        auto phase_start = value.start();
-                        auto phase_end = phase_start + Duration::from_ticks(phase_ticks(value.attack()));
+                        Time phase_start = value.start();
+                        Time phase_end = phase_start + Duration::from_ticks(phase_ticks(value.attack()));
                         add_span(m_display_list, phase_start, phase_end, StyleRole::ENVELOPE_ATTACK,
                             DisplayId{lane.id(), value.id()}, item_y, item_height, viewport, metrics);
                         phase_start = phase_end;
@@ -402,7 +405,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
 
     m_hit_regions.emplace_back(
         Rectangle{0, 0, viewport.width(), metrics.ruler_height(), StyleRole::RULER, DisplayId{"", "ruler"}});
-    for (const auto &primitive : m_display_list.primitives())
+    for (const Primitive &primitive : m_display_list.primitives())
     {
         std::visit(
             [&](const auto &value)
@@ -425,13 +428,13 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
             primitive);
     }
 
-    auto decorated = DisplayList{};
+    DisplayList decorated{};
     const auto add_range = [&](int y, int height)
     {
         if (interaction.selected_range())
         {
-            const auto &range = *interaction.selected_range();
-            const auto end = document.frame_grid() && document.frame_grid()->frame_count() > 0
+            const TimeRange &range = *interaction.selected_range();
+            const Time end = document.frame_grid() && document.frame_grid()->frame_count() > 0
                 ? range.end() + document.frame_grid()->frame_duration()
                 : range.end();
             add_span(decorated, range.start(), end, StyleRole::SELECTED_RANGE, DisplayId{"", ""}, y, height, viewport,
@@ -439,7 +442,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         }
     };
     add_range(0, metrics.ruler_height());
-    for (const auto &primitive : m_display_list.primitives())
+    for (const Primitive &primitive : m_display_list.primitives())
     {
         std::visit(
             [&](auto value)
@@ -471,8 +474,8 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
     if (interaction.playhead() && viewport.start() <= *interaction.playhead() &&
         *interaction.playhead() <= viewport.end())
     {
-        const auto x = std::min(viewport.width() - 1, time_x(*interaction.playhead(), viewport, metrics));
-        const auto id = DisplayId{"", "playhead"};
+        const int x = std::min(viewport.width() - 1, time_x(*interaction.playhead(), viewport, metrics));
+        const DisplayId id{"", "playhead"};
         decorated.add(Line{x, 0, x, viewport.height() - 1, StyleRole::PLAYHEAD, id});
         // Restrict the playhead hit to the ruler so it cannot hide item hits.
         m_hit_regions.emplace_back(Marker{x, 0, 1, metrics.ruler_height(), StyleRole::PLAYHEAD, id});
@@ -490,9 +493,10 @@ std::optional<HitResult> Layout::hit_test(Point point, int tolerance) const
     {
         return std::nullopt;
     }
-    for (auto region = m_hit_regions.rbegin(); region != m_hit_regions.rend(); ++region)
+    for (std::vector<HitRegion>::const_reverse_iterator region = m_hit_regions.rbegin(); region != m_hit_regions.rend();
+        ++region)
     {
-        const auto hit = std::visit(
+        const std::optional<HitResult> hit = std::visit(
             [&](const auto &value) -> std::optional<HitResult>
             {
                 using Value = std::decay_t<decltype(value)>;
@@ -503,7 +507,7 @@ std::optional<HitResult> Layout::hit_test(Point point, int tolerance) const
                         return std::nullopt;
                     }
                 }
-                const auto hit_tolerance = std::is_same_v<Value, Rectangle> ? 0 : tolerance;
+                const int hit_tolerance = std::is_same_v<Value, Rectangle> ? 0 : tolerance;
                 return contains(value, point, hit_tolerance)
                     ? std::optional<HitResult>{HitResult{value.style, value.id}}
                     : std::nullopt;
@@ -524,10 +528,10 @@ Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics)
         throw std::invalid_argument("timeline lane labels leave no content width");
     }
 
-    const auto left = metrics.lane_label_width();
-    const auto position = std::clamp(x, left, viewport.width()) - left;
-    const auto width = viewport.width() - left;
-    const auto duration = viewport.end().ticks() - viewport.start().ticks();
+    const int left = metrics.lane_label_width();
+    const int position = std::clamp(x, left, viewport.width()) - left;
+    const int width = viewport.width() - left;
+    const Ticks duration = viewport.end().ticks() - viewport.start().ticks();
     const auto elapsed = static_cast<Ticks>(std::llround(static_cast<double>(position) * duration / width));
     return Time::from_ticks(viewport.start().ticks() + elapsed);
 }
@@ -561,7 +565,7 @@ int visible_lane_count(const Viewport &viewport, const LayoutMetrics &metrics)
 
 std::optional<int> lane_y(int lane, const Viewport &viewport, const LayoutMetrics &metrics)
 {
-    const auto relative_lane = lane - viewport.first_lane();
+    const int relative_lane = lane - viewport.first_lane();
     if (relative_lane < 0 || visible_lane_count(viewport, metrics) <= relative_lane)
     {
         return std::nullopt;
@@ -580,12 +584,12 @@ std::optional<int> lane_at_y(int y, int lane_count, const Viewport &viewport, co
         return std::nullopt;
     }
 
-    const auto relative_lane = (y - metrics.ruler_height()) / metrics.lane_height();
+    const int relative_lane = (y - metrics.ruler_height()) / metrics.lane_height();
     if (relative_lane < 0 || visible_lane_count(viewport, metrics) <= relative_lane)
     {
         return std::nullopt;
     }
-    const auto lane = viewport.first_lane() + relative_lane;
+    const int lane = viewport.first_lane() + relative_lane;
     return lane < lane_count ? std::optional<int>{lane} : std::nullopt;
 }
 

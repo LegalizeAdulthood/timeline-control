@@ -31,7 +31,8 @@ InspectionItem inspect_item(const Item &item, InspectionItemRole role, std::opti
             }
             else if constexpr (std::is_same_v<Value, Curve>)
             {
-                const auto sample = sample_time ? std::optional<double>{value.sample(*sample_time)} : std::nullopt;
+                const std::optional<double> sample =
+                    sample_time ? std::optional{value.sample(*sample_time)} : std::nullopt;
                 return {value.id(), value.kind(), InspectionItemType::CURVE, role, sample};
             }
             else
@@ -93,26 +94,26 @@ std::optional<FrameInspection> inspect_frame(const Document &document, Ticks fra
         return std::nullopt;
     }
 
-    const auto &frame_grid = *document.frame_grid();
-    const auto start = frame_grid.frame_start(frame);
-    const auto end = frame + 1 < frame_grid.frame_count() ? frame_grid.frame_start(frame + 1) : frame_grid.end_time();
-    auto inspection = FrameInspection{frame, start, {}};
+    const FrameGrid &frame_grid = *document.frame_grid();
+    const Time start = frame_grid.frame_start(frame);
+    const Time end = frame + 1 < frame_grid.frame_count() ? frame_grid.frame_start(frame + 1) : frame_grid.end_time();
+    FrameInspection inspection{frame, start, {}};
     inspection.lanes.reserve(document.lanes().size());
 
-    for (const auto &lane : document.lanes())
+    for (const Lane &lane : document.lanes())
     {
-        auto lane_inspection = lane_summary(lane);
-        for (const auto &item : lane.items())
+        LaneInspection lane_inspection = lane_summary(lane);
+        for (const Item &item : lane.items())
         {
             if (!std::holds_alternative<Keyframe>(item) && active_in_frame(item, start, end))
             {
-                const auto role =
+                const InspectionItemRole role =
                     std::holds_alternative<Curve>(item) ? InspectionItemRole::SAMPLED : InspectionItemRole::ACTIVE;
                 lane_inspection.items.push_back(inspect_item(item, role, start));
             }
         }
 
-        const auto neighbors = lane.neighboring_keyframes(start);
+        const KeyframeNeighbors neighbors = lane.neighboring_keyframes(start);
         if (neighbors.before() && neighbors.after() && neighbors.before()->get().id() == neighbors.after()->get().id())
         {
             lane_inspection.items.push_back(inspect_keyframe(neighbors.before()->get(), InspectionItemRole::EXACT));
@@ -141,12 +142,12 @@ RangeInspection inspect_range(const Document &document, Time start, Time end)
         throw std::invalid_argument("timeline query range is reversed");
     }
 
-    auto inspection = RangeInspection{start, end, {}};
+    RangeInspection inspection{start, end, {}};
     inspection.lanes.reserve(document.lanes().size());
-    for (const auto &lane : document.lanes())
+    for (const Lane &lane : document.lanes())
     {
-        auto lane_inspection = lane_summary(lane);
-        for (const auto &item : lane.items())
+        LaneInspection lane_inspection = lane_summary(lane);
+        for (const Item &item : lane.items())
         {
             if (overlaps_range(item, start, end))
             {

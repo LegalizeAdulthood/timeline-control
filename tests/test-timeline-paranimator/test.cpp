@@ -31,7 +31,7 @@ const JsonImportOptions TEST_OPTIONS{
 
 JsonImportOptions tracker_options()
 {
-    auto options = JsonImportOptions{};
+    JsonImportOptions options{};
     options.beat_keys_config_path = fixture_path("beat-keys/adapter.beat-keys.json");
     return options;
 }
@@ -40,8 +40,8 @@ JsonImportOptions tracker_options()
 
 TEST(TimelineJson, imports_minimal_paranimator_config)
 {
-    const auto source_path = fixture_path("maxiter.json");
-    auto result = import_timeline_json(source_path, TEST_OPTIONS);
+    const std::filesystem::path source_path = fixture_path("maxiter.json");
+    JsonImportResult result = import_timeline_json(source_path, TEST_OPTIONS);
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document.has_value());
@@ -60,7 +60,7 @@ TEST(TimelineJson, imports_minimal_paranimator_config)
 
 TEST(TimelineJson, reports_multi_track_counts)
 {
-    const auto result = import_timeline_json(fixture_path("multi-track.json"), TEST_OPTIONS);
+    const JsonImportResult result = import_timeline_json(fixture_path("multi-track.json"), TEST_OPTIONS);
 
     ASSERT_TRUE(result.succeeded());
     EXPECT_EQ(3, result.document->frame_grid()->frame_count());
@@ -70,7 +70,7 @@ TEST(TimelineJson, reports_multi_track_counts)
 
 TEST(TimelineJson, rejects_invalid_schema)
 {
-    const auto result = import_timeline_json(fixture_path("invalid-schema.json"), TEST_OPTIONS);
+    const JsonImportResult result = import_timeline_json(fixture_path("invalid-schema.json"), TEST_OPTIONS);
 
     EXPECT_FALSE(result.succeeded());
     EXPECT_FALSE(result.document.has_value());
@@ -80,7 +80,7 @@ TEST(TimelineJson, rejects_invalid_schema)
 
 TEST(TimelineJson, rejects_empty_source_path)
 {
-    const auto result = import_timeline_json({}, TEST_OPTIONS);
+    const JsonImportResult result = import_timeline_json({}, TEST_OPTIONS);
 
     EXPECT_FALSE(result.succeeded());
     EXPECT_FALSE(result.document.has_value());
@@ -90,11 +90,12 @@ TEST(TimelineJson, rejects_empty_source_path)
 
 TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
 {
-    const auto result = import_timeline_json(fixture_path("beat-keys/timeline-events.json"), tracker_options());
+    const JsonImportResult result =
+        import_timeline_json(fixture_path("beat-keys/timeline-events.json"), tracker_options());
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
-    const auto &summary = *result.document->source_summary();
+    const timeline::SourceSummary &summary = *result.document->source_summary();
     EXPECT_EQ("par-beatdown.tracker-timeline", summary.schema());
     EXPECT_EQ(1, summary.schema_version());
     EXPECT_EQ(0, summary.feature_count());
@@ -109,7 +110,7 @@ TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
     EXPECT_EQ(30, result.document->frame_grid()->frames_per_second_numerator());
     EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
     ASSERT_EQ(1, result.document->lane_count());
-    const auto &lane = result.document->lanes().front();
+    const timeline::Lane &lane = result.document->lanes().front();
     EXPECT_EQ("tracker-events", lane.id());
     EXPECT_EQ("Music events", lane.label());
     ASSERT_EQ(6, lane.item_count());
@@ -124,11 +125,11 @@ TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
 
 TEST(TimelineJson, imports_full_tracker_timeline_summary)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/gold-write-timeline-clock.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/gold-write-timeline-clock.json"));
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
-    const auto &summary = *result.document->source_summary();
+    const timeline::SourceSummary &summary = *result.document->source_summary();
     EXPECT_EQ(0, summary.feature_count());
     EXPECT_EQ(1891, summary.event_count());
     EXPECT_EQ(0, *summary.first_frame());
@@ -146,19 +147,19 @@ TEST(TimelineJson, imports_full_tracker_timeline_summary)
 
 TEST(TimelineJson, imports_complete_music_timeline)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/song.music.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/song.music.json"));
 
     ASSERT_TRUE(result.succeeded());
     EXPECT_TRUE(result.diagnostics.empty());
-    const auto &document = *result.document;
+    const timeline::Document &document = *result.document;
     EXPECT_EQ("song.music.json", document.metadata().title());
     EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm (xm)", document.metadata().description());
     ASSERT_TRUE(document.source_summary());
-    const auto &summary = *document.source_summary();
+    const timeline::SourceSummary &summary = *document.source_summary();
     EXPECT_EQ(36, summary.event_count());
     EXPECT_EQ(4, summary.feature_count());
     ASSERT_TRUE(summary.generation_summary());
-    const auto &generation = *summary.generation_summary();
+    const timeline::GenerationSummary &generation = *summary.generation_summary();
     EXPECT_EQ("par-beatdown", generation.generator_name());
     EXPECT_EQ("0.1.0", generation.generator_version());
     ASSERT_EQ(1, timeline::size_cast(generation.source_references()));
@@ -174,7 +175,7 @@ TEST(TimelineJson, imports_complete_music_timeline)
     EXPECT_EQ("12", event.attributes().at("row"));
     const auto &curve = std::get<timeline::Curve>(document.lanes()[1].items()[0]);
     EXPECT_EQ(4, curve.sample_count());
-    const auto inspection = timeline::inspect_frame(document, 15);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, 15);
     ASSERT_TRUE(inspection);
     ASSERT_EQ(2, timeline::size_cast(inspection->lanes));
     ASSERT_EQ(1, timeline::size_cast(inspection->lanes[1].items));
@@ -183,16 +184,16 @@ TEST(TimelineJson, imports_complete_music_timeline)
 
 TEST(TimelineJson, retains_valid_records_with_indexed_diagnostics)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/partial.music.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/partial.music.json"));
 
     ASSERT_TRUE(result.succeeded());
-    const auto &document = *result.document;
+    const timeline::Document &document = *result.document;
     EXPECT_EQ("Recovered song", document.metadata().title());
     EXPECT_EQ("fixture.xm (xm)", document.metadata().description());
     ASSERT_TRUE(document.frame_grid());
     EXPECT_EQ(61, document.frame_grid()->frame_count());
     ASSERT_EQ(2, document.lane_count());
-    const auto &events = document.lanes()[0];
+    const timeline::Lane &events = document.lanes()[0];
     ASSERT_EQ(2, events.item_count());
     EXPECT_EQ("event-0", std::get<timeline::Instant>(events.items()[0]).id());
     const auto &event = std::get<timeline::Instant>(events.items()[1]);
@@ -208,13 +209,13 @@ TEST(TimelineJson, retains_valid_records_with_indexed_diagnostics)
     auto contains_diagnostic = [&](std::string_view text)
     {
         return std::any_of(result.diagnostics.begin(), result.diagnostics.end(),
-            [text](const auto &message) { return message.find(text) != std::string::npos; });
+            [text](const std::string &message) { return message.find(text) != std::string::npos; });
     };
-    for (const auto index : {1, 2, 3, 5, 6, 7})
+    for (const int index : {1, 2, 3, 5, 6, 7})
     {
         EXPECT_TRUE(contains_diagnostic("events[" + std::to_string(index) + "]"));
     }
-    for (const auto index : {1, 2, 4})
+    for (const int index : {1, 2, 4})
     {
         EXPECT_TRUE(contains_diagnostic("features[" + std::to_string(index) + "]"));
     }
@@ -227,7 +228,7 @@ TEST(TimelineJson, retains_valid_records_with_indexed_diagnostics)
 
 TEST(TimelineJson, rejects_invalid_tracker_array_shape)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/invalid-shape.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/invalid-shape.json"));
 
     EXPECT_FALSE(result.succeeded());
     ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
@@ -236,7 +237,7 @@ TEST(TimelineJson, rejects_invalid_tracker_array_shape)
 
 TEST(TimelineJson, malformed_optional_metadata_does_not_discard_events)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/invalid-metadata.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/invalid-metadata.json"));
 
     ASSERT_TRUE(result.succeeded());
     EXPECT_EQ("invalid-metadata.json", result.document->metadata().title());
@@ -249,13 +250,14 @@ TEST(TimelineJson, malformed_optional_metadata_does_not_discard_events)
 
 TEST(TimelineJson, imports_tracker_rms_curve)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/gold-write-windowed-features.json"));
+    const JsonImportResult result =
+        import_timeline_json(fixture_path("par-beatdown/gold-write-windowed-features.json"));
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->frame_grid().has_value());
     EXPECT_EQ(46, result.document->frame_grid()->frame_count());
     ASSERT_EQ(1, result.document->lane_count());
-    const auto &lane = result.document->lanes().front();
+    const timeline::Lane &lane = result.document->lanes().front();
     EXPECT_EQ("tracker-rms", lane.id());
     EXPECT_EQ("RMS", lane.label());
     ASSERT_EQ(1, lane.item_count());
@@ -270,25 +272,25 @@ TEST(TimelineJson, imports_tracker_rms_curve)
 
 TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_EQ(2, result.document->lane_count());
     ASSERT_TRUE(result.document->frame_grid().has_value());
-    const auto layout = timeline::Layout(*result.document,
+    const timeline::Layout layout(*result.document,
         timeline::Viewport(600, 120, timeline::Time::from_ticks(0), result.document->frame_grid()->end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
 
-    auto marker_count = 0;
-    auto curve_count = 0;
-    for (const auto &primitive : layout.display_list().primitives())
+    int marker_count = 0;
+    int curve_count = 0;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
     {
         if (const auto marker = std::get_if<timeline::Marker>(&primitive))
         {
             EXPECT_EQ(timeline::StyleRole::INSTANT_MARKER, marker->style);
             EXPECT_EQ("tracker-events", marker->id.lane_id);
             EXPECT_FALSE(marker->id.item_id.empty());
-            const auto hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
+            const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
             ASSERT_TRUE(hit);
             EXPECT_EQ(marker->style, hit->style);
             EXPECT_EQ(marker->id.item_id, hit->id.item_id);
@@ -300,7 +302,7 @@ TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
             EXPECT_EQ("tracker-rms", curve->id.lane_id);
             EXPECT_EQ("tracker-rms", curve->id.item_id);
             ASSERT_FALSE(curve->points.empty());
-            const auto hit = layout.hit_test(curve->points.front(), 3);
+            const std::optional<timeline::HitResult> hit = layout.hit_test(curve->points.front(), 3);
             ASSERT_TRUE(hit);
             EXPECT_EQ(curve->style, hit->style);
             EXPECT_EQ(curve->id.item_id, hit->id.item_id);
@@ -313,20 +315,20 @@ TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
 
 TEST(TimelineJson, imported_item_selection_survives_navigation)
 {
-    const auto result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
     ASSERT_TRUE(result.succeeded());
-    const auto &document = *result.document;
+    const timeline::Document &document = *result.document;
     ASSERT_TRUE(document.frame_grid());
-    const auto metrics = timeline::LayoutMetrics(100, 20, 30, 4);
-    auto navigation = timeline::Navigation(*document.content_start(), *document.content_end(), document.lane_count());
-    auto interaction = timeline::Interaction(document);
-    const auto layout = timeline::Layout(document, navigation.viewport(600, 120), metrics);
-    auto selected = false;
-    for (const auto &primitive : layout.display_list().primitives())
+    const timeline::LayoutMetrics metrics(100, 20, 30, 4);
+    timeline::Navigation navigation(*document.content_start(), *document.content_end(), document.lane_count());
+    timeline::Interaction interaction(document);
+    const timeline::Layout layout(document, navigation.viewport(600, 120), metrics);
+    bool selected = false;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
     {
         if (const auto marker = std::get_if<timeline::Marker>(&primitive))
         {
-            const auto hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
+            const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
             ASSERT_TRUE(hit);
             interaction.select_hit(hit, false);
             selected = true;
@@ -336,9 +338,9 @@ TEST(TimelineJson, imported_item_selection_survives_navigation)
     ASSERT_TRUE(selected);
     interaction.move_playhead_frame(0);
     navigation.zoom_by(2.0, *interaction.playhead());
-    const auto selected_layout = timeline::Layout(document, navigation.viewport(600, 120), metrics, interaction);
-    auto highlighted = false;
-    for (const auto &primitive : selected_layout.display_list().primitives())
+    const timeline::Layout selected_layout(document, navigation.viewport(600, 120), metrics, interaction);
+    bool highlighted = false;
+    for (const timeline::Primitive &primitive : selected_layout.display_list().primitives())
     {
         if (const auto marker = std::get_if<timeline::Marker>(&primitive))
         {
@@ -346,7 +348,8 @@ TEST(TimelineJson, imported_item_selection_survives_navigation)
             {
                 highlighted = true;
                 EXPECT_TRUE(interaction.is_selected(marker->id));
-                const auto hit = selected_layout.hit_test(timeline::Point{marker->x, marker->y}, 0);
+                const std::optional<timeline::HitResult> hit =
+                    selected_layout.hit_test(timeline::Point{marker->x, marker->y}, 0);
                 ASSERT_TRUE(hit);
                 EXPECT_EQ(timeline::StyleRole::INSTANT_MARKER, hit->style);
             }
@@ -358,7 +361,7 @@ TEST(TimelineJson, imported_item_selection_survives_navigation)
 
 TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
 {
-    const auto result = import_timeline_json(fixture_path("beat-keys/timeline-diagnostics.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("beat-keys/timeline-diagnostics.json"));
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
@@ -370,16 +373,16 @@ TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
 
 TEST(TimelineJson, imports_row_pulse_overlay_summary)
 {
-    const auto result = import_timeline_json(fixture_path("beat-keys/gold-write-row-pulses.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("beat-keys/gold-write-row-pulses.json"));
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
-    const auto &source = *result.document->source_summary();
+    const timeline::SourceSummary &source = *result.document->source_summary();
     EXPECT_EQ("par-beatdown.beat-keys-overlay", source.schema());
     EXPECT_EQ(0, *source.first_frame());
     EXPECT_EQ(4, *source.last_frame());
     ASSERT_TRUE(source.generation_summary().has_value());
-    const auto &generation = *source.generation_summary();
+    const timeline::GenerationSummary &generation = *source.generation_summary();
     EXPECT_EQ("beat-keys", generation.generator_name());
     EXPECT_EQ("0.1.0", generation.generator_version());
     ASSERT_EQ(3U, generation.source_references().size());
@@ -402,13 +405,13 @@ TEST(TimelineJson, imports_row_pulse_overlay_summary)
 
 TEST(TimelineJson, imports_rms_overlay_summary)
 {
-    const auto result = import_timeline_json(fixture_path("beat-keys/gold-write-rms-keyframes.json"));
+    const JsonImportResult result = import_timeline_json(fixture_path("beat-keys/gold-write-rms-keyframes.json"));
 
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
-    const auto &source = *result.document->source_summary();
+    const timeline::SourceSummary &source = *result.document->source_summary();
     ASSERT_TRUE(source.generation_summary().has_value());
-    const auto &generation = *source.generation_summary();
+    const timeline::GenerationSummary &generation = *source.generation_summary();
     ASSERT_EQ(3U, generation.target_counts().size());
     EXPECT_EQ("camera.zoom", generation.target_counts()[0].name());
     EXPECT_EQ(3, generation.target_counts()[0].count());
@@ -424,7 +427,7 @@ TEST(TimelineJson, imports_rms_overlay_summary)
     ASSERT_TRUE(result.document->frame_grid().has_value());
     EXPECT_EQ(5, result.document->frame_grid()->frame_count());
     ASSERT_EQ(3, result.document->lane_count());
-    const auto &zoom = result.document->lanes()[0];
+    const timeline::Lane &zoom = result.document->lanes()[0];
     EXPECT_EQ("camera.zoom", zoom.id());
     EXPECT_EQ("camera.zoom", zoom.label());
     ASSERT_EQ(3, zoom.item_count());

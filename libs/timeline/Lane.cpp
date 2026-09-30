@@ -84,7 +84,7 @@ void Lane::add(Curve curve)
 
 void Lane::add(Keyframe keyframe)
 {
-    for (const auto &item : m_items)
+    for (const Item &item : m_items)
     {
         const auto existing = std::get_if<Keyframe>(&item);
         if (existing && existing->time() == keyframe.time())
@@ -102,8 +102,8 @@ std::vector<Item> Lane::items_in_range(Time start, Time end) const
         throw std::invalid_argument("timeline query range is reversed");
     }
 
-    auto result = std::vector<Item>{};
-    for (const auto &item : m_items)
+    std::vector<Item> result{};
+    for (const Item &item : m_items)
     {
         if (item_start(item) <= end && start <= item_end(item))
         {
@@ -115,9 +115,9 @@ std::vector<Item> Lane::items_in_range(Time start, Time end) const
 
 KeyframeNeighbors Lane::neighboring_keyframes(Time time) const
 {
-    auto before = std::optional<KeyframeNeighbors::Reference>{};
-    auto after = std::optional<KeyframeNeighbors::Reference>{};
-    for (const auto &item : m_items)
+    std::optional<KeyframeNeighbors::Reference> before{};
+    std::optional<KeyframeNeighbors::Reference> after{};
+    for (const Item &item : m_items)
     {
         const auto keyframe = std::get_if<Keyframe>(&item);
         if (!keyframe)
@@ -138,7 +138,7 @@ KeyframeNeighbors Lane::neighboring_keyframes(Time time) const
 
 std::optional<double> Lane::evaluate_keyframes(Time time) const
 {
-    const auto neighbors = neighboring_keyframes(time);
+    const KeyframeNeighbors neighbors = neighboring_keyframes(time);
     if (!neighbors.before() && !neighbors.after())
     {
         return std::nullopt;
@@ -152,8 +152,8 @@ std::optional<double> Lane::evaluate_keyframes(Time time) const
         return neighbors.before()->get().value();
     }
 
-    const auto &before = neighbors.before()->get();
-    const auto &after = neighbors.after()->get();
+    const Keyframe &before = neighbors.before()->get();
+    const Keyframe &after = neighbors.after()->get();
     if (before.time() == after.time() || before.interpolation() == KeyframeInterpolation::HOLD)
     {
         return before.value();
@@ -166,9 +166,9 @@ std::optional<double> Lane::evaluate_keyframes(Time time) const
 
 void Lane::add_item(Item item)
 {
-    const auto start = item_start(item);
-    const auto end = item_end(item);
-    const auto instant = start == end;
+    const Time start = item_start(item);
+    const Time end = item_end(item);
+    const bool instant = start == end;
     if (start < m_start || m_end < end || (instant && start == m_end))
     {
         throw std::out_of_range("timeline item is outside its lane range");

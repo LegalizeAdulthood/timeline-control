@@ -52,9 +52,9 @@ Curve::Curve(std::string id, std::string kind, std::vector<CurveSample> samples,
         throw std::invalid_argument("timeline curve bounds are invalid");
     }
 
-    for (auto index = 0; index < sample_count(); ++index)
+    for (int index = 0; index < sample_count(); ++index)
     {
-        const auto &sample = m_samples[index];
+        const CurveSample &sample = m_samples[index];
         if (index > 0 && sample.time() <= m_samples[index - 1].time())
         {
             throw std::invalid_argument("timeline curve sample times must be strictly increasing");
@@ -77,13 +77,13 @@ double Curve::sample(Time time) const
         return m_samples.back().value();
     }
 
-    const auto right = std::lower_bound(m_samples.begin(), m_samples.end(), time,
+    const std::vector<CurveSample>::const_iterator right = std::lower_bound(m_samples.begin(), m_samples.end(), time,
         [](const CurveSample &sample, Time value) { return sample.time() < value; });
     if (right->time() == time)
     {
         return right->value();
     }
-    const auto &left = *(right - 1);
+    const CurveSample &left = *(right - 1);
     if (m_interpolation == CurveInterpolation::STEP)
     {
         return left.value();
@@ -96,10 +96,10 @@ double Curve::sample(Time time) const
 
 std::vector<CurveSample> Curve::sample(const FrameGrid &frame_grid) const
 {
-    auto result = std::vector<CurveSample>{};
+    std::vector<CurveSample> result{};
     for (Ticks frame = 0; frame < frame_grid.frame_count(); ++frame)
     {
-        const auto time = frame_grid.frame_start(frame);
+        const Time time = frame_grid.frame_start(frame);
         result.emplace_back(time, sample(time));
     }
     return result;

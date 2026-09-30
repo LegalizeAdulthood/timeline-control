@@ -160,8 +160,8 @@ TimelineViewerFrame::TimelineViewerFrame() :
 
 void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 {
-    const auto &hit = m_timeline_control->hit_result();
-    auto text = wxString("Hit: none\n");
+    const std::optional<timeline::HitResult> &hit = m_timeline_control->hit_result();
+    wxString text("Hit: none\n");
     if (hit)
     {
         text = "Hit: " + wxString::FromUTF8(hit_role_name(hit->style)) + "\n";
@@ -174,13 +174,13 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
             text += "Item: " + wxString::FromUTF8(hit->id.item_id.c_str()) + "\n";
         }
     }
-    const auto &document = m_timeline_control->document();
+    const std::optional<timeline::Document> &document = m_timeline_control->document();
     if (document)
     {
         text += "\nTitle: " + wxString::FromUTF8(document->metadata().title().c_str()) + "\n";
         text += "Source: " + wxString::FromUTF8(document->metadata().description().c_str()) + "\n";
     }
-    const auto &interaction = m_timeline_control->interaction();
+    const std::optional<timeline::Interaction> &interaction = m_timeline_control->interaction();
     if (interaction)
     {
         if (interaction->playhead())
@@ -196,26 +196,26 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         {
             text += "Selected lane: " + wxString::FromUTF8(interaction->selected_lane()->c_str()) + "\n";
         }
-        for (const auto &id : interaction->selected_items())
+        for (const timeline::DisplayId &id : interaction->selected_items())
         {
             text += "Selected item: " + wxString::FromUTF8(id.lane_id.c_str()) + "/" +
                 wxString::FromUTF8(id.item_id.c_str()) + "\n";
         }
         if (interaction->selected_range())
         {
-            const auto &range = *interaction->selected_range();
-            const auto &timebase = m_timeline_control->document()->timebase();
+            const timeline::TimeRange &range = *interaction->selected_range();
+            const timeline::Timebase &timebase = m_timeline_control->document()->timebase();
             text += wxString::Format("Selected range: %.6f to %.6f seconds\n", timebase.seconds(range.start()),
                 timebase.seconds(range.end()));
         }
         if (interaction->selected_frames())
         {
-            const auto frames = *interaction->selected_frames();
+            const timeline::FrameRange frames = *interaction->selected_frames();
             text += wxString::Format("Selected frames: %lld to %lld\n", static_cast<long long>(frames.first()),
                 static_cast<long long>(frames.last()));
         }
     }
-    const auto &inspection = m_timeline_control->inspection();
+    const std::optional<timeline::FrameInspection> &inspection = m_timeline_control->inspection();
     if (!inspection)
     {
         m_inspector->SetValue(text + "\nNo frame inspection.");
@@ -224,7 +224,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 
     text += wxString::Format("\nFrame: %lld\nTime: %.6f seconds\n", static_cast<long long>(inspection->frame),
         m_timeline_control->document()->timebase().seconds(inspection->time));
-    for (const auto &lane : inspection->lanes)
+    for (const timeline::LaneInspection &lane : inspection->lanes)
     {
         text += "\n" + wxString::FromUTF8(lane.label.c_str()) + " [" + wxString::FromUTF8(lane.kind.c_str()) + "]";
         text += wxString::Format("\n  Source items: %d", lane.item_count);
@@ -233,7 +233,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
             text += "\n  No activity";
             continue;
         }
-        for (const auto &item : lane.items)
+        for (const timeline::InspectionItem &item : lane.items)
         {
             text += "\n  " + wxString::FromUTF8(item_type_name(item.type)) + " " + wxString::FromUTF8(item.id.c_str()) +
                 " (" + wxString::FromUTF8(item_role_name(item.role)) + ")";
@@ -249,23 +249,24 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 
 void TimelineViewerFrame::on_open(wxCommandEvent &)
 {
-    auto dialog = wxFileDialog(this, "Open timeline JSON", wxEmptyString, wxEmptyString, "JSON files (*.json)|*.json",
+    wxFileDialog dialog(this, "Open timeline JSON", wxEmptyString, wxEmptyString, "JSON files (*.json)|*.json",
         wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dialog.ShowModal() != wxID_OK)
     {
         return;
     }
 
-    const auto source_path = std::filesystem::path(dialog.GetPath().ToStdWstring());
-    auto import_options = timeline_par_animator::JsonImportOptions{};
-    const auto beat_keys_config_path = source_path.parent_path() / "adapter.beat-keys.json";
-    auto filesystem_error = std::error_code{};
+    const std::filesystem::path source_path(dialog.GetPath().ToStdWstring());
+    timeline_par_animator::JsonImportOptions import_options{};
+    const std::filesystem::path beat_keys_config_path = source_path.parent_path() / "adapter.beat-keys.json";
+    std::error_code filesystem_error{};
     if (std::filesystem::is_regular_file(beat_keys_config_path, filesystem_error))
     {
         import_options.beat_keys_config_path = beat_keys_config_path;
     }
 
-    auto result = timeline_par_animator::import_timeline_json(source_path, import_options);
+    timeline_par_animator::JsonImportResult result =
+        timeline_par_animator::import_timeline_json(source_path, import_options);
     if (!result.succeeded())
     {
         show_import_diagnostics(result.diagnostics, "Timeline import failed", wxOK | wxICON_ERROR);
@@ -309,8 +310,8 @@ void TimelineViewerFrame::on_clear_selection(wxCommandEvent &)
 void TimelineViewerFrame::show_import_diagnostics(
     const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style)
 {
-    auto message = wxString{};
-    for (const auto &diagnostic : diagnostics)
+    wxString message{};
+    for (const std::string &diagnostic : diagnostics)
     {
         if (!message.empty())
         {

@@ -211,8 +211,8 @@ std::optional<Time> Document::content_start() const
         return std::nullopt;
     }
 
-    auto result = m_lanes.front().start();
-    for (const auto &lane : m_lanes)
+    Time result = m_lanes.front().start();
+    for (const Lane &lane : m_lanes)
     {
         if (lane.start() < result)
         {
@@ -233,8 +233,8 @@ std::optional<Time> Document::content_end() const
         return std::nullopt;
     }
 
-    auto result = m_lanes.front().end();
-    for (const auto &lane : m_lanes)
+    Time result = m_lanes.front().end();
+    for (const Lane &lane : m_lanes)
     {
         if (result < lane.end())
         {

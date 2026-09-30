@@ -24,7 +24,7 @@ namespace
 
 using Json = nlohmann::json;
 
-constexpr auto SUPPORTED_PAR_ANIMATOR_ROOT_FIELDS = std::array<std::string_view, 8>{
+constexpr std::array<std::string_view, 8> SUPPORTED_PAR_ANIMATOR_ROOT_FIELDS{
     "parameter-catalogs",
     "source",
     "output",
@@ -59,7 +59,7 @@ struct TrackerExtent
 bool read_json_file(
     const std::filesystem::path &path, const char *label, Json &json, std::vector<std::string> &diagnostics)
 {
-    auto input = std::ifstream(path);
+    std::ifstream input(path);
     if (!input)
     {
         diagnostics.emplace_back("Unable to open " + std::string(label) + " '" + path.string() + "'.");
@@ -92,8 +92,8 @@ bool validate_par_animator_root(const Json &config, std::vector<std::string> &di
         return false;
     }
 
-    auto valid = true;
-    for (auto field = config.begin(); field != config.end(); ++field)
+    bool valid = true;
+    for (Json::const_iterator field = config.begin(); field != config.end(); ++field)
     {
         if (!has_supported_par_animator_root_field(field.key()))
         {
@@ -123,8 +123,8 @@ bool validate_par_animator_root(const Json &config, std::vector<std::string> &di
     require_type(
         "num-frames", config.contains("num-frames") && config.at("num-frames").is_number_integer(), "an integer");
 
-    const auto has_tracks = config.contains("tracks");
-    const auto has_layers = config.contains("layers");
+    const bool has_tracks = config.contains("tracks");
+    const bool has_layers = config.contains("layers");
     if (has_tracks == has_layers)
     {
         diagnostics.emplace_back("ParAnimator config must contain either 'tracks' or 'layers'.");
@@ -161,17 +161,17 @@ bool validate_par_animator_root(const Json &config, std::vector<std::string> &di
 
 int count_keyframes(const Json &value)
 {
-    auto result = 0;
+    int result = 0;
     if (value.is_array())
     {
-        for (const auto &element : value)
+        for (const Json &element : value)
         {
             result += count_keyframes(element);
         }
     }
     else if (value.is_object())
     {
-        for (auto field = value.begin(); field != value.end(); ++field)
+        for (Json::const_iterator field = value.begin(); field != value.end(); ++field)
         {
             if (field.key() == "keys")
             {
@@ -196,7 +196,7 @@ void summarize_tracks(const Json &tracks, int &track_count, int &keyframe_count)
     {
         throw std::invalid_argument("ParAnimator tracks must be an array.");
     }
-    for (const auto &track : tracks)
+    for (const Json &track : tracks)
     {
         if (!track.is_object())
         {
@@ -209,15 +209,15 @@ void summarize_tracks(const Json &tracks, int &track_count, int &keyframe_count)
 
 std::pair<int, int> summarize_par_animator_content(const Json &config)
 {
-    auto track_count = 0;
-    auto keyframe_count = 0;
+    int track_count = 0;
+    int keyframe_count = 0;
     if (config.contains("tracks"))
     {
         summarize_tracks(config.at("tracks"), track_count, keyframe_count);
     }
     else
     {
-        for (const auto &layer : config.at("layers"))
+        for (const Json &layer : config.at("layers"))
         {
             if (!layer.is_object() || !layer.contains("tracks"))
             {
@@ -240,11 +240,11 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
     try
     {
         const auto [track_count, keyframe_count] = summarize_par_animator_content(config);
-        auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
-        auto frame_grid = timeline::FrameGrid(timeline::Timebase(options.ticks_per_second),
+        timeline::Metadata metadata(source_path.filename().string(), source_path.string());
+        timeline::FrameGrid frame_grid(timeline::Timebase(options.ticks_per_second),
             config.at("num-frames").get<timeline::Ticks>(), options.frames_per_second_numerator,
             options.frames_per_second_denominator);
-        result.document.emplace(std::move(frame_grid), track_count, keyframe_count, std::move(metadata));
+        result.document.emplace(frame_grid, track_count, keyframe_count, std::move(metadata));
     }
     catch (const std::exception &error)
     {
@@ -255,7 +255,7 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
 bool validate_overlay_string_field(
     const Json &object, std::string_view field, std::string_view context, std::vector<std::string> &diagnostics)
 {
-    const auto name = std::string(field);
+    const std::string name(field);
     if (!object.contains(name) || !object.at(name).is_string() || object.at(name).get<std::string>().empty())
     {
         diagnostics.emplace_back(std::string(context) + " requires non-empty string property '" + name + "'.");
@@ -272,7 +272,7 @@ bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &di
         return false;
     }
 
-    auto valid = true;
+    bool valid = true;
     if (!config.contains("version") || !config.at("version").is_number_integer() ||
         config.at("version").get<timeline::Ticks>() != 1)
     {
@@ -286,7 +286,7 @@ bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &di
     }
     else
     {
-        const auto &generator = config.at("generator");
+        const Json &generator = config.at("generator");
         valid = validate_overlay_string_field(generator, "name", "Beat-keys generator", diagnostics) && valid;
         valid = validate_overlay_string_field(generator, "version", "Beat-keys generator", diagnostics) && valid;
         if (generator.contains("name") && generator.at("name").is_string() &&
@@ -303,7 +303,7 @@ bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &di
     }
     else
     {
-        const auto &source = config.at("source");
+        const Json &source = config.at("source");
         valid = validate_overlay_string_field(source, "base_animation", "Beat-keys source", diagnostics) && valid;
         valid = validate_overlay_string_field(source, "timeline", "Beat-keys source", diagnostics) && valid;
         valid = validate_overlay_string_field(source, "adapter_config", "Beat-keys source", diagnostics) && valid;
@@ -315,10 +315,10 @@ bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &di
     }
     else
     {
-        constexpr auto OPERATIONS = std::array<std::string_view, 3>{"add", "multiply", "replace"};
-        constexpr auto SOURCES = std::array<std::string_view, 5>{
+        constexpr std::array<std::string_view, 3> OPERATIONS{"add", "multiply", "replace"};
+        constexpr std::array<std::string_view, 5> SOURCES{
             "music.rms", "music.peak", "music.note_pulse", "music.effect_pulse", "music.row_pulse"};
-        for (const auto &keyframe : config.at("keyframes"))
+        for (const Json &keyframe : config.at("keyframes"))
         {
             if (!keyframe.is_object() || !keyframe.contains("frame") || !keyframe.at("frame").is_number_integer() ||
                 keyframe.at("frame").get<timeline::Ticks>() < 0 ||
@@ -353,7 +353,7 @@ bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &di
 
 std::vector<timeline::NamedCount> named_counts(const std::map<std::string, int> &counts)
 {
-    auto result = std::vector<timeline::NamedCount>{};
+    std::vector<timeline::NamedCount> result{};
     result.reserve(counts.size());
     for (const auto &[name, count] : counts)
     {
@@ -365,7 +365,7 @@ std::vector<timeline::NamedCount> named_counts(const std::map<std::string, int> 
 void append_diagnostic_array(
     const Json &diagnostics, std::string_view field, std::string_view prefix, std::vector<std::string> &result)
 {
-    const auto field_name = std::string(field);
+    const std::string field_name(field);
     if (!diagnostics.contains(field_name))
     {
         return;
@@ -375,8 +375,8 @@ void append_diagnostic_array(
         result.emplace_back("ParBeatdown diagnostics." + field_name + " must be an array.");
         return;
     }
-    auto index = 0;
-    for (const auto &message : diagnostics.at(field_name))
+    int index = 0;
+    for (const Json &message : diagnostics.at(field_name))
     {
         if (!message.is_string())
         {
@@ -401,12 +401,12 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
 
     try
     {
-        auto first_frame = std::optional<timeline::Ticks>{};
-        auto last_frame = std::optional<timeline::Ticks>{};
-        auto target_counts = std::map<std::string, int>{};
-        auto source_counts = std::map<std::string, int>{};
-        auto keyframes_by_target = std::map<std::string, std::vector<timeline::Keyframe>>{};
-        for (const auto &keyframe : config.at("keyframes"))
+        std::optional<timeline::Ticks> first_frame{};
+        std::optional<timeline::Ticks> last_frame{};
+        std::map<std::string, int> target_counts{};
+        std::map<std::string, int> source_counts{};
+        std::map<std::string, std::vector<timeline::Keyframe>> keyframes_by_target{};
+        for (const Json &keyframe : config.at("keyframes"))
         {
             const auto frame = keyframe.at("frame").get<timeline::Ticks>();
             first_frame = first_frame ? std::min(*first_frame, frame) : frame;
@@ -417,7 +417,7 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
             ++source_counts[source_name];
         }
 
-        auto frame_grid = std::optional<timeline::FrameGrid>{};
+        std::optional<timeline::FrameGrid> frame_grid{};
         if (last_frame)
         {
             if (*last_frame == std::numeric_limits<timeline::Ticks>::max())
@@ -426,11 +426,11 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
             }
             frame_grid.emplace(timeline::Timebase(options.ticks_per_second), *last_frame + 1,
                 options.frames_per_second_numerator, options.frames_per_second_denominator);
-            auto keyframe_index = 0;
-            for (const auto &keyframe : config.at("keyframes"))
+            int keyframe_index = 0;
+            for (const Json &keyframe : config.at("keyframes"))
             {
                 const auto target = keyframe.at("target").get<std::string>();
-                auto attributes = timeline::Attributes{{"operation", keyframe.at("op").get<std::string>()},
+                timeline::Attributes attributes{{"operation", keyframe.at("op").get<std::string>()},
                     {"source", keyframe.at("source").get<std::string>()}};
                 keyframes_by_target[target].emplace_back("keyframe-" + std::to_string(keyframe_index),
                     frame_grid->frame_start(keyframe.at("frame").get<timeline::Ticks>()),
@@ -439,22 +439,21 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
             }
         }
 
-        const auto &generator = config.at("generator");
-        const auto &source = config.at("source");
-        auto generation_summary = timeline::GenerationSummary(generator.at("name").get<std::string>(),
+        const Json &generator = config.at("generator");
+        const Json &source = config.at("source");
+        timeline::GenerationSummary generation_summary(generator.at("name").get<std::string>(),
             generator.at("version").get<std::string>(),
             {timeline::SourceReference("base_animation", source.at("base_animation").get<std::string>()),
                 timeline::SourceReference("timeline", source.at("timeline").get<std::string>()),
                 timeline::SourceReference("adapter_config", source.at("adapter_config").get<std::string>())},
             named_counts(target_counts), named_counts(source_counts));
-        const auto first_time =
-            first_frame ? std::optional<timeline::Time>{frame_grid->frame_start(*first_frame)} : std::nullopt;
-        const auto last_time =
-            last_frame ? std::optional<timeline::Time>{frame_grid->frame_start(*last_frame)} : std::nullopt;
-        auto source_summary =
-            timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(), 0, 0,
-                first_frame, last_frame, first_time, last_time, std::nullopt, std::move(generation_summary));
-        auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
+        const std::optional<timeline::Time> first_time =
+            first_frame ? std::optional{frame_grid->frame_start(*first_frame)} : std::nullopt;
+        const std::optional<timeline::Time> last_time =
+            last_frame ? std::optional{frame_grid->frame_start(*last_frame)} : std::nullopt;
+        timeline::SourceSummary source_summary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
+            0, 0, first_frame, last_frame, first_time, last_time, std::nullopt, std::move(generation_summary));
+        timeline::Metadata metadata(source_path.filename().string(), source_path.string());
         append_diagnostic_array(config.at("diagnostics"), "warnings", "Warning: ", result.diagnostics);
         if (frame_grid)
         {
@@ -462,9 +461,9 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
                 timeline::size_cast(target_counts), timeline::size_cast(config.at("keyframes")), std::move(metadata));
             for (auto &[target, keyframes] : keyframes_by_target)
             {
-                auto lane = timeline::Lane(target, target, "keyframes", result.document->frame_grid()->offset(),
+                timeline::Lane lane(target, target, "keyframes", result.document->frame_grid()->offset(),
                     result.document->frame_grid()->end_time());
-                for (auto &keyframe : keyframes)
+                for (timeline::Keyframe &keyframe : keyframes)
                 {
                     lane.add(std::move(keyframe));
                 }
@@ -533,19 +532,19 @@ std::pair<timeline::Ticks, timeline::Ticks> rational_frame_rate(double frames_pe
         throw std::invalid_argument("frame rate must be finite and positive");
     }
 
-    const auto integer_rate = static_cast<timeline::Ticks>(std::llround(frames_per_second));
+    const timeline::Ticks integer_rate = static_cast<timeline::Ticks>(std::llround(frames_per_second));
     if (std::abs(frames_per_second - static_cast<double>(integer_rate)) < 0.000000001)
     {
         return {integer_rate, 1};
     }
 
-    constexpr auto COMMON_RATES = std::array<std::pair<timeline::Ticks, timeline::Ticks>, 4>{
+    constexpr std::array<std::pair<timeline::Ticks, timeline::Ticks>, 4> COMMON_RATES{
         std::pair<timeline::Ticks, timeline::Ticks>{24000, 1001},
         std::pair<timeline::Ticks, timeline::Ticks>{30000, 1001},
         std::pair<timeline::Ticks, timeline::Ticks>{60000, 1001},
         std::pair<timeline::Ticks, timeline::Ticks>{120000, 1001},
     };
-    for (const auto &rate : COMMON_RATES)
+    for (const std::pair<timeline::Ticks, timeline::Ticks> &rate : COMMON_RATES)
     {
         if (std::abs(frames_per_second - static_cast<double>(rate.first) / static_cast<double>(rate.second)) <
             0.000000001)
@@ -560,7 +559,7 @@ std::pair<timeline::Ticks, timeline::Ticks> rational_frame_rate(double frames_pe
         throw std::overflow_error("frame rate is too large");
     }
     auto numerator = static_cast<timeline::Ticks>(std::llround(frames_per_second * static_cast<double>(SCALE)));
-    const auto divisor = std::gcd(numerator, SCALE);
+    const timeline::Ticks divisor = std::gcd(numerator, SCALE);
     return {numerator / divisor, SCALE / divisor};
 }
 
@@ -586,7 +585,7 @@ std::optional<TrackerTiming> tracker_timing(
 {
     if (!options.beat_keys_config_path.empty())
     {
-        auto beat_keys = Json{};
+        Json beat_keys{};
         if (!read_json_file(options.beat_keys_config_path, "beat-keys config", beat_keys, diagnostics))
         {
             throw std::invalid_argument("beat-keys config could not be read");
@@ -626,9 +625,9 @@ struct TrackerRecord
 std::vector<TrackerRecord> tracker_records(const Json &items, std::string_view field,
     const timeline::Timebase &timebase, std::vector<std::string> &diagnostics)
 {
-    auto records = std::vector<TrackerRecord>{};
-    auto index = 0;
-    for (const auto &item : items)
+    std::vector<TrackerRecord> records{};
+    int index = 0;
+    for (const Json &item : items)
     {
         try
         {
@@ -638,7 +637,7 @@ std::vector<TrackerRecord> tracker_records(const Json &items, std::string_view f
             }
             if (item.contains("frame"))
             {
-                const auto &frame = item.at("frame");
+                const Json &frame = item.at("frame");
                 if (!frame.is_number_integer() ||
                     (frame.is_number_unsigned() &&
                         frame.get<Json::number_unsigned_t>() >= std::numeric_limits<timeline::Ticks>::max()) ||
@@ -658,7 +657,7 @@ std::vector<TrackerRecord> tracker_records(const Json &items, std::string_view f
                 {
                     throw std::invalid_argument("time_seconds must be finite and non-negative");
                 }
-                const auto time = timebase.time_from_seconds(seconds, timeline::TimeRounding::NEAREST);
+                const timeline::Time time = timebase.time_from_seconds(seconds, timeline::TimeRounding::NEAREST);
                 // Lane bounds need an exclusive endpoint after the final item.
                 static_cast<void>(time + timeline::Duration::from_ticks(1));
             }
@@ -673,7 +672,7 @@ std::vector<TrackerRecord> tracker_records(const Json &items, std::string_view f
                 {
                     throw std::invalid_argument("event requires a non-empty kind");
                 }
-                for (const auto name : {"strength", "confidence"})
+                for (const char *name : {"strength", "confidence"})
                 {
                     if (item.contains(name) &&
                         (!item.at(name).is_number() || !std::isfinite(item.at(name).get<double>())))
@@ -702,9 +701,9 @@ std::vector<TrackerRecord> tracker_records(const Json &items, std::string_view f
 
 void expand_extent(const std::vector<TrackerRecord> &items, TrackerExtent &extent)
 {
-    for (const auto &record : items)
+    for (const TrackerRecord &record : items)
     {
-        const auto &item = record.fields;
+        const Json &item = record.fields;
         if (item.contains("frame"))
         {
             const auto frame = item.at("frame").get<timeline::Ticks>();
@@ -723,17 +722,17 @@ void expand_extent(const std::vector<TrackerRecord> &items, TrackerExtent &exten
 TrackerExtent tracker_extent(
     const Json &config, const std::vector<TrackerRecord> &events, const std::vector<TrackerRecord> &features)
 {
-    auto extent = TrackerExtent{};
+    TrackerExtent extent{};
     expand_extent(events, extent);
     expand_extent(features, extent);
-    const auto item_first_frame = extent.first_frame;
-    const auto item_last_frame = extent.last_frame;
-    const auto item_first_seconds = extent.first_seconds;
-    const auto item_last_seconds = extent.last_seconds;
+    const std::optional<timeline::Ticks> item_first_frame = extent.first_frame;
+    const std::optional<timeline::Ticks> item_last_frame = extent.last_frame;
+    const std::optional<double> item_first_seconds = extent.first_seconds;
+    const std::optional<double> item_last_seconds = extent.last_seconds;
 
     if (config.contains("timeline"))
     {
-        const auto &timeline = config.at("timeline");
+        const Json &timeline = config.at("timeline");
         if (!timeline.contains("duration_seconds") || !timeline.at("duration_seconds").is_number() ||
             !timeline.contains("frames") || !timeline.at("frames").is_number_integer() ||
             !timeline.contains("first_frame") || !timeline.at("first_frame").is_number_integer() ||
@@ -807,8 +806,8 @@ std::optional<timeline::Time> tracker_item_time(
 
 timeline::Attributes tracker_event_attributes(const Json &event)
 {
-    auto result = timeline::Attributes{};
-    for (auto field = event.begin(); field != event.end(); ++field)
+    timeline::Attributes result{};
+    for (Json::const_iterator field = event.begin(); field != event.end(); ++field)
     {
         if (field.key() == "kind" || field.key() == "time_seconds" || field.key() == "frame" ||
             field.key() == "strength" || field.key() == "confidence")
@@ -824,15 +823,15 @@ std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord
     const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid,
     std::vector<std::string> &diagnostics)
 {
-    auto events = std::vector<timeline::Instant>{};
-    auto first_time = std::optional<timeline::Time>{};
-    auto last_time = std::optional<timeline::Time>{};
-    for (const auto &record : records)
+    std::vector<timeline::Instant> events{};
+    std::optional<timeline::Time> first_time{};
+    std::optional<timeline::Time> last_time{};
+    for (const TrackerRecord &record : records)
     {
         try
         {
-            const auto &event = record.fields;
-            const auto time = tracker_item_time(event, timebase, frame_grid);
+            const Json &event = record.fields;
+            const std::optional<timeline::Time> time = tracker_item_time(event, timebase, frame_grid);
             if (!time)
             {
                 throw std::invalid_argument("frame-only event requires frame timing metadata");
@@ -844,7 +843,7 @@ std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord
                 throw std::out_of_range("event time is outside the document frame grid");
             }
             const auto kind = event.at("kind").get<std::string>();
-            auto strength = std::optional<double>{};
+            std::optional<double> strength{};
             if (event.contains("strength"))
             {
                 strength = event.at("strength").get<double>();
@@ -869,16 +868,16 @@ std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord
         return std::nullopt;
     }
 
-    auto lane_start = *first_time;
-    auto lane_end = *last_time + timeline::Duration::from_ticks(1);
+    timeline::Time lane_start = *first_time;
+    timeline::Time lane_end = *last_time + timeline::Duration::from_ticks(1);
     if (frame_grid && frame_grid->duration().ticks() > 0)
     {
         lane_start = frame_grid->offset();
         lane_end = frame_grid->end_time();
     }
 
-    auto lane = timeline::Lane("tracker-events", "Music events", "events", lane_start, lane_end);
-    for (auto &event : events)
+    timeline::Lane lane("tracker-events", "Music events", "events", lane_start, lane_end);
+    for (timeline::Instant &event : events)
     {
         lane.add(std::move(event));
     }
@@ -889,18 +888,18 @@ std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> 
     const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid,
     std::vector<std::string> &diagnostics)
 {
-    auto samples = std::vector<timeline::CurveSample>{};
-    auto maximum = 1.0;
-    for (const auto &record : records)
+    std::vector<timeline::CurveSample> samples{};
+    double maximum = 1.0;
+    for (const TrackerRecord &record : records)
     {
-        const auto &feature = record.fields;
+        const Json &feature = record.fields;
         if (!feature.contains("rms"))
         {
             continue;
         }
         try
         {
-            const auto time = tracker_item_time(feature, timebase, frame_grid);
+            const std::optional<timeline::Time> time = tracker_item_time(feature, timebase, frame_grid);
             if (!time)
             {
                 throw std::invalid_argument("frame-only feature requires frame timing metadata");
@@ -933,15 +932,15 @@ std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> 
         return std::nullopt;
     }
 
-    auto lane_start = samples.front().time();
-    auto lane_end = samples.back().time() + timeline::Duration::from_ticks(1);
+    timeline::Time lane_start = samples.front().time();
+    timeline::Time lane_end = samples.back().time() + timeline::Duration::from_ticks(1);
     if (frame_grid && frame_grid->duration().ticks() > 0)
     {
         lane_start = frame_grid->offset();
         lane_end = frame_grid->end_time();
     }
 
-    auto lane = timeline::Lane("tracker-rms", "RMS", "curve", lane_start, lane_end);
+    timeline::Lane lane("tracker-rms", "RMS", "curve", lane_start, lane_end);
     lane.add(timeline::Curve(
         "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, maximum, {}));
     return lane;
@@ -953,7 +952,7 @@ void append_tracker_diagnostics(const Json &config, std::vector<std::string> &di
     {
         return;
     }
-    const auto &source = config.at("diagnostics");
+    const Json &source = config.at("diagnostics");
     if (!source.is_object())
     {
         diagnostics.emplace_back("ParBeatdown diagnostics must be an object.");
@@ -966,7 +965,7 @@ void append_tracker_diagnostics(const Json &config, std::vector<std::string> &di
 
 std::string tracker_source_string(const Json &source, std::string_view field, std::vector<std::string> &diagnostics)
 {
-    const auto name = std::string(field);
+    const std::string name(field);
     if (!source.contains(name))
     {
         return {};
@@ -982,20 +981,20 @@ std::string tracker_source_string(const Json &source, std::string_view field, st
 timeline::Metadata tracker_metadata(
     const std::filesystem::path &path, const Json &config, std::vector<std::string> &diagnostics)
 {
-    auto title = path.filename().string();
-    auto description = path.string();
+    std::string title = path.filename().string();
+    std::string description = path.string();
     if (config.contains("source"))
     {
-        const auto &source = config.at("source");
+        const Json &source = config.at("source");
         if (!source.is_object())
         {
             diagnostics.emplace_back("ParBeatdown source must be an object.");
         }
         else
         {
-            auto source_title = tracker_source_string(source, "title", diagnostics);
-            auto file = tracker_source_string(source, "file", diagnostics);
-            const auto format = tracker_source_string(source, "format", diagnostics);
+            std::string source_title = tracker_source_string(source, "title", diagnostics);
+            std::string file = tracker_source_string(source, "file", diagnostics);
+            const std::string format = tracker_source_string(source, "format", diagnostics);
             if (!source_title.empty())
             {
                 title = std::move(source_title);
@@ -1022,11 +1021,11 @@ std::optional<timeline::GenerationSummary> tracker_generation_summary(
     }
     try
     {
-        const auto &generator = config.at("generator");
-        auto sources = std::vector<timeline::SourceReference>{};
+        const Json &generator = config.at("generator");
+        std::vector<timeline::SourceReference> sources{};
         if (config.contains("source") && config.at("source").is_object())
         {
-            const auto &source = config.at("source");
+            const Json &source = config.at("source");
             if (source.contains("file") && source.at("file").is_string() &&
                 !source.at("file").get<std::string>().empty())
             {
@@ -1053,19 +1052,21 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
 
     try
     {
-        const auto timebase = timeline::Timebase(options.ticks_per_second);
-        const auto timing = tracker_timing(config, options, result.diagnostics);
-        const auto events = tracker_records(config.at("events"), "events", timebase, result.diagnostics);
-        const auto features = tracker_records(config.at("features"), "features", timebase, result.diagnostics);
-        const auto extent = tracker_extent(config, events, features);
-        auto first_time = extent.first_seconds ? std::optional<timeline::Time>{timebase.time_from_seconds(
-                                                     *extent.first_seconds, timeline::TimeRounding::NEAREST)}
-                                               : std::nullopt;
-        auto last_time = extent.last_seconds ? std::optional<timeline::Time>{timebase.time_from_seconds(
-                                                   *extent.last_seconds, timeline::TimeRounding::NEAREST)}
-                                             : std::nullopt;
-        auto frame_offset = std::optional<timeline::Duration>{};
-        auto frame_grid = std::optional<timeline::FrameGrid>{};
+        const timeline::Timebase timebase(options.ticks_per_second);
+        const std::optional<TrackerTiming> timing = tracker_timing(config, options, result.diagnostics);
+        const std::vector<TrackerRecord> events =
+            tracker_records(config.at("events"), "events", timebase, result.diagnostics);
+        const std::vector<TrackerRecord> features =
+            tracker_records(config.at("features"), "features", timebase, result.diagnostics);
+        const TrackerExtent extent = tracker_extent(config, events, features);
+        std::optional<timeline::Time> first_time = extent.first_seconds
+            ? std::optional{timebase.time_from_seconds(*extent.first_seconds, timeline::TimeRounding::NEAREST)}
+            : std::nullopt;
+        std::optional<timeline::Time> last_time = extent.last_seconds
+            ? std::optional{timebase.time_from_seconds(*extent.last_seconds, timeline::TimeRounding::NEAREST)}
+            : std::nullopt;
+        std::optional<timeline::Duration> frame_offset{};
+        std::optional<timeline::FrameGrid> frame_grid{};
         if (timing)
         {
             frame_offset = timebase.duration_from_seconds(timing->offset_seconds, timeline::TimeRounding::NEAREST);
@@ -1080,14 +1081,13 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         }
 
         append_tracker_diagnostics(config, result.diagnostics);
-        auto event_lane = tracker_event_lane(events, timebase, frame_grid, result.diagnostics);
-        auto rms_lane = tracker_rms_lane(features, timebase, frame_grid, result.diagnostics);
-        auto metadata = tracker_metadata(source_path, config, result.diagnostics);
-        auto generation = tracker_generation_summary(config, result.diagnostics);
-        auto source_summary =
-            timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
-                timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")),
-                extent.first_frame, extent.last_frame, first_time, last_time, frame_offset, std::move(generation));
+        std::optional<timeline::Lane> event_lane = tracker_event_lane(events, timebase, frame_grid, result.diagnostics);
+        std::optional<timeline::Lane> rms_lane = tracker_rms_lane(features, timebase, frame_grid, result.diagnostics);
+        timeline::Metadata metadata = tracker_metadata(source_path, config, result.diagnostics);
+        std::optional<timeline::GenerationSummary> generation = tracker_generation_summary(config, result.diagnostics);
+        timeline::SourceSummary source_summary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
+            timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")), extent.first_frame,
+            extent.last_frame, first_time, last_time, frame_offset, std::move(generation));
         if (frame_grid)
         {
             result.document.emplace(std::move(*frame_grid), std::move(source_summary), std::move(metadata));
@@ -1116,14 +1116,14 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
 
 JsonImportResult import_timeline_json(const std::filesystem::path &source_path, const JsonImportOptions &options)
 {
-    auto result = JsonImportResult{};
+    JsonImportResult result{};
     if (source_path.empty())
     {
         result.diagnostics.emplace_back("No JSON file was selected.");
         return result;
     }
 
-    auto config = Json{};
+    Json config{};
     if (!read_json_file(source_path, "timeline JSON", config, result.diagnostics))
     {
         return result;

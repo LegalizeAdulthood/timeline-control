@@ -33,8 +33,8 @@ std::optional<Time> Interaction::snap(Time time) const
     }
     if (m_frame_grid && m_frame_grid->frame_count() > 0)
     {
-        const auto first = m_frame_grid->offset();
-        const auto last = m_frame_grid->frame_start(m_frame_grid->frame_count() - 1);
+        const Time first = m_frame_grid->offset();
+        const Time last = m_frame_grid->frame_start(m_frame_grid->frame_count() - 1);
         const auto bounded = Time::from_ticks(std::clamp(time.ticks(), first.ticks(), last.ticks()));
         return m_frame_grid->frame_start(*m_frame_grid->nearest_frame(bounded));
     }
@@ -55,7 +55,7 @@ void Interaction::step_playhead(int frames, bool extend_selection)
     {
         return;
     }
-    const auto frame = playhead_frame().value_or(0);
+    const Ticks frame = playhead_frame().value_or(0);
     if (extend_selection && !m_range_anchor)
     {
         m_range_anchor = m_frame_grid->frame_start(frame);
@@ -102,8 +102,9 @@ void Interaction::select_hit(const std::optional<HitResult> &hit, bool additive)
     }
     if (!hit->id.item_id.empty())
     {
-        const auto found = std::find_if(m_selected_items.begin(), m_selected_items.end(), [&hit](const DisplayId &item)
-            { return item.lane_id == hit->id.lane_id && item.item_id == hit->id.item_id; });
+        const std::vector<DisplayId>::iterator found =
+            std::find_if(m_selected_items.begin(), m_selected_items.end(), [&hit](const DisplayId &item)
+                { return item.lane_id == hit->id.lane_id && item.item_id == hit->id.item_id; });
         if (found == m_selected_items.end())
         {
             m_selected_items.push_back(hit->id);
@@ -117,8 +118,8 @@ void Interaction::select_hit(const std::optional<HitResult> &hit, bool additive)
 
 void Interaction::select_range(Time start, Time end)
 {
-    const auto first = snap(start);
-    const auto last = snap(end);
+    const std::optional<Time> first = snap(start);
+    const std::optional<Time> last = snap(end);
     if (!first || !last)
     {
         return;

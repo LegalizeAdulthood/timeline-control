@@ -58,13 +58,13 @@ wxColour style_colour(timeline::StyleRole style)
 
 void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin)
 {
-    for (const auto &primitive : display_list.primitives())
+    for (const timeline::Primitive &primitive : display_list.primitives())
     {
         std::visit(
             [&](const auto &value)
             {
                 using Value = std::decay_t<decltype(value)>;
-                const auto colour = style_colour(value.style);
+                const wxColour colour = style_colour(value.style);
                 if constexpr (std::is_same_v<Value, timeline::Line>)
                 {
                     dc.SetPen(wxPen(colour));
@@ -79,9 +79,9 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
                 }
                 else if constexpr (std::is_same_v<Value, timeline::Polyline>)
                 {
-                    auto points = std::vector<wxPoint>{};
+                    std::vector<wxPoint> points{};
                     points.reserve(value.points.size());
-                    for (const auto &point : value.points)
+                    for (const timeline::Point &point : value.points)
                     {
                         points.emplace_back(origin.x + point.x, origin.y + point.y);
                     }

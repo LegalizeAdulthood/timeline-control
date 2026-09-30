@@ -22,7 +22,7 @@ Time at(Ticks ticks)
 
 TEST(Keyframe, stores_numeric_value_and_interpolation)
 {
-    const auto keyframe = Keyframe(
+    const Keyframe keyframe(
         "zoom-1", at(10), 1.5, KeyframeInterpolation::LINEAR, {{"operation", "replace"}, {"source", "music.rms"}});
 
     EXPECT_EQ("zoom-1", keyframe.id());
@@ -40,12 +40,12 @@ TEST(Keyframe, rejects_invalid_identity_and_value)
 
 TEST(Lane, finds_neighboring_keyframes)
 {
-    auto lane = Lane("zoom", "camera.zoom", "keyframes", at(0), at(40));
+    Lane lane("zoom", "camera.zoom", "keyframes", at(0), at(40));
     lane.add(Keyframe("zoom-20", at(20), 2.0));
     lane.add(Keyframe("zoom-0", at(0), 0.0));
     lane.add(Keyframe("zoom-30", at(30), 3.0));
 
-    const auto neighbors = lane.neighboring_keyframes(at(10));
+    const KeyframeNeighbors neighbors = lane.neighboring_keyframes(at(10));
 
     ASSERT_TRUE(neighbors.before().has_value());
     ASSERT_TRUE(neighbors.after().has_value());
@@ -55,7 +55,7 @@ TEST(Lane, finds_neighboring_keyframes)
 
 TEST(Lane, evaluates_hold_and_linear_keyframes)
 {
-    auto hold = Lane("hold", "Hold", "keyframes", at(0), at(30));
+    Lane hold("hold", "Hold", "keyframes", at(0), at(30));
     hold.add(Keyframe("hold-0", at(0), 2.0, KeyframeInterpolation::HOLD, {}));
     hold.add(Keyframe("hold-20", at(20), 6.0));
 
@@ -63,7 +63,7 @@ TEST(Lane, evaluates_hold_and_linear_keyframes)
     EXPECT_DOUBLE_EQ(2.0, *hold.evaluate_keyframes(at(10)));
     EXPECT_DOUBLE_EQ(6.0, *hold.evaluate_keyframes(at(25)));
 
-    auto linear = Lane("linear", "Linear", "keyframes", at(0), at(30));
+    Lane linear("linear", "Linear", "keyframes", at(0), at(30));
     linear.add(Keyframe("linear-0", at(0), 2.0, KeyframeInterpolation::LINEAR, {}));
     linear.add(Keyframe("linear-20", at(20), 6.0));
 
@@ -74,7 +74,7 @@ TEST(Lane, evaluates_hold_and_linear_keyframes)
 
 TEST(Lane, rejects_duplicate_keyframe_times)
 {
-    auto lane = Lane("zoom", "camera.zoom", "keyframes", at(0), at(30));
+    Lane lane("zoom", "camera.zoom", "keyframes", at(0), at(30));
     lane.add(Keyframe("zoom-0", at(0), 1.0));
 
     EXPECT_THROW(lane.add(Keyframe("zoom-again", at(0), 2.0)), std::invalid_argument);

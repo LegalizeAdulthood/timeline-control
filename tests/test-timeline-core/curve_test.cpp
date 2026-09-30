@@ -21,7 +21,7 @@ Time at(Ticks ticks)
 
 TEST(Curve, stores_exact_samples_and_interpolates)
 {
-    const auto curve = Curve(
+    const Curve curve(
         "rms", "rms", {{at(0), 0.0}, {at(10), 1.0}, {at(20), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {});
 
     ASSERT_EQ(3, curve.sample_count());
@@ -34,7 +34,7 @@ TEST(Curve, stores_exact_samples_and_interpolates)
 
 TEST(Curve, supports_step_interpolation)
 {
-    const auto curve = Curve(
+    const Curve curve(
         "rms", "rms", {{at(0), 0.25}, {at(10), 0.75}}, "RMS", CurveInterpolation::STEP, std::nullopt, std::nullopt, {});
 
     EXPECT_DOUBLE_EQ(0.25, curve.sample(at(5)));
@@ -43,11 +43,11 @@ TEST(Curve, supports_step_interpolation)
 
 TEST(Curve, samples_at_frame_grid_boundaries)
 {
-    const auto curve = Curve(
+    const Curve curve(
         "rms", "rms", {{at(0), 0.0}, {at(20), 1.0}}, "RMS", CurveInterpolation::LINEAR, std::nullopt, std::nullopt, {});
-    const auto grid = FrameGrid(Timebase(10), 3, 1, 1);
+    const FrameGrid grid(Timebase(10), 3, 1, 1);
 
-    const auto samples = curve.sample(grid);
+    const std::vector<CurveSample> samples = curve.sample(grid);
 
     ASSERT_EQ(3U, samples.size());
     EXPECT_EQ(0, samples[0].time().ticks());
