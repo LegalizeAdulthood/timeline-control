@@ -24,7 +24,11 @@ enum class StyleRole
     ENVELOPE_DECAY,
     CURVE,
     KEYFRAME_SEGMENT,
-    KEYFRAME_MARKER
+    KEYFRAME_MARKER,
+    SELECTED_LANE,
+    SELECTED_ITEM,
+    SELECTED_RANGE,
+    PLAYHEAD
 };
 
 /// Stable source identity carried by a display-list primitive.

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <timeline/Interaction.h>
 #include <timeline/Layout.h>
 #include <timeline/size_cast.h>
 
@@ -315,6 +316,11 @@ void Navigation::scroll_to_lane(int first_lane, int visible_lanes)
 }
 
 Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metrics) :
+    Layout(document, viewport, metrics, Interaction(document))
+{
+}
+
+Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metrics, const Interaction &interaction) :
     m_width(viewport.width()),
     m_height(viewport.height()),
     m_content_left(metrics.lane_label_width())
@@ -418,6 +424,60 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
             },
             primitive);
     }
+
+    auto decorated = DisplayList{};
+    const auto add_range = [&](int y, int height)
+    {
+        if (interaction.selected_range())
+        {
+            const auto &range = *interaction.selected_range();
+            const auto end = document.frame_grid() && document.frame_grid()->frame_count() > 0
+                ? range.end() + document.frame_grid()->frame_duration()
+                : range.end();
+            add_span(decorated, range.start(), end, StyleRole::SELECTED_RANGE, DisplayId{"", ""}, y, height, viewport,
+                metrics);
+        }
+    };
+    add_range(0, metrics.ruler_height());
+    for (const auto &primitive : m_display_list.primitives())
+    {
+        std::visit(
+            [&](auto value)
+            {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, Rectangle>)
+                {
+                    if (value.style == StyleRole::LANE_BACKGROUND)
+                    {
+                        if (interaction.selected_lane() && *interaction.selected_lane() == value.id.lane_id)
+                        {
+                            decorated.add(Rectangle{0, value.y, metrics.lane_label_width(), value.height,
+                                StyleRole::SELECTED_LANE, value.id});
+                            value.style = StyleRole::SELECTED_LANE;
+                        }
+                        decorated.add(value);
+                        add_range(value.y, value.height);
+                        return;
+                    }
+                }
+                if (!value.id.item_id.empty() && interaction.is_selected(value.id))
+                {
+                    value.style = StyleRole::SELECTED_ITEM;
+                }
+                decorated.add(std::move(value));
+            },
+            primitive);
+    }
+    if (interaction.playhead() && viewport.start() <= *interaction.playhead() &&
+        *interaction.playhead() <= viewport.end())
+    {
+        const auto x = std::min(viewport.width() - 1, time_x(*interaction.playhead(), viewport, metrics));
+        const auto id = DisplayId{"", "playhead"};
+        decorated.add(Line{x, 0, x, viewport.height() - 1, StyleRole::PLAYHEAD, id});
+        // Restrict the playhead hit to the ruler so it cannot hide item hits.
+        m_hit_regions.emplace_back(Marker{x, 0, 1, metrics.ruler_height(), StyleRole::PLAYHEAD, id});
+    }
+    m_display_list = std::move(decorated);
 }
 
 std::optional<HitResult> Layout::hit_test(Point point, int tolerance) const

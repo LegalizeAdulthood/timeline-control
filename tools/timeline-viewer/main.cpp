@@ -42,6 +42,12 @@ const char *hit_role_name(timeline::StyleRole role)
         return "keyframe segment";
     case timeline::StyleRole::KEYFRAME_MARKER:
         return "keyframe";
+    case timeline::StyleRole::PLAYHEAD:
+        return "playhead";
+    case timeline::StyleRole::SELECTED_ITEM:
+    case timeline::StyleRole::SELECTED_LANE:
+    case timeline::StyleRole::SELECTED_RANGE:
+        return "selection";
     }
     return "item";
 }
@@ -98,6 +104,7 @@ private:
     void on_zoom_in(wxCommandEvent &event);
     void on_zoom_out(wxCommandEvent &event);
     void on_fit_view(wxCommandEvent &event);
+    void on_clear_selection(wxCommandEvent &event);
     void show_import_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
     wxTimelineControl *m_timeline_control;
@@ -127,6 +134,8 @@ TimelineViewerFrame::TimelineViewerFrame() :
     view_menu->Append(wxID_ZOOM_IN, "Zoom &In\tCtrl++");
     view_menu->Append(wxID_ZOOM_OUT, "Zoom &Out\tCtrl+-");
     view_menu->Append(wxID_ZOOM_100, "&Fit\tCtrl+0");
+    view_menu->AppendSeparator();
+    view_menu->Append(wxID_CLEAR, "&Clear Selection\tEsc");
 
     auto *menu_bar = new wxMenuBar;
     menu_bar->Append(file_menu, "&File");
@@ -146,6 +155,7 @@ TimelineViewerFrame::TimelineViewerFrame() :
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_zoom_in, this, wxID_ZOOM_IN);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_zoom_out, this, wxID_ZOOM_OUT);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_fit_view, this, wxID_ZOOM_100);
+    Bind(wxEVT_MENU, &TimelineViewerFrame::on_clear_selection, this, wxID_CLEAR);
 }
 
 void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
@@ -162,6 +172,41 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         if (!hit->id.item_id.empty())
         {
             text += "Item: " + wxString::FromUTF8(hit->id.item_id.c_str()) + "\n";
+        }
+    }
+    const auto &interaction = m_timeline_control->interaction();
+    if (interaction)
+    {
+        if (interaction->playhead())
+        {
+            text += wxString::Format("\nPlayhead: %.6f seconds\n",
+                m_timeline_control->document()->timebase().seconds(*interaction->playhead()));
+        }
+        if (interaction->playhead_frame())
+        {
+            text += wxString::Format("Playhead frame: %lld\n", static_cast<long long>(*interaction->playhead_frame()));
+        }
+        if (interaction->selected_lane())
+        {
+            text += "Selected lane: " + wxString::FromUTF8(interaction->selected_lane()->c_str()) + "\n";
+        }
+        for (const auto &id : interaction->selected_items())
+        {
+            text += "Selected item: " + wxString::FromUTF8(id.lane_id.c_str()) + "/" +
+                wxString::FromUTF8(id.item_id.c_str()) + "\n";
+        }
+        if (interaction->selected_range())
+        {
+            const auto &range = *interaction->selected_range();
+            const auto &timebase = m_timeline_control->document()->timebase();
+            text += wxString::Format("Selected range: %.6f to %.6f seconds\n", timebase.seconds(range.start()),
+                timebase.seconds(range.end()));
+        }
+        if (interaction->selected_frames())
+        {
+            const auto frames = *interaction->selected_frames();
+            text += wxString::Format("Selected frames: %lld to %lld\n", static_cast<long long>(frames.first()),
+                static_cast<long long>(frames.last()));
         }
     }
     const auto &inspection = m_timeline_control->inspection();
@@ -248,6 +293,11 @@ void TimelineViewerFrame::on_zoom_out(wxCommandEvent &)
 void TimelineViewerFrame::on_fit_view(wxCommandEvent &)
 {
     m_timeline_control->fit_view();
+}
+
+void TimelineViewerFrame::on_clear_selection(wxCommandEvent &)
+{
+    m_timeline_control->clear_selection();
 }
 
 void TimelineViewerFrame::show_import_diagnostics(

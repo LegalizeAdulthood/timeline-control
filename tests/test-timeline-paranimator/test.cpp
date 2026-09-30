@@ -2,6 +2,7 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
+#include <timeline/Interaction.h>
 #include <timeline/Layout.h>
 
 #include <gtest/gtest.h>
@@ -202,6 +203,51 @@ TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
     }
     EXPECT_EQ(2, marker_count);
     EXPECT_EQ(1, curve_count);
+}
+
+TEST(TimelineJson, imported_item_selection_survives_navigation)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
+    ASSERT_TRUE(result.succeeded());
+    const auto &document = *result.document;
+    ASSERT_TRUE(document.frame_grid());
+    const auto metrics = timeline::LayoutMetrics(100, 20, 30, 4);
+    auto navigation = timeline::Navigation(*document.content_start(), *document.content_end(), document.lane_count());
+    auto interaction = timeline::Interaction(document);
+    const auto layout = timeline::Layout(document, navigation.viewport(600, 120), metrics);
+    auto selected = false;
+    for (const auto &primitive : layout.display_list().primitives())
+    {
+        if (const auto marker = std::get_if<timeline::Marker>(&primitive))
+        {
+            const auto hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
+            ASSERT_TRUE(hit);
+            interaction.select_hit(hit, false);
+            selected = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(selected);
+    interaction.move_playhead_frame(0);
+    navigation.zoom_by(2.0, *interaction.playhead());
+    const auto selected_layout = timeline::Layout(document, navigation.viewport(600, 120), metrics, interaction);
+    auto highlighted = false;
+    for (const auto &primitive : selected_layout.display_list().primitives())
+    {
+        if (const auto marker = std::get_if<timeline::Marker>(&primitive))
+        {
+            if (marker->style == timeline::StyleRole::SELECTED_ITEM)
+            {
+                highlighted = true;
+                EXPECT_TRUE(interaction.is_selected(marker->id));
+                const auto hit = selected_layout.hit_test(timeline::Point{marker->x, marker->y}, 0);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(timeline::StyleRole::INSTANT_MARKER, hit->style);
+            }
+        }
+    }
+    EXPECT_TRUE(highlighted);
+    EXPECT_EQ(0, *interaction.playhead_frame());
 }
 
 TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)

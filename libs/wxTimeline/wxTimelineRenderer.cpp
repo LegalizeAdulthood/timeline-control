@@ -42,6 +42,14 @@ wxColour style_colour(timeline::StyleRole style)
         return wxColour(47, 95, 164);
     case timeline::StyleRole::KEYFRAME_MARKER:
         return wxColour(226, 132, 28);
+    case timeline::StyleRole::SELECTED_LANE:
+        return wxColour(213, 230, 248);
+    case timeline::StyleRole::SELECTED_ITEM:
+        return wxColour(18, 88, 182);
+    case timeline::StyleRole::SELECTED_RANGE:
+        return wxColour(186, 225, 221);
+    case timeline::StyleRole::PLAYHEAD:
+        return wxColour(185, 35, 55);
     }
     return wxColour(0, 0, 0);
 }

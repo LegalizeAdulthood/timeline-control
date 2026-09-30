@@ -10,6 +10,8 @@
 namespace timeline
 {
 
+class Interaction;
+
 /// Visible timeline time range and pixel extent.
 ///
 /// A viewport maps one nonempty exact time range into positive integral pixel
@@ -50,10 +52,9 @@ private:
     int m_first_lane;
 };
 
-/// Inclusive frame-index range visible in a viewport.
+/// Inclusive frame-index range for visibility or selection.
 ///
-/// The range contains the first and last frame intersecting the viewport's
-/// exact time bounds.
+/// The range contains ordered, nonnegative first and last frame indices.
 ///
 class FrameRange
 {
@@ -167,6 +168,7 @@ class Layout
 {
 public:
     Layout(const Document &document, Viewport viewport, LayoutMetrics metrics);
+    Layout(const Document &document, Viewport viewport, LayoutMetrics metrics, const Interaction &interaction);
 
     const DisplayList &display_list() const
     {

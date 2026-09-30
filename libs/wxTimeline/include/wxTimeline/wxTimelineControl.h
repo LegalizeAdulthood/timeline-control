@@ -1,5 +1,8 @@
+// Copyright (c) 2026 Richard Thomson
+
 #pragma once
 
+#include <timeline/Interaction.h>
 #include <timeline/Layout.h>
 #include <timeline/Query.h>
 
@@ -24,6 +27,7 @@ public:
     void zoom_in();
     void zoom_out();
     void fit_view();
+    void clear_selection();
 
     bool has_document() const
     {
@@ -42,7 +46,17 @@ public:
         return m_hit_result;
     }
 
+    const std::optional<timeline::Interaction> &interaction() const
+    {
+        return m_interaction;
+    }
+
 private:
+    void update_interaction();
+    void on_mouse_down(wxMouseEvent &event);
+    void on_mouse_up(wxMouseEvent &event);
+    void on_capture_lost(wxMouseCaptureLostEvent &event);
+    void on_key_down(wxKeyEvent &event);
     void clear_hit();
     void notify_inspection_changed();
     void on_mouse_leave(wxMouseEvent &event);
@@ -55,6 +69,7 @@ private:
     void zoom_by(double factor);
 
     std::optional<timeline::Document> m_document;
+    std::optional<timeline::Interaction> m_interaction;
     std::optional<timeline::FrameInspection> m_inspection;
     std::optional<timeline::HitResult> m_hit_result;
     std::optional<timeline::Layout> m_layout;

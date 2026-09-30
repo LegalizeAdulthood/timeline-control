@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Richard Thomson
+
 #include <wxTimeline/wxTimelineControl.h>
 #include <wxTimeline/wxTimelineRenderer.h>
 
@@ -66,6 +68,10 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_MOTION, &wxTimelineControl::on_mouse_move, this);
+    Bind(wxEVT_LEFT_DOWN, &wxTimelineControl::on_mouse_down, this);
+    Bind(wxEVT_LEFT_UP, &wxTimelineControl::on_mouse_up, this);
+    Bind(wxEVT_MOUSE_CAPTURE_LOST, &wxTimelineControl::on_capture_lost, this);
+    Bind(wxEVT_CHAR_HOOK, &wxTimelineControl::on_key_down, this);
     Bind(wxEVT_LEAVE_WINDOW, &wxTimelineControl::on_mouse_leave, this);
     Bind(wxEVT_MOUSEWHEEL, &wxTimelineControl::on_mouse_wheel, this);
     Bind(wxEVT_PAINT, &wxTimelineControl::on_paint, this);
@@ -82,7 +88,12 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
 
 void wxTimelineControl::set_document(timeline::Document document)
 {
+    if (HasCapture())
+    {
+        ReleaseMouse();
+    }
     m_document = std::move(document);
+    m_interaction.emplace(*m_document);
     m_inspection.reset();
     m_hit_result.reset();
     m_layout.reset();
@@ -91,6 +102,7 @@ void wxTimelineControl::set_document(timeline::Document document)
     m_viewport.reset();
     if (m_document->frame_grid() && m_document->frame_grid()->frame_count() > 0)
     {
+        m_interaction->move_playhead_frame(0);
         m_inspection = timeline::inspect_frame(*m_document, 0);
     }
     const auto content_start = m_document->content_start();
@@ -145,6 +157,12 @@ void wxTimelineControl::notify_inspection_changed()
 
 void wxTimelineControl::on_mouse_move(wxMouseEvent &event)
 {
+    if (HasCapture() && event.LeftIsDown() && m_interaction && m_viewport && m_layout_metrics)
+    {
+        m_interaction->extend_range(timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics));
+        update_interaction();
+        return;
+    }
     const auto hit = m_layout
         ? m_layout->hit_test(timeline::Point{event.GetX(), event.GetY() - m_layout_top}, FromDIP(3))
         : std::nullopt;
@@ -176,6 +194,91 @@ void wxTimelineControl::clear_hit()
         m_hit_result.reset();
         notify_inspection_changed();
     }
+}
+
+void wxTimelineControl::update_interaction()
+{
+    if (m_document && m_interaction && m_interaction->playhead_frame())
+    {
+        m_inspection = timeline::inspect_frame(*m_document, *m_interaction->playhead_frame());
+    }
+    notify_inspection_changed();
+    Refresh(false);
+}
+
+void wxTimelineControl::clear_selection()
+{
+    if (HasCapture())
+    {
+        ReleaseMouse();
+    }
+    if (m_interaction)
+    {
+        m_interaction->clear_selection();
+        update_interaction();
+    }
+}
+
+void wxTimelineControl::on_mouse_down(wxMouseEvent &event)
+{
+    if (!m_layout || !m_interaction || !m_viewport || !m_layout_metrics || event.GetY() < m_layout_top ||
+        m_layout_top + m_viewport->height() <= event.GetY())
+    {
+        event.Skip();
+        return;
+    }
+    SetFocus();
+    const auto point = timeline::Point{event.GetX(), event.GetY() - m_layout_top};
+    m_hit_result = m_layout->hit_test(point, FromDIP(3));
+    m_interaction->select_hit(m_hit_result, event.ControlDown());
+    if (m_layout_metrics->lane_label_width() <= point.x)
+    {
+        m_interaction->begin_range(timeline::time_at_x(point.x, *m_viewport, *m_layout_metrics));
+        if (!HasCapture())
+        {
+            CaptureMouse();
+        }
+    }
+    update_interaction();
+}
+
+void wxTimelineControl::on_mouse_up(wxMouseEvent &event)
+{
+    if (HasCapture())
+    {
+        if (m_interaction && m_viewport && m_layout_metrics)
+        {
+            m_interaction->extend_range(timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics));
+            m_interaction->end_range();
+        }
+        ReleaseMouse();
+        update_interaction();
+    }
+    event.Skip();
+}
+
+void wxTimelineControl::on_capture_lost(wxMouseCaptureLostEvent &)
+{
+    if (m_interaction)
+    {
+        m_interaction->end_range();
+    }
+}
+
+void wxTimelineControl::on_key_down(wxKeyEvent &event)
+{
+    if (event.GetKeyCode() == WXK_ESCAPE)
+    {
+        clear_selection();
+        return;
+    }
+    if (m_interaction && (event.GetKeyCode() == WXK_LEFT || event.GetKeyCode() == WXK_RIGHT))
+    {
+        m_interaction->step_playhead(event.GetKeyCode() == WXK_LEFT ? -1 : 1, event.ShiftDown());
+        update_interaction();
+        return;
+    }
+    event.Skip();
 }
 
 void wxTimelineControl::on_mouse_leave(wxMouseEvent &event)
@@ -380,7 +483,7 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     const auto visible_lanes = std::max(1, timeline::visible_lane_count(viewport, layout_metrics));
     m_navigation->scroll_to_lane(viewport.first_lane(), visible_lanes);
     viewport = m_navigation->viewport(client_size.GetWidth(), layout_height);
-    m_layout.emplace(*m_document, viewport, layout_metrics);
+    m_layout.emplace(*m_document, viewport, layout_metrics, *m_interaction);
     m_layout_metrics = layout_metrics;
     m_viewport = viewport;
     draw_timeline_display_list(dc, m_layout->display_list(), wxPoint(0, m_layout_top));
