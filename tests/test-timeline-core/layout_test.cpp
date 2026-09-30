@@ -11,6 +11,32 @@
 
 using namespace timeline;
 
+TEST(Layout, samples_geometric_keyframe_segments_at_grid_boundaries)
+{
+    const FrameGrid grid(Timebase(100), 3, 10, 1);
+    Document document(grid, 1, 2);
+    Lane lane("zoom", "Zoom", "keyframes", grid.offset(), grid.end_time());
+    lane.add(Keyframe("first", grid.frame_start(0), 1.0, KeyframeInterpolation::GEOMETRIC, {}));
+    lane.add(Keyframe("last", grid.frame_start(2), 9.0));
+    document.add_lane(std::move(lane));
+    const Layout layout(document, Viewport(400, 100, grid.offset(), grid.end_time()), LayoutMetrics(100, 20, 30, 4));
+    bool found = false;
+    for (const Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<Polyline>(primitive))
+        {
+            const Polyline &line = std::get<Polyline>(primitive);
+            if (line.style == StyleRole::KEYFRAME_SEGMENT)
+            {
+                found = true;
+                ASSERT_EQ(3, size_cast(line.points));
+                EXPECT_EQ(40, line.points[1].y);
+            }
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
 namespace
 {
 

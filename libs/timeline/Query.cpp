@@ -19,26 +19,29 @@ InspectionItem inspect_item(const Item &item, InspectionItemRole role, std::opti
             using Value = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<Value, Instant>)
             {
-                return {value.id(), value.kind(), InspectionItemType::INSTANT, role, value.strength()};
+                return {
+                    value.id(), value.kind(), InspectionItemType::INSTANT, role, value.strength(), value.attributes()};
             }
             else if constexpr (std::is_same_v<Value, Interval>)
             {
-                return {value.id(), value.kind(), InspectionItemType::INTERVAL, role, value.strength()};
+                return {
+                    value.id(), value.kind(), InspectionItemType::INTERVAL, role, value.strength(), value.attributes()};
             }
             else if constexpr (std::is_same_v<Value, Envelope>)
             {
-                return {value.id(), value.kind(), InspectionItemType::ENVELOPE, role, value.strength()};
+                return {
+                    value.id(), value.kind(), InspectionItemType::ENVELOPE, role, value.strength(), value.attributes()};
             }
             else if constexpr (std::is_same_v<Value, Curve>)
             {
                 const std::optional<double> sample =
                     sample_time ? std::optional{value.sample(*sample_time)} : std::nullopt;
-                return {value.id(), value.kind(), InspectionItemType::CURVE, role, sample};
+                return {value.id(), value.kind(), InspectionItemType::CURVE, role, sample, value.attributes()};
             }
             else
             {
-                return {
-                    value.id(), "keyframe", InspectionItemType::KEYFRAME, role, std::optional<double>{value.value()}};
+                return {value.id(), "keyframe", InspectionItemType::KEYFRAME, role,
+                    std::optional<double>{value.value()}, value.attributes()};
             }
         },
         item);
@@ -46,12 +49,13 @@ InspectionItem inspect_item(const Item &item, InspectionItemRole role, std::opti
 
 InspectionItem inspect_keyframe(const Keyframe &keyframe, InspectionItemRole role)
 {
-    return {keyframe.id(), "keyframe", InspectionItemType::KEYFRAME, role, std::optional<double>{keyframe.value()}};
+    return {keyframe.id(), "keyframe", InspectionItemType::KEYFRAME, role, std::optional<double>{keyframe.value()},
+        keyframe.attributes()};
 }
 
 LaneInspection lane_summary(const Lane &lane)
 {
-    return {lane.id(), lane.label(), lane.kind(), lane.item_count(), {}};
+    return {lane.id(), lane.label(), lane.kind(), lane.item_count(), {}, std::nullopt};
 }
 
 bool active_in_frame(const Item &item, Time start, Time end)
@@ -103,6 +107,7 @@ std::optional<FrameInspection> inspect_frame(const Document &document, Ticks fra
     for (const Lane &lane : document.lanes())
     {
         LaneInspection lane_inspection = lane_summary(lane);
+        lane_inspection.value = lane.evaluate_keyframes(start);
         for (const Item &item : lane.items())
         {
             if (!std::holds_alternative<Keyframe>(item) && active_in_frame(item, start, end))

@@ -51,6 +51,38 @@ Fixtures under `tests/test-timeline-paranimator/fixtures/beat-keys` include
 representative par-beatdown configurations and golden outputs, with input
 paths adjusted to the copied music fixtures.
 
+# ParAnimator Tracks
+
+File > Open imports realized parameter keyframes from ParAnimator JSON,
+including tracks inside layers. Catalog paths are relative to the JSON
+file. Numeric scalars, arrays, and slash-separated tuples become numeric
+keyframe lanes; tuples use one lane per component and retain the original
+authored value. Catalog defaults and destination-key curve declarations
+are translated to outgoing hold, linear, or geometric segments.
+
+Categorical values use key instants and held spans without inventing
+numeric values. The inspector shows source attributes and evaluated numeric
+frame values. Missing catalogs or unusable documents fail import; invalid
+tracks are diagnosed independently when other valid tracks remain.
+
+File > Add imports another JSON beside the current document. Authored
+animation inherits the current frame rate for comparison. The combined
+document preserves exact item times and uses unique lane IDs; incompatible
+timebases or rates are rejected without replacing the current display.
+Open replaces all previously loaded inputs.
+
+For manual comparison, open `fixtures/beat-keys/rms.beat-keys.json` under
+`tests/test-timeline-paranimator`, then add `fixtures/multi-track.json`.
+The source RMS curve, mapped outputs, and authored animation share one
+control. Fixture catalogs contain the needed entries from ParAnimator's
+catalog; `maxiter-step.json`, `single-layer.json`, and `inside-hold.json`
+cover interpolation, layers, and categorical values.
+
+Procedural paths, PWM, specialized track kinds, non-clamp extrapolation,
+and parameter-specific output quantization remain outside the supported
+realized-track subset. Unsupported tracks receive importer diagnostics.
+The viewer does not execute ParAnimator or merge values into its output.
+
 # Native Timeline Control
 
 The wx control uses its full client area for the timeline; document

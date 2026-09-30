@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -229,6 +230,242 @@ std::pair<int, int> summarize_par_animator_content(const Json &config)
     return {track_count, keyframe_count};
 }
 
+timeline::Ticks source_frame(const Json &record);
+
+Json animation_catalog(const std::filesystem::path &path, const Json &config, std::vector<std::string> &diagnostics)
+{
+    Json parameters = Json::object();
+    for (const Json &location : config.at("parameter-catalogs"))
+    {
+        Json catalog;
+        if (!read_json_file(
+                path.parent_path() / location.get<std::string>(), "parameter catalog", catalog, diagnostics))
+        {
+            throw std::invalid_argument("unable to resolve parameter catalog");
+        }
+        if (!catalog.at("parameters").is_object())
+        {
+            throw std::invalid_argument("parameter catalog requires a parameters object");
+        }
+        parameters.update(catalog.at("parameters"));
+    }
+    return parameters;
+}
+
+std::vector<double> animation_value(const Json &value)
+{
+    if (value.is_number())
+    {
+        return {value.get<double>()};
+    }
+    if (value.is_array())
+    {
+        std::vector<double> components;
+        for (const Json &component : value)
+        {
+            const std::vector<double> parsed = animation_value(component);
+            if (timeline::size_cast(parsed) != 1)
+            {
+                throw std::invalid_argument("numeric array components must be scalar");
+            }
+            components.push_back(parsed.front());
+        }
+        return components;
+    }
+    const std::string text = value.get<std::string>();
+    std::vector<double> components;
+    std::size_t start = 0;
+    do
+    {
+        const std::size_t end = text.find('/', start);
+        const std::size_t length = end == std::string::npos ? text.size() - start : end - start;
+        const char *first = text.data() + start;
+        double number = 0.0;
+        const std::from_chars_result parsed = std::from_chars(first, first + length, number);
+        if (parsed.ec != std::errc{} || parsed.ptr != first + length || !std::isfinite(number))
+        {
+            throw std::invalid_argument("keyframe value is not a finite numeric scalar or tuple");
+        }
+        components.push_back(number);
+        if (end == std::string::npos)
+        {
+            break;
+        }
+        start = end + 1;
+    } while (start <= text.size());
+    return components;
+}
+
+timeline::KeyframeInterpolation animation_interpolation(std::string_view curve)
+{
+    if (curve == "linear")
+    {
+        return timeline::KeyframeInterpolation::LINEAR;
+    }
+    if (curve == "geometric")
+    {
+        return timeline::KeyframeInterpolation::GEOMETRIC;
+    }
+    if (curve == "hold" || curve == "step")
+    {
+        return timeline::KeyframeInterpolation::HOLD;
+    }
+    throw std::invalid_argument("unknown interpolation curve: " + std::string(curve));
+}
+
+void animation_key_lanes(const Json &keys, const Json &metadata, const std::string &id, const std::string &label,
+    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    if (!keys.is_array() || keys.empty())
+    {
+        throw std::invalid_argument("track keys must be a nonempty array");
+    }
+    std::vector<std::vector<double>> values;
+    bool categorical = false;
+    timeline::Ticks previous = -1;
+    for (const Json &key : keys)
+    {
+        const timeline::Ticks frame = source_frame(key);
+        if (frame <= previous || frame >= grid.frame_count())
+        {
+            throw std::invalid_argument("key frames must be strictly increasing and within num-frames");
+        }
+        previous = frame;
+        try
+        {
+            values.push_back(animation_value(key.at("value")));
+        }
+        catch (const std::exception &)
+        {
+            const Json &value = key.at("value");
+            const bool named_value = value.is_string() && metadata.contains("values") &&
+                (metadata.at("values").is_string() ||
+                    std::find(metadata.at("values").begin(), metadata.at("values").end(), value) !=
+                        metadata.at("values").end());
+            const std::string type = metadata.value("type", std::string{});
+            if (!named_value && type != "string" && type != "function-list" && type != "yes-no")
+            {
+                throw;
+            }
+            categorical = true;
+            values.emplace_back();
+        }
+    }
+    if (categorical)
+    {
+        timeline::Lane lane(id, label, "keyframes", grid.offset(), grid.end_time());
+        for (int index = 0; index < timeline::size_cast(keys); ++index)
+        {
+            const Json &key = keys[index];
+            const std::string curve = key.value("curve", metadata.value("default-curve", std::string("hold")));
+            const std::string outgoing = index + 1 < timeline::size_cast(keys)
+                ? keys[index + 1].value("curve", metadata.value("default-curve", std::string("hold")))
+                : "hold";
+            if (animation_interpolation(curve) != timeline::KeyframeInterpolation::HOLD ||
+                animation_interpolation(outgoing) != timeline::KeyframeInterpolation::HOLD)
+            {
+                throw std::invalid_argument("categorical values require hold or step interpolation");
+            }
+            const std::string value =
+                key.at("value").is_string() ? key.at("value").get<std::string>() : key.at("value").dump();
+            const timeline::Time start = grid.frame_start(source_frame(key));
+            const timeline::Time end = index + 1 < timeline::size_cast(keys)
+                ? grid.frame_start(source_frame(keys[index + 1]))
+                : grid.end_time();
+            const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"value", value},
+                {"curve", curve}, {"outgoing-curve", outgoing}, {"track", id}};
+            const std::string key_id = id + "-key-" + std::to_string(index);
+            lane.add(timeline::Instant(key_id, "keyframe", start, value, std::nullopt, attributes));
+            lane.add(timeline::Interval(key_id + "-hold", "keyframe-value", index == 0 ? grid.offset() : start, end,
+                value, std::nullopt, attributes));
+        }
+        lanes.push_back(std::move(lane));
+        return;
+    }
+    for (const std::vector<double> &value : values)
+    {
+        if (value.empty() || timeline::size_cast(value) != timeline::size_cast(values.front()))
+        {
+            throw std::invalid_argument("keyframe component counts must agree");
+        }
+    }
+    const int components = timeline::size_cast(values.front());
+    for (int component = 0; component < components; ++component)
+    {
+        const std::string suffix = components == 1 ? "" : "[" + std::to_string(component) + "]";
+        timeline::Lane lane(id + suffix, label + suffix, "keyframes", grid.offset(), grid.end_time());
+        for (int index = 0; index < timeline::size_cast(keys); ++index)
+        {
+            const Json &key = keys[index];
+            const std::string authored_curve =
+                key.value("curve", metadata.value("default-curve", std::string("linear")));
+            std::string outgoing_curve = index + 1 < timeline::size_cast(keys)
+                ? keys[index + 1].value("curve", metadata.value("default-curve", std::string("linear")))
+                : "hold";
+            static_cast<void>(animation_interpolation(authored_curve));
+            if (metadata.value("type", std::string{}) == "center-mag" && outgoing_curve == "geometric" &&
+                component != 2 && component != 3)
+            {
+                outgoing_curve = "linear";
+            }
+            timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer},
+                {"value", key.at("value").dump()}, {"curve", authored_curve}, {"outgoing-curve", outgoing_curve},
+                {"track", id}};
+            if (key.at("value").is_string())
+            {
+                attributes["value"] = key.at("value").get<std::string>();
+            }
+            lane.add(timeline::Keyframe(id + "-key-" + std::to_string(index), grid.frame_start(source_frame(key)),
+                values[index][component], animation_interpolation(outgoing_curve), std::move(attributes)));
+        }
+        lanes.push_back(std::move(lane));
+    }
+}
+
+void animation_tracks(const Json &tracks, const Json &catalog, const std::string &layer, const std::string &prefix,
+    const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
+{
+    int index = 0;
+    for (const Json &track : tracks)
+    {
+        const std::string id = prefix + std::to_string(index++);
+        try
+        {
+            const std::string parameter = track.at("parameter").get<std::string>();
+            if (parameter.empty())
+            {
+                throw std::invalid_argument("track parameter must not be empty");
+            }
+            const Json metadata = catalog.contains(parameter) ? catalog.at(parameter) : Json::object();
+            if (metadata.value("extrapolate", std::string("clamp")) != "clamp")
+            {
+                throw std::invalid_argument("only clamp extrapolation is supported for realized keyframes");
+            }
+            const std::string label = layer.empty() ? parameter : layer + " / " + parameter;
+            std::vector<timeline::Lane> track_lanes;
+            if (track.contains("path") || track.value("mode", std::string("keyframes")) != "keyframes" ||
+                track.value("type", std::string("parameter")) != "parameter")
+            {
+                throw std::invalid_argument("procedural and specialized tracks require realized keyframes");
+            }
+            if (!track.contains("keys"))
+            {
+                throw std::invalid_argument("only realized numeric keyframe tracks are supported");
+            }
+            animation_key_lanes(track.at("keys"), metadata, id, label, parameter, layer, grid, track_lanes);
+            for (timeline::Lane &lane : track_lanes)
+            {
+                lanes.push_back(std::move(lane));
+            }
+        }
+        catch (const std::exception &error)
+        {
+            diagnostics.push_back("ParAnimator " + id + ": " + error.what());
+        }
+    }
+}
+
 void import_par_animator(const std::filesystem::path &source_path, const Json &config, const JsonImportOptions &options,
     JsonImportResult &result)
 {
@@ -244,10 +481,34 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
         timeline::FrameGrid frame_grid(timeline::Timebase(options.ticks_per_second),
             config.at("num-frames").get<timeline::Ticks>(), options.frames_per_second_numerator,
             options.frames_per_second_denominator);
+        const Json catalog = animation_catalog(source_path, config, result.diagnostics);
+        std::vector<timeline::Lane> lanes;
+        if (config.contains("tracks"))
+        {
+            animation_tracks(config.at("tracks"), catalog, "", "animation-", frame_grid, lanes, result.diagnostics);
+        }
+        else
+        {
+            int index = 0;
+            for (const Json &layer : config.at("layers"))
+            {
+                animation_tracks(layer.at("tracks"), catalog, layer.at("id").get<std::string>(),
+                    "animation-layer-" + std::to_string(index++) + "-", frame_grid, lanes, result.diagnostics);
+            }
+        }
+        if (track_count > 0 && lanes.empty())
+        {
+            throw std::invalid_argument("no supported animation tracks were imported");
+        }
         result.document.emplace(frame_grid, track_count, keyframe_count, std::move(metadata));
+        for (timeline::Lane &lane : lanes)
+        {
+            result.document->add_lane(std::move(lane));
+        }
     }
     catch (const std::exception &error)
     {
+        result.document.reset();
         result.diagnostics.emplace_back("Unable to import ParAnimator config: " + std::string(error.what()));
     }
 }
@@ -1115,7 +1376,7 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
     }
 }
 
-timeline::Ticks mapping_frame(const Json &record)
+timeline::Ticks source_frame(const Json &record)
 {
     const Json &frame = record.at("frame");
     if (!frame.is_number_integer() ||
@@ -1123,7 +1384,7 @@ timeline::Ticks mapping_frame(const Json &record)
             frame.get<Json::number_unsigned_t>() >= std::numeric_limits<timeline::Ticks>::max()) ||
         frame.get<timeline::Ticks>() < 0 || frame.get<timeline::Ticks>() == std::numeric_limits<timeline::Ticks>::max())
     {
-        throw std::invalid_argument("mapping input frame must be a nonnegative representable integer");
+        throw std::invalid_argument("source frame must be a nonnegative representable integer");
     }
     return frame.get<timeline::Ticks>();
 }
@@ -1161,7 +1422,7 @@ std::vector<MappingInput> mapping_inputs(const Json &source, const std::vector<M
                         [&name](const MappingRecipe &recipe) { return recipe.source == name; });
                     if (used)
                     {
-                        inputs.push_back(MappingInput{name, mapping_frame(record), record.at(feature).get<double>()});
+                        inputs.push_back(MappingInput{name, source_frame(record), record.at(feature).get<double>()});
                     }
                 }
             }
@@ -1173,7 +1434,7 @@ std::vector<MappingInput> mapping_inputs(const Json &source, const std::vector<M
                     [&name](const MappingRecipe &recipe) { return recipe.source == name; });
                 if (used)
                 {
-                    inputs.push_back(MappingInput{name, mapping_frame(record), 1.0});
+                    inputs.push_back(MappingInput{name, source_frame(record), 1.0});
                 }
             }
         }

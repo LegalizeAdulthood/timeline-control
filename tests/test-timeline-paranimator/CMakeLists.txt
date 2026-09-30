@@ -2,6 +2,14 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/empty-animation.json
+    fixtures/input/core-catalog.json
+    fixtures/maxiter-step.json
+    fixtures/single-layer.json
+    fixtures/inside-hold.json
+    fixtures/partial-animation.json
+    fixtures/invalid-animation.json
+    fixtures/missing-catalog.json
     fixtures/beat-keys/adapter.beat-keys.json
     fixtures/beat-keys/rms.beat-keys.json
     fixtures/beat-keys/fractional-frame.beat-keys.json
@@ -39,6 +47,7 @@ add_executable(test-timeline-paranimator
     ${TIMELINE_PARANIMATOR_TEST_FIXTURES}
     test.cpp
     mapping_test.cpp
+    animation_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

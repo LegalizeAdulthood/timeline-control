@@ -271,4 +271,10 @@ private:
     int m_keyframe_count{0};
 };
 
+/// Combines compatible framed documents without changing source item times.
+/// Addition lane IDs are made unique; item IDs remain local to their lanes.
+/// The first document's source summary is retained, while counts and path
+/// metadata describe both inputs. Incompatible timebases or rates are rejected.
+Document combine_documents(const Document &document, const Document &addition);
+
 } // namespace timeline

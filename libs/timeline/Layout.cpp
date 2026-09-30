@@ -110,7 +110,7 @@ int keyframe_y(double value, double minimum, double maximum, int y, int height)
 }
 
 void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int height, const Viewport &viewport,
-    const LayoutMetrics &metrics)
+    const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid)
 {
     std::vector<std::reference_wrapper<const Keyframe>> keyframes{};
     for (const Item &item : lane.items())
@@ -150,6 +150,39 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
         if (left.interpolation() == KeyframeInterpolation::HOLD)
         {
             points.push_back(Point{right_point.x, left_point.y});
+        }
+        else if (left.interpolation() == KeyframeInterpolation::GEOMETRIC)
+        {
+            const Time start = std::max(left.time(), viewport.start());
+            const Time end = std::min(right.time(), viewport.end());
+            if (frame_grid && frame_grid->frame_count() > 0)
+            {
+                const Ticks first = frame_grid->frame_at_or_before(start).value_or(0);
+                for (Ticks frame = first; frame < frame_grid->frame_count(); ++frame)
+                {
+                    const Time time = frame_grid->frame_start(frame);
+                    if (end <= time)
+                    {
+                        break;
+                    }
+                    if (left.time() < time && start <= time)
+                    {
+                        points.push_back(Point{time_x(time, viewport, metrics),
+                            keyframe_y(*lane.evaluate_keyframes(time), minimum_value, maximum_value, y, height)});
+                    }
+                }
+            }
+            else
+            {
+                const int width = std::max(1, viewport.width() - metrics.lane_label_width());
+                for (int step = 1; step < width; ++step)
+                {
+                    const Ticks ticks = static_cast<Ticks>(static_cast<double>((end - start).ticks()) * step / width);
+                    const Time time = start + Duration::from_ticks(ticks);
+                    points.push_back(Point{time_x(time, viewport, metrics),
+                        keyframe_y(*lane.evaluate_keyframes(time), minimum_value, maximum_value, y, height)});
+                }
+            }
         }
         points.push_back(right_point);
         display_list.add(Polyline{std::move(points), StyleRole::KEYFRAME_SEGMENT, DisplayId{lane.id(), left.id()}});
@@ -366,7 +399,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
 
         const int item_y = *y + metrics.item_padding();
         const int item_height = std::max(1, row_height - metrics.item_padding() * 2);
-        add_keyframes(m_display_list, lane, item_y, item_height, viewport, metrics);
+        add_keyframes(m_display_list, lane, item_y, item_height, viewport, metrics, document.frame_grid());
         for (const Item &item : lane.items())
         {
             if (item_end(item) < viewport.start() || viewport.end() < item_start(item))

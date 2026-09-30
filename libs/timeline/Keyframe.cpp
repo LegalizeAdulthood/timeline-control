@@ -30,6 +30,10 @@ Keyframe::Keyframe(
     {
         throw std::invalid_argument("timeline keyframes require finite values");
     }
+    if (m_interpolation == KeyframeInterpolation::GEOMETRIC && m_value <= 0.0)
+    {
+        throw std::invalid_argument("geometric keyframes require positive values");
+    }
 }
 
 } // namespace timeline

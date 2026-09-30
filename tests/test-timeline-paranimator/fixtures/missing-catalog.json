@@ -1,0 +1,29 @@
+{
+  "parameter-catalogs": [
+    "input/missing.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "100"
+        },
+        {
+          "frame": 2,
+          "value": "200"
+        }
+      ]
+    }
+  ]
+}

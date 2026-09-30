@@ -55,7 +55,11 @@ TEST(TimelineJson, imports_minimal_paranimator_config)
     EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
     EXPECT_EQ(1, result.document->track_count());
     EXPECT_EQ(2, result.document->keyframe_count());
-    EXPECT_TRUE(result.document->lanes_empty());
+    ASSERT_EQ(1, result.document->lane_count());
+    const timeline::Lane &lane = result.document->lanes().front();
+    EXPECT_EQ("maxiter", lane.label());
+    ASSERT_EQ(2, lane.item_count());
+    EXPECT_DOUBLE_EQ(150.0, *lane.evaluate_keyframes(result.document->frame_grid()->frame_start(1)));
 }
 
 TEST(TimelineJson, reports_multi_track_counts)

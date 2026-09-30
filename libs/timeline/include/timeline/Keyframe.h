@@ -15,7 +15,9 @@ namespace timeline
 enum class KeyframeInterpolation
 {
     HOLD,
-    LINEAR
+    LINEAR,
+    /// Interpolate positive endpoint values in logarithmic space.
+    GEOMETRIC
 };
 
 /// Numeric authored value at one exact timeline time.

@@ -1,0 +1,108 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0.5,
+          "value": "100"
+        },
+        {
+          "frame": 2,
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "100"
+        },
+        {
+          "frame": 0,
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "nan"
+        },
+        {
+          "frame": 2,
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "100"
+        },
+        {
+          "frame": 2,
+          "value": "200",
+          "curve": "mystery"
+        }
+      ]
+    },
+    {
+      "parameter": "center-mag",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "-0.5/0/1"
+        },
+        {
+          "frame": 2,
+          "value": "-0.5/0"
+        }
+      ]
+    },
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "100"
+        },
+        {
+          "frame": 3,
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 0,
+          "value": "100"
+        },
+        {
+          "frame": 2,
+          "value": "200"
+        }
+      ]
+    }
+  ]
+}

@@ -46,7 +46,7 @@ void expect_snapshot(
 
 TEST(ImportedSnapshot, renders_empty_timeline)
 {
-    expect_snapshot("maxiter.json", "empty.txt", {});
+    expect_snapshot("empty-animation.json", "empty.txt", {});
 }
 
 TEST(ImportedSnapshot, renders_event_lane)

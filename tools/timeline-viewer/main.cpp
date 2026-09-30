@@ -172,6 +172,8 @@ public:
 private:
     void on_inspection_changed(wxCommandEvent &event);
     void on_open(wxCommandEvent &event);
+    void on_add(wxCommandEvent &event);
+    void load_file(bool append);
     void on_export_snapshot(wxCommandEvent &event);
     void on_exit(wxCommandEvent &event);
     void on_zoom_in(wxCommandEvent &event);
@@ -183,7 +185,7 @@ private:
     wxPanel *m_content;
     wxTimelineControl *m_timeline_control;
     wxTextCtrl *m_inspector;
-    std::optional<timeline_par_animator::BeatKeysMapping> m_mapping;
+    std::vector<timeline_par_animator::BeatKeysMapping> m_mappings;
 };
 
 /// wxWidgets application for manually exercising the timeline control.
@@ -203,6 +205,7 @@ TimelineViewerFrame::TimelineViewerFrame() :
 {
     auto *file_menu = new wxMenu;
     file_menu->Append(wxID_OPEN, "&Open...\tCtrl+O");
+    file_menu->Append(wxID_ADD, "&Add...\tCtrl+Shift+O");
     file_menu->Append(wxID_SAVEAS, "Export &Snapshot...");
     file_menu->AppendSeparator();
     file_menu->Append(wxID_EXIT, "E&xit");
@@ -231,6 +234,10 @@ TimelineViewerFrame::TimelineViewerFrame() :
 
     m_timeline_control->Bind(wxEVT_TIMELINE_INSPECTION_CHANGED, &TimelineViewerFrame::on_inspection_changed, this);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_open, this, wxID_OPEN);
+    Bind(wxEVT_MENU, &TimelineViewerFrame::on_add, this, wxID_ADD);
+    Bind(
+        wxEVT_UPDATE_UI, [this](wxUpdateUIEvent &event) { event.Enable(m_timeline_control->has_document()); },
+        wxID_ADD);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_export_snapshot, this, wxID_SAVEAS);
     Bind(
         wxEVT_UPDATE_UI, [this](wxUpdateUIEvent &event) { event.Enable(m_timeline_control->has_document()); },
@@ -263,14 +270,14 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     {
         text += "\n" + document_summary(*document);
     }
-    if (m_mapping)
+    for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
     {
-        text += "\nMusic input: " + wxString::FromUTF8(m_mapping->source_document().metadata().description().c_str()) +
-            "\n";
-        text += "Output: " + wxString::FromUTF8(m_mapping->output().mode.c_str()) + " / " +
-            wxString::FromUTF8(m_mapping->output().namespace_name.c_str()) + "\n";
-        text += wxString::Format("Mapping recipes: %d\n", timeline::size_cast(m_mapping->recipes()));
-        for (const timeline_par_animator::MappingRecipe &recipe : m_mapping->recipes())
+        text +=
+            "\nMusic input: " + wxString::FromUTF8(mapping.source_document().metadata().description().c_str()) + "\n";
+        text += "Output: " + wxString::FromUTF8(mapping.output().mode.c_str()) + " / " +
+            wxString::FromUTF8(mapping.output().namespace_name.c_str()) + "\n";
+        text += wxString::Format("Mapping recipes: %d\n", timeline::size_cast(mapping.recipes()));
+        for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())
         {
             text += wxString::FromUTF8(recipe.source.c_str()) + " -> " + wxString::FromUTF8(recipe.target.c_str()) +
                 " (" + wxString::FromUTF8(recipe.operation.c_str()) + ")\n";
@@ -330,6 +337,10 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     {
         text += "\n" + wxString::FromUTF8(lane.label.c_str()) + " [" + wxString::FromUTF8(lane.kind.c_str()) + "]";
         text += wxString::Format("\n  Source items: %d", lane.item_count);
+        if (lane.value)
+        {
+            text += wxString::Format("\n  Frame value: %.6f", *lane.value);
+        }
         if (lane.items.empty())
         {
             text += "\n  No activity";
@@ -343,6 +354,13 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
             {
                 text += wxString::Format(": %.6f", *item.value);
             }
+            for (const auto &[name, value] : item.attributes)
+            {
+                if (!value.empty())
+                {
+                    text += "\n    " + wxString::FromUTF8(name.c_str()) + ": " + wxString::FromUTF8(value.c_str());
+                }
+            }
         }
     }
     m_inspector->SetValue(text);
@@ -351,8 +369,18 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 
 void TimelineViewerFrame::on_open(wxCommandEvent &)
 {
-    wxFileDialog dialog(this, "Open timeline JSON", wxEmptyString, wxEmptyString, "JSON files (*.json)|*.json",
-        wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    load_file(false);
+}
+
+void TimelineViewerFrame::on_add(wxCommandEvent &)
+{
+    load_file(true);
+}
+
+void TimelineViewerFrame::load_file(bool append)
+{
+    wxFileDialog dialog(this, append ? "Add timeline JSON" : "Open timeline JSON", wxEmptyString, wxEmptyString,
+        "JSON files (*.json)|*.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dialog.ShowModal() != wxID_OK)
     {
         return;
@@ -360,6 +388,13 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
 
     const std::filesystem::path source_path(dialog.GetPath().ToStdWstring());
     timeline_par_animator::JsonImportOptions import_options{};
+    if (append && m_timeline_control->document() && m_timeline_control->document()->frame_grid())
+    {
+        const timeline::FrameGrid &grid = *m_timeline_control->document()->frame_grid();
+        import_options.ticks_per_second = grid.timebase().ticks_per_second();
+        import_options.frames_per_second_numerator = grid.frames_per_second_numerator();
+        import_options.frames_per_second_denominator = grid.frames_per_second_denominator();
+    }
     const std::filesystem::path beat_keys_config_path = source_path.parent_path() / "adapter.beat-keys.json";
     std::error_code filesystem_error{};
     if (std::filesystem::is_regular_file(beat_keys_config_path, filesystem_error))
@@ -375,9 +410,28 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
         return;
     }
 
-    m_mapping = std::move(result.mapping);
+    if (append && m_timeline_control->document())
+    {
+        try
+        {
+            result.document = timeline::combine_documents(*m_timeline_control->document(), *result.document);
+        }
+        catch (const std::exception &error)
+        {
+            show_import_diagnostics({error.what()}, "Unable to add timeline", wxOK | wxICON_ERROR);
+            return;
+        }
+    }
+    else
+    {
+        m_mappings.clear();
+    }
+    if (result.mapping)
+    {
+        m_mappings.push_back(std::move(*result.mapping));
+    }
     m_timeline_control->set_document(std::move(*result.document));
-    SetTitle("Timeline Viewer - " + dialog.GetFilename());
+    SetTitle("Timeline Viewer - " + wxString::FromUTF8(m_timeline_control->document()->metadata().title().c_str()));
     SetStatusText("Loaded " + dialog.GetFilename());
     if (!result.diagnostics.empty())
     {

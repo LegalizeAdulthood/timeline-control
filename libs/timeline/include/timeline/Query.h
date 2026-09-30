@@ -43,6 +43,7 @@ struct InspectionItem
     InspectionItemType type;
     InspectionItemRole role;
     std::optional<double> value;
+    Attributes attributes;
 };
 
 /// Lane summary and matching items returned by a timeline query.
@@ -56,6 +57,8 @@ struct LaneInspection
     std::string kind;
     int item_count;
     std::vector<InspectionItem> items;
+    /// Evaluated numeric keyframe signal at a frame query's exact time.
+    std::optional<double> value;
 };
 
 /// Read-only snapshot of one frame across every document lane.

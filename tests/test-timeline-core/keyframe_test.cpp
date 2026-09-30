@@ -79,3 +79,17 @@ TEST(Lane, rejects_duplicate_keyframe_times)
 
     EXPECT_THROW(lane.add(Keyframe("zoom-again", at(0), 2.0)), std::invalid_argument);
 }
+
+TEST(Lane, evaluates_geometric_segments_and_rejects_nonpositive_endpoints)
+{
+    Lane lane("zoom", "Zoom", "keyframes", at(0), at(30));
+    lane.add(Keyframe("zoom-0", at(0), 1.0, KeyframeInterpolation::GEOMETRIC, {}));
+    lane.add(Keyframe("zoom-20", at(20), 9.0));
+    EXPECT_NEAR(3.0, *lane.evaluate_keyframes(at(10)), 1e-12);
+    EXPECT_DOUBLE_EQ(1.0, *lane.evaluate_keyframes(at(-1)));
+    EXPECT_DOUBLE_EQ(9.0, *lane.evaluate_keyframes(at(25)));
+    EXPECT_THROW(Keyframe("bad", at(0), 0.0, KeyframeInterpolation::GEOMETRIC, {}), std::invalid_argument);
+    Lane invalid("bad", "Bad", "keyframes", at(0), at(30));
+    invalid.add(Keyframe("positive", at(0), 1.0, KeyframeInterpolation::GEOMETRIC, {}));
+    EXPECT_THROW(invalid.add(Keyframe("zero", at(20), 0.0)), std::invalid_argument);
+}

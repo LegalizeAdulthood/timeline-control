@@ -1,0 +1,29 @@
+{
+  "parameters": {
+    "inside": {
+      "type": "inside",
+      "description": "Selects the interior color or interior coloring method for points that do not escape.",
+      "format": "raw",
+      "values": [ "maxiter", "zmag", "bof60", "bof61", "epsiloncross", "startrail", "period", "atan", "fmod" ],
+      "default-curve": "hold",
+      "extrapolate": "clamp",
+      "min": 0,
+      "max": 255
+    },
+    "maxiter": {
+      "type": "integer",
+      "description": "Sets the maximum iteration count before a point is treated as inside the set.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp",
+      "min": 2
+    },
+    "center-mag": {
+      "type": "center-mag",
+      "description": "Sets the image area by center point, magnification, and optional stretch, rotation, and skew.",
+      "format": "slash",
+      "default-curve": "geometric",
+      "extrapolate": "clamp"
+    }
+  }
+}

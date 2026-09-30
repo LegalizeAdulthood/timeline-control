@@ -1,5 +1,9 @@
+// Copyright (c) 2026 Richard Thomson
+
 #include <timeline/Document.h>
 
+#include <algorithm>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -251,6 +255,57 @@ void Document::add_lane(Lane lane)
         throw std::out_of_range("timeline lane is outside its document frame grid");
     }
     m_lanes.push_back(std::move(lane));
+}
+
+Document combine_documents(const Document &document, const Document &addition)
+{
+    if (!document.frame_grid() || !addition.frame_grid() ||
+        document.timebase().ticks_per_second() != addition.timebase().ticks_per_second() ||
+        document.frame_grid()->frame_duration() != addition.frame_grid()->frame_duration())
+    {
+        throw std::invalid_argument("combined timelines require matching timebases and frame rates");
+    }
+    if (addition.track_count() > std::numeric_limits<int>::max() - document.track_count() ||
+        addition.keyframe_count() > std::numeric_limits<int>::max() - document.keyframe_count())
+    {
+        throw std::overflow_error("combined timeline counts are too large");
+    }
+    const FrameGrid &original = *document.frame_grid();
+    const Time start = std::min(original.offset(), addition.frame_grid()->offset());
+    const Time end = std::max(original.end_time(), addition.frame_grid()->end_time());
+    const Ticks duration = (end - start).ticks();
+    const Ticks frame_ticks = original.frame_duration().ticks();
+    const Ticks frame_count = duration / frame_ticks + (duration % frame_ticks != 0 ? 1 : 0);
+    const FrameGrid grid(document.timebase(), frame_count, original.frames_per_second_numerator(),
+        original.frames_per_second_denominator(), start);
+    const Metadata metadata(document.metadata().title() + " + " + addition.metadata().title(),
+        document.metadata().description() + "\n" + addition.metadata().description());
+    const int track_count = document.track_count() + addition.track_count();
+    const int keyframe_count = document.keyframe_count() + addition.keyframe_count();
+    Document combined = document.source_summary()
+        ? Document(grid, *document.source_summary(), track_count, keyframe_count, metadata)
+        : Document(grid, track_count, keyframe_count, metadata);
+    for (const Lane &lane : document.lanes())
+    {
+        combined.add_lane(lane);
+    }
+    int index = document.lane_count();
+    for (const Lane &lane : addition.lanes())
+    {
+        std::string id;
+        do
+        {
+            id = "added-" + std::to_string(index++) + "-" + lane.id();
+        } while (std::any_of(combined.lanes().begin(), combined.lanes().end(),
+            [&id](const Lane &existing) { return existing.id() == id; }));
+        Lane copy(id, lane.label(), lane.kind(), lane.start(), lane.end());
+        for (const Item &item : lane.items())
+        {
+            std::visit([&copy](const auto &value) { copy.add(value); }, item);
+        }
+        combined.add_lane(std::move(copy));
+    }
+    return combined;
 }
 
 } // namespace timeline

@@ -154,7 +154,7 @@ TEST(BeatKeysMapping, rejects_fractional_source_frames_without_truncating)
     EXPECT_FALSE(result.succeeded());
     EXPECT_FALSE(result.mapping);
     ASSERT_FALSE(result.diagnostics.empty());
-    EXPECT_NE(std::string::npos, result.diagnostics.back().find("mapping input frame"));
+    EXPECT_NE(std::string::npos, result.diagnostics.back().find("source frame"));
 }
 
 TEST(BeatKeysMapping, validates_recipes_and_frame_addressed_inputs)

@@ -2,6 +2,7 @@
 
 #include <timeline/Lane.h>
 
+#include <cmath>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -84,6 +85,14 @@ void Lane::add(Curve curve)
 
 void Lane::add(Keyframe keyframe)
 {
+    const KeyframeNeighbors neighbors = neighboring_keyframes(keyframe.time());
+    if ((neighbors.before() && neighbors.before()->get().interpolation() == KeyframeInterpolation::GEOMETRIC &&
+            keyframe.value() <= 0.0) ||
+        (neighbors.after() && keyframe.interpolation() == KeyframeInterpolation::GEOMETRIC &&
+            neighbors.after()->get().value() <= 0.0))
+    {
+        throw std::invalid_argument("geometric segments require positive endpoints");
+    }
     for (const Item &item : m_items)
     {
         const auto existing = std::get_if<Keyframe>(&item);
@@ -159,8 +168,13 @@ std::optional<double> Lane::evaluate_keyframes(Time time) const
         return before.value();
     }
 
-    const auto elapsed = static_cast<double>((time - before.time()).ticks());
-    const auto duration = static_cast<double>((after.time() - before.time()).ticks());
+    const double elapsed = static_cast<double>((time - before.time()).ticks());
+    const double duration = static_cast<double>((after.time() - before.time()).ticks());
+    if (before.interpolation() == KeyframeInterpolation::GEOMETRIC)
+    {
+        return std::exp(
+            std::log(before.value()) + (std::log(after.value()) - std::log(before.value())) * elapsed / duration);
+    }
     return before.value() + (after.value() - before.value()) * elapsed / duration;
 }
 
