@@ -88,6 +88,13 @@ Phase defaults to zero and affects only the x component, matching
 ParAnimator; the y component has no phase shift. Frequencies may be
 fractional, and `turns` does not affect a Lissajous recipe.
 
+Spiral paths interpolate the radius linearly from `from-radius` to
+`to-radius` over the same frame domain as the angle. Both radii must be
+finite and nonnegative. Turns default to one and phase to zero; reverse
+turns, shrinking paths, constant radii, and zero radii are supported.
+Component bounds use the larger endpoint radius. Definitions and recipes
+remain owned by the document, without cached frame keys.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -121,7 +128,15 @@ ParAnimator's integration tests. Open the Lissajous fixture and add
 `-2/0`; the phase-shifted path is approximately `-0.732051/-5`. Click a
 component curve to inspect its distinct identity and original recipe.
 
-Spiral, Bezier, and Catmull-Rom paths, PWM, specialized track
+`spiral-path.json` and `gold-spiral-path.par` are copied from ParAnimator's
+integration tests. Open the spiral fixture and add
+`beat-keys/rms.beat-keys.json` for six lanes, then add
+`spiral-variants.json` for ten lanes. At frame 2 the copied path is `-2/0`.
+At frame 4 the shrinking reverse-turn path is `1/-3`, and the
+constant-radius path is `1/-4`. Curve inspection retains each recipe and
+its distinct hit identity.
+
+Bezier and Catmull-Rom paths, PWM, specialized track
 kinds, non-clamp extrapolation, and parameter-specific output quantization
 remain unsupported.
 Unsupported tracks receive importer diagnostics.

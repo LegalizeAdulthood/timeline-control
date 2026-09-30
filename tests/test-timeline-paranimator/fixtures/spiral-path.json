@@ -1,0 +1,27 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Julia_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "parameter": "params.c",
+      "path": {
+        "kind": "spiral",
+        "center": "0/0",
+        "from-radius": 1,
+        "to-radius": 3,
+        "turns": 1
+      }
+    }
+  ]
+}

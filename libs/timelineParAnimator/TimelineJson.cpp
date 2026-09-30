@@ -349,13 +349,15 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
     const std::string kind = path.at("kind").get<std::string>();
     const bool circle = kind == "circle";
     const bool lissajous = kind == "lissajous";
-    const double x_radius = path_number(path, circle ? "radius" : "x-radius");
-    const double y_radius = circle ? x_radius : path_number(path, "y-radius");
+    const bool spiral = kind == "spiral";
+    const double x_radius = path_number(path, spiral ? "from-radius" : circle ? "radius" : "x-radius");
+    const double y_radius = circle || spiral ? x_radius : path_number(path, "y-radius");
+    const double to_radius = spiral ? path_number(path, "to-radius") : x_radius;
     const double phase = path.contains("phase") ? path_number(path, "phase") : 0.0;
     const double turns = !lissajous && path.contains("turns") ? path_number(path, "turns") : 1.0;
     const double x_frequency = lissajous ? path_number(path, "x-frequency") : turns;
     const double y_frequency = lissajous ? path_number(path, "y-frequency") : turns;
-    if (x_radius < 0.0 || y_radius < 0.0)
+    if (x_radius < 0.0 || y_radius < 0.0 || to_radius < 0.0)
     {
         throw std::invalid_argument("path radii must be nonnegative");
     }
@@ -369,6 +371,8 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
     {
         const double origin = center[component];
         const double radius = component == 0 ? x_radius : y_radius;
+        const double radius_change = spiral ? to_radius - radius : 0.0;
+        const double maximum_radius = spiral ? std::max(radius, to_radius) : radius;
         const double frequency = component == 0 ? x_frequency : y_frequency;
         const double component_phase = lissajous && component == 1 ? 0.0 : phase;
         if (!std::isfinite(360.0 * frequency) || !std::isfinite(component_phase + 360.0 * frequency))
@@ -378,17 +382,19 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
         const std::string suffix = "[" + std::to_string(component) + "]";
         const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
             {"path", path.dump()}, {"component", std::to_string(component)}};
-        const auto evaluate = [origin, radius, component_phase, frequency, component, start, end](timeline::Time time)
+        const auto evaluate = [origin, radius, radius_change, component_phase, frequency, component, start, end](
+                                  timeline::Time time)
         {
             constexpr double PI = 3.141592653589793238462643383279502884;
             const double fraction =
                 static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
             const double radians = (component_phase + 360.0 * frequency * fraction) * PI / 180.0;
-            return clean_path_value(origin + radius * (component == 0 ? std::cos(radians) : std::sin(radians)));
+            const double sampled_radius = radius + fraction * radius_change;
+            return clean_path_value(origin + sampled_radius * (component == 0 ? std::cos(radians) : std::sin(radians)));
         };
         timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
         lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
-            clean_path_value(origin - radius), clean_path_value(origin + radius), attributes));
+            clean_path_value(origin - maximum_radius), clean_path_value(origin + maximum_radius), attributes));
         lanes.push_back(std::move(lane));
     }
 }
@@ -572,7 +578,7 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             const std::string path_kind = track.contains("path") && track.at("path").is_object()
                 ? track.at("path").value("kind", std::string{})
                 : "";
-            if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous")
+            if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous" || path_kind == "spiral")
             {
                 animation_planar_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
             }
