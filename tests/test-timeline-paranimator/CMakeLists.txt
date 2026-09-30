@@ -73,6 +73,13 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/gold-camera2d-look-bezier.par
     fixtures/gold-camera2d-look-catmull-rom.par
     fixtures/partial-camera2d-look-paths.json
+    fixtures/camera2d-offset-circle.json
+    fixtures/camera2d-offset-ellipse.json
+    fixtures/camera2d-offset-partial.json
+    fixtures/partial-camera2d-offset-orbits.json
+    fixtures/gold-camera2d-offset-circle.par
+    fixtures/gold-camera2d-offset-ellipse.par
+    fixtures/gold-camera2d-offset-partial.par
     fixtures/input/camera-sources.par
     fixtures/input/function-sources.par
     fixtures/partial-animation.json

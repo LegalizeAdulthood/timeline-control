@@ -1166,18 +1166,36 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     }
     for (int component = 0; component < 2; ++component)
     {
-        if (camera2d_sample(signals[component], start) != center[component] ||
-            camera2d_sample(signals[component], end) != center[component])
+        if (camera2d_sample(signals[component], start) != camera2d_sample(signals[component], end))
         {
-            throw std::invalid_argument("Camera2D eye orbit requires a fixed look-at at its center");
+            throw std::invalid_argument("Camera2D eye orbit with moving look-at is not supported yet");
         }
     }
-    if (path_number(path, kind == "circle" ? "radius" : "x-radius") <= 0 ||
-        (kind == "ellipse" && path_number(path, "y-radius") <= 0))
+    const double x_radius = path_number(path, kind == "circle" ? "radius" : "x-radius");
+    const double y_radius = kind == "circle" ? x_radius : path_number(path, "y-radius");
+    if (x_radius <= 0 || y_radius <= 0)
     {
         throw std::invalid_argument("Camera2D eye orbit radii must be positive to avoid singular directions");
     }
     animation_planar_lanes(path, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
+    const double x = (camera2d_sample(signals[0], start) - center[0]) / x_radius;
+    const double y = (camera2d_sample(signals[1], start) - center[1]) / y_radius;
+    if (std::abs(std::hypot(x, y) - 1) < 1e-12)
+    {
+        // A look-at on the supporting ellipse is singular only on the traveled arc.
+        constexpr double PI = 3.141592653589793238462643383279502884;
+        const double angle = std::atan2(y, x) / (2 * PI);
+        const double phase = (path.contains("phase") ? path_number(path, "phase") : 0) / 360;
+        const double turns = path.contains("turns") ? path_number(path, "turns") : 1;
+        const double end_phase = phase + turns;
+        const double first = std::min(phase, end_phase);
+        const double last = std::max(phase, end_phase);
+        const double winding = std::ceil(first - angle - 1e-12);
+        if (angle + winding <= last + 1e-12)
+        {
+            throw std::invalid_argument("Camera2D eye orbit reaches a singular direction at look-at");
+        }
+    }
 }
 
 void animation_camera2d_lanes(const Json &track, const Json &catalog, const std::filesystem::path &source_path,

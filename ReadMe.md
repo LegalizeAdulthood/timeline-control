@@ -150,8 +150,12 @@ F6. A missing or zero x-magnification factor means one; negative stretch
 is retained in output while aspect uses its magnitude. Output and
 normalized view-up are owned analytic curves, not baked frame samples.
 The inspector retains the complete camera recipe and nested signal keys.
-Eye inputs may also use circle/ellipse orbits with
-positive radii centered on a fixed look-at. Eye takes precedence over
+Eye inputs may also use circle/ellipse orbits with positive radii and a
+fixed look-at, including offsets from the orbit center. The importer
+checks the authored arc for singular directions, including collisions
+between frames, reverse turns, phase wrapping, and stationary paths.
+A look-at on the supporting ellipse is allowed if the traveled arc does
+not reach it. Eye takes precedence over
 authored view-up. The viewer retains both authored signals and separate
 derived-view-up curves, normalized from eye minus look-at. Keyed motion
 is rejected if its direction crosses zero, including mixed hold/linear
@@ -161,8 +165,8 @@ Without eye, look-at also accepts circle, ellipse, Lissajous, spiral,
 Bezier, and Catmull-Rom paths with keyed view-up and height. Output center
 curves reuse the owned analytic definitions and bounds, including interior
 extrema. Nested look-at curves retain their original recipes and distinct
-hit identities. Curved look-at with eye, other eye paths, non-centered
-moving-eye orbits, corners output, and skew remain pending.
+hit identities. Curved look-at with eye, other eye paths, orbit eye with
+moving look-at, corners output, and skew remain pending.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
@@ -279,6 +283,16 @@ Open `camera2d-look-catmull-rom.json` to replace the comparison with eleven
 lanes; its frame-2 center is `2/2.25`. The inspector retains the authored
 control points. Six curved look-at fixtures cover the supported forms;
 their golden PAR values were generated with ParAnimator.
+
+Open `camera2d-offset-circle.json` for fifteen camera lanes and add
+`beat-keys/rms.beat-keys.json` for nineteen comparison lanes. At frame 1,
+eye is `2/1` and rotation is `63.434949` degrees. Clicking an eye curve
+inspects its distinct identity and retained offset recipe. Open
+`camera2d-offset-ellipse.json` to replace the comparison with fifteen
+lanes; its reverse half-turn gives frame-1 rotation `65.625583` degrees.
+`camera2d-offset-partial.json` covers a look-at on the supporting circle
+outside the traveled arc. Golden PAR values for all three fixtures were
+generated with ParAnimator.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.

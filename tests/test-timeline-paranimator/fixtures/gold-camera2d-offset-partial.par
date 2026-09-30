@@ -1,0 +1,49 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=3/4/1/1/-71.5650511771
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=3/4/1/1/-82.8150511771
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=3/4/1/1/-94.0650511771
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=3/4/1/1/-105.315051177
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=3/4/1/1/-116.565051177
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
