@@ -1060,6 +1060,30 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
         signal, Json{{"type", type}}, id + "-" + member, label + " / " + member, member, layer, grid, lanes);
 }
 
+void camera2d_look_lanes(const Json &look, const std::string &id, const std::string &label, const std::string &layer,
+    const timeline::FrameGrid &grid, std::vector<timeline::Lane> &signals)
+{
+    if (look.at("type") != "point2" || (look.contains("path") && look.contains("keys")))
+    {
+        throw std::invalid_argument("Camera2D look-at requires point2 input with either keys or path");
+    }
+    const std::string kind = look.contains("path") ? look.at("path").at("kind").get<std::string>() : "";
+    if (kind == "circle" || kind == "ellipse" || kind == "lissajous" || kind == "spiral")
+    {
+        animation_planar_lanes(look.at("path"), Json{{"type", "point2"}}, id + "-look-at", label + " / look-at",
+            "look-at", layer, grid, signals);
+    }
+    else if (kind == "bezier" || kind == "catmull-rom")
+    {
+        animation_control_point_lanes(look.at("path"), Json{{"type", "point2"}}, id + "-look-at", label + " / look-at",
+            "look-at", layer, grid, signals);
+    }
+    else
+    {
+        camera2d_key_lanes(look, "look-at", "point2", id, label, layer, grid, signals);
+    }
+}
+
 double camera2d_sample(const timeline::Lane &lane, timeline::Time time)
 {
     if (std::holds_alternative<timeline::Curve>(lane.items().front()))
@@ -1067,6 +1091,16 @@ double camera2d_sample(const timeline::Lane &lane, timeline::Time time)
         return std::get<timeline::Curve>(lane.items().front()).sample(time);
     }
     return *lane.evaluate_keyframes(time);
+}
+
+std::pair<double, double> camera2d_bounds(const timeline::Lane &lane, timeline::Time start, timeline::Time end)
+{
+    if (std::holds_alternative<timeline::Curve>(lane.items().front()))
+    {
+        const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
+        return {*curve.minimum(), *curve.maximum()};
+    }
+    return std::minmax(camera2d_sample(lane, start), camera2d_sample(lane, end));
 }
 
 double camera2d_direction_component(double value, double look, bool eye)
@@ -1183,10 +1217,14 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     const double aspect = (4.0 / 3.0) / std::abs(stretch);
     const std::string label = layer.empty() ? name : layer + " / " + name;
     std::vector<timeline::Lane> signals;
-    camera2d_key_lanes(track.at("look-at"), "look-at", "point2", id, label, layer, grid, signals);
+    camera2d_look_lanes(track.at("look-at"), id, label, layer, grid, signals);
     const bool eye = track.contains("eye");
     if (eye)
     {
+        if (std::holds_alternative<timeline::Curve>(signals[0].items().front()))
+        {
+            throw std::invalid_argument("Camera2D curved look-at with eye is not supported yet");
+        }
         camera2d_eye_lanes(track.at("eye"), id, label, layer, grid, signals);
     }
     else
@@ -1208,10 +1246,10 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     if (std::holds_alternative<timeline::Keyframe>(signals[2].items().front()))
     {
         const std::array<double, 2> segment_end{
-            camera2d_direction_component(
-                camera2d_segment_end(signals[2], start, end), camera2d_segment_end(signals[0], start, end), eye),
-            camera2d_direction_component(
-                camera2d_segment_end(signals[3], start, end), camera2d_segment_end(signals[1], start, end), eye)};
+            camera2d_direction_component(camera2d_segment_end(signals[2], start, end),
+                eye ? camera2d_segment_end(signals[0], start, end) : 0, eye),
+            camera2d_direction_component(camera2d_segment_end(signals[3], start, end),
+                eye ? camera2d_segment_end(signals[1], start, end) : 0, eye)};
         camera2d_validate_segment(direction(start), segment_end);
     }
     const auto normalized_up = [direction](timeline::Time time)
@@ -1230,10 +1268,9 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     }
     const std::array<std::string, 6> components{
         "center-x", "center-y", "magnification", "x-mag-factor", "rotation", "skew"};
-    const std::array<std::pair<double, double>, 6> bounds{
-        std::minmax(*signals[0].evaluate_keyframes(start), *signals[0].evaluate_keyframes(end)),
-        std::minmax(*signals[1].evaluate_keyframes(start), *signals[1].evaluate_keyframes(end)),
-        std::minmax(from_mag, to_mag), {stretch, stretch}, {-180, 180}, {0, 0}};
+    const std::array<std::pair<double, double>, 6> bounds{camera2d_bounds(signals[0], start, end),
+        camera2d_bounds(signals[1], start, end), std::minmax(from_mag, to_mag), {stretch, stretch}, {-180, 180},
+        {0, 0}};
     const timeline::Attributes attributes{{"camera2d", track.dump()}, {"track", id}, {"layer", layer}, {"camera", name},
         {"source-value", source.at(output)}, {"aspect", std::to_string(aspect)},
         {"source-entry", config.at("source").at("name").get<std::string>()},
@@ -1245,8 +1282,8 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         {
             const std::array<double, 2> up = normalized_up(time);
             constexpr double PI = 3.141592653589793238462643383279502884;
-            const std::array<double, 6> values{*x.evaluate_keyframes(time), *y.evaluate_keyframes(time),
-                magnification(time), stretch, std::atan2(up[0], up[1]) * 180 / PI, 0};
+            const std::array<double, 6> values{camera2d_sample(x, time), camera2d_sample(y, time), magnification(time),
+                stretch, std::atan2(up[0], up[1]) * 180 / PI, 0};
             return clean_path_value(values[component]);
         };
         const std::string suffix = "-center-mag[" + std::to_string(component) + "]";

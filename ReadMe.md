@@ -155,8 +155,14 @@ positive radii centered on a fixed look-at. Eye takes precedence over
 authored view-up. The viewer retains both authored signals and separate
 derived-view-up curves, normalized from eye minus look-at. Keyed motion
 is rejected if its direction crosses zero, including mixed hold/linear
-inputs and crossings between frame boundaries. Other nested paths,
-non-centered moving-eye orbits, corners output, and skew remain pending.
+inputs and crossings between frame boundaries.
+
+Without eye, look-at also accepts circle, ellipse, Lissajous, spiral,
+Bezier, and Catmull-Rom paths with keyed view-up and height. Output center
+curves reuse the owned analytic definitions and bounds, including interior
+extrema. Nested look-at curves retain their original recipes and distinct
+hit identities. Curved look-at with eye, other eye paths, non-centered
+moving-eye orbits, corners output, and skew remain pending.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
@@ -264,6 +270,15 @@ eye at `0/3` and moving look-at at `1/0` give rotation `-18.434949`,
 overriding the authored vertical view-up. Its golden output also comes
 from ParAnimator. View-up and height paths remain pending; the current
 source schema requires keys for those members.
+
+`camera2d-look-ellipse.json` opens eleven camera lanes. Add
+`beat-keys/rms.beat-keys.json` for fifteen comparison lanes. At frame 2,
+center is `-2/0`, magnification is one, and rotation is zero. Click a
+nested look-at curve to inspect its path identity and original recipe.
+Open `camera2d-look-catmull-rom.json` to replace the comparison with eleven
+lanes; its frame-2 center is `2/2.25`. The inspector retains the authored
+control points. Six curved look-at fixtures cover the supported forms;
+their golden PAR values were generated with ParAnimator.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.

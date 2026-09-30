@@ -60,6 +60,19 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/partial-camera2d-straight-paths.json
     fixtures/gold-camera2d-straight-paths.par
     fixtures/gold-camera2d-straight-eye.par
+    fixtures/camera2d-look-circle.json
+    fixtures/camera2d-look-ellipse.json
+    fixtures/camera2d-look-lissajous.json
+    fixtures/camera2d-look-spiral.json
+    fixtures/camera2d-look-bezier.json
+    fixtures/camera2d-look-catmull-rom.json
+    fixtures/gold-camera2d-look-circle.par
+    fixtures/gold-camera2d-look-ellipse.par
+    fixtures/gold-camera2d-look-lissajous.par
+    fixtures/gold-camera2d-look-spiral.par
+    fixtures/gold-camera2d-look-bezier.par
+    fixtures/gold-camera2d-look-catmull-rom.par
+    fixtures/partial-camera2d-look-paths.json
     fixtures/input/camera-sources.par
     fixtures/input/function-sources.par
     fixtures/partial-animation.json

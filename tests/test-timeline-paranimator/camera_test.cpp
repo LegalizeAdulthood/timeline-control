@@ -16,6 +16,98 @@
 
 using namespace timeline_par_animator;
 
+TEST(CameraImport, samples_owned_curved_look_at_like_paranimator_with_full_path_bounds)
+{
+    const std::array<std::string, 6> kinds{"circle", "ellipse", "lissajous", "spiral", "bezier", "catmull-rom"};
+    for (const std::string &kind : kinds)
+    {
+        SCOPED_TRACE(kind);
+        const timeline::Document document = [&kind]
+        {
+            const JsonImportResult imported = import_timeline_json("fixtures/camera2d-look-" + kind + ".json");
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Camera2D curved look-at import failed");
+            }
+            return *imported.document;
+        }();
+        ASSERT_EQ(11, document.lane_count());
+        EXPECT_EQ(4, document.keyframe_count());
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        std::ifstream golden("fixtures/gold-camera2d-look-" + kind + ".par");
+        ASSERT_TRUE(golden);
+        int frame = 0;
+        for (std::string line; std::getline(golden, line);)
+        {
+            const std::size_t start = line.find("center-mag=");
+            if (start == std::string::npos)
+            {
+                continue;
+            }
+            std::string value = line.substr(start + 11);
+            std::replace(value.begin(), value.end(), '/', ' ');
+            std::istringstream values(value);
+            std::array<double, 6> expected{0, 0, 1, 1, 0, 0};
+            for (double &component : expected)
+            {
+                if (!(values >> component))
+                {
+                    break;
+                }
+            }
+            const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+            ASSERT_TRUE(inspection);
+            for (int component = 0; component < 6; ++component)
+            {
+                ASSERT_FALSE(inspection->lanes[component].items.empty());
+                ASSERT_TRUE(inspection->lanes[component].items.front().value);
+                EXPECT_NEAR(expected[component], *inspection->lanes[component].items.front().value, 1e-10);
+            }
+            ++frame;
+        }
+        EXPECT_EQ(5, frame);
+        for (int component = 0; component < 2; ++component)
+        {
+            const timeline::Curve &center = std::get<timeline::Curve>(document.lanes()[component].items().front());
+            const timeline::Curve &look = std::get<timeline::Curve>(document.lanes()[component + 6].items().front());
+            EXPECT_TRUE(center.samples().empty());
+            EXPECT_TRUE(look.samples().empty());
+            EXPECT_EQ(look.minimum(), center.minimum());
+            EXPECT_EQ(look.maximum(), center.maximum());
+            ASSERT_TRUE(center.minimum());
+            ASSERT_TRUE(center.maximum());
+            EXPECT_NE(std::string::npos, look.attributes().at("path").find(kind));
+            EXPECT_NE(std::string::npos, look.attributes().at("signal").find(kind));
+            const timeline::Time between =
+                grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+            EXPECT_DOUBLE_EQ(look.sample(between), center.sample(between));
+            EXPECT_LE(*center.minimum(), center.sample(grid.frame_start(2)));
+            EXPECT_GE(*center.maximum(), center.sample(grid.frame_start(2)));
+        }
+        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+        ASSERT_TRUE(music.succeeded());
+        const timeline::Document combined = timeline::combine_documents(document, *music.document);
+        EXPECT_EQ(15, combined.lane_count());
+        const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4));
+        EXPECT_NE(
+            std::string::npos, timeline::render_snapshot(layout.display_list()).find("animation-0-look-at[0]-path"));
+    }
+}
+
+TEST(CameraImport, diagnoses_invalid_curved_look_at_and_pending_eye_compositions)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-look-paths.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(8, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(11, result.document->lane_count());
+    for (int index = 0; index < 8; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+    }
+    EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes().front().id());
+}
+
 TEST(CameraImport, composes_straight_paths_like_paranimator_and_owns_their_recipes)
 {
     const std::array<std::string, 2> fixtures{"camera2d-straight-paths", "camera2d-straight-eye"};

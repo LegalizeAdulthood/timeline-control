@@ -1,0 +1,412 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "ellipse",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "turns": 1
+        },
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "vector2",
+        "path": {
+          "kind": "ellipse",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "turns": 1
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "ellipse",
+          "center": "0/0",
+          "x-radius": -1,
+          "y-radius": 1,
+          "turns": 1
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "ellipse",
+          "center": "0/0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "turns": 1
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "mystery"
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bezier",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "0/0/0",
+            "1/2/3"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "ellipse",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "turns": 1
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "constant",
+          "value": "4/4"
+        }
+      }
+    },
+    {
+      "name": "ellipse",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "ellipse",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "turns": 1
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "path": {
+          "kind": "constant",
+          "value": "0/1"
+        }
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "circle",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "circle",
+          "center": "1/-2",
+          "radius": 2,
+          "phase": 90,
+          "turns": -0.5
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ],
+        "normalize": true
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    }
+  ]
+}
