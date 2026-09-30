@@ -1,0 +1,24 @@
+{
+  "parameter-catalogs": [ "input/path-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Julia_Demo" },
+  "output": { "par": "frames.par", "entry": "frame-%04d" },
+  "video": "F6",
+  "num-frames": 9,
+  "tracks": [
+    {
+      "parameter": "position3",
+      "path": {
+        "kind": "catmull-rom",
+        "control-points": [ "0/0/0", "1/2/3", "3/2/9", "4/0/12", "6/-2/18" ]
+      }
+    },
+    {
+      "parameter": "tuple1",
+      "path": { "kind": "catmull-rom", "control-points": [ "3", "3", "3", "3" ] }
+    },
+    {
+      "parameter": "direction2",
+      "path": { "kind": "catmull-rom", "control-points": [ "0/0", "1/2", "2/4", "3/6" ] }
+    }
+  ]
+}

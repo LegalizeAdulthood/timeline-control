@@ -421,7 +421,7 @@ int animation_path_arity(const Json &metadata, int inferred_arity)
     }
     else if (type != "numeric-tuple")
     {
-        throw std::invalid_argument("Bezier paths require a complex or numeric tuple target");
+        throw std::invalid_argument("control point paths require a complex or numeric tuple target");
     }
     if (type == "numeric-tuple" || metadata.contains("arity"))
     {
@@ -440,23 +440,74 @@ int animation_path_arity(const Json &metadata, int inferred_arity)
     return arity;
 }
 
-void animation_bezier_lanes(const Json &path, const Json &metadata, const std::string &id, const std::string &label,
-    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+std::array<double, 4> catmull_rom_points(const std::vector<double> &values, int segment)
+{
+    const double p1 = values[segment];
+    const double p2 = values[segment + 1];
+    return {segment == 0 ? 2.0 * p1 - p2 : values[segment - 1], p1, p2,
+        segment + 2 < timeline::size_cast(values) ? values[segment + 2] : 2.0 * p2 - p1};
+}
+
+double catmull_rom_value(const std::vector<double> &values, double fraction)
+{
+    const double position = fraction * (timeline::size_cast(values) - 1);
+    const int segment = std::min(static_cast<int>(std::floor(position)), timeline::size_cast(values) - 2);
+    const double local = position - segment;
+    const double local2 = local * local;
+    const double local3 = local2 * local;
+    const std::array<double, 4> points = catmull_rom_points(values, segment);
+    const double p0 = points[0];
+    const double p1 = points[1];
+    const double p2 = points[2];
+    const double p3 = points[3];
+    return 0.5 *
+        ((2.0 * p1) + (-p0 + p2) * local + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * local2 +
+            (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * local3);
+}
+
+std::pair<double, double> catmull_rom_bounds(const std::vector<double> &values)
+{
+    double minimum = values.front();
+    double maximum = minimum;
+    for (int segment = 0; segment < timeline::size_cast(values) - 1; ++segment)
+    {
+        const std::array<double, 4> points = catmull_rom_points(values, segment);
+        // Equivalent cubic Bezier hulls contain the segment's overshoot.
+        const std::array<double, 4> hull{
+            points[1], points[1] + (points[2] - points[0]) / 6.0, points[2] - (points[3] - points[1]) / 6.0, points[2]};
+        for (const double value : hull)
+        {
+            if (!std::isfinite(value))
+            {
+                throw std::invalid_argument("Catmull-Rom component bounds must be finite");
+            }
+            minimum = std::min(minimum, value);
+            maximum = std::max(maximum, value);
+        }
+    }
+    return {minimum, maximum};
+}
+
+void animation_control_point_lanes(const Json &path, const Json &metadata, const std::string &id,
+    const std::string &label, const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
 {
     if (grid.frame_count() < 2)
     {
         throw std::invalid_argument("path tracks require at least two frames");
     }
+    const bool catmull_rom = path.at("kind").get<std::string>() == "catmull-rom";
+    const std::string path_name = catmull_rom ? "Catmull-Rom" : "Bezier";
     const std::string type = metadata.value("type", std::string{});
     if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
     {
-        throw std::invalid_argument("Bezier vector normalization is not supported");
+        throw std::invalid_argument(path_name + " vector normalization is not supported");
     }
     const Json &points = path.at("control-points");
-    if (!points.is_array() || points.size() < 2)
+    if (!points.is_array() || timeline::size_cast(points) < (catmull_rom ? 4 : 2))
     {
-        throw std::invalid_argument("Bezier paths require at least two control points");
+        throw std::invalid_argument(
+            path_name + " paths require at least " + (catmull_rom ? "four" : "two") + " control points");
     }
     std::vector<std::vector<double>> control_points;
     for (const Json &point : points)
@@ -468,7 +519,7 @@ void animation_bezier_lanes(const Json &path, const Json &metadata, const std::s
     {
         if (timeline::size_cast(point) != arity)
         {
-            throw std::invalid_argument("Bezier control point arity does not match its target");
+            throw std::invalid_argument(path_name + " control point arity does not match its target");
         }
     }
     const timeline::Time start = grid.offset();
@@ -481,13 +532,19 @@ void animation_bezier_lanes(const Json &path, const Json &metadata, const std::s
             values.push_back(point[component]);
         }
         const auto [minimum, maximum] = std::minmax_element(values.begin(), values.end());
+        const std::pair<double, double> bounds =
+            catmull_rom ? catmull_rom_bounds(values) : std::pair<double, double>{*minimum, *maximum};
         const std::string suffix = arity == 1 ? "" : "[" + std::to_string(component) + "]";
         const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
             {"path", path.dump()}, {"component", std::to_string(component)}};
-        const auto evaluate = [values, start, end](timeline::Time time)
+        const auto evaluate = [values, start, end, catmull_rom](timeline::Time time)
         {
             const double fraction =
                 static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
+            if (catmull_rom)
+            {
+                return clean_path_value(catmull_rom_value(values, fraction));
+            }
             std::vector<double> interpolated(values);
             // De Casteljau reduces the owned control points to the curve value.
             for (int order = timeline::size_cast(interpolated) - 1; order > 0; --order)
@@ -501,7 +558,7 @@ void animation_bezier_lanes(const Json &path, const Json &metadata, const std::s
         };
         timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
         lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
-            clean_path_value(*minimum), clean_path_value(*maximum), attributes));
+            clean_path_value(bounds.first), clean_path_value(bounds.second), attributes));
         lanes.push_back(std::move(lane));
     }
 }
@@ -689,9 +746,10 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             {
                 animation_planar_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
             }
-            else if (path_kind == "bezier")
+            else if (path_kind == "bezier" || path_kind == "catmull-rom")
             {
-                animation_bezier_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
+                animation_control_point_lanes(
+                    track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
             }
             else
             {

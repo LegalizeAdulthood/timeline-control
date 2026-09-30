@@ -105,6 +105,13 @@ bounds use the control-point hull, not a cached set of frame samples.
 Normalized vectors receive an explicit importer diagnostic until their
 parameter-specific evaluation is supported.
 
+Catmull-Rom paths share the control-point target validation and require
+at least four points. Uniform segments visit every control point over
+frame 0 through the final frame. Endpoint tangents use extrapolated
+neighbors, matching ParAnimator. Component bounds include the equivalent
+cubic Bezier hulls so overshoot is not clipped. The document owns the
+analytic definitions and original recipes without storing frame samples.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -154,8 +161,17 @@ Open `bezier-tuples.json` to replace the comparison with fifteen lanes
 covering linear through quartic paths and tuple arities one through four.
 At frame 2 the quartic tuple is `1/2/3/4`.
 
-Catmull-Rom paths, PWM, specialized track
-kinds, non-clamp extrapolation, and parameter-specific output quantization
+`catmull-rom-path.json` and `gold-catmull-rom-path.par` are copied from
+ParAnimator's integration tests. Open the path fixture and add
+`beat-keys/rms.beat-keys.json` for six lanes. At frame 3 the path is
+`2/2.25`, including its overshoot. Click each component to inspect its
+control points and distinct hit identity. Open `catmull-rom-tuples.json`
+to replace the comparison with six lanes: a five-point position3 path,
+a constant one-component tuple, and an unnormalized vector2 path. At
+frame 3 the position is `2/2.25/6`.
+
+PWM, specialized track kinds, non-clamp extrapolation, and
+parameter-specific output quantization
 remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.

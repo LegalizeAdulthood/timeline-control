@@ -29,6 +29,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/partial-bezier-paths.json
     fixtures/single-frame-bezier.json
     fixtures/input/path-catalog.json
+    fixtures/catmull-rom-path.json
+    fixtures/gold-catmull-rom-path.par
+    fixtures/catmull-rom-tuples.json
+    fixtures/partial-catmull-rom-paths.json
+    fixtures/single-frame-catmull-rom.json
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
     fixtures/missing-catalog.json

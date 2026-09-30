@@ -16,6 +16,139 @@
 
 using namespace timeline_par_animator;
 
+TEST(AnimationImport, samples_analytic_catmull_rom_like_paranimator_across_segments)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/catmull-rom-path.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty());
+    ASSERT_EQ(2, result.document->lane_count());
+    EXPECT_EQ(1, result.document->track_count());
+    EXPECT_EQ(0, result.document->keyframe_count());
+    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    const std::array<double, 7> x{0.0, 0.4375, 1.0, 2.0, 3.0, 3.5625, 4.0};
+    const std::array<double, 7> y{0.0, 1.125, 2.0, 2.25, 2.0, 1.125, 0.0};
+    const std::array<std::string, 7> parameters{"0/0", "0.4375/1.125", "1/2", "2/2.25", "3/2", "3.5625/1.125", "4/0"};
+    std::ifstream golden_file("fixtures/gold-catmull-rom-path.par");
+    ASSERT_TRUE(golden_file);
+    const std::string golden{std::istreambuf_iterator<char>(golden_file), std::istreambuf_iterator<char>()};
+    for (int frame = 0; frame < 7; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        ASSERT_TRUE(inspection);
+        ASSERT_EQ(2, timeline::size_cast(inspection->lanes));
+        for (int component = 0; component < 2; ++component)
+        {
+            const timeline::InspectionItem &item = inspection->lanes[component].items.front();
+            ASSERT_TRUE(item.value);
+            EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *item.value);
+            EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, item.role);
+            EXPECT_EQ("params.c", item.attributes.at("parameter"));
+            EXPECT_EQ("animation-0", item.attributes.at("track"));
+            EXPECT_EQ(std::to_string(component), item.attributes.at("component"));
+            EXPECT_EQ("{\"control-points\":[\"0/0\",\"1/2\",\"3/2\",\"4/0\"],\"kind\":\"catmull-rom\"}",
+                item.attributes.at("path"));
+        }
+        const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
+        ASSERT_NE(std::string::npos, start);
+        const std::string entry = golden.substr(start, golden.find('}', start) - start);
+        EXPECT_NE(std::string::npos, entry.find("params=" + parameters[frame]));
+    }
+    const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
+    EXPECT_EQ(timeline::CurveInterpolation::ANALYTIC, curve.interpolation());
+    EXPECT_EQ(0, curve.sample_count());
+    ASSERT_TRUE(curve.minimum());
+    ASSERT_TRUE(curve.maximum());
+    EXPECT_LE(*curve.minimum(), 0.0);
+    EXPECT_GE(*curve.maximum(), 2.25);
+    EXPECT_DOUBLE_EQ(
+        0.546875, curve.sample(grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2)));
+    const timeline::Layout layout(*result.document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 30, 4));
+    int curve_count = 0;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<timeline::Polyline>(primitive))
+        {
+            const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
+            if (line.style == timeline::StyleRole::CURVE)
+            {
+                ++curve_count;
+                EXPECT_EQ(7, timeline::size_cast(line.points));
+                const std::optional<timeline::HitResult> hit = layout.hit_test(line.points[3], 2);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(line.id.item_id, hit->id.item_id);
+            }
+        }
+    }
+    EXPECT_EQ(2, curve_count);
+}
+
+TEST(AnimationImport, owns_catmull_rom_tuples_with_extra_points_and_endpoint_tangents)
+{
+    const timeline::Document document = []
+    {
+        const JsonImportResult imported = import_timeline_json("fixtures/catmull-rom-tuples.json");
+        if (!imported.succeeded() || !imported.diagnostics.empty())
+        {
+            throw std::runtime_error("Catmull-Rom tuple import failed");
+        }
+        return *imported.document;
+    }();
+    ASSERT_EQ(6, document.lane_count());
+    EXPECT_EQ(3, document.track_count());
+    EXPECT_EQ(0, document.keyframe_count());
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const std::array<double, 9> x{0.0, 0.4375, 1.0, 2.0, 3.0, 3.5, 4.0, 4.9375, 6.0};
+    const std::array<double, 9> y{0.0, 1.125, 2.0, 2.25, 2.0, 1.125, 0.0, -1.0, -2.0};
+    for (int frame = 0; frame < 9; ++frame)
+    {
+        for (int component = 0; component < 3; ++component)
+        {
+            const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[component].items().front());
+            EXPECT_DOUBLE_EQ(component == 0 ? x[frame]
+                    : component == 1        ? y[frame]
+                                            : 3.0 * x[frame],
+                curve.sample(grid.frame_start(frame)));
+        }
+        const timeline::Curve &constant = std::get<timeline::Curve>(document.lanes()[3].items().front());
+        EXPECT_DOUBLE_EQ(3.0, constant.sample(grid.frame_start(frame)));
+        for (int component = 0; component < 2; ++component)
+        {
+            const timeline::Curve &line = std::get<timeline::Curve>(document.lanes()[4 + component].items().front());
+            EXPECT_DOUBLE_EQ(3.0 * (component + 1) * frame / 8.0, line.sample(grid.frame_start(frame)));
+        }
+    }
+    EXPECT_EQ("animation-1", document.lanes()[3].id());
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document combined = timeline::combine_documents(*music.document, document);
+    ASSERT_EQ(10, combined.lane_count());
+    const timeline::Curve &copy = std::get<timeline::Curve>(combined.lanes()[5].items().front());
+    EXPECT_DOUBLE_EQ(2.25, copy.sample(grid.frame_start(3)));
+    EXPECT_EQ(0, copy.sample_count());
+}
+
+TEST(AnimationImport, diagnoses_malformed_catmull_rom_recipes_without_losing_valid_tracks)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-catmull-rom-paths.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(11, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(2, result.document->lane_count());
+    for (int index = 0; index < 11; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+    }
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("at least four control points"));
+    EXPECT_NE(std::string::npos, result.diagnostics[7].find("normalization"));
+    EXPECT_EQ("animation-11[0]", result.document->lanes()[0].id());
+    const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
+    EXPECT_DOUBLE_EQ(2.25, curve.sample(result.document->frame_grid()->frame_start(3)));
+    const JsonImportResult single = import_timeline_json("fixtures/single-frame-catmull-rom.json");
+    EXPECT_FALSE(single.succeeded());
+    ASSERT_FALSE(single.diagnostics.empty());
+    EXPECT_NE(std::string::npos, single.diagnostics.front().find("at least two frames"));
+}
+
 TEST(AnimationImport, samples_analytic_bezier_like_paranimator_and_preserves_control_points)
 {
     const JsonImportResult result = import_timeline_json("fixtures/bezier-path.json");
