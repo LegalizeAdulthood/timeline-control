@@ -45,6 +45,12 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/function-slot-variants.json
     fixtures/partial-function-slot-pwm.json
     fixtures/function-slot-sources.json
+    fixtures/camera2d-center-mag.json
+    fixtures/gold-camera2d-center-mag.par
+    fixtures/camera2d-keyed-variants.json
+    fixtures/partial-camera2d.json
+    fixtures/camera2d-layer-sources.json
+    fixtures/input/camera-sources.par
     fixtures/input/function-sources.par
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
@@ -87,6 +93,7 @@ add_executable(test-timeline-paranimator
     test.cpp
     mapping_test.cpp
     animation_test.cpp
+    camera_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

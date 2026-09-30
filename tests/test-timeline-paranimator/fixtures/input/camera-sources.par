@@ -1,0 +1,12 @@
+Stretch_Demo {
+    center-mag=0/0/1/-2
+}
+Zero_Demo {
+    center-mag=0/0/1/0
+}
+Missing_Demo {
+    maxiter=100
+}
+Bad_Demo {
+    center-mag=0/0
+}

@@ -1017,9 +1017,192 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
     lanes.push_back(std::move(mix_lane));
 }
 
+void camera2d_key_lanes(const Json &signal, const std::string &member, const std::string &type, const std::string &id,
+    const std::string &label, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    if (signal.at("type") != type || signal.contains("path"))
+    {
+        throw std::invalid_argument("Camera2D " + member + " requires keyed " + type + " input");
+    }
+    const Json &keys = signal.at("keys");
+    if (!keys.is_array() || keys.size() != 2 || source_frame(keys[0]) != 0 ||
+        source_frame(keys[1]) != grid.frame_count() - 1)
+    {
+        throw std::invalid_argument("Camera2D " + member + " requires two keys spanning the full frame range");
+    }
+    const int arity = type == "double" ? 1 : 2;
+    for (const Json &key : keys)
+    {
+        const Json &value = key.at("value");
+        if (!value.is_string() && (arity != 1 || !value.is_number()))
+        {
+            throw std::invalid_argument("Camera2D " + member + " has an invalid value type");
+        }
+        const std::vector<double> values = animation_value(value);
+        if (timeline::size_cast(values) != arity)
+        {
+            throw std::invalid_argument("Camera2D " + member + " has the wrong component count");
+        }
+        for (double component : values)
+        {
+            if (!std::isfinite(component) || (member == "height" && component <= 0))
+            {
+                throw std::invalid_argument("Camera2D " + member + " requires finite values and positive height");
+            }
+        }
+        if (arity == 2 && key.value("curve", std::string("linear")) == "geometric")
+        {
+            throw std::invalid_argument("Camera2D " + member + " does not support geometric interpolation");
+        }
+    }
+    animation_key_lanes(
+        signal, Json{{"type", type}}, id + "-" + member, label + " / " + member, member, layer, grid, lanes);
+}
+
+void animation_camera2d_lanes(const Json &track, const Json &catalog, const std::filesystem::path &source_path,
+    const Json &config, const std::string &video, const std::string &id, const std::string &layer,
+    const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes)
+{
+    const std::string name = track.at("name").get<std::string>();
+    if (name.empty() || grid.frame_count() < 2)
+    {
+        throw std::invalid_argument("Camera2D requires a name and at least two frames");
+    }
+    if (track.value("mode", std::string("keyframes")) != "keyframes" || track.contains("eye") || track.contains("skew"))
+    {
+        throw std::invalid_argument("Camera2D eye, skew, and non-keyframe modes are not supported yet");
+    }
+    const std::string output = track.at("output").get<std::string>();
+    const Json &parameters = catalog.at("parameters");
+    if (output != "center-mag" || !parameters.contains(output) || parameters.at(output).at("type") != "center-mag")
+    {
+        throw std::invalid_argument("Camera2D requires a catalog-declared center-mag output");
+    }
+    if (track.at("aspect") != "source" || video != "F6")
+    {
+        throw std::invalid_argument("Camera2D requires source aspect and supported video mode F6");
+    }
+    const std::map<std::string, std::string> source = animation_source(source_path, config);
+    if (source.count(output) == 0)
+    {
+        throw std::invalid_argument("Camera2D output is missing from the source PAR entry");
+    }
+    const std::vector<double> source_view = animation_value(source.at(output));
+    if (timeline::size_cast(source_view) < 3 || timeline::size_cast(source_view) > 6)
+    {
+        throw std::invalid_argument("Camera2D source center-mag requires three through six components");
+    }
+    const double stretch = source_view.size() < 4 || source_view[3] == 0 ? 1 : source_view[3];
+    const double aspect = (4.0 / 3.0) / std::abs(stretch);
+    const std::string label = layer.empty() ? name : layer + " / " + name;
+    std::vector<timeline::Lane> signals;
+    camera2d_key_lanes(track.at("look-at"), "look-at", "point2", id, label, layer, grid, signals);
+    camera2d_key_lanes(track.at("view-up"), "view-up", "vector2", id, label, layer, grid, signals);
+    camera2d_key_lanes(track.at("height"), "height", "double", id, label, layer, grid, signals);
+
+    const timeline::Time start = grid.offset();
+    const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+    const std::array<double, 2> from_up{*signals[2].evaluate_keyframes(start), *signals[3].evaluate_keyframes(start)};
+    const std::array<double, 2> to_up{*signals[2].evaluate_keyframes(end), *signals[3].evaluate_keyframes(end)};
+    const double from_length = std::hypot(from_up[0], from_up[1]);
+    const double to_length = std::hypot(to_up[0], to_up[1]);
+    const bool hold_up = std::get<timeline::Keyframe>(signals[2].items().front()).interpolation() ==
+        timeline::KeyframeInterpolation::HOLD;
+    // Opposing collinear endpoints cross zero only under linear interpolation.
+    const bool opposite =
+        from_up[0] * to_up[1] == from_up[1] * to_up[0] && from_up[0] * to_up[0] + from_up[1] * to_up[1] < 0;
+    if (from_length == 0 || to_length == 0 || !std::isfinite(from_length) || !std::isfinite(to_length) ||
+        (!hold_up && opposite))
+    {
+        throw std::invalid_argument("Camera2D view-up cannot normalize a zero or singular direction");
+    }
+    const auto normalized_up = [x = signals[2], y = signals[3]](timeline::Time time)
+    {
+        const double up_x = *x.evaluate_keyframes(time);
+        const double up_y = *y.evaluate_keyframes(time);
+        const double length = std::hypot(up_x, up_y);
+        return std::array<double, 2>{clean_path_value(up_x / length), clean_path_value(up_y / length)};
+    };
+    const auto magnification = [height = signals[4], aspect](timeline::Time time)
+    {
+        return 4 / (aspect * *height.evaluate_keyframes(time));
+    };
+    const double from_mag = magnification(start);
+    const double to_mag = magnification(end);
+    if (!std::isfinite(from_mag) || !std::isfinite(to_mag) || from_mag <= 0 || to_mag <= 0)
+    {
+        throw std::invalid_argument("Camera2D magnification must be finite and positive");
+    }
+    const std::array<std::string, 6> components{
+        "center-x", "center-y", "magnification", "x-mag-factor", "rotation", "skew"};
+    const std::array<std::pair<double, double>, 6> bounds{
+        std::minmax(*signals[0].evaluate_keyframes(start), *signals[0].evaluate_keyframes(end)),
+        std::minmax(*signals[1].evaluate_keyframes(start), *signals[1].evaluate_keyframes(end)),
+        std::minmax(from_mag, to_mag), {stretch, stretch}, {-180, 180}, {0, 0}};
+    const timeline::Attributes attributes{{"camera2d", track.dump()}, {"track", id}, {"layer", layer}, {"camera", name},
+        {"source-value", source.at(output)}, {"aspect", std::to_string(aspect)},
+        {"source-entry", config.at("source").at("name").get<std::string>()},
+        {"source-file", (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()}};
+    for (int component = 0; component < 6; ++component)
+    {
+        const auto evaluate = [x = signals[0], y = signals[1], normalized_up, magnification, stretch, component](
+                                  timeline::Time time)
+        {
+            const std::array<double, 2> up = normalized_up(time);
+            constexpr double PI = 3.141592653589793238462643383279502884;
+            const std::array<double, 6> values{*x.evaluate_keyframes(time), *y.evaluate_keyframes(time),
+                magnification(time), stretch, std::atan2(up[0], up[1]) * 180 / PI, 0};
+            return clean_path_value(values[component]);
+        };
+        const std::string suffix = "-center-mag[" + std::to_string(component) + "]";
+        timeline::Attributes output_attributes = attributes;
+        output_attributes["parameter"] = output;
+        output_attributes["component"] = components[component];
+        timeline::Lane lane(id + suffix, label + " / " + components[component], "curve", start, grid.end_time());
+        lane.add(timeline::Curve(id + suffix + "-camera", "camera2d", start, end, evaluate, lane.label(),
+            clean_path_value(bounds[component].first), clean_path_value(bounds[component].second), output_attributes));
+        lanes.push_back(std::move(lane));
+    }
+    for (int component = 0; component < 5; ++component)
+    {
+        const std::string member = component < 2 ? "look-at" : component < 4 ? "view-up" : "height";
+        timeline::Attributes input_attributes = attributes;
+        input_attributes["parameter"] = name + "." + member;
+        input_attributes["signal"] = track.at(member).dump();
+        input_attributes["component"] = std::to_string(component == 4 ? 0 : component % 2);
+        timeline::Lane lane(signals[component].id(), signals[component].label(),
+            member == "view-up" ? "curve" : "keyframes", start, grid.end_time());
+        if (member == "view-up")
+        {
+            const auto evaluate = [normalized_up, component](timeline::Time time)
+            {
+                return normalized_up(time)[component - 2];
+            };
+            input_attributes["normalize"] = "true";
+            lane.add(timeline::Curve(lane.id() + "-normalized", "camera2d-input", start, end, evaluate, lane.label(),
+                -1, 1, input_attributes));
+        }
+        else
+        {
+            for (const timeline::Item &item : signals[component].items())
+            {
+                const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
+                timeline::Attributes key_attributes = key.attributes();
+                for (const auto &[field, value] : input_attributes)
+                {
+                    key_attributes[field] = value;
+                }
+                lane.add(timeline::Keyframe(key.id(), key.time(), key.value(), key.interpolation(), key_attributes));
+            }
+        }
+        lanes.push_back(std::move(lane));
+    }
+}
+
 void animation_tracks(const Json &tracks, const Json &catalog, const std::string &layer, const std::string &prefix,
-    const std::filesystem::path &source_path, const Json &config, const timeline::FrameGrid &grid,
-    std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
+    const std::filesystem::path &source_path, const Json &config, const std::string &video,
+    const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
 {
     int index = 0;
     for (const Json &track : tracks)
@@ -1027,6 +1210,16 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
         const std::string id = prefix + std::to_string(index++);
         try
         {
+            if (track.value("type", std::string("parameter")) == "camera2d")
+            {
+                std::vector<timeline::Lane> track_lanes;
+                animation_camera2d_lanes(track, catalog, source_path, config, video, id, layer, grid, track_lanes);
+                for (timeline::Lane &lane : track_lanes)
+                {
+                    lanes.push_back(std::move(lane));
+                }
+                continue;
+            }
             const std::string parameter = track.at("parameter").get<std::string>();
             if (parameter.empty())
             {
@@ -1121,8 +1314,8 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
         std::vector<timeline::Lane> lanes;
         if (config.contains("tracks"))
         {
-            animation_tracks(config.at("tracks"), catalog, "", "animation-", source_path, config, frame_grid, lanes,
-                result.diagnostics);
+            animation_tracks(config.at("tracks"), catalog, "", "animation-", source_path, config,
+                config.at("video").get<std::string>(), frame_grid, lanes, result.diagnostics);
         }
         else
         {
@@ -1130,8 +1323,8 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
             for (const Json &layer : config.at("layers"))
             {
                 animation_tracks(layer.at("tracks"), catalog, layer.at("id").get<std::string>(),
-                    "animation-layer-" + std::to_string(index++) + "-", source_path, layer, frame_grid, lanes,
-                    result.diagnostics);
+                    "animation-layer-" + std::to_string(index++) + "-", source_path, layer,
+                    config.at("video").get<std::string>(), frame_grid, lanes, result.diagnostics);
             }
         }
         if (track_count > 0 && lanes.empty())

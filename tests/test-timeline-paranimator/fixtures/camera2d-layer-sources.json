@@ -1,0 +1,294 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "layers": [
+    {
+      "id": "camera-0",
+      "source": {
+        "file": "input/camera-sources.par",
+        "name": "Stretch_Demo"
+      },
+      "tracks": [
+        {
+          "name": "camera",
+          "type": "camera2d",
+          "output": "center-mag",
+          "aspect": "source",
+          "look-at": {
+            "type": "point2",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "-0.5/0"
+              },
+              {
+                "frame": 2,
+                "value": "-0.25/0.5"
+              }
+            ]
+          },
+          "view-up": {
+            "type": "vector2",
+            "normalize": true,
+            "keys": [
+              {
+                "frame": 0,
+                "value": "0/1"
+              },
+              {
+                "frame": 2,
+                "value": "0/1"
+              }
+            ]
+          },
+          "height": {
+            "type": "double",
+            "keys": [
+              {
+                "frame": 0,
+                "value": 3
+              },
+              {
+                "frame": 2,
+                "value": 1.5,
+                "curve": "geometric"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "camera-1",
+      "source": {
+        "file": "input/camera-sources.par",
+        "name": "Zero_Demo"
+      },
+      "tracks": [
+        {
+          "name": "camera",
+          "type": "camera2d",
+          "output": "center-mag",
+          "aspect": "source",
+          "look-at": {
+            "type": "point2",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "-0.5/0"
+              },
+              {
+                "frame": 2,
+                "value": "-0.25/0.5"
+              }
+            ]
+          },
+          "view-up": {
+            "type": "vector2",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "0/1"
+              },
+              {
+                "frame": 2,
+                "value": "0/1"
+              }
+            ]
+          },
+          "height": {
+            "type": "double",
+            "keys": [
+              {
+                "frame": 0,
+                "value": 3
+              },
+              {
+                "frame": 2,
+                "value": 1.5,
+                "curve": "geometric"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "camera-2",
+      "source": {
+        "file": "input/camera-sources.par",
+        "name": "Missing_Demo"
+      },
+      "tracks": [
+        {
+          "name": "camera",
+          "type": "camera2d",
+          "output": "center-mag",
+          "aspect": "source",
+          "look-at": {
+            "type": "point2",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "-0.5/0"
+              },
+              {
+                "frame": 2,
+                "value": "-0.25/0.5"
+              }
+            ]
+          },
+          "view-up": {
+            "type": "vector2",
+            "normalize": true,
+            "keys": [
+              {
+                "frame": 0,
+                "value": "0/1"
+              },
+              {
+                "frame": 2,
+                "value": "0/1"
+              }
+            ]
+          },
+          "height": {
+            "type": "double",
+            "keys": [
+              {
+                "frame": 0,
+                "value": 3
+              },
+              {
+                "frame": 2,
+                "value": 1.5,
+                "curve": "geometric"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "camera-3",
+      "source": {
+        "file": "input/camera-sources.par",
+        "name": "Bad_Demo"
+      },
+      "tracks": [
+        {
+          "name": "camera",
+          "type": "camera2d",
+          "output": "center-mag",
+          "aspect": "source",
+          "look-at": {
+            "type": "point2",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "-0.5/0"
+              },
+              {
+                "frame": 2,
+                "value": "-0.25/0.5"
+              }
+            ]
+          },
+          "view-up": {
+            "type": "vector2",
+            "normalize": true,
+            "keys": [
+              {
+                "frame": 0,
+                "value": "0/1"
+              },
+              {
+                "frame": 2,
+                "value": "0/1"
+              }
+            ]
+          },
+          "height": {
+            "type": "double",
+            "keys": [
+              {
+                "frame": 0,
+                "value": 3
+              },
+              {
+                "frame": 2,
+                "value": 1.5,
+                "curve": "geometric"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "camera-4",
+      "source": {
+        "file": "input/camera-sources.par",
+        "name": "NotFound"
+      },
+      "tracks": [
+        {
+          "name": "camera",
+          "type": "camera2d",
+          "output": "center-mag",
+          "aspect": "source",
+          "look-at": {
+            "type": "point2",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "-0.5/0"
+              },
+              {
+                "frame": 2,
+                "value": "-0.25/0.5"
+              }
+            ]
+          },
+          "view-up": {
+            "type": "vector2",
+            "normalize": true,
+            "keys": [
+              {
+                "frame": 0,
+                "value": "0/1"
+              },
+              {
+                "frame": 2,
+                "value": "0/1"
+              }
+            ]
+          },
+          "height": {
+            "type": "double",
+            "keys": [
+              {
+                "frame": 0,
+                "value": 3
+              },
+              {
+                "frame": 2,
+                "value": 1.5,
+                "curve": "geometric"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

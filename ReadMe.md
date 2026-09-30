@@ -136,6 +136,20 @@ only the selected slot and pads missing slots with `ident`. The inspector
 retains the complete source function list, source entry, slot, and recipe.
 Layer tracks resolve their own source entries.
 
+Keyed Camera2D center-mag tracks expose six output components and five
+nested input components. Look-at is point2, view-up is vector2, and height
+is a positive double. Each input requires two full-range keys. View-up
+is normalized after interpolation regardless of its authored normalize
+flag. Height supports linear, hold/step, and geometric interpolation;
+vector inputs do not support geometric interpolation.
+
+Camera aspect comes from the source PAR center-mag stretch and video mode
+F6. A missing or zero x-magnification factor means one; negative stretch
+is retained in output while aspect uses its magnitude. Output and
+normalized view-up are owned analytic curves, not baked frame samples.
+The inspector retains the complete camera recipe and nested signal keys.
+Eye, nested paths, corners output, and skew remain pending camera slices.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -211,8 +225,18 @@ Open `function-slot-variants.json` to replace the comparison with four
 lanes. At frame 2 slot 0 emits `log/cos`, while slot 3 emits
 `sin/cos/ident/log`. These are independent track outputs, not a merged PAR.
 
-Specialized track kinds, non-clamp extrapolation, and parameter-specific
-output quantization remain unsupported.
+`camera2d-center-mag.json` and `gold-camera2d-center-mag.par` are copied
+from ParAnimator's integration tests. Open the camera fixture for eleven
+lanes and add `beat-keys/rms.beat-keys.json` for fifteen comparison lanes.
+At frame 1, center is `-0.375/0.25`, magnification is `1.414214`, and
+height is `2.121320`. Click an output curve to inspect its camera recipe
+and source entry. Open `camera2d-keyed-variants.json` to replace the
+comparison with twenty-two lanes. At frame 1, the first camera rotation
+is 45 degrees, both view-up components are `0.707107`, and magnification
+is `1.333333`; its source x-magnification factor remains `-2`.
+
+Other specialized track kinds, non-clamp extrapolation, and
+parameter-specific output quantization remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 
