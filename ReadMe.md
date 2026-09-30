@@ -160,11 +160,18 @@ and end radii. Expanding and shrinking spirals check direction at the
 analytic radius-crossing time, including collisions between frames;
 constant-radius spirals use the orbit check. Reverse and stationary
 spirals retain their authored recipes and analytic component bounds.
-Lissajous eyes support positive radii, equal positive axis frequencies,
-and fixed look-at. Phase applies only to x. Two analytic collision
-candidates cover the traveled cycles, including partial cycles and
-singular directions between frames. Independent axis frequencies remain
-pending for eye paths.
+Lissajous eyes support positive radii, independent positive axis
+frequencies, and fixed look-at. Phase applies only to x. Analytic crossings
+of the slower axis identify collision candidates over the traveled cycles,
+including partial cycles and singular directions between frames.
+Equal-frequency paths need only two candidates.
+Bezier and Catmull-Rom eyes also support fixed look-at. Recursive Bezier
+hulls validate the entire path, including tangencies and segment
+boundaries, while preserving the original analytic definitions. Catmull-Rom
+segments use equivalent cubic hulls. A hull containing look-at is refined,
+not rejected merely for overlap. Validation has bounded work and depth;
+extreme frequencies or unresolved possible singularities produce explicit
+importer diagnostics rather than falling back to frame sampling.
 Eye takes precedence over authored view-up. The viewer retains both
 authored signals and separate
 derived-view-up curves, normalized from eye minus look-at. Keyed motion
@@ -175,8 +182,8 @@ Without eye, look-at also accepts circle, ellipse, Lissajous, spiral,
 Bezier, and Catmull-Rom paths with keyed view-up and height. Output center
 curves reuse the owned analytic definitions and bounds, including interior
 extrema. Nested look-at curves retain their original recipes and distinct
-hit identities. Curved look-at with eye, other eye paths, orbit eye with
-moving look-at, corners output, and skew remain pending.
+hit identities. Curved look-at with eye, moving look-at with curved eye,
+corners output, and skew remain pending.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
@@ -324,6 +331,17 @@ frame-1 eye `-0.414214/-1` and rotation `-54.735610` degrees.
 `camera2d-eye-lissajous-partial.json` covers a safe partial cycle with
 look-at on the supporting circle but outside the traveled arc. All three
 golden PAR files were generated with ParAnimator.
+
+Open `camera2d-eye-lissajous-independent.json` for fifteen camera lanes
+and add `beat-keys/rms.beat-keys.json` for nineteen comparison lanes.
+At frame 1, eye is `-1.414214/0` and rotation is `-90` degrees. Click an
+eye curve to inspect its independent frequencies, phase, and hit identity.
+Open `camera2d-eye-bezier.json` to replace the comparison with fifteen
+lanes; frame-2 eye is `1/0.25` and rotation is `75.963757` degrees.
+`camera2d-eye-catmull-rom.json` covers a safe path whose hull overlaps
+look-at; its frame-2 eye is `0/2.125` and rotation is zero.
+`camera2d-eye-lissajous-slow-y.json` covers the opposite frequency
+ordering. All four golden PAR files were generated with ParAnimator.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.

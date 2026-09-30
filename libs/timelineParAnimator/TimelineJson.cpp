@@ -630,16 +630,20 @@ double catmull_rom_value(const std::vector<double> &values, double fraction)
             (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * local3);
 }
 
+std::array<double, 4> catmull_rom_hull(const std::vector<double> &values, int segment)
+{
+    const std::array<double, 4> points = catmull_rom_points(values, segment);
+    return {points[1], points[1] + (points[2] - points[0]) / 6.0, points[2] - (points[3] - points[1]) / 6.0, points[2]};
+}
+
 std::pair<double, double> catmull_rom_bounds(const std::vector<double> &values)
 {
     double minimum = values.front();
     double maximum = minimum;
     for (int segment = 0; segment < timeline::size_cast(values) - 1; ++segment)
     {
-        const std::array<double, 4> points = catmull_rom_points(values, segment);
         // Equivalent cubic Bezier hulls contain the segment's overshoot.
-        const std::array<double, 4> hull{
-            points[1], points[1] + (points[2] - points[0]) / 6.0, points[2] - (points[3] - points[1]) / 6.0, points[2]};
+        const std::array<double, 4> hull = catmull_rom_hull(values, segment);
         for (const double value : hull)
         {
             if (!std::isfinite(value))
@@ -1136,25 +1140,130 @@ double camera2d_segment_end(const timeline::Lane &lane, timeline::Time start, ti
 
 void camera2d_validate_lissajous_eye(const Json &path, double x, double y, double phase)
 {
-    const double frequency = path_number(path, "x-frequency");
-    if (frequency != path_number(path, "y-frequency"))
-    {
-        throw std::invalid_argument("Camera2D Lissajous eye with independent axis frequencies is not supported yet");
-    }
     if (std::abs(x) > 1 + 1e-12 || std::abs(y) > 1 + 1e-12)
     {
         return;
     }
     constexpr double PI = 3.141592653589793238462643383279502884;
-    const double root = std::acos(std::clamp(x, -1.0, 1.0)) / (2 * PI);
-    // Only x has a phase offset; its two roots identify all possible collisions.
-    for (const double angle : {root - phase / 360, -root - phase / 360})
+    const double x_frequency = path_number(path, "x-frequency");
+    const double y_frequency = path_number(path, "y-frequency");
+    const bool solve_x = x_frequency <= y_frequency;
+    const double frequency = solve_x ? x_frequency : y_frequency;
+    const double root =
+        (solve_x ? std::acos(std::clamp(x, -1.0, 1.0)) : std::asin(std::clamp(y, -1.0, 1.0))) / (2 * PI);
+    const double offset = std::remainder(phase, 360) / 360;
+    const std::array<double, 2> angles =
+        solve_x ? std::array<double, 2>{root - offset, -root - offset} : std::array<double, 2>{root, 0.5 - root};
+    // Enumerate crossings of the slower axis, then check the other axis at each candidate time.
+    for (const double angle : angles)
     {
-        const double winding = std::ceil(-angle - 1e-12);
-        if (angle + winding <= frequency + 1e-12 && std::abs(std::sin(2 * PI * angle) - y) < 1e-12)
+        const double first = std::ceil(-angle - 1e-12);
+        const double last = std::floor(frequency - angle + 1e-12);
+        if (last < first)
         {
-            throw std::invalid_argument("Camera2D Lissajous eye reaches a singular direction at look-at");
+            continue;
         }
+        const bool equal_frequency = x_frequency == y_frequency;
+        const double cycles = equal_frequency ? 0 : last - first;
+        if (cycles >= 100000)
+        {
+            throw std::invalid_argument("Camera2D Lissajous eye exceeds the direction validation limit");
+        }
+        for (int cycle = 0; cycle <= static_cast<int>(cycles); ++cycle)
+        {
+            const double fraction = std::clamp((angle + first + cycle) / frequency, 0.0, 1.0);
+            const double other = equal_frequency ? std::sin(2 * PI * angle)
+                : solve_x                        ? std::sin(2 * PI * y_frequency * fraction)
+                                                 : std::cos(2 * PI * (offset + x_frequency * fraction));
+            if (std::abs(other - (solve_x ? y : x)) < 1e-12)
+            {
+                throw std::invalid_argument("Camera2D Lissajous eye reaches a singular direction at look-at");
+            }
+        }
+    }
+}
+
+void camera2d_validate_eye_hull(
+    const std::vector<std::array<double, 2>> &points, const std::array<double, 2> &look, int depth, int &remaining)
+{
+    if (--remaining < 0)
+    {
+        throw std::invalid_argument("Camera2D control-point eye exceeds the direction validation limit");
+    }
+    for (const std::array<double, 2> &point : {points.front(), points.back()})
+    {
+        static_cast<void>(camera2d_normalize({camera2d_direction_component(point[0], look[0], true),
+            camera2d_direction_component(point[1], look[1], true)}));
+    }
+    for (int component = 0; component < 2; ++component)
+    {
+        double minimum = points.front()[component];
+        double maximum = minimum;
+        for (const std::array<double, 2> &point : points)
+        {
+            minimum = std::min(minimum, point[component]);
+            maximum = std::max(maximum, point[component]);
+        }
+        if (camera2d_direction_component(minimum, look[component], true) > 0 ||
+            camera2d_direction_component(maximum, look[component], true) < 0)
+        {
+            return;
+        }
+    }
+    if (depth == 52)
+    {
+        throw std::invalid_argument("Camera2D eye cannot exclude a singular direction within the validation limit");
+    }
+    // Subdivision tightens the whole-curve hull; it is not frame sampling.
+    std::vector<std::array<double, 2>> values(points);
+    std::vector<std::array<double, 2>> left{points.front()};
+    std::vector<std::array<double, 2>> right{points.back()};
+    for (int order = timeline::size_cast(values) - 1; order > 0; --order)
+    {
+        for (int point = 0; point < order; ++point)
+        {
+            for (int component = 0; component < 2; ++component)
+            {
+                values[point][component] = 0.5 * values[point][component] + 0.5 * values[point + 1][component];
+            }
+        }
+        left.push_back(values.front());
+        right.push_back(values[order - 1]);
+    }
+    std::reverse(right.begin(), right.end());
+    camera2d_validate_eye_hull(left, look, depth + 1, remaining);
+    camera2d_validate_eye_hull(right, look, depth + 1, remaining);
+}
+
+void camera2d_validate_control_eye(const Json &path, const std::array<double, 2> &look)
+{
+    std::vector<std::array<double, 2>> points;
+    std::array<std::vector<double>, 2> values;
+    for (const Json &point : path.at("control-points"))
+    {
+        const std::vector<double> parsed = animation_value(point.get<std::string>());
+        points.push_back({parsed[0], parsed[1]});
+        for (int component = 0; component < 2; ++component)
+        {
+            values[component].push_back(parsed[component]);
+        }
+    }
+    int remaining = 100000;
+    if (path.at("kind") == "bezier")
+    {
+        camera2d_validate_eye_hull(points, look, 0, remaining);
+        return;
+    }
+    for (int segment = 0; segment < timeline::size_cast(points) - 1; ++segment)
+    {
+        const std::array<double, 4> x = catmull_rom_hull(values[0], segment);
+        const std::array<double, 4> y = catmull_rom_hull(values[1], segment);
+        std::vector<std::array<double, 2>> hull;
+        for (int point = 0; point < 4; ++point)
+        {
+            hull.push_back({x[point], y[point]});
+        }
+        camera2d_validate_eye_hull(hull, look, 0, remaining);
     }
 }
 
@@ -1179,24 +1288,31 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     }
     const bool spiral = kind == "spiral";
     const bool lissajous = kind == "lissajous";
-    if (kind != "circle" && kind != "ellipse" && !spiral && !lissajous)
+    const bool control_points = kind == "bezier" || kind == "catmull-rom";
+    if (kind != "circle" && kind != "ellipse" && !spiral && !lissajous && !control_points)
     {
-        throw std::invalid_argument(
-            "Camera2D eye currently supports only circle, ellipse, spiral, and Lissajous paths");
+        throw std::invalid_argument("unsupported Camera2D eye path kind: " + kind);
     }
-    const std::vector<double> center = animation_value(path.at("center"));
     const timeline::Time start = grid.offset();
     const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
-    if (timeline::size_cast(center) != 2)
-    {
-        throw std::invalid_argument("Camera2D eye orbit center requires two components");
-    }
     for (int component = 0; component < 2; ++component)
     {
         if (camera2d_sample(signals[component], start) != camera2d_sample(signals[component], end))
         {
-            throw std::invalid_argument("Camera2D eye orbit with moving look-at is not supported yet");
+            throw std::invalid_argument("Camera2D eye path with moving look-at is not supported yet");
         }
+    }
+    if (control_points)
+    {
+        animation_control_point_lanes(
+            path, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
+        camera2d_validate_control_eye(path, {camera2d_sample(signals[0], start), camera2d_sample(signals[1], start)});
+        return;
+    }
+    const std::vector<double> center = animation_value(path.at("center"));
+    if (timeline::size_cast(center) != 2)
+    {
+        throw std::invalid_argument("Camera2D eye orbit center requires two components");
     }
     const double x_radius = path_number(path, spiral ? "from-radius" : kind == "circle" ? "radius" : "x-radius");
     const double y_radius = kind == "ellipse" || lissajous ? path_number(path, "y-radius") : x_radius;

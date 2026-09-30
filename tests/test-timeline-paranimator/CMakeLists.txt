@@ -86,6 +86,15 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/camera2d-eye-lissajous-phase.json
     fixtures/camera2d-eye-lissajous-partial.json
     fixtures/partial-camera2d-eye-lissajous.json
+    fixtures/partial-camera2d-eye-paths.json
+    fixtures/camera2d-eye-lissajous-independent.json
+    fixtures/gold-camera2d-eye-lissajous-independent.par
+    fixtures/camera2d-eye-lissajous-slow-y.json
+    fixtures/gold-camera2d-eye-lissajous-slow-y.par
+    fixtures/camera2d-eye-bezier.json
+    fixtures/gold-camera2d-eye-bezier.par
+    fixtures/camera2d-eye-catmull-rom.json
+    fixtures/gold-camera2d-eye-catmull-rom.par
     fixtures/gold-camera2d-eye-lissajous-centered.par
     fixtures/gold-camera2d-eye-lissajous-phase.par
     fixtures/gold-camera2d-eye-lissajous-partial.par

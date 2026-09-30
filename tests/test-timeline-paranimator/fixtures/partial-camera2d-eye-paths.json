@@ -1,0 +1,761 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "name": "lissajous-between-frames",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1.4142135623730951/1"
+          },
+          {
+            "frame": 4,
+            "value": "1.4142135623730951/1"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "lissajous",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "x-frequency": 1,
+          "y-frequency": 2,
+          "phase": 0
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "lissajous-later-cycle",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1.867160852994403/0.5877852522924727"
+          },
+          {
+            "frame": 4,
+            "value": "-1.867160852994403/0.5877852522924727"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "lissajous",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "x-frequency": 2,
+          "y-frequency": 3,
+          "phase": 15
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bezier-between-frames",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "-3/0",
+            "7/0"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bezier-tangent",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "0/0.09",
+            "0/-0.21",
+            "0/0.49"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bezier-endpoint",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "0/0",
+            "1/1"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bezier-coincident",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "0/0",
+            "0/0"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "catmull-between-frames",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "catmull-rom",
+          "control-points": [
+            "-4/0",
+            "-2/0",
+            "1/0",
+            "3/0"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "catmull-boundary",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "catmull-rom",
+          "control-points": [
+            "-2/1",
+            "0/0",
+            "2/1",
+            "3/2"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bad-arity",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "0/1/2",
+            "1/1/2"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "too-few-points",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "catmull-rom",
+          "control-points": [
+            "0/1",
+            "1/1",
+            "2/1"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "moving-look-at",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "1/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "-2/1",
+            "2/-1",
+            "2/2"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "excessive-cycles",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "lissajous",
+          "center": "0/0",
+          "x-radius": 2,
+          "y-radius": 1,
+          "x-frequency": 100001,
+          "y-frequency": 100002,
+          "phase": 45
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "bezier-eye",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0"
+          },
+          {
+            "frame": 4,
+            "value": "0/0"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "bezier",
+          "control-points": [
+            "-2/1",
+            "2/-1",
+            "2/2"
+          ]
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "normalize": true,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 4,
+            "value": "0/1"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      }
+    }
+  ]
+}

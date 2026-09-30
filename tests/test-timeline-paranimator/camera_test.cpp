@@ -16,6 +16,119 @@
 
 using namespace timeline_par_animator;
 
+TEST(CameraImport, samples_owned_remaining_eye_paths_like_paranimator)
+{
+    const std::array<std::string, 4> kinds{"lissajous-independent", "lissajous-slow-y", "bezier", "catmull-rom"};
+    for (const std::string &kind : kinds)
+    {
+        SCOPED_TRACE(kind);
+        const timeline::Document document = [&kind]
+        {
+            const JsonImportResult imported = import_timeline_json("fixtures/camera2d-eye-" + kind + ".json");
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Camera2D remaining eye path import failed");
+            }
+            return *imported.document;
+        }();
+        ASSERT_EQ(15, document.lane_count());
+        EXPECT_EQ(6, document.keyframe_count());
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        std::ifstream golden("fixtures/gold-camera2d-eye-" + kind + ".par");
+        ASSERT_TRUE(golden);
+        int frame = 0;
+        for (std::string line; std::getline(golden, line);)
+        {
+            const std::size_t start = line.find("center-mag=");
+            if (start == std::string::npos)
+            {
+                continue;
+            }
+            std::string value = line.substr(start + 11);
+            std::replace(value.begin(), value.end(), '/', ' ');
+            std::istringstream values(value);
+            std::array<double, 6> expected{0, 0, 1, 1, 0, 0};
+            for (double &component : expected)
+            {
+                if (!(values >> component))
+                {
+                    break;
+                }
+            }
+            const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+            ASSERT_TRUE(inspection);
+            for (int component = 0; component < 6; ++component)
+            {
+                ASSERT_TRUE(inspection->lanes[component].items.front().value);
+                const double actual = *inspection->lanes[component].items.front().value;
+                const double difference =
+                    component == 4 ? std::remainder(actual - expected[component], 360) : actual - expected[component];
+                EXPECT_NEAR(0, difference, 1e-9);
+            }
+            ++frame;
+        }
+        EXPECT_EQ(5, frame);
+        const timeline::Curve &eye_x = std::get<timeline::Curve>(document.lanes()[8].items().front());
+        const timeline::Curve &eye_y = std::get<timeline::Curve>(document.lanes()[9].items().front());
+        const timeline::Curve &up_x = std::get<timeline::Curve>(document.lanes()[11].items().front());
+        const timeline::Curve &up_y = std::get<timeline::Curve>(document.lanes()[12].items().front());
+        EXPECT_TRUE(eye_x.samples().empty());
+        EXPECT_TRUE(up_x.samples().empty());
+        const std::string path_kind = kind.find("lissajous") == 0 ? "lissajous" : kind;
+        EXPECT_NE(std::string::npos, eye_x.attributes().at("path").find(path_kind));
+        EXPECT_NE(std::string::npos, eye_x.attributes().at("signal").find(path_kind));
+        for (int sixth_frame = 0; sixth_frame <= 24; ++sixth_frame)
+        {
+            const timeline::Time time =
+                grid.offset() + timeline::Duration::from_ticks(sixth_frame * grid.frame_duration().ticks() / 6);
+            const double dx = eye_x.sample(time) - *document.lanes()[6].evaluate_keyframes(time);
+            const double dy = eye_y.sample(time) - *document.lanes()[7].evaluate_keyframes(time);
+            EXPECT_NEAR(dx / std::hypot(dx, dy), up_x.sample(time), 1e-12);
+            EXPECT_NEAR(dy / std::hypot(dx, dy), up_y.sample(time), 1e-12);
+            EXPECT_LE(*eye_x.minimum(), eye_x.sample(time));
+            EXPECT_GE(*eye_x.maximum(), eye_x.sample(time));
+            EXPECT_LE(*eye_y.minimum(), eye_y.sample(time));
+            EXPECT_GE(*eye_y.maximum(), eye_y.sample(time));
+        }
+        if (kind == "bezier")
+        {
+            EXPECT_DOUBLE_EQ(1, eye_x.sample(grid.frame_start(2)));
+            EXPECT_DOUBLE_EQ(0.25, eye_y.sample(grid.frame_start(2)));
+        }
+        if (kind == "catmull-rom")
+        {
+            EXPECT_DOUBLE_EQ(0, eye_x.sample(grid.frame_start(2)));
+            EXPECT_DOUBLE_EQ(2.125, eye_y.sample(grid.frame_start(2)));
+        }
+        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+        ASSERT_TRUE(music.succeeded());
+        const timeline::Document combined = timeline::combine_documents(document, *music.document);
+        EXPECT_EQ(19, combined.lane_count());
+        const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4));
+        EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("animation-0-eye[0]-path"));
+    }
+}
+
+TEST(CameraImport, diagnoses_remaining_eye_path_collisions_and_validation_limits)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-eye-paths.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(12, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(15, result.document->lane_count());
+    for (int index = 0; index < 12; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+    }
+    for (int index = 0; index < 8; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("singular"));
+    }
+    EXPECT_NE(std::string::npos, result.diagnostics[10].find("moving look-at"));
+    EXPECT_NE(std::string::npos, result.diagnostics[11].find("validation limit"));
+    EXPECT_EQ("animation-12-center-mag[0]", result.document->lanes().front().id());
+}
+
 TEST(CameraImport, samples_owned_equal_frequency_lissajous_eyes_like_paranimator)
 {
     const std::array<std::string, 3> kinds{"centered", "phase", "partial"};
@@ -117,7 +230,7 @@ TEST(CameraImport, diagnoses_lissajous_eye_collisions_and_invalid_or_pending_inp
     }
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("singular"));
     EXPECT_NE(std::string::npos, result.diagnostics[1].find("singular"));
-    EXPECT_NE(std::string::npos, result.diagnostics[5].find("independent axis frequencies"));
+    EXPECT_NE(std::string::npos, result.diagnostics[5].find("singular"));
     EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes().front().id());
 }
 
