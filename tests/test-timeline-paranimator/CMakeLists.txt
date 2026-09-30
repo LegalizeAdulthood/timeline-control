@@ -16,11 +16,16 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/par-beatdown/mixed-events-and-features.json
     fixtures/par-beatdown/partial.music.json
     fixtures/par-beatdown/song.music.json
+    fixtures/snapshots/empty.txt
+    fixtures/snapshots/events.txt
+    fixtures/snapshots/curve.txt
+    fixtures/snapshots/keyframes.txt
 )
 
 add_executable(test-timeline-paranimator
     ${TIMELINE_PARANIMATOR_TEST_FIXTURES}
     test.cpp
+    snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator
     PRIVATE

@@ -10,6 +10,7 @@ add_executable(test-timeline-core
     lane_test.cpp
     layout_test.cpp
     query_test.cpp
+    snapshot_test.cpp
 )
 target_link_libraries(test-timeline-core PUBLIC timeline-core GTest::gtest_main)
 target_folder(test-timeline-core "Tests")

@@ -5,6 +5,7 @@
 
 #include <timeline/Layout.h>
 #include <timeline/size_cast.h>
+#include <timeline/Snapshot.h>
 
 #include <wx/dcbuffer.h>
 
@@ -134,6 +135,13 @@ void wxTimelineControl::fit_view()
     }
     m_navigation->fit();
     Refresh(false);
+}
+
+std::string wxTimelineControl::snapshot()
+{
+    Update();
+    return m_layout ? timeline::render_snapshot(m_layout->display_list())
+                    : timeline::render_snapshot(timeline::DisplayList{});
 }
 
 void wxTimelineControl::zoom_by(double factor)

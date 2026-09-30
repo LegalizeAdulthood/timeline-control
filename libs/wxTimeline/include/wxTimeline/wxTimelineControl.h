@@ -29,6 +29,9 @@ public:
     void fit_view();
     void clear_selection();
 
+    /// Repaints pending changes and snapshots the displayed timeline primitives.
+    std::string snapshot();
+
     bool has_document() const
     {
         return m_document.has_value();

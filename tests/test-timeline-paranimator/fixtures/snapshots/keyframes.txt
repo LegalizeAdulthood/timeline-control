@@ -1,0 +1,11 @@
+line RULER "" "ruler" 100 19 399 19
+text RULER_LABEL "" "ruler" 4 4 "Time"
+rectangle LANE_BACKGROUND "row.flash" "" 100 20 300 30
+text LANE_LABEL "row.flash" "" 4 24 "row.flash"
+polyline KEYFRAME_SEGMENT "row.flash" "keyframe-0" 3 100 24 160 24 160 45
+polyline KEYFRAME_SEGMENT "row.flash" "keyframe-1" 3 160 45 280 45 280 24
+polyline KEYFRAME_SEGMENT "row.flash" "keyframe-2" 3 280 24 340 24 340 45
+marker KEYFRAME_MARKER "row.flash" "keyframe-0" 100 24 5 5
+marker KEYFRAME_MARKER "row.flash" "keyframe-1" 158 41 5 5
+marker KEYFRAME_MARKER "row.flash" "keyframe-2" 278 24 5 5
+marker KEYFRAME_MARKER "row.flash" "keyframe-3" 338 41 5 5

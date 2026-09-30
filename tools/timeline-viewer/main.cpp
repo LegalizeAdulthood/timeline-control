@@ -9,6 +9,7 @@
 #include <wx/wx.h>
 
 #include <filesystem>
+#include <fstream>
 #include <system_error>
 #include <utility>
 
@@ -100,6 +101,7 @@ public:
 private:
     void on_inspection_changed(wxCommandEvent &event);
     void on_open(wxCommandEvent &event);
+    void on_export_snapshot(wxCommandEvent &event);
     void on_exit(wxCommandEvent &event);
     void on_zoom_in(wxCommandEvent &event);
     void on_zoom_out(wxCommandEvent &event);
@@ -127,6 +129,7 @@ TimelineViewerFrame::TimelineViewerFrame() :
 {
     auto *file_menu = new wxMenu;
     file_menu->Append(wxID_OPEN, "&Open...\tCtrl+O");
+    file_menu->Append(wxID_SAVEAS, "Export &Snapshot...");
     file_menu->AppendSeparator();
     file_menu->Append(wxID_EXIT, "E&xit");
 
@@ -151,6 +154,10 @@ TimelineViewerFrame::TimelineViewerFrame() :
 
     m_timeline_control->Bind(wxEVT_TIMELINE_INSPECTION_CHANGED, &TimelineViewerFrame::on_inspection_changed, this);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_open, this, wxID_OPEN);
+    Bind(wxEVT_MENU, &TimelineViewerFrame::on_export_snapshot, this, wxID_SAVEAS);
+    Bind(
+        wxEVT_UPDATE_UI, [this](wxUpdateUIEvent &event) { event.Enable(m_timeline_control->has_document()); },
+        wxID_SAVEAS);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_exit, this, wxID_EXIT);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_zoom_in, this, wxID_ZOOM_IN);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_zoom_out, this, wxID_ZOOM_OUT);
@@ -280,6 +287,27 @@ void TimelineViewerFrame::on_open(wxCommandEvent &)
     {
         show_import_diagnostics(result.diagnostics, "Timeline import diagnostics", wxOK | wxICON_INFORMATION);
     }
+}
+
+void TimelineViewerFrame::on_export_snapshot(wxCommandEvent &)
+{
+    wxFileDialog dialog(this, "Export timeline snapshot", wxEmptyString, "timeline.txt", "Text snapshots (*.txt)|*.txt",
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+    if (dialog.ShowModal() != wxID_OK)
+    {
+        return;
+    }
+
+    const std::string text = m_timeline_control->snapshot();
+    std::ofstream output(std::filesystem::path(dialog.GetPath().ToStdWstring()), std::ios::binary);
+    output << text;
+    output.close();
+    if (!output)
+    {
+        wxMessageBox("Unable to write the timeline snapshot.", "Snapshot export failed", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    SetStatusText("Exported " + dialog.GetFilename());
 }
 
 void TimelineViewerFrame::on_exit(wxCommandEvent &)

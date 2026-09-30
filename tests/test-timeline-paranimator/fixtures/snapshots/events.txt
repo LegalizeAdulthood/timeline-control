@@ -1,0 +1,10 @@
+line RULER "" "ruler" 100 19 399 19
+text RULER_LABEL "" "ruler" 4 4 "Time"
+rectangle LANE_BACKGROUND "tracker-events" "" 100 20 300 30
+text LANE_LABEL "tracker-events" "" 4 24 "Music events"
+marker INSTANT_MARKER "tracker-events" "event-0" 100 24 2 22
+marker INSTANT_MARKER "tracker-events" "event-1" 100 24 2 22
+marker INSTANT_MARKER "tracker-events" "event-2" 219 24 2 22
+marker INSTANT_MARKER "tracker-events" "event-3" 100 24 2 22
+marker INSTANT_MARKER "tracker-events" "event-4" 279 24 2 22
+marker INSTANT_MARKER "tracker-events" "event-5" 339 24 2 22
