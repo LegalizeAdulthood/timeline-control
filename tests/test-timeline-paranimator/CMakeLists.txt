@@ -2,6 +2,17 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/camera2d-moving-bezier-catmull.json
+    fixtures/gold-camera2d-moving-bezier-catmull.par
+    fixtures/camera2d-moving-circle-keyed.json
+    fixtures/gold-camera2d-moving-circle-keyed.par
+    fixtures/camera2d-moving-ellipse-lissajous.json
+    fixtures/gold-camera2d-moving-ellipse-lissajous.par
+    fixtures/camera2d-moving-hold-spiral.json
+    fixtures/gold-camera2d-moving-hold-spiral.par
+    fixtures/camera2d-moving-keyed-bezier.json
+    fixtures/gold-camera2d-moving-keyed-bezier.par
+    fixtures/partial-camera2d-moving.json
     fixtures/empty-animation.json
     fixtures/input/core-catalog.json
     fixtures/maxiter-step.json

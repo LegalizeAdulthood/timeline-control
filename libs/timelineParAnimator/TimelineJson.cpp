@@ -11,6 +11,7 @@
 #include <charconv>
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <limits>
 #include <map>
 #include <numeric>
@@ -493,6 +494,15 @@ double clean_path_value(double value)
     return std::abs(value) < 1e-12 ? 0.0 : value;
 }
 
+double planar_path_value(
+    double origin, double radius, double radius_change, double phase, double frequency, int component, double fraction)
+{
+    constexpr double PI = 3.141592653589793238462643383279502884;
+    const double radians = (phase + 360.0 * frequency * fraction) * PI / 180.0;
+    const double sampled_radius = radius + fraction * radius_change;
+    return clean_path_value(origin + sampled_radius * (component == 0 ? std::cos(radians) : std::sin(radians)));
+}
+
 void animation_planar_lanes(const Json &path, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
@@ -550,12 +560,9 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
         const auto evaluate = [origin, radius, radius_change, component_phase, frequency, component, start, end](
                                   timeline::Time time)
         {
-            constexpr double PI = 3.141592653589793238462643383279502884;
             const double fraction =
                 static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
-            const double radians = (component_phase + 360.0 * frequency * fraction) * PI / 180.0;
-            const double sampled_radius = radius + fraction * radius_change;
-            return clean_path_value(origin + sampled_radius * (component == 0 ? std::cos(radians) : std::sin(radians)));
+            return planar_path_value(origin, radius, radius_change, component_phase, frequency, component, fraction);
         };
         timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
         lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
@@ -657,6 +664,24 @@ std::pair<double, double> catmull_rom_bounds(const std::vector<double> &values)
     return {minimum, maximum};
 }
 
+double control_path_value(const std::vector<double> &values, bool catmull_rom, double fraction)
+{
+    if (catmull_rom)
+    {
+        return clean_path_value(catmull_rom_value(values, fraction));
+    }
+    std::vector<double> interpolated(values);
+    // De Casteljau reduces the owned control points to the curve value.
+    for (int order = timeline::size_cast(interpolated) - 1; order > 0; --order)
+    {
+        for (int point = 0; point < order; ++point)
+        {
+            interpolated[point] += fraction * (interpolated[point + 1] - interpolated[point]);
+        }
+    }
+    return clean_path_value(interpolated.front());
+}
+
 void animation_control_point_lanes(const Json &path, const Json &metadata, const std::string &id,
     const std::string &label, const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
@@ -710,20 +735,7 @@ void animation_control_point_lanes(const Json &path, const Json &metadata, const
         {
             const double fraction =
                 static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
-            if (catmull_rom)
-            {
-                return clean_path_value(catmull_rom_value(values, fraction));
-            }
-            std::vector<double> interpolated(values);
-            // De Casteljau reduces the owned control points to the curve value.
-            for (int order = timeline::size_cast(interpolated) - 1; order > 0; --order)
-            {
-                for (int point = 0; point < order; ++point)
-                {
-                    interpolated[point] += fraction * (interpolated[point + 1] - interpolated[point]);
-                }
-            }
-            return clean_path_value(interpolated.front());
+            return control_path_value(values, catmull_rom, fraction);
         };
         timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
         lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
@@ -1138,6 +1150,118 @@ double camera2d_segment_end(const timeline::Lane &lane, timeline::Time start, ti
     return camera2d_sample(lane, key.interpolation() == timeline::KeyframeInterpolation::HOLD ? start : end);
 }
 
+/// An owned camera component over normalized time, with a bound on its
+/// uncleaned derivative. Held keys describe the left side of the final jump.
+///
+struct CameraComponentMotion
+{
+    std::function<double(double)> m_evaluate;
+    double m_speed;
+};
+
+CameraComponentMotion camera2d_component_motion(const timeline::Lane &lane, int component)
+{
+    if (std::holds_alternative<timeline::Keyframe>(lane.items().front()))
+    {
+        const timeline::Keyframe &from = std::get<timeline::Keyframe>(lane.items().front());
+        const timeline::Keyframe &to = std::get<timeline::Keyframe>(lane.items().back());
+        const double value = from.value();
+        const double change = from.interpolation() == timeline::KeyframeInterpolation::HOLD ? 0 : to.value() - value;
+        return {
+            [value, change](double fraction) { return clean_path_value(value + fraction * change); }, std::abs(change)};
+    }
+    const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
+    const Json path = Json::parse(curve.attributes().at("path"));
+    const std::string kind = path.at("kind").get<std::string>();
+    if (kind == "bezier" || kind == "catmull-rom")
+    {
+        std::vector<double> values;
+        for (const Json &point : path.at("control-points"))
+        {
+            values.push_back(animation_value(point)[component]);
+        }
+        double speed = 0;
+        const int segments = timeline::size_cast(values) - 1;
+        const bool catmull_rom = kind == "catmull-rom";
+        for (int segment = 0; segment < segments; ++segment)
+        {
+            if (catmull_rom)
+            {
+                const std::array<double, 4> hull = catmull_rom_hull(values, segment);
+                for (int point = 0; point < 3; ++point)
+                {
+                    speed = std::max(speed, std::abs(hull[point + 1] - hull[point]) * 3 * segments);
+                }
+            }
+            else
+            {
+                speed = std::max(speed, std::abs(values[segment + 1] - values[segment]) * segments);
+            }
+        }
+        return {[values, catmull_rom](double fraction) { return control_path_value(values, catmull_rom, fraction); },
+            speed};
+    }
+    const double origin = animation_value(path.at("center"))[component];
+    const bool spiral = kind == "spiral";
+    const bool lissajous = kind == "lissajous";
+    const double radius = path_number(path,
+        spiral                 ? "from-radius"
+            : kind == "circle" ? "radius"
+            : component == 0   ? "x-radius"
+                               : "y-radius");
+    const double to_radius = spiral ? path_number(path, "to-radius") : radius;
+    const double change = to_radius - radius;
+    const double phase = lissajous && component == 1 ? 0 : path.value("phase", 0.0);
+    const double frequency =
+        lissajous ? path_number(path, component == 0 ? "x-frequency" : "y-frequency") : path.value("turns", 1.0);
+    constexpr double PI = 3.141592653589793238462643383279502884;
+    const double speed = std::abs(change) + 2 * PI * std::abs(frequency) * std::max(radius, to_radius);
+    return {[origin, radius, change, phase, frequency, component](double fraction)
+        { return planar_path_value(origin, radius, change, phase, frequency, component, fraction); }, speed};
+}
+
+void camera2d_validate_motion(
+    const std::array<CameraComponentMotion, 4> &motion, double from, double to, int depth, int &remaining)
+{
+    if (--remaining < 0)
+    {
+        throw std::invalid_argument("Camera2D cannot exclude a singular direction within the validation limit");
+    }
+    const double middle = from + (to - from) / 2;
+    std::array<double, 2> direction;
+    bool safe = false;
+    for (int component = 0; component < 2; ++component)
+    {
+        const double look = motion[component].m_evaluate(middle);
+        const double eye = motion[component + 2].m_evaluate(middle);
+        direction[component] = eye - look;
+        const double radius = (motion[component].m_speed + motion[component + 2].m_speed) * (to - from) / 2;
+        // Cleaning can move each component by 1e-12; allow arithmetic roundoff too.
+        const double margin =
+            2e-12 + 32 * std::numeric_limits<double>::epsilon() * (std::abs(eye) + std::abs(look) + radius);
+        safe = safe || std::abs(direction[component]) > radius + margin;
+    }
+    static_cast<void>(camera2d_normalize(direction));
+    if (safe)
+    {
+        return;
+    }
+    if (depth >= 52)
+    {
+        throw std::invalid_argument("Camera2D cannot exclude a singular direction within the validation limit");
+    }
+    // The derivative bounds certify the entire interval, not just the sampled midpoint.
+    camera2d_validate_motion(motion, from, middle, depth + 1, remaining);
+    camera2d_validate_motion(motion, middle, to, depth + 1, remaining);
+}
+
+bool camera2d_fixed_look(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+{
+    return std::holds_alternative<timeline::Keyframe>(signals[0].items().front()) &&
+        camera2d_sample(signals[0], start) == camera2d_sample(signals[0], end) &&
+        camera2d_sample(signals[1], start) == camera2d_sample(signals[1], end);
+}
+
 void camera2d_validate_lissajous_eye(const Json &path, double x, double y, double phase)
 {
     if (std::abs(x) > 1 + 1e-12 || std::abs(y) > 1 + 1e-12)
@@ -1295,18 +1419,16 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     }
     const timeline::Time start = grid.offset();
     const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
-    for (int component = 0; component < 2; ++component)
-    {
-        if (camera2d_sample(signals[component], start) != camera2d_sample(signals[component], end))
-        {
-            throw std::invalid_argument("Camera2D eye path with moving look-at is not supported yet");
-        }
-    }
+    const bool fixed_look = camera2d_fixed_look(signals, start, end);
     if (control_points)
     {
         animation_control_point_lanes(
             path, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
-        camera2d_validate_control_eye(path, {camera2d_sample(signals[0], start), camera2d_sample(signals[1], start)});
+        if (fixed_look)
+        {
+            camera2d_validate_control_eye(
+                path, {camera2d_sample(signals[0], start), camera2d_sample(signals[1], start)});
+        }
         return;
     }
     const std::vector<double> center = animation_value(path.at("center"));
@@ -1322,6 +1444,10 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
         throw std::invalid_argument("Camera2D eye orbit radii must be positive to avoid singular directions");
     }
     animation_planar_lanes(path, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
+    if (!fixed_look)
+    {
+        return;
+    }
     constexpr double PI = 3.141592653589793238462643383279502884;
     const double dx = camera2d_sample(signals[0], start) - center[0];
     const double dy = camera2d_sample(signals[1], start) - center[1];
@@ -1406,10 +1532,6 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     const bool eye = track.contains("eye");
     if (eye)
     {
-        if (std::holds_alternative<timeline::Curve>(signals[0].items().front()))
-        {
-            throw std::invalid_argument("Camera2D curved look-at with eye is not supported yet");
-        }
         camera2d_eye_lanes(track.at("eye"), id, label, layer, grid, signals);
     }
     else
@@ -1428,7 +1550,25 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
             camera2d_direction_component(camera2d_sample(y, time), camera2d_sample(look_y, time), eye)};
     };
     static_cast<void>(camera2d_normalize(direction(end)));
-    if (std::holds_alternative<timeline::Keyframe>(signals[2].items().front()))
+    static_cast<void>(camera2d_normalize(direction(start)));
+    if (eye && !camera2d_fixed_look(signals, start, end) &&
+        (std::holds_alternative<timeline::Curve>(signals[0].items().front()) ||
+            std::holds_alternative<timeline::Curve>(signals[2].items().front())))
+    {
+        const std::array<CameraComponentMotion, 4> motion{camera2d_component_motion(signals[0], 0),
+            camera2d_component_motion(signals[1], 1), camera2d_component_motion(signals[2], 0),
+            camera2d_component_motion(signals[3], 1)};
+        for (const CameraComponentMotion &component : motion)
+        {
+            if (!std::isfinite(component.m_speed))
+            {
+                throw std::invalid_argument("Camera2D singular direction validation limit requires finite bounds");
+            }
+        }
+        int remaining = 100000;
+        camera2d_validate_motion(motion, 0, 1, 0, remaining);
+    }
+    else if (std::holds_alternative<timeline::Keyframe>(signals[2].items().front()))
     {
         const std::array<double, 2> segment_end{
             camera2d_direction_component(camera2d_segment_end(signals[2], start, end),
