@@ -15,6 +15,37 @@
 namespace
 {
 
+const char *hit_role_name(timeline::StyleRole role)
+{
+    switch (role)
+    {
+    case timeline::StyleRole::RULER:
+    case timeline::StyleRole::RULER_LABEL:
+        return "ruler";
+    case timeline::StyleRole::LANE_LABEL:
+        return "lane header";
+    case timeline::StyleRole::LANE_BACKGROUND:
+        return "lane";
+    case timeline::StyleRole::INSTANT_MARKER:
+        return "instant event";
+    case timeline::StyleRole::INTERVAL_SPAN:
+        return "interval";
+    case timeline::StyleRole::ENVELOPE_ATTACK:
+        return "envelope attack";
+    case timeline::StyleRole::ENVELOPE_SUSTAIN:
+        return "envelope sustain";
+    case timeline::StyleRole::ENVELOPE_DECAY:
+        return "envelope decay";
+    case timeline::StyleRole::CURVE:
+        return "curve";
+    case timeline::StyleRole::KEYFRAME_SEGMENT:
+        return "keyframe segment";
+    case timeline::StyleRole::KEYFRAME_MARKER:
+        return "keyframe";
+    }
+    return "item";
+}
+
 const char *item_type_name(timeline::InspectionItemType type)
 {
     switch (type)
@@ -119,14 +150,28 @@ TimelineViewerFrame::TimelineViewerFrame() :
 
 void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 {
+    const auto &hit = m_timeline_control->hit_result();
+    auto text = wxString("Hit: none\n");
+    if (hit)
+    {
+        text = "Hit: " + wxString::FromUTF8(hit_role_name(hit->style)) + "\n";
+        if (!hit->id.lane_id.empty())
+        {
+            text += "Lane: " + wxString::FromUTF8(hit->id.lane_id.c_str()) + "\n";
+        }
+        if (!hit->id.item_id.empty())
+        {
+            text += "Item: " + wxString::FromUTF8(hit->id.item_id.c_str()) + "\n";
+        }
+    }
     const auto &inspection = m_timeline_control->inspection();
     if (!inspection)
     {
-        m_inspector->SetValue("No frame inspection.");
+        m_inspector->SetValue(text + "\nNo frame inspection.");
         return;
     }
 
-    auto text = wxString::Format("Frame: %lld\nTime: %.6f seconds\n", static_cast<long long>(inspection->frame),
+    text += wxString::Format("\nFrame: %lld\nTime: %.6f seconds\n", static_cast<long long>(inspection->frame),
         m_timeline_control->document()->timebase().seconds(inspection->time));
     for (const auto &lane : inspection->lanes)
     {

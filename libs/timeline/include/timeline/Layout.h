@@ -138,10 +138,30 @@ private:
     int m_first_lane{0};
 };
 
-/// Computed toolkit-neutral rendering for one document and viewport.
+/// Semantic role and stable source identity of the topmost hit region.
+///
+struct HitResult
+{
+    StyleRole style;
+    DisplayId id;
+};
+
+inline bool operator==(const HitResult &lhs, const HitResult &rhs)
+{
+    return lhs.style == rhs.style && lhs.id.lane_id == rhs.id.lane_id && lhs.id.item_id == rhs.id.item_id;
+}
+inline bool operator!=(const HitResult &lhs, const HitResult &rhs)
+{
+    return !(lhs == rhs);
+}
+
+/// Toolkit-neutral hit geometry in display-list paint order.
+using HitRegion = std::variant<Rectangle, Marker, Polyline>;
+
+/// Computed toolkit-neutral rendering and hit geometry for a viewport.
 ///
 /// Layout maps exact item times into stable row geometry and records the
-/// corresponding semantic drawing operations in a display list.
+/// corresponding semantic drawing operations and hit regions in paint order.
 ///
 class Layout
 {
@@ -152,9 +172,14 @@ public:
     {
         return m_display_list;
     }
+    std::optional<HitResult> hit_test(Point point, int tolerance) const;
 
 private:
     DisplayList m_display_list;
+    std::vector<HitRegion> m_hit_regions;
+    int m_width;
+    int m_height;
+    int m_content_left;
 };
 
 /// Maps a horizontal host position into the viewport's exact time range.

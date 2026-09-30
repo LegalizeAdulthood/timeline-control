@@ -40,6 +40,37 @@ Ticks phase_ticks(const std::optional<Duration> &phase)
     return phase ? phase->ticks() : 0;
 }
 
+template <typename Bounds>
+bool contains(const Bounds &bounds, Point point, int tolerance)
+{
+    const auto x = static_cast<double>(point.x) - bounds.x;
+    const auto y = static_cast<double>(point.y) - bounds.y;
+    return -tolerance <= x && x < static_cast<double>(bounds.width) + tolerance && -tolerance <= y &&
+        y < static_cast<double>(bounds.height) + tolerance;
+}
+
+bool contains(const Polyline &polyline, Point point, int tolerance)
+{
+    for (auto index = 1; index < size_cast(polyline.points); ++index)
+    {
+        const auto &start = polyline.points[index - 1];
+        const auto &end = polyline.points[index];
+        const auto dx = static_cast<double>(end.x) - start.x;
+        const auto dy = static_cast<double>(end.y) - start.y;
+        const auto px = static_cast<double>(point.x) - start.x;
+        const auto py = static_cast<double>(point.y) - start.y;
+        const auto length_squared = dx * dx + dy * dy;
+        const auto fraction = length_squared == 0.0 ? 0.0 : std::clamp((px * dx + py * dy) / length_squared, 0.0, 1.0);
+        const auto distance_x = px - fraction * dx;
+        const auto distance_y = py - fraction * dy;
+        if (distance_x * distance_x + distance_y * distance_y <= static_cast<double>(tolerance) * tolerance)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::pair<double, double> curve_range(const Curve &curve)
 {
     const auto [sample_minimum, sample_maximum] = std::minmax_element(curve.samples().begin(), curve.samples().end(),
@@ -283,7 +314,10 @@ void Navigation::scroll_to_lane(int first_lane, int visible_lanes)
     m_first_lane = std::clamp(first_lane, 0, std::max(0, m_lane_count - visible_lanes));
 }
 
-Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metrics)
+Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metrics) :
+    m_width(viewport.width()),
+    m_height(viewport.height()),
+    m_content_left(metrics.lane_label_width())
 {
     if (metrics.lane_label_width() >= viewport.width())
     {
@@ -359,6 +393,68 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                 item);
         }
     }
+
+    m_hit_regions.emplace_back(
+        Rectangle{0, 0, viewport.width(), metrics.ruler_height(), StyleRole::RULER, DisplayId{"", "ruler"}});
+    for (const auto &primitive : m_display_list.primitives())
+    {
+        std::visit(
+            [&](const auto &value)
+            {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, Rectangle>)
+                {
+                    if (value.style == StyleRole::LANE_BACKGROUND)
+                    {
+                        m_hit_regions.emplace_back(Rectangle{
+                            0, value.y, metrics.lane_label_width(), value.height, StyleRole::LANE_LABEL, value.id});
+                    }
+                    m_hit_regions.emplace_back(value);
+                }
+                else if constexpr (std::is_same_v<Value, Marker> || std::is_same_v<Value, Polyline>)
+                {
+                    m_hit_regions.emplace_back(value);
+                }
+            },
+            primitive);
+    }
+}
+
+std::optional<HitResult> Layout::hit_test(Point point, int tolerance) const
+{
+    if (tolerance < 0)
+    {
+        throw std::invalid_argument("timeline hit tolerance cannot be negative");
+    }
+    if (point.x < 0 || m_width <= point.x || point.y < 0 || m_height <= point.y)
+    {
+        return std::nullopt;
+    }
+    for (auto region = m_hit_regions.rbegin(); region != m_hit_regions.rend(); ++region)
+    {
+        const auto hit = std::visit(
+            [&](const auto &value) -> std::optional<HitResult>
+            {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, Marker> || std::is_same_v<Value, Polyline>)
+                {
+                    if (point.x < m_content_left)
+                    {
+                        return std::nullopt;
+                    }
+                }
+                const auto hit_tolerance = std::is_same_v<Value, Rectangle> ? 0 : tolerance;
+                return contains(value, point, hit_tolerance)
+                    ? std::optional<HitResult>{HitResult{value.style, value.id}}
+                    : std::nullopt;
+            },
+            *region);
+        if (hit)
+        {
+            return hit;
+        }
+    }
+    return std::nullopt;
 }
 
 Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics)

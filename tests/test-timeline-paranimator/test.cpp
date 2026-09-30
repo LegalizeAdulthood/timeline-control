@@ -181,6 +181,10 @@ TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
             EXPECT_EQ(timeline::StyleRole::INSTANT_MARKER, marker->style);
             EXPECT_EQ("tracker-events", marker->id.lane_id);
             EXPECT_FALSE(marker->id.item_id.empty());
+            const auto hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
+            ASSERT_TRUE(hit);
+            EXPECT_EQ(marker->style, hit->style);
+            EXPECT_EQ(marker->id.item_id, hit->id.item_id);
             ++marker_count;
         }
         if (const auto curve = std::get_if<timeline::Polyline>(&primitive))
@@ -188,6 +192,11 @@ TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
             EXPECT_EQ(timeline::StyleRole::CURVE, curve->style);
             EXPECT_EQ("tracker-rms", curve->id.lane_id);
             EXPECT_EQ("tracker-rms", curve->id.item_id);
+            ASSERT_FALSE(curve->points.empty());
+            const auto hit = layout.hit_test(curve->points.front(), 3);
+            ASSERT_TRUE(hit);
+            EXPECT_EQ(curve->style, hit->style);
+            EXPECT_EQ(curve->id.item_id, hit->id.item_id);
             ++curve_count;
         }
     }

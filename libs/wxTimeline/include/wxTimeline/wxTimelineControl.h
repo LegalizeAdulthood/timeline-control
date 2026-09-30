@@ -37,9 +37,15 @@ public:
     {
         return m_inspection;
     }
+    const std::optional<timeline::HitResult> &hit_result() const
+    {
+        return m_hit_result;
+    }
 
 private:
+    void clear_hit();
     void notify_inspection_changed();
+    void on_mouse_leave(wxMouseEvent &event);
     void on_mouse_move(wxMouseEvent &event);
     void on_mouse_wheel(wxMouseEvent &event);
     void on_paint(wxPaintEvent &event);
@@ -50,6 +56,8 @@ private:
 
     std::optional<timeline::Document> m_document;
     std::optional<timeline::FrameInspection> m_inspection;
+    std::optional<timeline::HitResult> m_hit_result;
+    std::optional<timeline::Layout> m_layout;
     std::optional<timeline::LayoutMetrics> m_layout_metrics;
     std::optional<timeline::Navigation> m_navigation;
     std::optional<timeline::Viewport> m_viewport;

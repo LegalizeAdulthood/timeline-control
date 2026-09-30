@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
 #include <type_traits>
 #include <variant>
 
@@ -311,4 +312,127 @@ TEST(Layout, produces_identical_geometry_for_identical_metrics)
     {
         expect_same_geometry(first_primitives[index], second_primitives[index]);
     }
+}
+
+TEST(Layout, hits_ruler_headers_and_empty_lane_body)
+{
+    auto document = Document(100);
+    document.add_lane(Lane("music", "Music", "events", at(0), at(100)));
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+
+    const auto ruler = layout.hit_test(Point{150, 10}, 3);
+    ASSERT_TRUE(ruler);
+    EXPECT_EQ(StyleRole::RULER, ruler->style);
+    EXPECT_EQ("ruler", ruler->id.item_id);
+    const auto header = layout.hit_test(Point{10, 25}, 3);
+    ASSERT_TRUE(header);
+    EXPECT_EQ(StyleRole::LANE_LABEL, header->style);
+    EXPECT_EQ("music", header->id.lane_id);
+    EXPECT_TRUE(header->id.item_id.empty());
+    const auto body = layout.hit_test(Point{150, 25}, 3);
+    ASSERT_TRUE(body);
+    EXPECT_EQ(StyleRole::LANE_BACKGROUND, body->style);
+    EXPECT_EQ("music", body->id.lane_id);
+}
+
+TEST(Layout, hits_item_geometry_and_preserves_display_ids)
+{
+    auto lane = Lane("music", "Music", "events", at(0), at(100));
+    lane.add(Instant("beat", "beat", at(25)));
+    lane.add(Interval("phrase", "phrase", at(40), at(60)));
+    lane.add(Envelope("pulse", "pulse", at(70), lasting(10), lasting(10), lasting(10), {}, std::nullopt, {}));
+    auto document = Document(100);
+    document.add_lane(std::move(lane));
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+
+    for (const auto &primitive : layout.display_list().primitives())
+    {
+        std::visit(
+            [&layout](const auto &value)
+            {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, Rectangle> || std::is_same_v<Value, Marker>)
+                {
+                    if (!value.id.item_id.empty())
+                    {
+                        const auto hit = layout.hit_test(Point{value.x, value.y}, 0);
+                        ASSERT_TRUE(hit);
+                        EXPECT_EQ(value.style, hit->style);
+                        EXPECT_EQ(value.id.lane_id, hit->id.lane_id);
+                        EXPECT_EQ(value.id.item_id, hit->id.item_id);
+                    }
+                }
+            },
+            primitive);
+    }
+    const auto nearby_marker = layout.hit_test(Point{171, 30}, 3);
+    ASSERT_TRUE(nearby_marker);
+    EXPECT_EQ("beat", nearby_marker->id.item_id);
+    EXPECT_EQ(StyleRole::LANE_BACKGROUND, layout.hit_test(Point{171, 30}, 0)->style);
+    EXPECT_EQ(StyleRole::LANE_BACKGROUND, layout.hit_test(Point{280, 30}, 0)->style);
+}
+
+TEST(Layout, prefers_last_painted_item_when_markers_overlap)
+{
+    auto lane = Lane("music", "Music", "events", at(0), at(100));
+    lane.add(Instant("first", "note", at(25)));
+    lane.add(Instant("second", "effect", at(25)));
+    auto document = Document(100);
+    document.add_lane(std::move(lane));
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+
+    const auto hit = layout.hit_test(Point{175, 30}, 3);
+    ASSERT_TRUE(hit);
+    EXPECT_EQ("second", hit->id.item_id);
+}
+
+TEST(Layout, hits_curve_segments_using_host_tolerance)
+{
+    auto lane = Lane("rms", "RMS", "curve", at(0), at(100));
+    lane.add(Curve("signal", "rms", {{at(0), 0.0}, {at(100), 1.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}));
+    auto document = Document(100);
+    document.add_lane(std::move(lane));
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+
+    const auto hit = layout.hit_test(Point{250, 36}, 3);
+    ASSERT_TRUE(hit);
+    EXPECT_EQ(StyleRole::CURVE, hit->style);
+    EXPECT_EQ("rms", hit->id.lane_id);
+    EXPECT_EQ("signal", hit->id.item_id);
+    EXPECT_EQ(StyleRole::LANE_BACKGROUND, layout.hit_test(Point{250, 40}, 3)->style);
+    EXPECT_THROW(layout.hit_test(Point{250, 36}, -1), std::invalid_argument);
+}
+
+TEST(Layout, keyframe_markers_take_priority_over_interpolation_segments)
+{
+    auto lane = Lane("zoom", "Zoom", "keyframes", at(0), at(100));
+    lane.add(Keyframe("start", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
+    lane.add(Keyframe("end", at(50), 1.0));
+    auto document = Document(100);
+    document.add_lane(std::move(lane));
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
+
+    const auto marker = layout.hit_test(Point{250, 24}, 3);
+    ASSERT_TRUE(marker);
+    EXPECT_EQ(StyleRole::KEYFRAME_MARKER, marker->style);
+    EXPECT_EQ("end", marker->id.item_id);
+    const auto segment = layout.hit_test(Point{175, 35}, 3);
+    ASSERT_TRUE(segment);
+    EXPECT_EQ(StyleRole::KEYFRAME_SEGMENT, segment->style);
+    EXPECT_EQ("start", segment->id.item_id);
+}
+
+TEST(Layout, does_not_hit_outside_viewport_or_in_unused_rows)
+{
+    auto document = Document(100);
+    document.add_lane(Lane("hidden", "Hidden", "events", at(0), at(100)));
+    document.add_lane(Lane("visible", "Visible", "events", at(0), at(100)));
+    const auto layout = Layout(document, Viewport(400, 100, at(0), at(100), 1), LayoutMetrics(100, 20, 30, 4));
+
+    EXPECT_FALSE(layout.hit_test(Point{-1, 10}, 3));
+    EXPECT_FALSE(layout.hit_test(Point{150, -1}, 3));
+    EXPECT_FALSE(layout.hit_test(Point{400, 25}, 3));
+    EXPECT_FALSE(layout.hit_test(Point{150, 100}, 3));
+    EXPECT_FALSE(layout.hit_test(Point{150, 50}, 3));
+    EXPECT_EQ("visible", layout.hit_test(Point{10, 25}, 3)->id.lane_id);
 }
