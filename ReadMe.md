@@ -112,6 +112,21 @@ neighbors, matching ParAnimator. Component bounds include the equivalent
 cubic Bezier hulls so overshoot is not clipped. The document owns the
 analytic definitions and original recipes without storing frame samples.
 
+Unslotted PWM tracks support yes-no, enum, inside, outside, and
+integer-or-enum targets. Two mix keys must span frame 0 through the final
+frame; `mix` and `duty` are aliases for finite values in `[0, 1]`. The mix
+interpolates linearly. An integer window of at least two frames uses
+`lround(mix * window)` output-b frames, followed by output-a frames, with
+the phase repeating from frame 0. Endpoints use `a`/`off` and `b`/`on`
+aliases. Yes-no endpoints are booleans defaulting to false and true;
+other endpoints are catalog values, including bounded integer strings for
+inside/outside targets.
+
+Each PWM track produces an output lane of contiguous equal-value spans
+and a numeric mix lane. Both retain the original recipe for inspection;
+mix keys also retain their authored inputs. Generated transitions do not
+increase the authored keyframe count.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -170,9 +185,16 @@ to replace the comparison with six lanes: a five-point position3 path,
 a constant one-component tuple, and an unnormalized vector2 path. At
 frame 3 the position is `2/2.25/6`.
 
-PWM, specialized track kinds, non-clamp extrapolation, and
-parameter-specific output quantization
-remain unsupported.
+`yes-no-pwm.json` and `gold-yes-no-pwm.par` are copied from ParAnimator's
+integration tests. Open the PWM fixture and add
+`beat-keys/rms.beat-keys.json` for six lanes. At frame 2 the PWM output is
+`yes` and its mix is `0.666667`. Click the output span or mix lane to
+inspect its identity, endpoints, window, and original recipe. Open
+`pwm-variants.json` to replace the comparison with eight lanes. At frame 2
+the inside output is `1` and the reversed boolean output is `no`.
+
+Function-slot PWM, specialized track kinds, non-clamp extrapolation, and
+parameter-specific output quantization remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 

@@ -34,6 +34,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/catmull-rom-tuples.json
     fixtures/partial-catmull-rom-paths.json
     fixtures/single-frame-catmull-rom.json
+    fixtures/yes-no-pwm.json
+    fixtures/gold-yes-no-pwm.par
+    fixtures/input/pwm-catalog.json
+    fixtures/pwm-variants.json
+    fixtures/partial-pwm.json
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
     fixtures/missing-catalog.json

@@ -1,5 +1,12 @@
 {
   "parameters": {
+    "showorbit": {
+      "type": "yes-no",
+      "description": "Starts image generation with orbit display enabled.",
+      "format": "raw",
+      "default-curve": "hold",
+      "extrapolate": "clamp"
+    },
     "inside": {
       "type": "inside",
       "description": "Selects the interior color or interior coloring method for points that do not escape.",

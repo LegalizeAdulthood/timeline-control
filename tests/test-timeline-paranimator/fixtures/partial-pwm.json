@@ -1,0 +1,24 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json", "input/pwm-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "YesNo_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 4,
+  "tracks": [
+    { "parameter": "showorbit", "mode": "pwm", "window": 1, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2.5, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 0, "mix": 0 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 1, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 4, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 0, "mix": 0, "duty": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 0, "mix": -0.1 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "a": "no", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "a": false, "off": false, "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "inside", "mode": "pwm", "a": "bad", "b": "bof60", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "inside", "mode": "pwm", "a": "256", "b": "bof60", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "maxiter", "mode": "pwm", "a": "100", "b": "200", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "showorbit", "mode": "pwm", "window": 2, "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+  ]
+}

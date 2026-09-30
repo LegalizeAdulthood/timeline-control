@@ -1,0 +1,12 @@
+{
+  "parameters": {
+    "periodicity": {
+      "type": "integer-or-enum",
+      "values": [ "no", "show", "yes" ],
+      "default-curve": "hold",
+      "extrapolate": "clamp",
+      "min": -255,
+      "max": 255
+    }
+  }
+}

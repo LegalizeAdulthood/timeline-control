@@ -705,6 +705,148 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
     }
 }
 
+double pwm_mix(const Json &key)
+{
+    if (key.contains("mix") == key.contains("duty"))
+    {
+        throw std::invalid_argument("PWM key requires exactly one of mix and duty");
+    }
+    const Json &value = key.at(key.contains("mix") ? "mix" : "duty");
+    if (!value.is_number())
+    {
+        throw std::invalid_argument("PWM mix must be numeric");
+    }
+    const double mix = value.get<double>();
+    if (!std::isfinite(mix) || mix < 0.0 || mix > 1.0)
+    {
+        throw std::invalid_argument("PWM mix must be finite and in the range 0 through 1");
+    }
+    return mix;
+}
+
+std::string pwm_endpoint(
+    const Json &track, const Json &metadata, const std::string &name, const std::string &alias, bool default_value)
+{
+    if (track.contains(name) && track.contains(alias))
+    {
+        throw std::invalid_argument("PWM endpoint cannot contain both " + name + " and " + alias);
+    }
+    const bool specified = track.contains(name) || track.contains(alias);
+    const std::string type = metadata.at("type").get<std::string>();
+    if (type == "yes-no")
+    {
+        if (!specified)
+        {
+            return default_value ? "yes" : "no";
+        }
+        const Json &value = track.at(track.contains(name) ? name : alias);
+        if (!value.is_boolean())
+        {
+            throw std::invalid_argument("PWM yes-no endpoints must be boolean");
+        }
+        return value.get<bool>() ? "yes" : "no";
+    }
+    if (!specified)
+    {
+        throw std::invalid_argument("PWM discrete targets require both endpoints");
+    }
+    const std::string value = track.at(track.contains(name) ? name : alias).get<std::string>();
+    const Json &values = metadata.at("values");
+    if (!values.is_array())
+    {
+        throw std::invalid_argument("PWM named value sets are not supported");
+    }
+    if (std::find(values.begin(), values.end(), value) != values.end())
+    {
+        return value;
+    }
+    if (type == "inside" || type == "outside")
+    {
+        std::size_t length = 0;
+        const int number = std::stoi(value, &length);
+        if (length == value.size() && (!metadata.contains("min") || number >= metadata.at("min").get<double>()) &&
+            (!metadata.contains("max") || number <= metadata.at("max").get<double>()))
+        {
+            return value;
+        }
+    }
+    throw std::invalid_argument("invalid PWM discrete endpoint: " + value);
+}
+
+void animation_pwm_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
+    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    if (parameter.find('[') != std::string::npos)
+    {
+        throw std::invalid_argument("PWM output slots are not supported");
+    }
+    const std::string type = metadata.value("type", std::string{});
+    if (type != "yes-no" && type != "enum" && type != "inside" && type != "outside" && type != "integer-or-enum")
+    {
+        throw std::invalid_argument("PWM requires a catalog-declared discrete target");
+    }
+    const Json &window_value = track.at("window");
+    if (!window_value.is_number_integer() || window_value < 2 || window_value > std::numeric_limits<int>::max())
+    {
+        throw std::invalid_argument("PWM window must be an integer of at least 2");
+    }
+    const int window = window_value.get<int>();
+    const Json &keys = track.at("keys");
+    if (!keys.is_array() || timeline::size_cast(keys) != 2 || grid.frame_count() < 2)
+    {
+        throw std::invalid_argument("PWM requires exactly two keys and at least two frames");
+    }
+    if (source_frame(keys[0]) != 0 || source_frame(keys[1]) != grid.frame_count() - 1)
+    {
+        throw std::invalid_argument("PWM keys must span the full frame range");
+    }
+    const double from_mix = pwm_mix(keys[0]);
+    const double to_mix = pwm_mix(keys[1]);
+    const std::string a = pwm_endpoint(track, metadata, "a", "off", false);
+    const std::string b = pwm_endpoint(track, metadata, "b", "on", true);
+    const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id}, {"mode", "pwm"},
+        {"pwm", track.dump()}, {"a", a}, {"b", b}, {"window", std::to_string(window)}};
+    timeline::Lane output(id, label, "events", grid.offset(), grid.end_time());
+    timeline::Ticks run_start = 0;
+    std::string previous;
+    const auto append_run = [&](timeline::Ticks end_frame)
+    {
+        timeline::Attributes run_attributes(attributes);
+        run_attributes["value"] = previous;
+        run_attributes["signal"] = "output";
+        const timeline::Time end = end_frame == grid.frame_count() ? grid.end_time() : grid.frame_start(end_frame);
+        output.add(timeline::Interval(id + "-pwm-" + std::to_string(run_start), "pwm-output",
+            grid.frame_start(run_start), end, previous, std::nullopt, std::move(run_attributes)));
+    };
+    for (timeline::Ticks frame = 0; frame < grid.frame_count(); ++frame)
+    {
+        const double fraction = static_cast<double>(frame) / static_cast<double>(grid.frame_count() - 1);
+        const double mix = frame == grid.frame_count() - 1 ? to_mix : from_mix + fraction * (to_mix - from_mix);
+        const int b_count = static_cast<int>(std::lround(mix * window));
+        const std::string &value = frame % window < b_count ? b : a;
+        if (frame > 0 && value != previous)
+        {
+            append_run(frame);
+            run_start = frame;
+        }
+        previous = value;
+    }
+    append_run(grid.frame_count());
+    timeline::Lane mix_lane(id + "-mix", label + " / mix", "keyframes", grid.offset(), grid.end_time());
+    for (int index = 0; index < 2; ++index)
+    {
+        timeline::Attributes mix_attributes(attributes);
+        mix_attributes["signal"] = "mix";
+        mix_attributes["source-key"] = keys[index].dump();
+        mix_lane.add(
+            timeline::Keyframe(id + "-mix-key-" + std::to_string(index), grid.frame_start(source_frame(keys[index])),
+                index == 0 ? from_mix : to_mix, timeline::KeyframeInterpolation::LINEAR, std::move(mix_attributes)));
+    }
+    lanes.push_back(std::move(output));
+    lanes.push_back(std::move(mix_lane));
+}
+
 void animation_tracks(const Json &tracks, const Json &catalog, const std::string &layer, const std::string &prefix,
     const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
 {
@@ -726,8 +868,8 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             }
             const std::string label = layer.empty() ? parameter : layer + " / " + parameter;
             std::vector<timeline::Lane> track_lanes;
-            if (track.value("mode", std::string("keyframes")) != "keyframes" ||
-                track.value("type", std::string("parameter")) != "parameter")
+            const std::string mode = track.value("mode", std::string("keyframes"));
+            if ((mode != "keyframes" && mode != "pwm") || track.value("type", std::string("parameter")) != "parameter")
             {
                 throw std::invalid_argument("unsupported track mode or specialized track type");
             }
@@ -742,7 +884,16 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             const std::string path_kind = track.contains("path") && track.at("path").is_object()
                 ? track.at("path").value("kind", std::string{})
                 : "";
-            if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous" || path_kind == "spiral")
+            if (mode == "pwm")
+            {
+                if (track.contains("path"))
+                {
+                    throw std::invalid_argument("PWM tracks cannot contain a path");
+                }
+                animation_pwm_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+            }
+            else if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous" ||
+                path_kind == "spiral")
             {
                 animation_planar_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
             }

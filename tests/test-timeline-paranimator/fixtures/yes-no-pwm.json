@@ -1,0 +1,26 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": {
+    "file": "input/source.par",
+    "name": "YesNo_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 4,
+  "tracks": [
+    {
+      "parameter": "showorbit",
+      "mode": "pwm",
+      "window": 2,
+      "keys": [
+        { "frame": 0, "duty": 0.0 },
+        { "frame": 3, "duty": 1.0 }
+      ]
+    }
+  ]
+}

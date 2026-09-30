@@ -16,6 +16,108 @@
 
 using namespace timeline_par_animator;
 
+TEST(AnimationImport, displays_pwm_mix_and_frame_aligned_output_like_paranimator)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/yes-no-pwm.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty());
+    ASSERT_EQ(2, result.document->lane_count());
+    EXPECT_EQ(1, result.document->track_count());
+    EXPECT_EQ(2, result.document->keyframe_count());
+    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    const std::array<std::string, 4> values{"no", "no", "yes", "yes"};
+    std::ifstream golden_file("fixtures/gold-yes-no-pwm.par");
+    ASSERT_TRUE(golden_file);
+    const std::string golden{std::istreambuf_iterator<char>(golden_file), std::istreambuf_iterator<char>()};
+    for (int frame = 0; frame < 4; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        ASSERT_TRUE(inspection);
+        ASSERT_EQ(1, timeline::size_cast(inspection->lanes[0].items));
+        const timeline::InspectionItem &item = inspection->lanes[0].items.front();
+        EXPECT_EQ(timeline::InspectionItemType::INTERVAL, item.type);
+        EXPECT_FALSE(item.value);
+        EXPECT_EQ(values[frame], item.attributes.at("value"));
+        EXPECT_EQ("pwm", item.attributes.at("mode"));
+        EXPECT_NE(std::string::npos, item.attributes.at("pwm").find("duty"));
+        ASSERT_TRUE(inspection->lanes[1].value);
+        EXPECT_DOUBLE_EQ(frame / 3.0, *inspection->lanes[1].value);
+        const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
+        ASSERT_NE(std::string::npos, start);
+        EXPECT_NE(std::string::npos,
+            golden.substr(start, golden.find('}', start) - start).find("showorbit=" + values[frame]));
+    }
+    const timeline::Lane &output = result.document->lanes()[0];
+    ASSERT_EQ(2, output.item_count());
+    const timeline::Interval &first = std::get<timeline::Interval>(output.items().front());
+    EXPECT_EQ(grid.offset(), first.start());
+    EXPECT_EQ(grid.frame_start(2), first.end());
+    const timeline::Interval &last = std::get<timeline::Interval>(output.items().back());
+    EXPECT_EQ(grid.end_time(), last.end());
+    const timeline::Layout layout(*result.document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 30, 4));
+    const std::optional<timeline::HitResult> hit = layout.hit_test({150, 35}, 2);
+    ASSERT_TRUE(hit);
+    EXPECT_EQ(first.id(), hit->id.item_id);
+    EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("showorbit / mix"));
+}
+
+TEST(AnimationImport, preserves_pwm_rounding_aliases_and_categorical_window_boundaries)
+{
+    const timeline::Document document = []
+    {
+        const JsonImportResult imported = import_timeline_json("fixtures/pwm-variants.json");
+        if (!imported.succeeded() || !imported.diagnostics.empty())
+        {
+            throw std::runtime_error("PWM variant import failed");
+        }
+        return *imported.document;
+    }();
+    ASSERT_EQ(8, document.lane_count());
+    EXPECT_EQ(4, document.track_count());
+    EXPECT_EQ(8, document.keyframe_count());
+    const std::array<std::array<std::string, 8>, 4> values{{
+        {"bof60", "bof60", "1", "1", "bof60", "bof60", "1", "1"},
+        {"no", "yes", "no", "yes", "no", "yes", "no", "yes"},
+        {"no", "no", "no", "no", "show", "show", "show", "show"},
+        {"yes", "yes", "no", "yes", "no", "no", "no", "no"},
+    }};
+    for (int frame = 0; frame < 8; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        ASSERT_TRUE(inspection);
+        for (int track = 0; track < 4; ++track)
+        {
+            ASSERT_EQ(1, timeline::size_cast(inspection->lanes[2 * track].items));
+            EXPECT_EQ(values[track][frame], inspection->lanes[2 * track].items.front().attributes.at("value"));
+        }
+    }
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document combined = timeline::combine_documents(*music.document, document);
+    ASSERT_EQ(12, combined.lane_count());
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 2);
+    ASSERT_TRUE(inspection);
+    EXPECT_EQ("1", inspection->lanes[4].items.front().attributes.at("value"));
+}
+
+TEST(AnimationImport, diagnoses_invalid_pwm_recipes_and_retains_valid_output)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-pwm.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(14, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(2, result.document->lane_count());
+    for (int index = 0; index < 14; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+    }
+    EXPECT_NE(std::string::npos, result.diagnostics[13].find("slot"));
+    EXPECT_EQ("animation-14", result.document->lanes().front().id());
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
+    ASSERT_TRUE(inspection);
+    EXPECT_EQ("yes", inspection->lanes.front().items.front().attributes.at("value"));
+}
+
 TEST(AnimationImport, samples_analytic_catmull_rom_like_paranimator_across_segments)
 {
     const JsonImportResult result = import_timeline_json("fixtures/catmull-rom-path.json");
