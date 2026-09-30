@@ -294,6 +294,30 @@ TEST(Layout, navigates_exact_ranges_without_changing_document_data)
     EXPECT_EQ("lane", document.lanes()[0].id());
 }
 
+TEST(Navigation, reveals_positions_without_changing_zoom_or_lane)
+{
+    Navigation navigation(at(0), at(100), 5);
+    navigation.zoom_by(2.0, at(50));
+    navigation.scroll_to_lane(3, 2);
+    navigation.reveal(at(80));
+    Viewport viewport = navigation.viewport(300, 100);
+    EXPECT_EQ(31, viewport.start().ticks());
+    EXPECT_EQ(81, viewport.end().ticks());
+    EXPECT_EQ(3, viewport.first_lane());
+    EXPECT_DOUBLE_EQ(2.0, navigation.zoom_scale());
+
+    navigation.reveal(at(40));
+    EXPECT_EQ(31, navigation.viewport(300, 100).start().ticks());
+    navigation.reveal(at(10));
+    EXPECT_EQ(10, navigation.viewport(300, 100).start().ticks());
+    navigation.reveal(at(-100));
+    EXPECT_EQ(0, navigation.viewport(300, 100).start().ticks());
+    navigation.reveal(at(200));
+    viewport = navigation.viewport(300, 100);
+    EXPECT_EQ(50, viewport.start().ticks());
+    EXPECT_EQ(100, viewport.end().ticks());
+}
+
 TEST(Layout, produces_identical_geometry_for_identical_metrics)
 {
     Lane lane("music", "Music", "events", at(0), at(100));

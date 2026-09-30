@@ -28,6 +28,20 @@ cmake --workflow --preset default
 Places the build outputs in a sibling directory of the source code directory, e.g. up
 and outside of the source directory.
 
+# Native Timeline Control
+
+The wx control uses its full client area for the timeline; document
+metadata appears in the viewer's inspector. Tab and Shift+Tab move focus
+between the control and inspector. Left and Right step the focused
+control's playhead and keep it visible; Shift extends the selected range.
+Selection remains visible with an inactive style when focus moves away.
+
+Native colors, fonts, and DPI-scaled metrics feed the display-list
+renderer. Resize, DPI, and system-color changes invalidate cached layout;
+buffered painting keeps navigation repainting stable. Theme mapping has
+headless adapter tests, while actual DPI and OS-theme transitions still
+need manual verification on the target platforms.
+
 # Display Snapshots
 
 Open a JSON fixture through File > Open in `timeline-viewer`, then use

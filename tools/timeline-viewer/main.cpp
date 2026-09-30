@@ -16,6 +16,77 @@
 namespace
 {
 
+wxString document_summary(const timeline::Document &document)
+{
+    wxString text;
+    const auto draw_line = [&text](const wxString &line)
+    {
+        text += line + "\n";
+    };
+    auto title = wxString::FromUTF8(document.metadata().title().c_str());
+    if (title.empty())
+    {
+        title = "Untitled timeline";
+    }
+
+    draw_line("Title: " + title);
+    draw_line(document.is_valid() ? "Valid: yes" : "Valid: no");
+    draw_line(
+        wxString::Format("Ticks per second: %lld", static_cast<long long>(document.timebase().ticks_per_second())));
+    if (document.frame_grid())
+    {
+        const timeline::FrameGrid &frame_grid = *document.frame_grid();
+        draw_line(wxString::Format("Frames: %lld", static_cast<long long>(frame_grid.frame_count())));
+        draw_line(wxString::Format("Frame rate: %lld/%lld fps",
+            static_cast<long long>(frame_grid.frames_per_second_numerator()),
+            static_cast<long long>(frame_grid.frames_per_second_denominator())));
+    }
+    if (document.source_summary())
+    {
+        const timeline::SourceSummary &summary = *document.source_summary();
+        draw_line("Schema: " + wxString::FromUTF8(summary.schema().c_str()) +
+            wxString::Format(" v%d", summary.schema_version()));
+        draw_line(wxString::Format("Features: %d", summary.feature_count()));
+        draw_line(wxString::Format("Events: %d", summary.event_count()));
+        if (summary.generation_summary())
+        {
+            const timeline::GenerationSummary &generation = *summary.generation_summary();
+            draw_line("Generator: " + wxString::FromUTF8(generation.generator_name().c_str()) + " " +
+                wxString::FromUTF8(generation.generator_version().c_str()));
+            draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
+            if (!generation.target_counts().empty())
+            {
+                draw_line(
+                    wxString::Format("Generated target groups: %d", timeline::size_cast(generation.target_counts())));
+            }
+            if (!generation.source_counts().empty())
+            {
+                draw_line(wxString::Format("Music source groups: %d", timeline::size_cast(generation.source_counts())));
+            }
+        }
+        if (summary.first_frame())
+        {
+            draw_line(wxString::Format("Frame extent: %lld to %lld", static_cast<long long>(*summary.first_frame()),
+                static_cast<long long>(*summary.last_frame())));
+        }
+        if (summary.first_time())
+        {
+            draw_line(wxString::Format("Time extent: %.6f to %.6f seconds",
+                document.timebase().seconds(*summary.first_time()), document.timebase().seconds(*summary.last_time())));
+        }
+        if (summary.frame_offset())
+        {
+            draw_line(
+                wxString::Format("Frame offset: %.6f seconds", document.timebase().seconds(*summary.frame_offset())));
+        }
+    }
+    draw_line(wxString::Format("Tracks: %d", document.track_count()));
+    draw_line(wxString::Format("Keyframes: %d", document.keyframe_count()));
+    draw_line(wxString::Format("Lanes: %d", document.lane_count()));
+    draw_line("Source: " + wxString::FromUTF8(document.metadata().description().c_str()));
+    return text;
+}
+
 const char *hit_role_name(timeline::StyleRole role)
 {
     switch (role)
@@ -109,6 +180,7 @@ private:
     void on_clear_selection(wxCommandEvent &event);
     void show_import_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
+    wxPanel *m_content;
     wxTimelineControl *m_timeline_control;
     wxTextCtrl *m_inspector;
 };
@@ -123,9 +195,10 @@ public:
 
 TimelineViewerFrame::TimelineViewerFrame() :
     wxFrame(nullptr, wxID_ANY, "Timeline Viewer", wxDefaultPosition, wxSize(800, 500)),
-    m_timeline_control(new wxTimelineControl(this)),
-    m_inspector(new wxTextCtrl(
-        this, wxID_ANY, "No frame inspection.", wxDefaultPosition, wxSize(280, -1), wxTE_MULTILINE | wxTE_READONLY))
+    m_content(new wxPanel(this)),
+    m_timeline_control(new wxTimelineControl(m_content)),
+    m_inspector(new wxTextCtrl(m_content, wxID_ANY, "No frame inspection.", wxDefaultPosition, wxSize(280, -1),
+        wxTE_MULTILINE | wxTE_READONLY))
 {
     auto *file_menu = new wxMenu;
     file_menu->Append(wxID_OPEN, "&Open...\tCtrl+O");
@@ -150,7 +223,10 @@ TimelineViewerFrame::TimelineViewerFrame() :
     auto *content = new wxBoxSizer(wxHORIZONTAL);
     content->Add(m_timeline_control, 1, wxEXPAND);
     content->Add(m_inspector, 0, wxEXPAND | wxLEFT, 1);
-    SetSizer(content);
+    m_content->SetSizer(content);
+    auto *frame_content = new wxBoxSizer(wxVERTICAL);
+    frame_content->Add(m_content, 1, wxEXPAND);
+    SetSizer(frame_content);
 
     m_timeline_control->Bind(wxEVT_TIMELINE_INSPECTION_CHANGED, &TimelineViewerFrame::on_inspection_changed, this);
     Bind(wxEVT_MENU, &TimelineViewerFrame::on_open, this, wxID_OPEN);
@@ -184,8 +260,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     const std::optional<timeline::Document> &document = m_timeline_control->document();
     if (document)
     {
-        text += "\nTitle: " + wxString::FromUTF8(document->metadata().title().c_str()) + "\n";
-        text += "Source: " + wxString::FromUTF8(document->metadata().description().c_str()) + "\n";
+        text += "\n" + document_summary(*document);
     }
     const std::optional<timeline::Interaction> &interaction = m_timeline_control->interaction();
     if (interaction)

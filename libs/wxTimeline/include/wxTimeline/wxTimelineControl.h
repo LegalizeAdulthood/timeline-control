@@ -23,6 +23,11 @@ public:
     explicit wxTimelineControl(wxWindow *parent);
     wxTimelineControl(wxWindow *parent, wxWindowID id);
 
+    bool AcceptsFocus() const override
+    {
+        return true;
+    }
+
     void set_document(timeline::Document document);
     void zoom_in();
     void zoom_out();
@@ -67,6 +72,10 @@ private:
     void on_mouse_wheel(wxMouseEvent &event);
     void on_paint(wxPaintEvent &event);
     void on_resize(wxSizeEvent &event);
+    void on_dpi_changed(wxDPIChangedEvent &event);
+    void on_system_colour_changed(wxSysColourChangedEvent &event);
+    void on_focus(wxFocusEvent &event);
+    void invalidate_layout();
     void on_scroll(wxScrollWinEvent &event);
     void update_scrollbars();
     void zoom_by(double factor);
@@ -75,9 +84,9 @@ private:
     std::optional<timeline::Interaction> m_interaction;
     std::optional<timeline::FrameInspection> m_inspection;
     std::optional<timeline::HitResult> m_hit_result;
+    std::optional<timeline::Point> m_hover_point;
     std::optional<timeline::Layout> m_layout;
     std::optional<timeline::LayoutMetrics> m_layout_metrics;
     std::optional<timeline::Navigation> m_navigation;
     std::optional<timeline::Viewport> m_viewport;
-    int m_layout_top{0};
 };

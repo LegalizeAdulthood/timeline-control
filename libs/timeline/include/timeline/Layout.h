@@ -127,6 +127,8 @@ public:
     void fit();
     void zoom_by(double factor, Time anchor);
     void scroll_to(Time start);
+    /// Keeps a time visible without changing the zoom or lane position.
+    void reveal(Time time);
     void scroll_to_fraction(double fraction);
     void scroll_to_lane(int first_lane, int visible_lanes);
 

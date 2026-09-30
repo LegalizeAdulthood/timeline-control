@@ -8,6 +8,8 @@
 #include <timeline/Snapshot.h>
 
 #include <wx/dcbuffer.h>
+#include <wx/renderer.h>
+#include <wx/settings.h>
 
 #include <algorithm>
 #include <cmath>
@@ -68,6 +70,8 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxHSCROLL | wxVSCROLL)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
+    SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+    SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
     Bind(wxEVT_MOTION, &wxTimelineControl::on_mouse_move, this);
     Bind(wxEVT_LEFT_DOWN, &wxTimelineControl::on_mouse_down, this);
     Bind(wxEVT_LEFT_UP, &wxTimelineControl::on_mouse_up, this);
@@ -77,6 +81,10 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     Bind(wxEVT_MOUSEWHEEL, &wxTimelineControl::on_mouse_wheel, this);
     Bind(wxEVT_PAINT, &wxTimelineControl::on_paint, this);
     Bind(wxEVT_SIZE, &wxTimelineControl::on_resize, this);
+    Bind(wxEVT_SET_FOCUS, &wxTimelineControl::on_focus, this);
+    Bind(wxEVT_KILL_FOCUS, &wxTimelineControl::on_focus, this);
+    Bind(wxEVT_DPI_CHANGED, &wxTimelineControl::on_dpi_changed, this);
+    Bind(wxEVT_SYS_COLOUR_CHANGED, &wxTimelineControl::on_system_colour_changed, this);
     Bind(wxEVT_SCROLLWIN_TOP, &wxTimelineControl::on_scroll, this);
     Bind(wxEVT_SCROLLWIN_BOTTOM, &wxTimelineControl::on_scroll, this);
     Bind(wxEVT_SCROLLWIN_LINEUP, &wxTimelineControl::on_scroll, this);
@@ -97,6 +105,7 @@ void wxTimelineControl::set_document(timeline::Document document)
     m_interaction.emplace(*m_document);
     m_inspection.reset();
     m_hit_result.reset();
+    m_hover_point.reset();
     m_layout.reset();
     m_layout_metrics.reset();
     m_navigation.reset();
@@ -165,20 +174,21 @@ void wxTimelineControl::notify_inspection_changed()
 
 void wxTimelineControl::on_mouse_move(wxMouseEvent &event)
 {
+    Update();
+    m_hover_point = timeline::Point{event.GetX(), event.GetY()};
     if (HasCapture() && event.LeftIsDown() && m_interaction && m_viewport && m_layout_metrics)
     {
         m_interaction->extend_range(timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics));
         update_interaction();
         return;
     }
-    const std::optional<timeline::HitResult> hit = m_layout
-        ? m_layout->hit_test(timeline::Point{event.GetX(), event.GetY() - m_layout_top}, FromDIP(3))
-        : std::nullopt;
+    const std::optional<timeline::HitResult> hit =
+        m_layout ? m_layout->hit_test(timeline::Point{event.GetX(), event.GetY()}, FromDIP(3)) : std::nullopt;
     bool changed = hit != m_hit_result;
     m_hit_result = hit;
     if (m_document && m_document->frame_grid() && m_layout_metrics && m_viewport &&
         m_layout_metrics->lane_label_width() <= event.GetX() && event.GetX() < m_viewport->width() &&
-        m_layout_top <= event.GetY() && event.GetY() < m_layout_top + m_viewport->height())
+        0 <= event.GetY() && event.GetY() < m_viewport->height())
     {
         const timeline::Time time = timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics);
         const std::optional<timeline::Ticks> frame = m_document->frame_grid()->nearest_frame(time);
@@ -229,14 +239,16 @@ void wxTimelineControl::clear_selection()
 
 void wxTimelineControl::on_mouse_down(wxMouseEvent &event)
 {
-    if (!m_layout || !m_interaction || !m_viewport || !m_layout_metrics || event.GetY() < m_layout_top ||
-        m_layout_top + m_viewport->height() <= event.GetY())
+    SetFocus();
+    Update();
+    if (!m_layout || !m_interaction || !m_viewport || !m_layout_metrics || event.GetY() < 0 ||
+        m_viewport->height() <= event.GetY())
     {
         event.Skip();
         return;
     }
-    SetFocus();
-    const timeline::Point point{event.GetX(), event.GetY() - m_layout_top};
+    const timeline::Point point{event.GetX(), event.GetY()};
+    m_hover_point = point;
     m_hit_result = m_layout->hit_test(point, FromDIP(3));
     m_interaction->select_hit(m_hit_result, event.ControlDown());
     if (m_layout_metrics->lane_label_width() <= point.x)
@@ -275,6 +287,16 @@ void wxTimelineControl::on_capture_lost(wxMouseCaptureLostEvent &)
 
 void wxTimelineControl::on_key_down(wxKeyEvent &event)
 {
+    if (!HasFocus() || event.ControlDown() || event.AltDown() || event.MetaDown())
+    {
+        event.Skip();
+        return;
+    }
+    if (event.GetKeyCode() == WXK_TAB)
+    {
+        Navigate(event.ShiftDown() ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward);
+        return;
+    }
     if (event.GetKeyCode() == WXK_ESCAPE)
     {
         clear_selection();
@@ -283,6 +305,10 @@ void wxTimelineControl::on_key_down(wxKeyEvent &event)
     if (m_interaction && (event.GetKeyCode() == WXK_LEFT || event.GetKeyCode() == WXK_RIGHT))
     {
         m_interaction->step_playhead(event.GetKeyCode() == WXK_LEFT ? -1 : 1, event.ShiftDown());
+        if (m_navigation && m_interaction->playhead())
+        {
+            m_navigation->reveal(*m_interaction->playhead());
+        }
         update_interaction();
         return;
     }
@@ -291,6 +317,7 @@ void wxTimelineControl::on_key_down(wxKeyEvent &event)
 
 void wxTimelineControl::on_mouse_leave(wxMouseEvent &event)
 {
+    m_hover_point.reset();
     clear_hit();
     event.Skip();
 }
@@ -329,12 +356,48 @@ void wxTimelineControl::on_mouse_wheel(wxMouseEvent &event)
     Refresh(false);
 }
 
-void wxTimelineControl::on_resize(wxSizeEvent &event)
+void wxTimelineControl::invalidate_layout()
 {
     m_layout.reset();
-    clear_hit();
     m_layout_metrics.reset();
     m_viewport.reset();
+    clear_hit();
+    Refresh(false);
+}
+
+void wxTimelineControl::on_resize(wxSizeEvent &event)
+{
+    invalidate_layout();
+    event.Skip();
+}
+
+void wxTimelineControl::on_dpi_changed(wxDPIChangedEvent &event)
+{
+    invalidate_layout();
+    event.Skip();
+}
+
+void wxTimelineControl::on_system_colour_changed(wxSysColourChangedEvent &event)
+{
+    SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+    SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+    invalidate_layout();
+    event.Skip();
+}
+
+void wxTimelineControl::on_focus(wxFocusEvent &event)
+{
+    if (event.GetEventType() == wxEVT_KILL_FOCUS)
+    {
+        if (m_interaction)
+        {
+            m_interaction->end_range();
+        }
+        if (HasCapture())
+        {
+            ReleaseMouse();
+        }
+    }
     Refresh(false);
     event.Skip();
 }
@@ -389,117 +452,57 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     wxAutoBufferedPaintDC dc(this);
     dc.SetBackground(wxBrush(GetBackgroundColour()));
     dc.Clear();
+    dc.SetFont(GetFont());
     dc.SetTextForeground(GetForegroundColour());
     m_layout.reset();
-    clear_hit();
     m_layout_metrics.reset();
     m_viewport.reset();
-    m_layout_top = 0;
-
-    wxPoint position(12, 12);
-    const auto draw_line = [&dc, &position](const wxString &text)
-    {
-        dc.DrawText(text, position);
-        position.y += dc.GetCharHeight() + 4;
-    };
-
-    if (!m_document)
-    {
-        draw_line("No timeline loaded.");
-        update_scrollbars();
-        return;
-    }
-
-    auto title = wxString::FromUTF8(m_document->metadata().title().c_str());
-    if (title.empty())
-    {
-        title = "Untitled timeline";
-    }
-
-    draw_line("Title: " + title);
-    draw_line(m_document->is_valid() ? "Valid: yes" : "Valid: no");
-    draw_line(
-        wxString::Format("Ticks per second: %lld", static_cast<long long>(m_document->timebase().ticks_per_second())));
-    if (m_document->frame_grid())
-    {
-        const timeline::FrameGrid &frame_grid = *m_document->frame_grid();
-        draw_line(wxString::Format("Frames: %lld", static_cast<long long>(frame_grid.frame_count())));
-        draw_line(wxString::Format("Frame rate: %lld/%lld fps",
-            static_cast<long long>(frame_grid.frames_per_second_numerator()),
-            static_cast<long long>(frame_grid.frames_per_second_denominator())));
-    }
-    if (m_document->source_summary())
-    {
-        const timeline::SourceSummary &summary = *m_document->source_summary();
-        draw_line("Schema: " + wxString::FromUTF8(summary.schema().c_str()) +
-            wxString::Format(" v%d", summary.schema_version()));
-        draw_line(wxString::Format("Features: %d", summary.feature_count()));
-        draw_line(wxString::Format("Events: %d", summary.event_count()));
-        if (summary.generation_summary())
-        {
-            const timeline::GenerationSummary &generation = *summary.generation_summary();
-            draw_line("Generator: " + wxString::FromUTF8(generation.generator_name().c_str()) + " " +
-                wxString::FromUTF8(generation.generator_version().c_str()));
-            draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
-            if (!generation.target_counts().empty())
-            {
-                draw_line(
-                    wxString::Format("Generated target groups: %d", timeline::size_cast(generation.target_counts())));
-            }
-            if (!generation.source_counts().empty())
-            {
-                draw_line(wxString::Format("Music source groups: %d", timeline::size_cast(generation.source_counts())));
-            }
-        }
-        if (summary.first_frame())
-        {
-            draw_line(wxString::Format("Frame extent: %lld to %lld", static_cast<long long>(*summary.first_frame()),
-                static_cast<long long>(*summary.last_frame())));
-        }
-        if (summary.first_time())
-        {
-            draw_line(wxString::Format("Time extent: %.6f to %.6f seconds",
-                m_document->timebase().seconds(*summary.first_time()),
-                m_document->timebase().seconds(*summary.last_time())));
-        }
-        if (summary.frame_offset())
-        {
-            draw_line(wxString::Format(
-                "Frame offset: %.6f seconds", m_document->timebase().seconds(*summary.frame_offset())));
-        }
-    }
-    draw_line(wxString::Format("Tracks: %d", m_document->track_count()));
-    draw_line(wxString::Format("Keyframes: %d", m_document->keyframe_count()));
-    draw_line(wxString::Format("Lanes: %d", m_document->lane_count()));
-
-    if (!m_navigation)
-    {
-        update_scrollbars();
-        return;
-    }
 
     const wxSize client_size = GetClientSize();
-    m_layout_top = position.y + 8;
-    const int layout_height = client_size.GetHeight() - m_layout_top - 8;
-    if (client_size.GetWidth() <= 160 || layout_height <= 40)
+    if (!m_document || !m_navigation)
     {
+        dc.DrawText(m_document ? "No timeline content." : "No timeline loaded.", FromDIP(wxPoint(12, 12)));
+        update_scrollbars();
+        return;
+    }
+    if (client_size.GetWidth() <= FromDIP(160) || client_size.GetHeight() <= FromDIP(40))
+    {
+        clear_hit();
+        update_scrollbars();
         return;
     }
 
-    int label_width = 80;
+    int label_width = FromDIP(80);
     for (const timeline::Lane &lane : m_document->lanes())
     {
-        label_width = std::max(label_width, dc.GetTextExtent(wxString::FromUTF8(lane.label().c_str())).GetWidth() + 16);
+        label_width =
+            std::max(label_width, dc.GetTextExtent(wxString::FromUTF8(lane.label().c_str())).GetWidth() + FromDIP(16));
     }
     label_width = std::min(label_width, client_size.GetWidth() / 2);
-    const timeline::LayoutMetrics layout_metrics(label_width, dc.GetCharHeight() + 8, dc.GetCharHeight() + 16, 4);
-    timeline::Viewport viewport = m_navigation->viewport(client_size.GetWidth(), layout_height);
+    const timeline::LayoutMetrics layout_metrics(
+        label_width, dc.GetCharHeight() + FromDIP(8), dc.GetCharHeight() + FromDIP(16), FromDIP(4));
+    timeline::Viewport viewport = m_navigation->viewport(client_size.GetWidth(), client_size.GetHeight());
     const int visible_lanes = std::max(1, timeline::visible_lane_count(viewport, layout_metrics));
     m_navigation->scroll_to_lane(viewport.first_lane(), visible_lanes);
-    viewport = m_navigation->viewport(client_size.GetWidth(), layout_height);
+    viewport = m_navigation->viewport(client_size.GetWidth(), client_size.GetHeight());
     m_layout.emplace(*m_document, viewport, layout_metrics, *m_interaction);
     m_layout_metrics = layout_metrics;
     m_viewport = viewport;
-    draw_timeline_display_list(dc, m_layout->display_list(), wxPoint(0, m_layout_top));
+
+    const std::optional<timeline::HitResult> hit =
+        m_hover_point ? m_layout->hit_test(*m_hover_point, FromDIP(3)) : std::nullopt;
+    if (hit != m_hit_result)
+    {
+        m_hit_result = hit;
+        notify_inspection_changed();
+    }
+    const wxTimelinePalette palette{
+        GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
+    const wxDCClipper clip(dc, GetClientRect());
+    draw_timeline_display_list(dc, m_layout->display_list(), wxPoint(0, 0), palette, FromDIP(1), HasFocus());
+    if (HasFocus())
+    {
+        wxRendererNative::Get().DrawFocusRect(this, dc, GetClientRect(), wxCONTROL_FOCUSED);
+    }
     update_scrollbars();
 }

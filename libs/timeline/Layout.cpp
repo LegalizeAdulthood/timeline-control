@@ -296,6 +296,19 @@ void Navigation::scroll_to(Time start)
     m_end = Time::from_ticks(next_start + visible_duration);
 }
 
+void Navigation::reveal(Time time)
+{
+    const Ticks ticks = std::clamp(time.ticks(), m_content_start.ticks(), m_content_end.ticks());
+    if (ticks < m_start.ticks())
+    {
+        scroll_to(Time::from_ticks(ticks));
+    }
+    else if (m_end.ticks() <= ticks)
+    {
+        scroll_to(Time::from_ticks(ticks - (m_end.ticks() - m_start.ticks()) + 1));
+    }
+}
+
 void Navigation::scroll_to_fraction(double fraction)
 {
     if (!std::isfinite(fraction))
