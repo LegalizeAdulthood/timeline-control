@@ -1,0 +1,451 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "generator": {
+    "name": "par-beatdown",
+    "version": "0.1.0",
+    "backend": "tracker-file",
+    "library": "libopenmpt",
+    "library_version": "0.8.6"
+  },
+  "source": {
+    "file": "data/my_neighbors_kid_is_an_internet_addict.xm",
+    "size_bytes": 6414784,
+    "format": "xm",
+    "title": "",
+    "duration_seconds": 163.59525000000195,
+    "selected_subsong": 0,
+    "subsong_count": 1
+  },
+  "render": {
+    "fps": 30.0,
+    "sample_rate": 48000,
+    "channels": 2,
+    "offset_seconds": 0.0,
+    "feature_hop_seconds": 0.5,
+    "start_seconds": 1.0,
+    "duration_seconds": 2.0
+  },
+  "module": {
+    "channel_count": 0,
+    "order_count": 0,
+    "pattern_count": 0,
+    "instrument_count": 0,
+    "sample_count": 0,
+    "metadata": [],
+    "subsongs": [],
+    "orders": [],
+    "patterns": []
+  },
+  "timeline": {
+    "duration_seconds": 2.0,
+    "frames": 61,
+    "first_frame": 0,
+    "last_frame": 60
+  },
+  "events": [
+    {
+      "kind": "row",
+      "time_seconds": 0.07100000000000017,
+      "frame": 2,
+      "order": 0,
+      "pattern": 0,
+      "row": 12
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.16025000000000023,
+      "frame": 5,
+      "order": 0,
+      "pattern": 0,
+      "row": 13
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.24950000000000028,
+      "frame": 7,
+      "order": 0,
+      "pattern": 0,
+      "row": 14
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.33875000000000033,
+      "frame": 10,
+      "order": 0,
+      "pattern": 0,
+      "row": 15
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.4280000000000004,
+      "frame": 13,
+      "order": 0,
+      "pattern": 0,
+      "row": 16
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.5172500000000004,
+      "frame": 16,
+      "order": 0,
+      "pattern": 0,
+      "row": 17
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.6065000000000005,
+      "frame": 18,
+      "order": 0,
+      "pattern": 0,
+      "row": 18
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.6957500000000005,
+      "frame": 21,
+      "order": 0,
+      "pattern": 0,
+      "row": 19
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.7850000000000006,
+      "frame": 24,
+      "order": 0,
+      "pattern": 0,
+      "row": 20
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.8742500000000006,
+      "frame": 26,
+      "order": 0,
+      "pattern": 0,
+      "row": 21
+    },
+    {
+      "kind": "row",
+      "time_seconds": 0.9635000000000007,
+      "frame": 29,
+      "order": 0,
+      "pattern": 0,
+      "row": 22
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.0527500000000005,
+      "frame": 32,
+      "order": 0,
+      "pattern": 0,
+      "row": 23
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.1420000000000003,
+      "frame": 34,
+      "order": 0,
+      "pattern": 0,
+      "row": 24
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.2312500000000002,
+      "frame": 37,
+      "order": 0,
+      "pattern": 0,
+      "row": 25
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.3205,
+      "frame": 40,
+      "order": 0,
+      "pattern": 0,
+      "row": 26
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.4097499999999998,
+      "frame": 42,
+      "order": 0,
+      "pattern": 0,
+      "row": 27
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.4989999999999997,
+      "frame": 45,
+      "order": 0,
+      "pattern": 0,
+      "row": 28
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.5882499999999995,
+      "frame": 48,
+      "order": 0,
+      "pattern": 0,
+      "row": 29
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.6774999999999993,
+      "frame": 50,
+      "order": 0,
+      "pattern": 0,
+      "row": 30
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.7667499999999992,
+      "frame": 53,
+      "order": 0,
+      "pattern": 0,
+      "row": 31
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.855999999999999,
+      "frame": 56,
+      "order": 0,
+      "pattern": 0,
+      "row": 32
+    },
+    {
+      "kind": "row",
+      "time_seconds": 1.9452499999999988,
+      "frame": 58,
+      "order": 0,
+      "pattern": 0,
+      "row": 33
+    },
+    {
+      "kind": "note",
+      "time_seconds": 0.07100000000000017,
+      "frame": 2,
+      "order": 0,
+      "pattern": 0,
+      "row": 12,
+      "channel": 1,
+      "note": "D#5",
+      "instrument": 4,
+      "text": "D#5 04 .. ..."
+    },
+    {
+      "kind": "note",
+      "time_seconds": 0.4280000000000004,
+      "frame": 13,
+      "order": 0,
+      "pattern": 0,
+      "row": 16,
+      "channel": 1,
+      "note": "G#4",
+      "instrument": 4,
+      "text": "G#4 04 .. ..."
+    },
+    {
+      "kind": "note",
+      "time_seconds": 0.9635000000000007,
+      "frame": 29,
+      "order": 0,
+      "pattern": 0,
+      "row": 22,
+      "channel": 1,
+      "note": "F#4",
+      "instrument": 4,
+      "text": "F#4 04 .. 787"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 0.9635000000000007,
+      "frame": 29,
+      "order": 0,
+      "pattern": 0,
+      "row": 22,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 135,
+      "text": "F#4 04 .. 787"
+    },
+    {
+      "kind": "note",
+      "time_seconds": 0.9635000000000007,
+      "frame": 29,
+      "order": 0,
+      "pattern": 0,
+      "row": 22,
+      "channel": 3,
+      "note": "C-5",
+      "instrument": 5,
+      "text": "C-5 05 .. ..."
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.0527500000000005,
+      "frame": 32,
+      "order": 0,
+      "pattern": 0,
+      "row": 23,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.1420000000000003,
+      "frame": 34,
+      "order": 0,
+      "pattern": 0,
+      "row": 24,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.2312500000000002,
+      "frame": 37,
+      "order": 0,
+      "pattern": 0,
+      "row": 25,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.3205,
+      "frame": 40,
+      "order": 0,
+      "pattern": 0,
+      "row": 26,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.4097499999999998,
+      "frame": 42,
+      "order": 0,
+      "pattern": 0,
+      "row": 27,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.4989999999999997,
+      "frame": 45,
+      "order": 0,
+      "pattern": 0,
+      "row": 28,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "effect",
+      "time_seconds": 1.5882499999999995,
+      "frame": 48,
+      "order": 0,
+      "pattern": 0,
+      "row": 29,
+      "channel": 1,
+      "effect": "7",
+      "parameter": 248,
+      "text": "... .. .. 7F8"
+    },
+    {
+      "kind": "note",
+      "time_seconds": 1.855999999999999,
+      "frame": 56,
+      "order": 0,
+      "pattern": 0,
+      "row": 32,
+      "channel": 0,
+      "note": "C-5",
+      "instrument": 1,
+      "text": "C-5 01 .. ..."
+    },
+    {
+      "kind": "note",
+      "time_seconds": 1.855999999999999,
+      "frame": 56,
+      "order": 0,
+      "pattern": 0,
+      "row": 32,
+      "channel": 1,
+      "note": "G#4",
+      "instrument": 4,
+      "text": "G#4 04 .. ..."
+    }
+  ],
+  "features": [
+    {
+      "time_seconds": 0.0,
+      "frame": 0,
+      "rms": 0.109949,
+      "peak": 0.320158,
+      "active_channels": 4,
+      "channel_vu_mono": [
+        0.696058,
+        1.005417,
+        0.696058,
+        0.0
+      ]
+    },
+    {
+      "time_seconds": 0.5,
+      "frame": 15,
+      "rms": 0.11958,
+      "peak": 0.405974,
+      "active_channels": 5,
+      "channel_vu_mono": [
+        0.696058,
+        1.093806,
+        0.696058,
+        0.707107
+      ]
+    },
+    {
+      "time_seconds": 1.0,
+      "frame": 30,
+      "rms": 0.113234,
+      "peak": 0.415653,
+      "active_channels": 4,
+      "channel_vu_mono": [
+        0.696058,
+        0.696058,
+        0.696058,
+        0.508233
+      ]
+    },
+    {
+      "time_seconds": 1.5,
+      "frame": 45,
+      "rms": 0.146502,
+      "peak": 0.451295,
+      "active_channels": 6,
+      "channel_vu_mono": [
+        0.784447,
+        0.784447,
+        0.696058,
+        0.508233
+      ]
+    }
+  ],
+  "diagnostics": {
+    "warnings": [],
+    "unsupported": [],
+    "log": []
+  }
+}

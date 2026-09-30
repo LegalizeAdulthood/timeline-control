@@ -174,6 +174,12 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
             text += "Item: " + wxString::FromUTF8(hit->id.item_id.c_str()) + "\n";
         }
     }
+    const auto &document = m_timeline_control->document();
+    if (document)
+    {
+        text += "\nTitle: " + wxString::FromUTF8(document->metadata().title().c_str()) + "\n";
+        text += "Source: " + wxString::FromUTF8(document->metadata().description().c_str()) + "\n";
+    }
     const auto &interaction = m_timeline_control->interaction();
     if (interaction)
     {

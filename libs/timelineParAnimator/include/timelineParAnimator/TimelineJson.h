@@ -40,7 +40,11 @@ struct JsonImportResult
     }
 };
 
-/// Imports supported ParAnimator or ParBeatdown metadata from a JSON file.
+/// Imports supported ParAnimator or ParBeatdown content from a JSON file.
+///
+/// ParBeatdown imports retain valid records when individual records or
+/// optional metadata are malformed. Diagnostics identify rejected records;
+/// schema and timing failures prevent construction of a document.
 JsonImportResult import_timeline_json(const std::filesystem::path &source_path, const JsonImportOptions &options);
 inline JsonImportResult import_timeline_json(const std::filesystem::path &source_path)
 {

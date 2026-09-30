@@ -4,10 +4,13 @@
 
 #include <timeline/Interaction.h>
 #include <timeline/Layout.h>
+#include <timeline/Query.h>
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <filesystem>
+#include <string_view>
 #include <variant>
 
 using namespace timeline_par_animator;
@@ -139,6 +142,109 @@ TEST(TimelineJson, imports_full_tracker_timeline_summary)
     ASSERT_EQ(1, result.document->lane_count());
     EXPECT_EQ(1891, result.document->lanes().front().item_count());
     EXPECT_TRUE(result.diagnostics.empty());
+}
+
+TEST(TimelineJson, imports_complete_music_timeline)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/song.music.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    EXPECT_TRUE(result.diagnostics.empty());
+    const auto &document = *result.document;
+    EXPECT_EQ("song.music.json", document.metadata().title());
+    EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm (xm)", document.metadata().description());
+    ASSERT_TRUE(document.source_summary());
+    const auto &summary = *document.source_summary();
+    EXPECT_EQ(36, summary.event_count());
+    EXPECT_EQ(4, summary.feature_count());
+    ASSERT_TRUE(summary.generation_summary());
+    const auto &generation = *summary.generation_summary();
+    EXPECT_EQ("par-beatdown", generation.generator_name());
+    EXPECT_EQ("0.1.0", generation.generator_version());
+    ASSERT_EQ(1, timeline::size_cast(generation.source_references()));
+    EXPECT_EQ("music", generation.source_references()[0].role());
+    EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm", generation.source_references()[0].location());
+    ASSERT_TRUE(document.frame_grid());
+    EXPECT_EQ(61, document.frame_grid()->frame_count());
+    EXPECT_EQ(30, document.frame_grid()->frames_per_second_numerator());
+    ASSERT_EQ(2, document.lane_count());
+    EXPECT_EQ(36, document.lanes()[0].item_count());
+    const auto &event = std::get<timeline::Instant>(document.lanes()[0].items()[0]);
+    EXPECT_EQ(8520, event.time().ticks());
+    EXPECT_EQ("12", event.attributes().at("row"));
+    const auto &curve = std::get<timeline::Curve>(document.lanes()[1].items()[0]);
+    EXPECT_EQ(4, curve.sample_count());
+    const auto inspection = timeline::inspect_frame(document, 15);
+    ASSERT_TRUE(inspection);
+    ASSERT_EQ(2, timeline::size_cast(inspection->lanes));
+    ASSERT_EQ(1, timeline::size_cast(inspection->lanes[1].items));
+    EXPECT_DOUBLE_EQ(0.11958, *inspection->lanes[1].items[0].value);
+}
+
+TEST(TimelineJson, retains_valid_records_with_indexed_diagnostics)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/partial.music.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    const auto &document = *result.document;
+    EXPECT_EQ("Recovered song", document.metadata().title());
+    EXPECT_EQ("fixture.xm (xm)", document.metadata().description());
+    ASSERT_TRUE(document.frame_grid());
+    EXPECT_EQ(61, document.frame_grid()->frame_count());
+    ASSERT_EQ(2, document.lane_count());
+    const auto &events = document.lanes()[0];
+    ASSERT_EQ(2, events.item_count());
+    EXPECT_EQ("event-0", std::get<timeline::Instant>(events.items()[0]).id());
+    const auto &event = std::get<timeline::Instant>(events.items()[1]);
+    EXPECT_EQ("event-4", event.id());
+    EXPECT_EQ(240000, event.time().ticks());
+    EXPECT_EQ("125", event.attributes().at("parameter"));
+    EXPECT_LT(event.time(), events.end());
+    const auto &curve = std::get<timeline::Curve>(document.lanes()[1].items()[0]);
+    EXPECT_EQ(3, curve.sample_count());
+    EXPECT_DOUBLE_EQ(1.25, curve.samples()[0].value());
+    EXPECT_DOUBLE_EQ(1.25, *curve.maximum());
+    EXPECT_DOUBLE_EQ(0.2, curve.samples()[1].value());
+    auto contains_diagnostic = [&](std::string_view text)
+    {
+        return std::any_of(result.diagnostics.begin(), result.diagnostics.end(),
+            [text](const auto &message) { return message.find(text) != std::string::npos; });
+    };
+    for (const auto index : {1, 2, 3, 5, 6, 7})
+    {
+        EXPECT_TRUE(contains_diagnostic("events[" + std::to_string(index) + "]"));
+    }
+    for (const auto index : {1, 2, 4})
+    {
+        EXPECT_TRUE(contains_diagnostic("features[" + std::to_string(index) + "]"));
+    }
+    EXPECT_TRUE(contains_diagnostic("Warning: preserved warning"));
+    EXPECT_TRUE(contains_diagnostic("Warning: another warning"));
+    EXPECT_TRUE(contains_diagnostic("Log: preserved log"));
+    EXPECT_TRUE(contains_diagnostic("warnings[1]"));
+    EXPECT_TRUE(contains_diagnostic("unsupported"));
+}
+
+TEST(TimelineJson, rejects_invalid_tracker_array_shape)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/invalid-shape.json"));
+
+    EXPECT_FALSE(result.succeeded());
+    ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("events array"));
+}
+
+TEST(TimelineJson, malformed_optional_metadata_does_not_discard_events)
+{
+    const auto result = import_timeline_json(fixture_path("par-beatdown/invalid-metadata.json"));
+
+    ASSERT_TRUE(result.succeeded());
+    EXPECT_EQ("invalid-metadata.json", result.document->metadata().title());
+    EXPECT_EQ("fixture.xm (xm)", result.document->metadata().description());
+    EXPECT_FALSE(result.document->source_summary()->generation_summary());
+    EXPECT_EQ(1, result.document->lane_count());
+    EXPECT_EQ(1, result.document->lanes()[0].item_count());
+    EXPECT_EQ(3, timeline::size_cast(result.diagnostics));
 }
 
 TEST(TimelineJson, imports_tracker_rms_curve)

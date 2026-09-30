@@ -1,0 +1,9 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "source": { "title": 42, "file": "fixture.xm", "format": "xm" },
+  "generator": { "name": 42, "version": "0.1.0" },
+  "events": [ { "kind": "note", "time_seconds": 0.0 } ],
+  "features": [],
+  "diagnostics": []
+}

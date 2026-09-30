@@ -11,7 +11,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/multi-track.json
     fixtures/par-beatdown/gold-write-timeline-clock.json
     fixtures/par-beatdown/gold-write-windowed-features.json
+    fixtures/par-beatdown/invalid-metadata.json
+    fixtures/par-beatdown/invalid-shape.json
     fixtures/par-beatdown/mixed-events-and-features.json
+    fixtures/par-beatdown/partial.music.json
+    fixtures/par-beatdown/song.music.json
 )
 
 add_executable(test-timeline-paranimator

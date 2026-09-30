@@ -372,15 +372,22 @@ void append_diagnostic_array(
     }
     if (!diagnostics.at(field_name).is_array())
     {
-        throw std::invalid_argument("ParBeatdown diagnostics fields must be arrays.");
+        result.emplace_back("ParBeatdown diagnostics." + field_name + " must be an array.");
+        return;
     }
+    auto index = 0;
     for (const auto &message : diagnostics.at(field_name))
     {
         if (!message.is_string())
         {
-            throw std::invalid_argument("ParBeatdown diagnostics entries must be strings.");
+            result.emplace_back(
+                "ParBeatdown diagnostics." + field_name + "[" + std::to_string(index) + "] must be a string.");
         }
-        result.emplace_back(std::string(prefix) + message.get<std::string>());
+        else
+        {
+            result.emplace_back(std::string(prefix) + message.get<std::string>());
+        }
+        ++index;
     }
 }
 
@@ -516,11 +523,6 @@ bool validate_tracker_timeline(const Json &config, std::vector<std::string> &dia
         diagnostics.emplace_back("ParBeatdown timeline property 'render' must be an object.");
         return false;
     }
-    if (config.contains("diagnostics") && !config.at("diagnostics").is_object())
-    {
-        diagnostics.emplace_back("ParBeatdown timeline property 'diagnostics' must be an object.");
-        return false;
-    }
     return true;
 }
 
@@ -613,46 +615,117 @@ std::optional<TrackerTiming> tracker_timing(
     return std::nullopt;
 }
 
-void expand_extent(const Json &items, TrackerExtent &extent)
+/// Borrows a validated source record while retaining its original array index.
+///
+struct TrackerRecord
 {
+    int source_index;
+    const Json &fields;
+};
+
+std::vector<TrackerRecord> tracker_records(const Json &items, std::string_view field,
+    const timeline::Timebase &timebase, std::vector<std::string> &diagnostics)
+{
+    auto records = std::vector<TrackerRecord>{};
+    auto index = 0;
     for (const auto &item : items)
     {
-        if (!item.is_object())
+        try
         {
-            throw std::invalid_argument("ParBeatdown events and features must be objects.");
+            if (!item.is_object())
+            {
+                throw std::invalid_argument("record must be an object");
+            }
+            if (item.contains("frame"))
+            {
+                const auto &frame = item.at("frame");
+                if (!frame.is_number_integer() ||
+                    (frame.is_number_unsigned() &&
+                        frame.get<Json::number_unsigned_t>() >= std::numeric_limits<timeline::Ticks>::max()) ||
+                    frame.get<timeline::Ticks>() == std::numeric_limits<timeline::Ticks>::max())
+                {
+                    throw std::invalid_argument("frame must be a representable integer");
+                }
+            }
+            if (item.contains("time_seconds"))
+            {
+                if (!item.at("time_seconds").is_number())
+                {
+                    throw std::invalid_argument("time_seconds must be numeric");
+                }
+                const auto seconds = item.at("time_seconds").get<double>();
+                if (!std::isfinite(seconds) || seconds < 0.0)
+                {
+                    throw std::invalid_argument("time_seconds must be finite and non-negative");
+                }
+                const auto time = timebase.time_from_seconds(seconds, timeline::TimeRounding::NEAREST);
+                // Lane bounds need an exclusive endpoint after the final item.
+                static_cast<void>(time + timeline::Duration::from_ticks(1));
+            }
+            else if (!item.contains("frame") || item.at("frame").get<timeline::Ticks>() < 0)
+            {
+                throw std::invalid_argument("record requires time_seconds or a non-negative frame");
+            }
+            if (field == "events")
+            {
+                if (!item.contains("kind") || !item.at("kind").is_string() ||
+                    item.at("kind").get<std::string>().empty())
+                {
+                    throw std::invalid_argument("event requires a non-empty kind");
+                }
+                for (const auto name : {"strength", "confidence"})
+                {
+                    if (item.contains(name) &&
+                        (!item.at(name).is_number() || !std::isfinite(item.at(name).get<double>())))
+                    {
+                        throw std::invalid_argument(std::string(name) + " must be finite and numeric");
+                    }
+                }
+            }
+            else if (item.contains("rms") &&
+                (!item.at("rms").is_number() || !std::isfinite(item.at("rms").get<double>()) ||
+                    item.at("rms").get<double>() < 0.0))
+            {
+                throw std::invalid_argument("rms must be finite, numeric and non-negative");
+            }
+            records.push_back(TrackerRecord{index, item});
         }
+        catch (const std::exception &error)
+        {
+            diagnostics.emplace_back(
+                "Skipped ParBeatdown " + std::string(field) + "[" + std::to_string(index) + "]: " + error.what());
+        }
+        ++index;
+    }
+    return records;
+}
+
+void expand_extent(const std::vector<TrackerRecord> &items, TrackerExtent &extent)
+{
+    for (const auto &record : items)
+    {
+        const auto &item = record.fields;
         if (item.contains("frame"))
         {
-            if (!item.at("frame").is_number_integer())
-            {
-                throw std::invalid_argument("ParBeatdown frame values must be integers.");
-            }
             const auto frame = item.at("frame").get<timeline::Ticks>();
             extent.first_frame = extent.first_frame ? std::min(*extent.first_frame, frame) : frame;
             extent.last_frame = extent.last_frame ? std::max(*extent.last_frame, frame) : frame;
         }
         if (item.contains("time_seconds"))
         {
-            if (!item.at("time_seconds").is_number())
-            {
-                throw std::invalid_argument("ParBeatdown time_seconds values must be numeric.");
-            }
             const auto seconds = item.at("time_seconds").get<double>();
-            if (!std::isfinite(seconds))
-            {
-                throw std::invalid_argument("ParBeatdown time_seconds values must be finite.");
-            }
             extent.first_seconds = extent.first_seconds ? std::min(*extent.first_seconds, seconds) : seconds;
             extent.last_seconds = extent.last_seconds ? std::max(*extent.last_seconds, seconds) : seconds;
         }
     }
 }
 
-TrackerExtent tracker_extent(const Json &config)
+TrackerExtent tracker_extent(
+    const Json &config, const std::vector<TrackerRecord> &events, const std::vector<TrackerRecord> &features)
 {
     auto extent = TrackerExtent{};
-    expand_extent(config.at("events"), extent);
-    expand_extent(config.at("features"), extent);
+    expand_extent(events, extent);
+    expand_extent(features, extent);
     const auto item_first_frame = extent.first_frame;
     const auto item_last_frame = extent.last_frame;
     const auto item_first_seconds = extent.first_seconds;
@@ -692,7 +765,7 @@ TrackerExtent tracker_extent(const Json &config)
             extent.last_frame = item_last_frame;
             if (extent.last_frame)
             {
-                extent.frame_count = *extent.last_frame + 1;
+                extent.frame_count = std::max(timeline::Ticks{0}, *extent.last_frame + 1);
             }
         }
         if (duration_seconds > 0.0 || !item_last_seconds)
@@ -708,11 +781,7 @@ TrackerExtent tracker_extent(const Json &config)
     }
     else if (extent.last_frame)
     {
-        if (*extent.first_frame < 0 || *extent.last_frame == std::numeric_limits<timeline::Ticks>::max())
-        {
-            throw std::invalid_argument("ParBeatdown frame extent cannot form a frame grid.");
-        }
-        extent.frame_count = *extent.last_frame + 1;
+        extent.frame_count = std::max(timeline::Ticks{0}, *extent.last_frame + 1);
     }
     return extent;
 }
@@ -751,41 +820,49 @@ timeline::Attributes tracker_event_attributes(const Json &event)
     return result;
 }
 
-std::optional<timeline::Lane> tracker_event_lane(
-    const Json &config, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
+std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord> &records,
+    const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid,
+    std::vector<std::string> &diagnostics)
 {
     auto events = std::vector<timeline::Instant>{};
     auto first_time = std::optional<timeline::Time>{};
     auto last_time = std::optional<timeline::Time>{};
-    auto index = 0;
-    for (const auto &event : config.at("events"))
+    for (const auto &record : records)
     {
-        if (!event.contains("kind") || !event.at("kind").is_string() || event.at("kind").get<std::string>().empty())
+        try
         {
-            throw std::invalid_argument("ParBeatdown events require a non-empty kind.");
-        }
-        const auto time = tracker_item_time(event, timebase, frame_grid);
-        if (!time)
-        {
-            ++index;
-            continue;
-        }
+            const auto &event = record.fields;
+            const auto time = tracker_item_time(event, timebase, frame_grid);
+            if (!time)
+            {
+                throw std::invalid_argument("frame-only event requires frame timing metadata");
+            }
+            static_cast<void>(*time + timeline::Duration::from_ticks(1));
 
-        const auto kind = event.at("kind").get<std::string>();
-        auto strength = std::optional<double>{};
-        if (event.contains("strength"))
-        {
-            strength = event.at("strength").get<double>();
+            if (frame_grid && (*time < frame_grid->offset() || frame_grid->end_time() <= *time))
+            {
+                throw std::out_of_range("event time is outside the document frame grid");
+            }
+            const auto kind = event.at("kind").get<std::string>();
+            auto strength = std::optional<double>{};
+            if (event.contains("strength"))
+            {
+                strength = event.at("strength").get<double>();
+            }
+            else if (event.contains("confidence"))
+            {
+                strength = event.at("confidence").get<double>();
+            }
+            events.emplace_back("event-" + std::to_string(record.source_index), kind, *time, kind, strength,
+                tracker_event_attributes(event));
+            first_time = first_time ? std::min(*first_time, *time) : *time;
+            last_time = last_time ? std::max(*last_time, *time) : *time;
         }
-        else if (event.contains("confidence"))
+        catch (const std::exception &error)
         {
-            strength = event.at("confidence").get<double>();
+            diagnostics.emplace_back(
+                "Skipped ParBeatdown events[" + std::to_string(record.source_index) + "]: " + error.what());
         }
-        events.emplace_back(
-            "event-" + std::to_string(index), kind, *time, kind, strength, tracker_event_attributes(event));
-        first_time = first_time ? std::min(*first_time, *time) : *time;
-        last_time = last_time ? std::max(*last_time, *time) : *time;
-        ++index;
     }
     if (events.empty())
     {
@@ -808,28 +885,51 @@ std::optional<timeline::Lane> tracker_event_lane(
     return lane;
 }
 
-std::optional<timeline::Lane> tracker_rms_lane(
-    const Json &config, const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid)
+std::optional<timeline::Lane> tracker_rms_lane(const std::vector<TrackerRecord> &records,
+    const timeline::Timebase &timebase, const std::optional<timeline::FrameGrid> &frame_grid,
+    std::vector<std::string> &diagnostics)
 {
     auto samples = std::vector<timeline::CurveSample>{};
-    for (const auto &feature : config.at("features"))
+    auto maximum = 1.0;
+    for (const auto &record : records)
     {
+        const auto &feature = record.fields;
         if (!feature.contains("rms"))
         {
             continue;
         }
-        if (!feature.at("rms").is_number())
+        try
         {
-            throw std::invalid_argument("ParBeatdown RMS features must be numeric.");
+            const auto time = tracker_item_time(feature, timebase, frame_grid);
+            if (!time)
+            {
+                throw std::invalid_argument("frame-only feature requires frame timing metadata");
+            }
+            if (!samples.empty() && *time <= samples.back().time())
+            {
+                throw std::invalid_argument("RMS sample times must be strictly increasing");
+            }
+            static_cast<void>(*time + timeline::Duration::from_ticks(1));
+            if (frame_grid && (*time < frame_grid->offset() || frame_grid->end_time() <= *time))
+            {
+                throw std::out_of_range("RMS sample time is outside the document frame grid");
+            }
+            const auto value = feature.at("rms").get<double>();
+            samples.emplace_back(*time, value);
+            maximum = std::max(maximum, value);
         }
-        const auto time = tracker_item_time(feature, timebase, frame_grid);
-        if (time)
+        catch (const std::exception &error)
         {
-            samples.emplace_back(*time, feature.at("rms").get<double>());
+            diagnostics.emplace_back(
+                "Skipped ParBeatdown features[" + std::to_string(record.source_index) + "]: " + error.what());
         }
     }
     if (timeline::size_cast(samples) < 2)
     {
+        if (!samples.empty())
+        {
+            diagnostics.emplace_back("ParBeatdown RMS curve requires at least two valid samples.");
+        }
         return std::nullopt;
     }
 
@@ -843,7 +943,7 @@ std::optional<timeline::Lane> tracker_rms_lane(
 
     auto lane = timeline::Lane("tracker-rms", "RMS", "curve", lane_start, lane_end);
     lane.add(timeline::Curve(
-        "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, 1.0, {}));
+        "tracker-rms", "rms", std::move(samples), "RMS", timeline::CurveInterpolation::LINEAR, 0.0, maximum, {}));
     return lane;
 }
 
@@ -854,9 +954,93 @@ void append_tracker_diagnostics(const Json &config, std::vector<std::string> &di
         return;
     }
     const auto &source = config.at("diagnostics");
+    if (!source.is_object())
+    {
+        diagnostics.emplace_back("ParBeatdown diagnostics must be an object.");
+        return;
+    }
     append_diagnostic_array(source, "warnings", "Warning: ", diagnostics);
     append_diagnostic_array(source, "unsupported", "Unsupported: ", diagnostics);
     append_diagnostic_array(source, "log", "Log: ", diagnostics);
+}
+
+std::string tracker_source_string(const Json &source, std::string_view field, std::vector<std::string> &diagnostics)
+{
+    const auto name = std::string(field);
+    if (!source.contains(name))
+    {
+        return {};
+    }
+    if (!source.at(name).is_string())
+    {
+        diagnostics.emplace_back("ParBeatdown source." + name + " must be a string.");
+        return {};
+    }
+    return source.at(name).get<std::string>();
+}
+
+timeline::Metadata tracker_metadata(
+    const std::filesystem::path &path, const Json &config, std::vector<std::string> &diagnostics)
+{
+    auto title = path.filename().string();
+    auto description = path.string();
+    if (config.contains("source"))
+    {
+        const auto &source = config.at("source");
+        if (!source.is_object())
+        {
+            diagnostics.emplace_back("ParBeatdown source must be an object.");
+        }
+        else
+        {
+            auto source_title = tracker_source_string(source, "title", diagnostics);
+            auto file = tracker_source_string(source, "file", diagnostics);
+            const auto format = tracker_source_string(source, "format", diagnostics);
+            if (!source_title.empty())
+            {
+                title = std::move(source_title);
+            }
+            if (!file.empty())
+            {
+                description = std::move(file);
+                if (!format.empty())
+                {
+                    description += " (" + format + ")";
+                }
+            }
+        }
+    }
+    return timeline::Metadata(std::move(title), std::move(description));
+}
+
+std::optional<timeline::GenerationSummary> tracker_generation_summary(
+    const Json &config, std::vector<std::string> &diagnostics)
+{
+    if (!config.contains("generator"))
+    {
+        return std::nullopt;
+    }
+    try
+    {
+        const auto &generator = config.at("generator");
+        auto sources = std::vector<timeline::SourceReference>{};
+        if (config.contains("source") && config.at("source").is_object())
+        {
+            const auto &source = config.at("source");
+            if (source.contains("file") && source.at("file").is_string() &&
+                !source.at("file").get<std::string>().empty())
+            {
+                sources.emplace_back("music", source.at("file").get<std::string>());
+            }
+        }
+        return timeline::GenerationSummary(generator.at("name").get<std::string>(),
+            generator.at("version").get<std::string>(), std::move(sources), {}, {});
+    }
+    catch (const std::exception &error)
+    {
+        diagnostics.emplace_back("Unable to import ParBeatdown generator metadata: " + std::string(error.what()));
+        return std::nullopt;
+    }
 }
 
 void import_tracker_timeline(const std::filesystem::path &source_path, const Json &config,
@@ -871,7 +1055,9 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
     {
         const auto timebase = timeline::Timebase(options.ticks_per_second);
         const auto timing = tracker_timing(config, options, result.diagnostics);
-        const auto extent = tracker_extent(config);
+        const auto events = tracker_records(config.at("events"), "events", timebase, result.diagnostics);
+        const auto features = tracker_records(config.at("features"), "features", timebase, result.diagnostics);
+        const auto extent = tracker_extent(config, events, features);
         auto first_time = extent.first_seconds ? std::optional<timeline::Time>{timebase.time_from_seconds(
                                                      *extent.first_seconds, timeline::TimeRounding::NEAREST)}
                                                : std::nullopt;
@@ -894,13 +1080,14 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
         }
 
         append_tracker_diagnostics(config, result.diagnostics);
-        auto event_lane = tracker_event_lane(config, timebase, frame_grid);
-        auto rms_lane = tracker_rms_lane(config, timebase, frame_grid);
+        auto event_lane = tracker_event_lane(events, timebase, frame_grid, result.diagnostics);
+        auto rms_lane = tracker_rms_lane(features, timebase, frame_grid, result.diagnostics);
+        auto metadata = tracker_metadata(source_path, config, result.diagnostics);
+        auto generation = tracker_generation_summary(config, result.diagnostics);
         auto source_summary =
             timeline::SourceSummary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
                 timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")),
-                extent.first_frame, extent.last_frame, first_time, last_time, frame_offset, std::nullopt);
-        auto metadata = timeline::Metadata(source_path.filename().string(), source_path.string());
+                extent.first_frame, extent.last_frame, first_time, last_time, frame_offset, std::move(generation));
         if (frame_grid)
         {
             result.document.emplace(std::move(*frame_grid), std::move(source_summary), std::move(metadata));

@@ -433,8 +433,15 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
             draw_line("Generator: " + wxString::FromUTF8(generation.generator_name().c_str()) + " " +
                 wxString::FromUTF8(generation.generator_version().c_str()));
             draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
-            draw_line(wxString::Format("Generated target groups: %d", timeline::size_cast(generation.target_counts())));
-            draw_line(wxString::Format("Music source groups: %d", timeline::size_cast(generation.source_counts())));
+            if (!generation.target_counts().empty())
+            {
+                draw_line(
+                    wxString::Format("Generated target groups: %d", timeline::size_cast(generation.target_counts())));
+            }
+            if (!generation.source_counts().empty())
+            {
+                draw_line(wxString::Format("Music source groups: %d", timeline::size_cast(generation.source_counts())));
+            }
         }
         if (summary.first_frame())
         {
