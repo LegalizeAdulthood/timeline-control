@@ -1,0 +1,50 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "output": {}, "video": "F6", "num-frames": 4,
+  "layers": [
+    {
+      "id": "fractal", "source": { "file": "input/function-sources.par", "name": "Mandelfn" },
+      "tracks": [
+        { "parameter": "function[0]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+        { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+      ]
+    },
+    {
+      "id": "default", "source": { "file": "input/function-sources.par", "name": "Default" },
+      "tracks": [
+        { "parameter": "function[2]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+      ]
+    },
+    {
+      "id": "continued", "source": { "file": "input/function-sources.par", "name": "Continued" },
+      "tracks": [
+        { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+      ]
+    },
+    {
+      "id": "missing", "source": { "file": "input/missing.par", "name": "Default" },
+      "tracks": [
+        { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+      ]
+    },
+    {
+      "id": "unknown", "source": { "file": "input/function-sources.par", "name": "Unknown" },
+      "tracks": [
+        { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+      ]
+    },
+    {
+      "id": "unterminated", "source": { "file": "input/function-sources.par", "name": "Unterminated" },
+      "tracks": [
+        { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+          "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+      ]
+    }
+  ]
+}

@@ -127,6 +127,15 @@ and a numeric mix lane. Both retain the original recipe for inspection;
 mix keys also retain their authored inputs. Generated transitions do not
 increase the authored keyframe count.
 
+Function-slot PWM uses zero-based `function[index]` targets. Formula
+sources resolve the catalog's `function-list` metadata; other fractal
+types require a declared function slot. Endpoints use ParAnimator's
+`id-functions` set. The importer reads the named source PAR entry relative
+to the JSON file, respecting comments and continued lines. Output replaces
+only the selected slot and pads missing slots with `ident`. The inspector
+retains the complete source function list, source entry, slot, and recipe.
+Layer tracks resolve their own source entries.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -193,8 +202,17 @@ inspect its identity, endpoints, window, and original recipe. Open
 `pwm-variants.json` to replace the comparison with eight lanes. At frame 2
 the inside output is `1` and the reversed boolean output is `no`.
 
-Function-slot PWM, specialized track kinds, non-clamp extrapolation, and
-parameter-specific output quantization remain unsupported.
+`function-slot-pwm.json`, `gold-function-slot-pwm.par`, and `input/source.par`
+are copied from ParAnimator's integration tests. Open the slot fixture and
+add `beat-keys/rms.beat-keys.json` for six lanes. At frame 2 the function
+output is `sin/log` and mix is `0.666667`; slot 0 retains the source `sin`.
+Click the output span or mix lane to inspect the slot and source values.
+Open `function-slot-variants.json` to replace the comparison with four
+lanes. At frame 2 slot 0 emits `log/cos`, while slot 3 emits
+`sin/cos/ident/log`. These are independent track outputs, not a merged PAR.
+
+Specialized track kinds, non-clamp extrapolation, and parameter-specific
+output quantization remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 

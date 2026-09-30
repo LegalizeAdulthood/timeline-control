@@ -1,0 +1,23 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Function_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 4,
+  "tracks": [
+    { "parameter": "function[-1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[1x]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[2147483648]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[1", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[1]", "mode": "pwm", "a": "bogus", "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[1]", "mode": "pwm", "a": true, "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] },
+    { "parameter": "function[1]", "mode": "pwm", "a": "tan", "b": "log", "window": 2,
+      "keys": [ { "frame": 0, "mix": 0 }, { "frame": 3, "mix": 1 } ] }
+  ]
+}

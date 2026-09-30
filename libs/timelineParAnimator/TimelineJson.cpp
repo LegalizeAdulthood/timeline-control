@@ -14,6 +14,7 @@
 #include <limits>
 #include <map>
 #include <numeric>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -234,7 +235,7 @@ timeline::Ticks source_frame(const Json &record);
 
 Json animation_catalog(const std::filesystem::path &path, const Json &config, std::vector<std::string> &diagnostics)
 {
-    Json parameters = Json::object();
+    Json result{{"parameters", Json::object()}, {"fractal-types", Json::object()}};
     for (const Json &location : config.at("parameter-catalogs"))
     {
         Json catalog;
@@ -247,9 +248,173 @@ Json animation_catalog(const std::filesystem::path &path, const Json &config, st
         {
             throw std::invalid_argument("parameter catalog requires a parameters object");
         }
-        parameters.update(catalog.at("parameters"));
+        result.at("parameters").update(catalog.at("parameters"));
+        if (catalog.contains("fractal-types"))
+        {
+            result.at("fractal-types").update(catalog.at("fractal-types"));
+        }
     }
-    return parameters;
+    return result;
+}
+
+std::string trim_par_line(const std::string &line)
+{
+    const std::size_t first = line.find_first_not_of(" \t\r\n");
+    return first == std::string::npos ? "" : line.substr(first, line.find_last_not_of(" \t\r\n") - first + 1);
+}
+
+std::map<std::string, std::string> animation_source(const std::filesystem::path &path, const Json &config)
+{
+    const Json &source = config.at("source");
+    const std::filesystem::path file = path.parent_path() / source.at("file").get<std::string>();
+    const std::string name = source.at("name").get<std::string>();
+    std::ifstream input(file);
+    if (!input)
+    {
+        throw std::invalid_argument("unable to open PAR source: " + file.string());
+    }
+    std::map<std::string, std::string> parameters;
+    bool in_entry = false;
+    bool selected = false;
+    std::string line;
+    while (std::getline(input, line))
+    {
+        line = trim_par_line(line);
+        while (!line.empty() && line.back() == '\\')
+        {
+            std::string continuation;
+            if (!std::getline(input, continuation))
+            {
+                throw std::invalid_argument("unterminated PAR source continuation");
+            }
+            line.pop_back();
+            line += trim_par_line(continuation);
+        }
+        line = trim_par_line(line.substr(0, line.find(';')));
+        if (line.empty())
+        {
+            continue;
+        }
+        if (!in_entry)
+        {
+            const std::size_t opening = line.find('{');
+            if (opening == std::string::npos)
+            {
+                throw std::invalid_argument("PAR source entry requires an opening brace");
+            }
+            selected = trim_par_line(line.substr(0, opening)) == name;
+            in_entry = true;
+            line.erase(0, opening + 1);
+        }
+        const std::size_t closing = line.find('}');
+        if (selected)
+        {
+            std::istringstream tokens(line.substr(0, closing));
+            std::string token;
+            while (tokens >> token)
+            {
+                const std::size_t equal = token.find('=');
+                if (equal != std::string::npos)
+                {
+                    parameters.emplace(token.substr(0, equal), token.substr(equal + 1));
+                }
+            }
+        }
+        if (closing != std::string::npos)
+        {
+            if (selected)
+            {
+                return parameters;
+            }
+            in_entry = false;
+        }
+    }
+    throw std::invalid_argument(
+        selected ? "unterminated PAR source entry: " + name : "PAR source entry not found: " + name);
+}
+
+int function_slot(std::string_view parameter)
+{
+    constexpr std::string_view PREFIX = "function[";
+    if (parameter.size() <= PREFIX.size() + 1 || parameter.substr(0, PREFIX.size()) != PREFIX ||
+        parameter.back() != ']')
+    {
+        throw std::invalid_argument("invalid PWM function slot");
+    }
+    const std::string_view text = parameter.substr(PREFIX.size(), parameter.size() - PREFIX.size() - 1);
+    int slot = 0;
+    const std::from_chars_result parsed = std::from_chars(text.data(), text.data() + text.size(), slot);
+    if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || slot < 0 ||
+        slot == std::numeric_limits<int>::max())
+    {
+        throw std::invalid_argument("invalid PWM function slot");
+    }
+    return slot;
+}
+
+Json function_slot_metadata(const Json &catalog, const std::map<std::string, std::string> &source, int slot)
+{
+    Json metadata;
+    if (source.at("type") == "formula")
+    {
+        metadata = catalog.at("parameters").at("function");
+        if (metadata.at("type") != "function-list")
+        {
+            throw std::invalid_argument("PWM function slots require function-list metadata");
+        }
+        metadata["type"] = "enum";
+    }
+    else
+    {
+        const Json &types = catalog.at("fractal-types");
+        const std::string key = "fn" + std::to_string(slot + 1);
+        const std::string &type = source.at("type");
+        if (!types.contains(type) || !types.at(type).contains("functions") ||
+            !types.at(type).at("functions").contains(key))
+        {
+            throw std::invalid_argument("PWM function slot is not declared for source type: " + type);
+        }
+        metadata = types.at(type).at("functions").at(key);
+        if (metadata.at("type") != "enum")
+        {
+            throw std::invalid_argument("PWM function slot metadata must be enum");
+        }
+    }
+    if (metadata.at("values") != "id-functions")
+    {
+        throw std::invalid_argument("PWM function slot requires id-functions values");
+    }
+    constexpr std::array<std::string_view, 31> ID_FUNCTIONS{"sin", "cos", "tan", "cotan", "sinh", "cosh", "tanh",
+        "cotanh", "exp", "log", "sqr", "recip", "ident", "cosxx", "flip", "conj", "zero", "one", "asin", "asinh",
+        "acos", "acosh", "atan", "atanh", "sqrt", "abs", "cabs", "floor", "ceil", "trunc", "round"};
+    metadata["values"] = ID_FUNCTIONS;
+    return metadata;
+}
+
+std::string function_pwm_value(const std::string &base, int slot, const std::string &value)
+{
+    std::vector<std::string> values;
+    std::istringstream input(base);
+    std::string component;
+    while (std::getline(input, component, '/'))
+    {
+        values.push_back(component);
+    }
+    if (timeline::size_cast(values) <= slot)
+    {
+        values.resize(static_cast<std::size_t>(slot) + 1, "ident");
+    }
+    values[slot] = value;
+    std::string result;
+    for (const std::string &item : values)
+    {
+        if (!result.empty())
+        {
+            result += '/';
+        }
+        result += item;
+    }
+    return result;
 }
 
 std::vector<double> animation_value(const Json &value)
@@ -775,9 +940,9 @@ std::string pwm_endpoint(
 
 void animation_pwm_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
-    std::vector<timeline::Lane> &lanes)
+    const timeline::Attributes &source_attributes, std::vector<timeline::Lane> &lanes)
 {
-    if (parameter.find('[') != std::string::npos)
+    if (parameter.find('[') != std::string::npos && source_attributes.count("slot") == 0)
     {
         throw std::invalid_argument("PWM output slots are not supported");
     }
@@ -805,8 +970,13 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
     const double to_mix = pwm_mix(keys[1]);
     const std::string a = pwm_endpoint(track, metadata, "a", "off", false);
     const std::string b = pwm_endpoint(track, metadata, "b", "on", true);
-    const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id}, {"mode", "pwm"},
+    const bool slotted = source_attributes.count("slot") != 0;
+    const int slot = slotted ? std::stoi(source_attributes.at("slot")) : 0;
+    const std::string output_a = slotted ? function_pwm_value(source_attributes.at("source-value"), slot, a) : a;
+    const std::string output_b = slotted ? function_pwm_value(source_attributes.at("source-value"), slot, b) : b;
+    timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id}, {"mode", "pwm"},
         {"pwm", track.dump()}, {"a", a}, {"b", b}, {"window", std::to_string(window)}};
+    attributes.insert(source_attributes.begin(), source_attributes.end());
     timeline::Lane output(id, label, "events", grid.offset(), grid.end_time());
     timeline::Ticks run_start = 0;
     std::string previous;
@@ -824,7 +994,7 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
         const double fraction = static_cast<double>(frame) / static_cast<double>(grid.frame_count() - 1);
         const double mix = frame == grid.frame_count() - 1 ? to_mix : from_mix + fraction * (to_mix - from_mix);
         const int b_count = static_cast<int>(std::lround(mix * window));
-        const std::string &value = frame % window < b_count ? b : a;
+        const std::string &value = frame % window < b_count ? output_b : output_a;
         if (frame > 0 && value != previous)
         {
             append_run(frame);
@@ -848,7 +1018,8 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
 }
 
 void animation_tracks(const Json &tracks, const Json &catalog, const std::string &layer, const std::string &prefix,
-    const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
+    const std::filesystem::path &source_path, const Json &config, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
 {
     int index = 0;
     for (const Json &track : tracks)
@@ -861,14 +1032,27 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             {
                 throw std::invalid_argument("track parameter must not be empty");
             }
-            const Json metadata = catalog.contains(parameter) ? catalog.at(parameter) : Json::object();
+            const std::string mode = track.value("mode", std::string("keyframes"));
+            const Json &parameters = catalog.at("parameters");
+            Json metadata = parameters.contains(parameter) ? parameters.at(parameter) : Json::object();
+            timeline::Attributes source_attributes;
+            if (mode == "pwm" && parameter.substr(0, 9) == "function[")
+            {
+                const int slot = function_slot(parameter);
+                const std::map<std::string, std::string> source = animation_source(source_path, config);
+                metadata = function_slot_metadata(catalog, source, slot);
+                source_attributes = {{"slot", std::to_string(slot)}, {"output-parameter", "function"},
+                    {"source-value", source.count("function") != 0 ? source.at("function") : ""},
+                    {"source-entry", config.at("source").at("name").get<std::string>()},
+                    {"source-file",
+                        (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()}};
+            }
             if (metadata.value("extrapolate", std::string("clamp")) != "clamp")
             {
                 throw std::invalid_argument("only clamp extrapolation is supported for realized keyframes");
             }
             const std::string label = layer.empty() ? parameter : layer + " / " + parameter;
             std::vector<timeline::Lane> track_lanes;
-            const std::string mode = track.value("mode", std::string("keyframes"));
             if ((mode != "keyframes" && mode != "pwm") || track.value("type", std::string("parameter")) != "parameter")
             {
                 throw std::invalid_argument("unsupported track mode or specialized track type");
@@ -890,7 +1074,7 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
                 {
                     throw std::invalid_argument("PWM tracks cannot contain a path");
                 }
-                animation_pwm_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+                animation_pwm_lanes(track, metadata, id, label, parameter, layer, grid, source_attributes, track_lanes);
             }
             else if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous" ||
                 path_kind == "spiral")
@@ -937,7 +1121,8 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
         std::vector<timeline::Lane> lanes;
         if (config.contains("tracks"))
         {
-            animation_tracks(config.at("tracks"), catalog, "", "animation-", frame_grid, lanes, result.diagnostics);
+            animation_tracks(config.at("tracks"), catalog, "", "animation-", source_path, config, frame_grid, lanes,
+                result.diagnostics);
         }
         else
         {
@@ -945,7 +1130,8 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
             for (const Json &layer : config.at("layers"))
             {
                 animation_tracks(layer.at("tracks"), catalog, layer.at("id").get<std::string>(),
-                    "animation-layer-" + std::to_string(index++) + "-", frame_grid, lanes, result.diagnostics);
+                    "animation-layer-" + std::to_string(index++) + "-", source_path, layer, frame_grid, lanes,
+                    result.diagnostics);
             }
         }
         if (track_count > 0 && lanes.empty())

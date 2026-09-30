@@ -1,0 +1,17 @@
+; Copyright (c) 2026 Richard Thomson
+;
+Mandelfn { ; source has an untouched second function
+    type=mandelfn function=sin/exp
+}
+
+Default {
+    type=formula
+}
+
+Continued { ; preserve comments and continued values
+    type=formula function=sin/\
+        cos/exp ; ignored comment
+}
+
+Unterminated {
+    type=formula function=sin/cos

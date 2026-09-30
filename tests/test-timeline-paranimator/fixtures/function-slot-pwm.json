@@ -1,0 +1,28 @@
+{
+  "parameter-catalogs": [ "input/core-catalog.json" ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Function_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 4,
+  "tracks": [
+    {
+      "parameter": "function[1]",
+      "mode": "pwm",
+      "a": "tan",
+      "b": "log",
+      "window": 2,
+      "keys": [
+        { "frame": 0, "mix": 0.0 },
+        { "frame": 3, "mix": 1.0 }
+      ]
+    }
+  ]
+}

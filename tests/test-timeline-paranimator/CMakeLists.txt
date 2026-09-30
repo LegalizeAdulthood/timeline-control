@@ -39,6 +39,13 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/input/pwm-catalog.json
     fixtures/pwm-variants.json
     fixtures/partial-pwm.json
+    fixtures/function-slot-pwm.json
+    fixtures/gold-function-slot-pwm.par
+    fixtures/input/source.par
+    fixtures/function-slot-variants.json
+    fixtures/partial-function-slot-pwm.json
+    fixtures/function-slot-sources.json
+    fixtures/input/function-sources.par
     fixtures/partial-animation.json
     fixtures/invalid-animation.json
     fixtures/missing-catalog.json

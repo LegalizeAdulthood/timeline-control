@@ -16,6 +16,109 @@
 
 using namespace timeline_par_animator;
 
+TEST(AnimationImport, preserves_source_functions_in_pwm_output_like_paranimator)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/function-slot-pwm.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty());
+    ASSERT_EQ(2, result.document->lane_count());
+    const std::array<std::string, 4> values{"sin/tan", "sin/tan", "sin/log", "sin/log"};
+    std::ifstream golden_file("fixtures/gold-function-slot-pwm.par");
+    ASSERT_TRUE(golden_file);
+    const std::string golden{std::istreambuf_iterator<char>(golden_file), std::istreambuf_iterator<char>()};
+    for (int frame = 0; frame < 4; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        ASSERT_TRUE(inspection);
+        ASSERT_EQ(1, timeline::size_cast(inspection->lanes[0].items));
+        const timeline::Attributes &attributes = inspection->lanes[0].items.front().attributes;
+        EXPECT_EQ(values[frame], attributes.at("value"));
+        EXPECT_EQ("1", attributes.at("slot"));
+        EXPECT_EQ("sin/cos", attributes.at("source-value"));
+        EXPECT_EQ("Function_Demo", attributes.at("source-entry"));
+        EXPECT_EQ("function[1]", attributes.at("parameter"));
+        ASSERT_TRUE(inspection->lanes[1].value);
+        EXPECT_DOUBLE_EQ(frame / 3.0, *inspection->lanes[1].value);
+        const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
+        ASSERT_NE(std::string::npos, start);
+        EXPECT_NE(
+            std::string::npos, golden.substr(start, golden.find('}', start) - start).find("function=" + values[frame]));
+    }
+    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    const timeline::Layout layout(*result.document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 30, 4));
+    const std::optional<timeline::HitResult> hit = layout.hit_test({350, 35}, 2);
+    ASSERT_TRUE(hit);
+    EXPECT_EQ("animation-0-pwm-2", hit->id.item_id);
+    EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("function[1] / mix"));
+}
+
+TEST(AnimationImport, retains_other_pwm_slots_and_fills_missing_slots_with_ident)
+{
+    const timeline::Document document = []
+    {
+        const JsonImportResult imported = import_timeline_json("fixtures/function-slot-variants.json");
+        if (!imported.succeeded() || !imported.diagnostics.empty())
+        {
+            throw std::runtime_error("Function-slot PWM import failed");
+        }
+        return *imported.document;
+    }();
+    ASSERT_EQ(4, document.lane_count());
+    const std::array<std::string, 4> values{"log/cos", "tan/cos", "log/cos", "tan/cos"};
+    for (int frame = 0; frame < 4; ++frame)
+    {
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        ASSERT_TRUE(inspection);
+        EXPECT_EQ(values[frame], inspection->lanes[0].items.front().attributes.at("value"));
+        EXPECT_EQ(frame < 2 ? "sin/cos/ident/tan" : "sin/cos/ident/log",
+            inspection->lanes[2].items.front().attributes.at("value"));
+    }
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document combined = timeline::combine_documents(*music.document, document);
+    ASSERT_EQ(8, combined.lane_count());
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 2);
+    ASSERT_TRUE(inspection);
+    EXPECT_EQ("log/cos", inspection->lanes[4].items.front().attributes.at("value"));
+}
+
+TEST(AnimationImport, diagnoses_invalid_pwm_function_slots_and_endpoints)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-function-slot-pwm.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(6, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(2, result.document->lane_count());
+    for (int index = 0; index < 6; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+    }
+    EXPECT_EQ("animation-6", result.document->lanes().front().id());
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
+    ASSERT_TRUE(inspection);
+    EXPECT_EQ("sin/log", inspection->lanes.front().items.front().attributes.at("value"));
+}
+
+TEST(AnimationImport, resolves_layer_sources_and_catalog_function_slots_with_indexed_errors)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/function-slot-sources.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(6, result.document->lane_count());
+    ASSERT_EQ(4, timeline::size_cast(result.diagnostics));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("animation-layer-0-1"));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("not declared"));
+    EXPECT_NE(std::string::npos, result.diagnostics[1].find("unable to open PAR source"));
+    EXPECT_NE(std::string::npos, result.diagnostics[2].find("entry not found"));
+    EXPECT_NE(std::string::npos, result.diagnostics[3].find("unterminated PAR source entry"));
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
+    ASSERT_TRUE(inspection);
+    EXPECT_EQ("log/exp", inspection->lanes[0].items.front().attributes.at("value"));
+    EXPECT_EQ("fractal", inspection->lanes[0].items.front().attributes.at("layer"));
+    EXPECT_EQ("ident/ident/log", inspection->lanes[2].items.front().attributes.at("value"));
+    EXPECT_EQ("sin/log/exp", inspection->lanes[4].items.front().attributes.at("value"));
+    EXPECT_EQ("sin/cos/exp", inspection->lanes[4].items.front().attributes.at("source-value"));
+}
+
 TEST(AnimationImport, displays_pwm_mix_and_frame_aligned_output_like_paranimator)
 {
     const JsonImportResult result = import_timeline_json("fixtures/yes-no-pwm.json");
