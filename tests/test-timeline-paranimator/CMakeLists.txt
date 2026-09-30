@@ -2,6 +2,16 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/camera2d-nested-linear.json
+    fixtures/gold-camera2d-nested-linear.par
+    fixtures/camera2d-nested-hold.json
+    fixtures/gold-camera2d-nested-hold.par
+    fixtures/camera2d-nested-eye-zero.json
+    fixtures/gold-camera2d-nested-eye-zero.par
+    fixtures/camera2d-nested-eye-crossing.json
+    fixtures/gold-camera2d-nested-eye-crossing.par
+    fixtures/partial-camera2d-nested.json
+    fixtures/invalid-camera2d-nested.json
     fixtures/camera2d-moving-bezier-catmull.json
     fixtures/gold-camera2d-moving-bezier-catmull.par
     fixtures/camera2d-moving-circle-keyed.json

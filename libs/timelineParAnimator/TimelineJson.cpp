@@ -1037,6 +1037,15 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
     const std::string &label, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
 {
+    if ((member == "view-up" || member == "height") && signal.contains("path"))
+    {
+        throw std::invalid_argument(
+            "Camera2D " + member + " requires keyed input in the ParAnimator format; paths are not allowed");
+    }
+    if (member == "view-up" && signal.contains("normalize") && signal.at("normalize") != true)
+    {
+        throw std::invalid_argument("Camera2D view-up normalize must be true in the ParAnimator format");
+    }
     if (signal.at("type") != type || (signal.contains("path") && (type != "point2" || signal.contains("keys"))))
     {
         throw std::invalid_argument("Camera2D " + member + " requires unambiguous " + type + " input");
@@ -1051,6 +1060,10 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
     for (const Json &key : keys)
     {
         const Json &value = key.at("value");
+        if (member == "height" && !value.is_number())
+        {
+            throw std::invalid_argument("Camera2D height requires a JSON number in the ParAnimator format");
+        }
         if (!value.is_string() && (arity != 1 || !value.is_number()))
         {
             throw std::invalid_argument("Camera2D " + member + " has an invalid value type");
@@ -1693,28 +1706,26 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         {
             std::vector<timeline::Lane> authored_up;
             camera2d_key_lanes(track.at("view-up"), "view-up", "vector2", id, label, layer, grid, authored_up);
-            const std::array<double, 2> from{
-                camera2d_sample(authored_up[0], start), camera2d_sample(authored_up[1], start)};
-            const std::array<double, 2> to{
-                camera2d_segment_end(authored_up[0], start, end), camera2d_segment_end(authored_up[1], start, end)};
-            camera2d_validate_segment(from, to);
-            static_cast<void>(
-                camera2d_normalize({camera2d_sample(authored_up[0], end), camera2d_sample(authored_up[1], end)}));
+            // ParAnimator does not evaluate view-up when eye supplies the direction.
             for (int component = 0; component < 2; ++component)
             {
-                const auto evaluate = [x = authored_up[0], y = authored_up[1], component](timeline::Time time)
-                {
-                    return camera2d_normalize({camera2d_sample(x, time), camera2d_sample(y, time)})[component];
-                };
-                timeline::Attributes up_attributes = attributes;
-                up_attributes["parameter"] = name + ".view-up";
-                up_attributes["component"] = std::to_string(component);
-                up_attributes["signal"] = track.at("view-up").dump();
-                up_attributes["normalize"] = "true";
                 timeline::Lane lane(
-                    authored_up[component].id(), authored_up[component].label(), "curve", start, grid.end_time());
-                lane.add(timeline::Curve(lane.id() + "-normalized", "camera2d-input", start, end, evaluate,
-                    lane.label(), -1, 1, up_attributes));
+                    authored_up[component].id(), authored_up[component].label(), "keyframes", start, grid.end_time());
+                for (const timeline::Item &item : authored_up[component].items())
+                {
+                    const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
+                    timeline::Attributes up_attributes = key.attributes();
+                    for (const auto &[field, value] : attributes)
+                    {
+                        up_attributes[field] = value;
+                    }
+                    up_attributes["parameter"] = name + ".view-up";
+                    up_attributes["component"] = std::to_string(component);
+                    up_attributes["signal"] = track.at("view-up").dump();
+                    up_attributes["used-by-camera"] = "false";
+                    lane.add(timeline::Keyframe(
+                        key.id(), key.time(), key.value(), key.interpolation(), std::move(up_attributes)));
+                }
                 lanes.push_back(std::move(lane));
             }
         }

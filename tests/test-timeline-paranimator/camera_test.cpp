@@ -16,6 +16,136 @@
 
 using namespace timeline_par_animator;
 
+TEST(CameraImport, preserves_keyed_nested_signals_and_source_eye_precedence)
+{
+    const std::array<std::string, 4> kinds{"linear", "hold", "eye-zero", "eye-crossing"};
+    for (const std::string &kind : kinds)
+    {
+        SCOPED_TRACE(kind);
+        const timeline::Document document = [&kind]
+        {
+            const JsonImportResult imported = import_timeline_json("fixtures/camera2d-nested-" + kind + ".json");
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Camera2D nested signal import failed");
+            }
+            return *imported.document;
+        }();
+        const bool eye = kind.find("eye-") == 0;
+        ASSERT_EQ(eye ? 15 : 11, document.lane_count());
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        std::ifstream golden("fixtures/gold-camera2d-nested-" + kind + ".par");
+        ASSERT_TRUE(golden);
+        int frame = 0;
+        for (std::string line; std::getline(golden, line);)
+        {
+            const std::size_t start = line.find("center-mag=");
+            if (start == std::string::npos)
+            {
+                continue;
+            }
+            std::string value = line.substr(start + 11);
+            std::replace(value.begin(), value.end(), '/', ' ');
+            std::istringstream values(value);
+            std::array<double, 6> expected{0, 0, 1, 1, 0, 0};
+            for (double &component : expected)
+            {
+                if (!(values >> component))
+                {
+                    break;
+                }
+            }
+            const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame++);
+            ASSERT_TRUE(inspection);
+            for (int component = 0; component < 6; ++component)
+            {
+                ASSERT_TRUE(inspection->lanes[component].items.front().value);
+                const double actual = *inspection->lanes[component].items.front().value;
+                EXPECT_NEAR(0,
+                    component == 4 ? std::remainder(actual - expected[component], 360) : actual - expected[component],
+                    1e-9);
+            }
+        }
+        EXPECT_EQ(5, frame);
+        const timeline::Curve &magnification = std::get<timeline::Curve>(document.lanes()[2].items().front());
+        EXPECT_TRUE(magnification.samples().empty());
+        const timeline::Keyframe &height = std::get<timeline::Keyframe>(document.lanes()[10].items().front());
+        EXPECT_FALSE(height.attributes().at("signal").empty());
+        for (int sixth_frame = 0; sixth_frame <= 24; ++sixth_frame)
+        {
+            const timeline::Time time =
+                grid.offset() + timeline::Duration::from_ticks(sixth_frame * grid.frame_duration().ticks() / 6);
+            EXPECT_LE(*magnification.minimum(), magnification.sample(time));
+            EXPECT_GE(*magnification.maximum(), magnification.sample(time));
+            const int up = eye ? 11 : 8;
+            const double x = std::get<timeline::Curve>(document.lanes()[up].items().front()).sample(time);
+            const double y = std::get<timeline::Curve>(document.lanes()[up + 1].items().front()).sample(time);
+            EXPECT_NEAR(1, std::hypot(x, y), 1e-12);
+        }
+        if (eye)
+        {
+            const timeline::Lane &authored = document.lanes()[13];
+            ASSERT_EQ("keyframes", authored.kind());
+            const timeline::Keyframe &key = std::get<timeline::Keyframe>(authored.items().front());
+            EXPECT_EQ("false", key.attributes().at("used-by-camera"));
+            EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
+            const timeline::Time crossing =
+                grid.offset() + timeline::Duration::from_ticks(3 * (grid.frame_start(4) - grid.offset()).ticks() / 10);
+            EXPECT_DOUBLE_EQ(0, *authored.evaluate_keyframes(crossing));
+            EXPECT_DOUBLE_EQ(0, *document.lanes()[14].evaluate_keyframes(crossing));
+        }
+        if (kind == "linear")
+        {
+            const timeline::Curve &rotation = std::get<timeline::Curve>(document.lanes()[4].items().front());
+            EXPECT_NEAR(33.6900675259798, rotation.sample(grid.frame_start(1)), 1e-12);
+            EXPECT_EQ(timeline::KeyframeInterpolation::GEOMETRIC, height.interpolation());
+        }
+        if (kind == "hold")
+        {
+            EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, height.interpolation());
+            EXPECT_DOUBLE_EQ(1, magnification.sample(grid.frame_start(3)));
+            EXPECT_DOUBLE_EQ(0.5, magnification.sample(grid.frame_start(4)));
+        }
+        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+        ASSERT_TRUE(music.succeeded());
+        const timeline::Document combined = timeline::combine_documents(document, *music.document);
+        EXPECT_EQ(document.lane_count() + 4, combined.lane_count());
+        const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4));
+        const std::string snapshot = timeline::render_snapshot(layout.display_list());
+        EXPECT_NE(std::string::npos, snapshot.find("view-up"));
+        EXPECT_NE(std::string::npos, snapshot.find("height"));
+    }
+}
+
+TEST(CameraImport, diagnoses_nested_signal_format_and_active_singularities)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/partial-camera2d-nested.json");
+    ASSERT_TRUE(imported.succeeded());
+    ASSERT_EQ(10, timeline::size_cast(imported.diagnostics));
+    EXPECT_EQ(11, imported.document->lane_count());
+    for (int index = 0; index < 10; ++index)
+    {
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+    }
+    for (int index = 0; index < 4; ++index)
+    {
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("keyed"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("ParAnimator format"));
+    }
+    EXPECT_NE(std::string::npos, imported.diagnostics[4].find("normalize"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[5].find("number"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[6].find("singular"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[7].find("zero vector between keys"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[8].find("positive height"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[9].find("positive height"));
+    EXPECT_EQ("animation-10-center-mag[0]", imported.document->lanes().front().id());
+    const JsonImportResult rejected = import_timeline_json("fixtures/invalid-camera2d-nested.json");
+    EXPECT_FALSE(rejected.succeeded());
+    ASSERT_FALSE(rejected.diagnostics.empty());
+    EXPECT_NE(std::string::npos, rejected.diagnostics.front().find("ParAnimator format"));
+}
+
 TEST(CameraImport, samples_owned_moving_look_compositions_like_paranimator)
 {
     const std::array<std::string, 5> kinds{
@@ -826,8 +956,9 @@ TEST(CameraImport, preserves_eye_precedence_and_owned_orbits_and_keyed_motion)
     const timeline::Curve &eye = std::get<timeline::Curve>(document.lanes()[8].items().front());
     EXPECT_DOUBLE_EQ(4, eye.sample(grid.frame_start(1)));
     EXPECT_EQ("orbit.eye", eye.attributes().at("parameter"));
-    const timeline::Curve &authored_up = std::get<timeline::Curve>(document.lanes()[13].items().front());
-    EXPECT_DOUBLE_EQ(0, authored_up.sample(grid.frame_start(1)));
+    const timeline::Keyframe &authored_up = std::get<timeline::Keyframe>(document.lanes()[13].items().front());
+    EXPECT_DOUBLE_EQ(0, *document.lanes()[13].evaluate_keyframes(grid.frame_start(1)));
+    EXPECT_DOUBLE_EQ(2, *document.lanes()[14].evaluate_keyframes(grid.frame_start(1)));
     EXPECT_EQ("orbit.view-up", authored_up.attributes().at("parameter"));
     const timeline::Curve &moving_rotation = std::get<timeline::Curve>(document.lanes()[19].items().front());
     EXPECT_DOUBLE_EQ(0, moving_rotation.sample(grid.frame_start(2)));

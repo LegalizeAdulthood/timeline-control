@@ -1,0 +1,589 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "name": "view-up-path",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "path": {
+          "kind": "constant",
+          "value": "0/2"
+        }
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "height-path",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "path": {
+          "kind": "constant",
+          "value": "3"
+        }
+      }
+    },
+    {
+      "name": "ignored-view-up-path",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ],
+        "path": {
+          "kind": "line",
+          "from": "0/2",
+          "to": "4/0"
+        }
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/4",
+            "curve": "linear"
+          }
+        ]
+      }
+    },
+    {
+      "name": "height-keys-and-path",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ],
+        "path": {
+          "kind": "constant",
+          "value": "3"
+        }
+      }
+    },
+    {
+      "name": "disabled-normalization",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ],
+        "normalize": false
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "string-height",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "3",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-direction",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "0/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "off-grid-crossing",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-3/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "7/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-height",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 0,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "negative-height",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": -1,
+            "curve": "geometric"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested-linear",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/0",
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": "1/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2",
+            "curve": "hold"
+          },
+          {
+            "frame": 4,
+            "value": "4/0",
+            "curve": "linear"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3,
+            "curve": "linear"
+          },
+          {
+            "frame": 4,
+            "value": 1.5,
+            "curve": "geometric"
+          }
+        ]
+      }
+    }
+  ]
+}
