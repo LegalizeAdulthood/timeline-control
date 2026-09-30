@@ -1,0 +1,66 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "eye.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "name": "fixed-eye",
+      "type": "camera2d",
+      "output": "center-mag",
+      "aspect": "source",
+      "look-at": {
+        "type": "point2",
+        "path": {
+          "kind": "line",
+          "from": "0/0",
+          "to": "2/0"
+        }
+      },
+      "view-up": {
+        "type": "vector2",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/2"
+          },
+          {
+            "frame": 4,
+            "value": "0/2"
+          }
+        ]
+      },
+      "height": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 3
+          },
+          {
+            "frame": 4,
+            "value": 3
+          }
+        ]
+      },
+      "eye": {
+        "type": "point2",
+        "path": {
+          "kind": "constant",
+          "value": "0/3"
+        }
+      }
+    }
+  ]
+}

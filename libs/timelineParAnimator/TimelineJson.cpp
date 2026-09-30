@@ -1021,11 +1021,11 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
     const std::string &label, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
 {
-    if (signal.at("type") != type || signal.contains("path"))
+    if (signal.at("type") != type || (signal.contains("path") && (type != "point2" || signal.contains("keys"))))
     {
-        throw std::invalid_argument("Camera2D " + member + " requires keyed " + type + " input");
+        throw std::invalid_argument("Camera2D " + member + " requires unambiguous " + type + " input");
     }
-    const Json &keys = signal.at("keys");
+    const Json keys = signal.contains("path") ? animation_path_keys(signal.at("path"), grid) : signal.at("keys");
     if (!keys.is_array() || keys.size() != 2 || source_frame(keys[0]) != 0 ||
         source_frame(keys[1]) != grid.frame_count() - 1)
     {
@@ -1114,6 +1114,11 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     }
     const Json &path = eye.at("path");
     const std::string kind = path.at("kind").get<std::string>();
+    if (kind == "constant" || kind == "line")
+    {
+        camera2d_key_lanes(eye, "eye", "point2", id, label, layer, grid, signals);
+        return;
+    }
     if (kind != "circle" && kind != "ellipse")
     {
         throw std::invalid_argument("Camera2D eye currently supports only circle and ellipse paths");

@@ -138,7 +138,9 @@ Layer tracks resolve their own source entries.
 
 Keyed Camera2D center-mag tracks expose six output components and five
 nested input components. Look-at is point2, view-up is vector2, and height
-is a positive double. Each input requires two full-range keys. View-up
+is a positive double. Keyed inputs require two full-range keys. Look-at
+and eye also accept constant and line paths, represented by endpoint
+keys with the original path recipes retained. View-up
 is normalized after interpolation regardless of its authored normalize
 flag. Height supports linear, hold/step, and geometric interpolation;
 vector inputs do not support geometric interpolation.
@@ -148,7 +150,7 @@ F6. A missing or zero x-magnification factor means one; negative stretch
 is retained in output while aspect uses its magnitude. Output and
 normalized view-up are owned analytic curves, not baked frame samples.
 The inspector retains the complete camera recipe and nested signal keys.
-Eye inputs may use keyed point2 motion or circle/ellipse orbits with
+Eye inputs may also use circle/ellipse orbits with
 positive radii centered on a fixed look-at. Eye takes precedence over
 authored view-up. The viewer retains both authored signals and separate
 derived-view-up curves, normalized from eye minus look-at. Keyed motion
@@ -250,6 +252,18 @@ Open `camera2d-eye-variants.json` to replace the comparison with
 twenty-eight lanes. The reversed ellipse rotates 90 degrees at frame 1
 despite the authored vertical view-up. The keyed camera moves its look-at
 and eye together, retaining zero rotation and a vertical derived direction.
+
+`camera2d-straight-paths.json` composes a line look-at with keyed view-up
+and height. Its golden PAR values were generated with ParAnimator.
+Open it for eleven lanes and add `beat-keys/rms.beat-keys.json` for fifteen
+comparison lanes. At frame 2, center is `2/1`, magnification is `1.333333`,
+and rotation is 45 degrees. Click a look-at endpoint to inspect its key
+identity and retained line recipe. Open `camera2d-straight-eye.json` to
+replace the comparison with fifteen camera lanes. At frame 2, its fixed
+eye at `0/3` and moving look-at at `1/0` give rotation `-18.434949`,
+overriding the authored vertical view-up. Its golden output also comes
+from ParAnimator. View-up and height paths remain pending; the current
+source schema requires keys for those members.
 
 Other specialized track kinds, non-clamp extrapolation, and
 parameter-specific output quantization remain unsupported.

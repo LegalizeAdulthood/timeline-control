@@ -16,6 +16,91 @@
 
 using namespace timeline_par_animator;
 
+TEST(CameraImport, composes_straight_paths_like_paranimator_and_owns_their_recipes)
+{
+    const std::array<std::string, 2> fixtures{"camera2d-straight-paths", "camera2d-straight-eye"};
+    for (const std::string &fixture : fixtures)
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            const JsonImportResult imported = import_timeline_json("fixtures/" + fixture + ".json");
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Camera2D straight paths import failed");
+            }
+            return *imported.document;
+        }();
+        ASSERT_EQ(fixture == fixtures.front() ? 11 : 15, document.lane_count());
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        std::ifstream golden("fixtures/gold-" + fixture + ".par");
+        ASSERT_TRUE(golden);
+        int frame = 0;
+        for (std::string line; std::getline(golden, line);)
+        {
+            const std::size_t start = line.find("center-mag=");
+            if (start == std::string::npos)
+            {
+                continue;
+            }
+            std::string value = line.substr(start + 11);
+            std::replace(value.begin(), value.end(), '/', ' ');
+            std::istringstream values(value);
+            std::array<double, 6> expected{0, 0, 1, 1, 0, 0};
+            for (double &component : expected)
+            {
+                if (!(values >> component))
+                {
+                    break;
+                }
+            }
+            const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+            ASSERT_TRUE(inspection);
+            for (int component = 0; component < 6; ++component)
+            {
+                ASSERT_FALSE(inspection->lanes[component].items.empty());
+                ASSERT_TRUE(inspection->lanes[component].items.front().value);
+                EXPECT_NEAR(expected[component], *inspection->lanes[component].items.front().value, 1e-10);
+            }
+            ++frame;
+        }
+        EXPECT_EQ(5, frame);
+        const timeline::Keyframe &look = std::get<timeline::Keyframe>(document.lanes()[6].items().front());
+        EXPECT_NE(std::string::npos, look.attributes().at("path").find("line"));
+        EXPECT_NE(std::string::npos, look.attributes().at("signal").find("path"));
+        EXPECT_EQ("animation-0-look-at-key-0", look.id());
+        const timeline::Time between =
+            grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+        EXPECT_DOUBLE_EQ(fixture == fixtures.front() ? 0.5 : 0.25, *document.lanes()[6].evaluate_keyframes(between));
+        if (fixture != fixtures.front())
+        {
+            const timeline::Keyframe &eye = std::get<timeline::Keyframe>(document.lanes()[8].items().front());
+            EXPECT_NE(std::string::npos, eye.attributes().at("path").find("constant"));
+            EXPECT_DOUBLE_EQ(0, *document.lanes()[8].evaluate_keyframes(between));
+        }
+        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+        ASSERT_TRUE(music.succeeded());
+        const timeline::Document combined = timeline::combine_documents(document, *music.document);
+        EXPECT_EQ(document.lane_count() + 4, combined.lane_count());
+        const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4));
+        EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("animation-0-look-at"));
+    }
+}
+
+TEST(CameraImport, diagnoses_invalid_straight_compositions_without_partial_camera_lanes)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-straight-paths.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(7, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(11, result.document->lane_count());
+    for (int index = 0; index < 7; ++index)
+    {
+        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+    }
+    EXPECT_EQ("animation-7-center-mag[0]", result.document->lanes().front().id());
+}
+
 TEST(CameraImport, normalizes_tiny_authored_view_up_before_cleaning_components)
 {
     const JsonImportResult result = import_timeline_json("fixtures/camera2d-tiny-view-up.json");
