@@ -1,0 +1,29 @@
+frame-0001 {
+    reset
+    type=mandel
+    corners=-12.3425636392/12.3425636392/-2/2/10.3425636392/-2
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    corners=-12.3425636392/12.3425636392/-2/2/10.3425636392/-2
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    corners=10.3425636392/-10.3425636392/-2/2/-12.3425636392/-2
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+}

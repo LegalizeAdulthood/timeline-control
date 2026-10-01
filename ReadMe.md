@@ -137,13 +137,13 @@ retains the complete source function list, source entry, slot, and recipe.
 Layer tracks resolve their own source entries.
 
 Keyed Camera2D center-mag and corners tracks expose six output components
-and five nested input components. Look-at is point2, view-up is vector2,
-and height is a positive double. Keyed inputs require two full-range keys.
-Look-at and eye also accept constant and line paths, represented by
-endpoint keys with the original path recipes retained. View-up is
-normalized after interpolation; an authored normalize flag must be true.
-Height supports linear, hold/step, and geometric interpolation;
-vector inputs do not support geometric interpolation.
+and five nested input components, plus optional skew. Look-at is point2,
+view-up is vector2, and height is a positive double. Keyed inputs require
+two full-range keys. Look-at and eye also accept constant and line paths,
+represented by endpoint keys with the original path recipes retained.
+View-up is normalized after interpolation; an authored normalize flag
+must be true. Height supports linear, hold/step, and geometric
+interpolation; vector inputs do not support geometric interpolation.
 
 Center-mag aspect comes from the source PAR stretch and video mode F6.
 A missing or zero x-magnification factor means one; negative stretch
@@ -191,7 +191,17 @@ Without eye, look-at also accepts circle, ellipse, Lissajous, spiral,
 Bezier, and Catmull-Rom paths with keyed view-up and height. Output center
 curves reuse the owned analytic definitions and bounds, including interior
 extrema. Nested look-at curves retain their original recipes and distinct
-hit identities. Skew remains pending.
+hit identities.
+
+Optional Camera2D skew uses two full-range numeric keys, in degrees, with
+linear, hold/step, or geometric interpolation. Geometric endpoints must
+have the same nonzero sign and a finite positive ratio. Negative geometric
+skew retains its authored keys in an owned analytic input definition.
+Center-mag exposes skew directly; corners compose its tangent shear with
+height and normalized direction. Corners reject tangent poles at endpoints
+or between frames, but allow held jumps between valid tangent branches.
+Bounds enclose the full sheared, rotating camera interval. Skew paths are
+not part of the ParAnimator format and produce importer diagnostics.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
@@ -287,6 +297,18 @@ identity and source recipe. Open `camera2d-corners-rotated-source.json`
 to replace the comparison with eleven lanes; its six-value source view
 supplies aspect 2 even with video mode F7. Invalid corners fixtures report
 importer errors without replacing the displayed document.
+
+`camera2d-skew-center-mag.json` and `camera2d-skew-corners.json` are copied
+from ParAnimator's integration tests with their golden PAR output. Open
+the corners fixture for twelve lanes and add
+`beat-keys/rms.beat-keys.json` for sixteen comparison lanes. At frame 1,
+skew is 5 degrees and top-left x is `-0.825023`. Click a corner curve to
+inspect its identity and camera recipe. Open `camera2d-skew-eye.json` to
+replace the comparison with sixteen lanes: its analytic eye and signed
+geometric skew produce -20 degrees of skew at frame 2. The corners form
+and geometric, hold/step, and reversed variants have source-generated
+golden output. Opening `invalid-camera2d-skew-pole.json` reports an
+off-grid tangent singularity without replacing the displayed document.
 
 `camera2d-eye-center-mag.json` and its golden PAR output are copied from
 ParAnimator's integration tests. Open the eye fixture for thirteen lanes

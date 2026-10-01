@@ -2,6 +2,36 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/invalid-camera2d-skew-near-pole.json
+    fixtures/invalid-camera2d-skew-overflow.json
+    fixtures/gold-camera2d-skew-eye-corners.par
+    fixtures/gold-camera2d-skew-geometric.par
+    fixtures/gold-camera2d-skew-negative.par
+    fixtures/gold-camera2d-skew-hold.par
+    fixtures/gold-camera2d-skew-step.par
+    fixtures/gold-camera2d-skew-reverse.par
+    fixtures/gold-camera2d-skew-eye.par
+    fixtures/camera2d-skew-eye-corners.json
+    fixtures/camera2d-skew-center-pole.json
+    fixtures/camera2d-skew-center-mag.json
+    fixtures/camera2d-skew-corners.json
+    fixtures/gold-camera2d-skew-center-mag.par
+    fixtures/gold-camera2d-skew-corners.par
+    fixtures/camera2d-skew-geometric.json
+    fixtures/camera2d-skew-negative.json
+    fixtures/camera2d-skew-hold.json
+    fixtures/camera2d-skew-step.json
+    fixtures/camera2d-skew-reverse.json
+    fixtures/camera2d-skew-eye.json
+    fixtures/invalid-camera2d-skew-pole.json
+    fixtures/invalid-camera2d-skew-endpoint.json
+    fixtures/invalid-camera2d-skew-path.json
+    fixtures/invalid-camera2d-skew-number.json
+    fixtures/invalid-camera2d-skew-type.json
+    fixtures/invalid-camera2d-skew-range.json
+    fixtures/invalid-camera2d-skew-curve.json
+    fixtures/invalid-camera2d-skew-zero.json
+    fixtures/invalid-camera2d-skew-sign.json
     fixtures/camera2d-corners.json
     fixtures/gold-camera2d-corners.par
     fixtures/camera2d-eye-corners.json
@@ -187,6 +217,7 @@ add_executable(test-timeline-paranimator
     animation_test.cpp
     camera_test.cpp
     camera_corners_test.cpp
+    camera_skew_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

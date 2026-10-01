@@ -1037,7 +1037,7 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
     const std::string &label, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
 {
-    if ((member == "view-up" || member == "height") && signal.contains("path"))
+    if ((member == "view-up" || member == "height" || member == "skew") && signal.contains("path"))
     {
         throw std::invalid_argument(
             "Camera2D " + member + " requires keyed input in the ParAnimator format; paths are not allowed");
@@ -1060,9 +1060,9 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
     for (const Json &key : keys)
     {
         const Json &value = key.at("value");
-        if (member == "height" && !value.is_number())
+        if ((member == "height" || member == "skew") && !value.is_number())
         {
-            throw std::invalid_argument("Camera2D height requires a JSON number in the ParAnimator format");
+            throw std::invalid_argument("Camera2D " + member + " requires a JSON number in the ParAnimator format");
         }
         if (!value.is_string() && (arity != 1 || !value.is_number()))
         {
@@ -1083,6 +1083,52 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
         if (arity == 2 && key.value("curve", std::string("linear")) == "geometric")
         {
             throw std::invalid_argument("Camera2D " + member + " does not support geometric interpolation");
+        }
+    }
+    if (member == "skew")
+    {
+        const double from = keys[0].at("value").get<double>();
+        const double to = keys[1].at("value").get<double>();
+        const timeline::KeyframeInterpolation interpolation =
+            animation_interpolation(keys[1].value("curve", std::string("linear")));
+        static_cast<void>(animation_interpolation(keys[0].value("curve", std::string("linear"))));
+        if (interpolation == timeline::KeyframeInterpolation::LINEAR && !std::isfinite(to - from))
+        {
+            throw std::invalid_argument("Camera2D skew linear interpolation requires a finite difference");
+        }
+        if (interpolation == timeline::KeyframeInterpolation::GEOMETRIC)
+        {
+            const double ratio = to / from;
+            if (from == 0 || to == 0 || !std::isfinite(ratio) || ratio <= 0)
+            {
+                throw std::invalid_argument("Camera2D skew geometric interpolation requires a finite positive ratio");
+            }
+            if (from < 0)
+            {
+                // Core geometric keys require positive values; retain this signed source definition analytically.
+                const timeline::Time start = grid.offset();
+                const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+                const auto evaluate = [from, to, ratio, start, end](timeline::Time time)
+                {
+                    if (time <= start)
+                    {
+                        return from;
+                    }
+                    if (!(time < end))
+                    {
+                        return to;
+                    }
+                    const double fraction =
+                        static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
+                    return from * std::pow(ratio, fraction);
+                };
+                timeline::Lane lane(id + "-skew", label + " / skew", "curve", start, grid.end_time());
+                lane.add(timeline::Curve(lane.id() + "-geometric", "camera2d-input", start, end, evaluate, lane.label(),
+                    std::min(from, to), std::max(from, to),
+                    {{"signal", signal.dump()}, {"curve", "geometric"}, {"layer", layer}, {"parameter", "skew"}}));
+                lanes.push_back(std::move(lane));
+                return;
+            }
         }
     }
     animation_key_lanes(
@@ -1538,9 +1584,9 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     {
         throw std::invalid_argument("Camera2D requires a name and at least two frames");
     }
-    if (track.value("mode", std::string("keyframes")) != "keyframes" || track.contains("skew"))
+    if (track.value("mode", std::string("keyframes")) != "keyframes")
     {
-        throw std::invalid_argument("Camera2D skew and non-keyframe modes are not supported yet");
+        throw std::invalid_argument("Camera2D non-keyframe modes are not supported yet");
     }
     const std::string output = track.at("output").get<std::string>();
     const bool corners = output == "corners";
@@ -1583,9 +1629,19 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         camera2d_key_lanes(track.at("view-up"), "view-up", "vector2", id, label, layer, grid, signals);
     }
     camera2d_key_lanes(track.at("height"), "height", "double", id, label, layer, grid, signals);
+    if (track.contains("skew"))
+    {
+        camera2d_key_lanes(track.at("skew"), "skew", "double", id, label, layer, grid, signals);
+    }
 
     const timeline::Time start = grid.offset();
     const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+    const std::optional<timeline::Lane> skew =
+        track.contains("skew") ? std::optional<timeline::Lane>(signals[5]) : std::nullopt;
+    const auto skew_value = [skew](timeline::Time time)
+    {
+        return skew ? camera2d_sample(*skew, time) : 0;
+    };
     const auto direction = [x = signals[2], y = signals[3], look_x = signals[0], look_y = signals[1], eye](
                                timeline::Time time)
     {
@@ -1641,12 +1697,24 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         : std::array<std::string, 6>{"center-x", "center-y", "magnification", "x-mag-factor", "rotation", "skew"};
     std::array<std::pair<double, double>, 6> bounds{camera2d_bounds(signals[0], start, end),
         camera2d_bounds(signals[1], start, end), std::minmax(from_mag, to_mag), {stretch, stretch}, {-180, 180},
-        {0, 0}};
+        std::minmax(skew_value(start), skew_value(end))};
     if (corners)
     {
-        // A rotating corner stays within the enclosing circle at the largest keyed height.
+        constexpr double PI = 3.141592653589793238462643383279502884;
+        const double from = skew_value(start);
+        const double to = skew_value(end);
+        const bool hold = skew && std::holds_alternative<timeline::Keyframe>(skew->items().front()) &&
+            std::get<timeline::Keyframe>(skew->items().front()).interpolation() ==
+                timeline::KeyframeInterpolation::HOLD;
+        if (std::abs(std::remainder(from, 180)) == 90 || std::abs(std::remainder(to, 180)) == 90 ||
+            (!hold && std::abs(to - from) >= 90 - std::remainder(std::min(from, to), 180)))
+        {
+            throw std::invalid_argument("Camera2D corners skew crosses a singular tangent angle");
+        }
+        const double tangent = std::max(std::abs(std::tan(from * PI / 180)), std::abs(std::tan(to * PI / 180)));
+        // Rotation preserves distance; bound every sheared corner over the full continuous interval.
         const double height = camera2d_bounds(signals[4], start, end).second;
-        const double radius = std::hypot(height * aspect / 2, height / 2);
+        const double radius = std::hypot(height * aspect / 2 + height * tangent / 2, height / 2);
         for (int component = 0; component < 6; ++component)
         {
             const int coordinate = component == 0 || component == 1 || component == 4 ? 0 : 1;
@@ -1665,26 +1733,27 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     for (int component = 0; component < 6; ++component)
     {
         const auto evaluate = [x = signals[0], y = signals[1], height = signals[4], normalized_up, magnification,
-                                  stretch, aspect, corners, component](timeline::Time time)
+                                  stretch, aspect, corners, component, skew_value](timeline::Time time)
         {
             const std::array<double, 2> up = normalized_up(time);
             const double center_x = camera2d_sample(x, time);
             const double center_y = camera2d_sample(y, time);
+            constexpr double PI = 3.141592653589793238462643383279502884;
             if (corners)
             {
                 const double half_height = camera2d_sample(height, time) / 2;
                 const double half_width = camera2d_sample(height, time) * aspect / 2;
-                const std::array<double, 6> values{center_x - half_width * up[1] + half_height * up[0],
-                    center_x + half_width * up[1] - half_height * up[0],
-                    center_y - half_width * up[0] - half_height * up[1],
-                    center_y + half_width * up[0] + half_height * up[1],
-                    center_x - half_width * up[1] - half_height * up[0],
-                    center_y + half_width * up[0] - half_height * up[1]};
+                const double offset = half_height * std::tan(skew_value(time) * PI / 180);
+                const std::array<double, 6> values{center_x + (-half_width + offset) * up[1] + half_height * up[0],
+                    center_x + (half_width - offset) * up[1] - half_height * up[0],
+                    center_y - (half_width - offset) * up[0] - half_height * up[1],
+                    center_y - (-half_width + offset) * up[0] + half_height * up[1],
+                    center_x + (-half_width - offset) * up[1] - half_height * up[0],
+                    center_y - (-half_width - offset) * up[0] - half_height * up[1]};
                 return clean_path_value(values[component]);
             }
-            constexpr double PI = 3.141592653589793238462643383279502884;
-            const std::array<double, 6> values{
-                center_x, center_y, magnification(time), stretch, std::atan2(up[0], up[1]) * 180 / PI, 0};
+            const std::array<double, 6> values{center_x, center_y, magnification(time), stretch,
+                std::atan2(up[0], up[1]) * 180 / PI, skew_value(time)};
             return clean_path_value(values[component]);
         };
         const std::string suffix = "-" + output + "[" + std::to_string(component) + "]";
@@ -1696,13 +1765,16 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
             clean_path_value(bounds[component].first), clean_path_value(bounds[component].second), output_attributes));
         lanes.push_back(std::move(lane));
     }
-    for (int component = 0; component < 5; ++component)
+    for (int component = 0; component < timeline::size_cast(signals); ++component)
     {
-        const std::string member = component < 2 ? "look-at" : component < 4 ? (eye ? "eye" : "view-up") : "height";
+        const std::string member = component < 2 ? "look-at"
+            : component < 4                      ? (eye ? "eye" : "view-up")
+            : component == 4                     ? "height"
+                                                 : "skew";
         timeline::Attributes input_attributes = attributes;
         input_attributes["parameter"] = name + "." + member;
         input_attributes["signal"] = track.at(member).dump();
-        input_attributes["component"] = std::to_string(component == 4 ? 0 : component % 2);
+        input_attributes["component"] = std::to_string(component >= 4 ? 0 : component % 2);
         timeline::Lane lane(signals[component].id(), signals[component].label(),
             member == "view-up" ? "curve" : signals[component].kind(), start, grid.end_time());
         if (member == "view-up")
