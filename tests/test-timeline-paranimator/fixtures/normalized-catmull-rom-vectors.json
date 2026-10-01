@@ -1,0 +1,12 @@
+{
+  "parameter-catalogs": [ "input/normalized-vector-catalog.json" ],
+  "source": { "file": "input/normalized-vector-source.par", "name": "Vector_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 9,
+  "tracks": [
+    { "parameter": "direction2", "path": { "kind": "catmull-rom", "control-points": [ "2/0", "1/3", "-2/1", "-1/-2" ] } },
+    { "parameter": "direction3", "path": { "kind": "catmull-rom", "control-points": [ "0/0/2", "2/0/2", "2/2/2", "0/2/2" ] } },
+    { "parameter": "raw3", "path": { "kind": "catmull-rom", "control-points": [ "0/0/2", "2/0/2", "2/2/2", "0/2/2" ] } }
+  ]
+}

@@ -2,6 +2,14 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/normalized-bezier-vectors.json
+    fixtures/normalized-catmull-rom-vectors.json
+    fixtures/normalized-vector-partial.json
+    fixtures/normalized-vector-invalid.json
+    fixtures/input/normalized-vector-catalog.json
+    fixtures/input/normalized-vector-source.par
+    fixtures/gold-normalized-bezier-vectors.par
+    fixtures/gold-normalized-catmull-rom-vectors.par
     fixtures/integer-output.json
     fixtures/integer-output-policies.json
     fixtures/integer-output-invalid.json
@@ -432,6 +440,7 @@ add_executable(test-timeline-paranimator
     animation_test.cpp
     extrapolation_test.cpp
     integer_output_test.cpp
+    normalized_vector_test.cpp
     camera_test.cpp
     camera_corners_test.cpp
     camera_skew_test.cpp

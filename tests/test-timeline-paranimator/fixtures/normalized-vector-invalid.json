@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/normalized-vector-catalog.json" ],
+  "source": { "file": "input/normalized-vector-source.par", "name": "Vector_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "direction2", "path": { "kind": "bezier", "control-points": [ "37/0", "-63/0" ] } }
+  ]
+}

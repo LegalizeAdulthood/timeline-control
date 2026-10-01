@@ -685,7 +685,115 @@ double control_path_value(const std::vector<double> &values, bool catmull_rom, d
     return clean_path_value(interpolated.front());
 }
 
-void animation_control_point_lanes(const Json &path, const Json &metadata, const std::string &id,
+std::vector<double> normalize_path_vector(std::vector<double> values)
+{
+    double squared_length = 0;
+    for (double &value : values)
+    {
+        value = clean_path_value(value);
+        squared_length += value * value;
+    }
+    if (squared_length == 0 || !std::isfinite(squared_length))
+    {
+        throw std::invalid_argument("vector normalization requires a nonzero finite squared length");
+    }
+    const double length = std::sqrt(squared_length);
+    for (double &value : values)
+    {
+        value = clean_path_value(value / length);
+    }
+    return values;
+}
+
+void validate_vector_hull(const std::vector<std::vector<double>> &points, int depth, int &remaining)
+{
+    if (--remaining < 0)
+    {
+        throw std::invalid_argument("vector normalization exceeds the control-hull validation limit");
+    }
+    static_cast<void>(normalize_path_vector(points.front()));
+    static_cast<void>(normalize_path_vector(points.back()));
+    bool safe = false;
+    double squared_bound = 0;
+    const int arity = timeline::size_cast(points.front());
+    for (int component = 0; component < arity; ++component)
+    {
+        double minimum = points.front()[component];
+        double maximum = minimum;
+        for (const std::vector<double> &point : points)
+        {
+            if (!std::isfinite(point[component]))
+            {
+                throw std::invalid_argument("vector normalization requires finite control hulls");
+            }
+            minimum = std::min(minimum, point[component]);
+            maximum = std::max(maximum, point[component]);
+        }
+        const double magnitude = std::max(std::abs(minimum), std::abs(maximum));
+        squared_bound += magnitude * magnitude;
+        const double margin =
+            1e-12 + 64 * std::numeric_limits<double>::epsilon() * magnitude * timeline::size_cast(points);
+        safe = safe || minimum > margin || maximum < -margin;
+    }
+    if (!std::isfinite(squared_bound))
+    {
+        throw std::invalid_argument("vector normalization requires a finite squared-length bound");
+    }
+    if (safe)
+    {
+        return;
+    }
+    if (depth >= 52)
+    {
+        throw std::invalid_argument(
+            "vector normalization cannot exclude a singular interval within the validation limit");
+    }
+    // Subdivision encloses the entire path, including zeros between frame times.
+    std::vector<std::vector<double>> values(points);
+    std::vector<std::vector<double>> left{points.front()};
+    std::vector<std::vector<double>> right{points.back()};
+    for (int order = timeline::size_cast(values) - 1; order > 0; --order)
+    {
+        for (int point = 0; point < order; ++point)
+        {
+            for (int component = 0; component < arity; ++component)
+            {
+                values[point][component] = 0.5 * values[point][component] + 0.5 * values[point + 1][component];
+            }
+        }
+        left.push_back(values.front());
+        right.push_back(values[order - 1]);
+    }
+    std::reverse(right.begin(), right.end());
+    validate_vector_hull(left, depth + 1, remaining);
+    validate_vector_hull(right, depth + 1, remaining);
+}
+
+void validate_vector_control_path(const std::vector<std::vector<double>> &points,
+    const std::vector<std::vector<double>> &components, bool catmull_rom)
+{
+    int remaining = 100000;
+    if (!catmull_rom)
+    {
+        validate_vector_hull(points, 0, remaining);
+        return;
+    }
+    for (int segment = 0; segment < timeline::size_cast(points) - 1; ++segment)
+    {
+        std::vector<std::vector<double>> hull(4);
+        for (const std::vector<double> &values : components)
+        {
+            const std::array<double, 4> bounds = catmull_rom_hull(values, segment);
+            for (int point = 0; point < 4; ++point)
+            {
+                hull[point].push_back(bounds[point]);
+            }
+        }
+        validate_vector_hull(hull, 0, remaining);
+    }
+}
+
+void animation_control_point_lanes(const Json &track, const Json &metadata, const std::string &id,
     const std::string &label, const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
 {
@@ -693,13 +801,11 @@ void animation_control_point_lanes(const Json &path, const Json &metadata, const
     {
         throw std::invalid_argument("path tracks require at least two frames");
     }
+    const Json &path = track.at("path");
     const bool catmull_rom = path.at("kind").get<std::string>() == "catmull-rom";
     const std::string path_name = catmull_rom ? "Catmull-Rom" : "Bezier";
     const std::string type = metadata.value("type", std::string{});
-    if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
-    {
-        throw std::invalid_argument(path_name + " vector normalization is not supported");
-    }
+    const bool normalize = (type == "vector2" || type == "vector3") && metadata.value("normalize", false);
     const Json &points = path.at("control-points");
     if (!points.is_array() || timeline::size_cast(points) < (catmull_rom ? 4 : 2))
     {
@@ -721,25 +827,51 @@ void animation_control_point_lanes(const Json &path, const Json &metadata, const
     }
     const timeline::Time start = grid.offset();
     const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+    std::vector<std::vector<double>> component_values(arity);
+    for (const std::vector<double> &point : control_points)
+    {
+        for (int component = 0; component < arity; ++component)
+        {
+            component_values[component].push_back(point[component]);
+        }
+    }
+    if (normalize)
+    {
+        validate_vector_control_path(control_points, component_values, catmull_rom);
+    }
     for (int component = 0; component < arity; ++component)
     {
-        std::vector<double> values;
-        for (const std::vector<double> &point : control_points)
-        {
-            values.push_back(point[component]);
-        }
+        const std::vector<double> &values = component_values[component];
         const auto [minimum, maximum] = std::minmax_element(values.begin(), values.end());
-        const std::pair<double, double> bounds =
-            catmull_rom ? catmull_rom_bounds(values) : std::pair<double, double>{*minimum, *maximum};
+        const std::pair<double, double> bounds = normalize ? std::pair<double, double>{-1, 1}
+            : catmull_rom                                  ? catmull_rom_bounds(values)
+                                                           : std::pair<double, double>{*minimum, *maximum};
         const std::string suffix = arity == 1 ? "" : "[" + std::to_string(component) + "]";
-        const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
+        timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
             {"path", path.dump()}, {"component", std::to_string(component)}};
-        const auto evaluate = [values, start, end, catmull_rom](timeline::Time time)
+        timeline::CurveEvaluator evaluate = [values, start, end, catmull_rom](timeline::Time time)
         {
             const double fraction =
                 static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
             return control_path_value(values, catmull_rom, fraction);
         };
+        if (normalize)
+        {
+            attributes["normalize"] = "true";
+            attributes["catalog-definition"] = metadata.dump();
+            attributes["track-definition"] = track.dump();
+            evaluate = [component_values, component, start, end, catmull_rom](timeline::Time time)
+            {
+                const double fraction =
+                    static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
+                std::vector<double> sampled;
+                for (const std::vector<double> &values : component_values)
+                {
+                    sampled.push_back(control_path_value(values, catmull_rom, fraction));
+                }
+                return normalize_path_vector(std::move(sampled))[component];
+            };
+        }
         timeline::Lane lane(id + suffix, label + suffix, "curve", start, grid.end_time());
         lane.add(timeline::Curve(id + suffix + "-path", "procedural-path", start, end, evaluate, label + suffix,
             clean_path_value(bounds.first), clean_path_value(bounds.second), attributes));
@@ -1206,8 +1338,8 @@ void camera2d_look_lanes(const Json &look, const std::string &id, const std::str
     }
     else if (kind == "bezier" || kind == "catmull-rom")
     {
-        animation_control_point_lanes(look.at("path"), Json{{"type", "point2"}}, id + "-look-at", label + " / look-at",
-            "look-at", layer, grid, signals);
+        animation_control_point_lanes(
+            look, Json{{"type", "point2"}}, id + "-look-at", label + " / look-at", "look-at", layer, grid, signals);
     }
     else
     {
@@ -1538,7 +1670,7 @@ void camera2d_eye_lanes(const Json &eye, const std::string &id, const std::strin
     if (control_points)
     {
         animation_control_point_lanes(
-            path, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
+            eye, Json{{"type", "point2"}}, id + "-eye", label + " / eye", "eye", layer, grid, signals);
         if (fixed_look)
         {
             camera2d_validate_control_eye(
@@ -2850,11 +2982,16 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             }
             else if (path_kind == "bezier" || path_kind == "catmull-rom")
             {
-                animation_control_point_lanes(
-                    track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
+                animation_control_point_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
             }
             else
             {
+                const std::string type = metadata.value("type", std::string{});
+                if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
+                {
+                    throw std::invalid_argument(
+                        "catalog vector normalization for keys, constant, and line paths is not supported");
+                }
                 animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
             }
             if (extrapolation != "clamp")

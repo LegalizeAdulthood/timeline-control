@@ -1,0 +1,10 @@
+{
+  "parameters": {
+    "direction2": { "type": "vector2", "normalize": true, "description": "Normalized planar direction" },
+    "direction3": { "type": "vector3", "normalize": true, "description": "Normalized spatial direction" },
+    "raw3": { "type": "vector3", "normalize": false, "description": "Unnormalized spatial vector" },
+    "tiny2": { "type": "vector2", "normalize": true, "description": "Source cleanup boundary" },
+    "hull2": { "type": "vector2", "normalize": true, "description": "Nonzero curve with a zero control point" },
+    "raw2": { "type": "point2", "description": "Unnormalized point" }
+  }
+}

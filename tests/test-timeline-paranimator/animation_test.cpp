@@ -337,16 +337,21 @@ TEST(AnimationImport, diagnoses_malformed_catmull_rom_recipes_without_losing_val
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-catmull-rom-paths.json");
     ASSERT_TRUE(result.succeeded());
-    ASSERT_EQ(11, timeline::size_cast(result.diagnostics));
-    ASSERT_EQ(2, result.document->lane_count());
+    ASSERT_EQ(10, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(4, result.document->lane_count());
     for (int index = 0; index < 11; ++index)
     {
-        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+        if (index != 7)
+        {
+            const int diagnostic = index < 7 ? index : index - 1;
+            EXPECT_NE(std::string::npos, result.diagnostics[diagnostic].find("animation-" + std::to_string(index)));
+        }
     }
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("at least four control points"));
-    EXPECT_NE(std::string::npos, result.diagnostics[7].find("normalization"));
-    EXPECT_EQ("animation-11[0]", result.document->lanes()[0].id());
-    const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
+    EXPECT_EQ("animation-7[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("true", std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes().at("normalize"));
+    EXPECT_EQ("animation-11[0]", result.document->lanes()[2].id());
+    const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[3].items().front());
     EXPECT_DOUBLE_EQ(2.25, curve.sample(result.document->frame_grid()->frame_start(3)));
     const JsonImportResult single = import_timeline_json("fixtures/single-frame-catmull-rom.json");
     EXPECT_FALSE(single.succeeded());
@@ -461,18 +466,23 @@ TEST(AnimationImport, diagnoses_malformed_bezier_points_and_unsupported_targets)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-bezier-paths.json");
     ASSERT_TRUE(result.succeeded());
-    ASSERT_EQ(11, timeline::size_cast(result.diagnostics));
-    ASSERT_EQ(4, result.document->lane_count());
+    ASSERT_EQ(10, timeline::size_cast(result.diagnostics));
+    ASSERT_EQ(6, result.document->lane_count());
     for (int index = 0; index < 11; ++index)
     {
-        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+        if (index != 7)
+        {
+            const int diagnostic = index < 7 ? index : index - 1;
+            EXPECT_NE(std::string::npos, result.diagnostics[diagnostic].find("animation-" + std::to_string(index)));
+        }
     }
-    EXPECT_NE(std::string::npos, result.diagnostics[7].find("normalization"));
-    EXPECT_EQ("animation-11[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("animation-7[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("true", std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes().at("normalize"));
+    EXPECT_EQ("animation-11[0]", result.document->lanes()[2].id());
     const timeline::FrameGrid &grid = *result.document->frame_grid();
-    const timeline::Curve &constant = std::get<timeline::Curve>(result.document->lanes()[0].items().front());
+    const timeline::Curve &constant = std::get<timeline::Curve>(result.document->lanes()[2].items().front());
     EXPECT_DOUBLE_EQ(1.0, constant.sample(grid.frame_start(2)));
-    const timeline::Curve &line = std::get<timeline::Curve>(result.document->lanes()[3].items().front());
+    const timeline::Curve &line = std::get<timeline::Curve>(result.document->lanes()[5].items().front());
     EXPECT_DOUBLE_EQ(4.0, line.sample(grid.frame_start(2)));
     const JsonImportResult single = import_timeline_json("fixtures/single-frame-bezier.json");
     EXPECT_FALSE(single.succeeded());

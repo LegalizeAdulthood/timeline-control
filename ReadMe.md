@@ -96,14 +96,12 @@ Component bounds use the larger endpoint radius. Definitions and recipes
 remain owned by the document, without cached frame keys.
 
 Bezier paths use owned de Casteljau evaluators with at least two control
-points. Complex, numeric-tuple, point2/point3, and unnormalized
-vector2/vector3 targets produce one curve lane per component. Numeric
-tuples require a positive catalog arity; point/vector aliases validate any
-declared arity. Control points must be finite slash-delimited strings of
+points. Complex, numeric-tuple, point2/point3, and vector2/vector3 targets
+produce one curve lane per component. Numeric tuples require a positive
+catalog arity; point/vector aliases validate any declared arity.
+Control points must be finite slash-delimited strings of
 the target arity. The original recipe remains inspectable; component
 bounds use the control-point hull, not a cached set of frame samples.
-Normalized vectors receive an explicit importer diagnostic until their
-parameter-specific evaluation is supported.
 
 Catmull-Rom paths share the control-point target validation and require
 at least four points. Uniform segments visit every control point over
@@ -111,6 +109,31 @@ frame 0 through the final frame. Endpoint tangents use extrapolated
 neighbors, matching ParAnimator. Component bounds include the equivalent
 cubic Bezier hulls so overshoot is not clipped. The document owns the
 analytic definitions and original recipes without storing frame samples.
+
+Catalog-normalized vector2/vector3 control-point paths clean components
+below `1e-12`, normalize after interpolation, and clean the result,
+matching ParAnimator. Each component retains an owned analytic definition
+with bounds `[-1, 1]`, the original control points, catalog policy, and
+complete track recipe. Unnormalized vectors and points remain unchanged.
+Bounded control-hull subdivision rejects zero crossings, tangencies, and
+cleanup-induced singularities between frames. Catmull-Rom validation uses
+equivalent cubic Bezier hulls for every segment. Overflowing squared
+lengths and unresolved validation limits produce importer diagnostics.
+Ordinary catalog-normalized keys, constant paths, and line paths remain
+unsupported and receive explicit diagnostics; nested camera normalization
+is unaffected.
+
+Open `normalized-bezier-vectors.json` for twelve lanes. At frame 2,
+`direction2` is approximately `0.447214/0.894427`, not an interpolation
+of unit endpoints. `direction3` is normalized while `raw3` retains
+`1.5/1/2`; `tiny2` is `0/1` after source cleanup. Add
+`beat-keys/rms.beat-keys.json` for sixteen comparison lanes. Open
+`normalized-catmull-rom-vectors.json` to replace them with eight lanes.
+At frame 4, `direction2` is approximately `-0.254493/0.967075`.
+Select its curve, then open `normalized-vector-invalid.json`: the
+between-frame zero is rejected without replacing the document, selection,
+or playhead. Both golden PAR files were generated with ParAnimator and
+cover every frame in their fixtures.
 
 Unslotted PWM tracks support yes-no, enum, inside, outside, and
 integer-or-enum targets. Two mix keys must span frame 0 through the final

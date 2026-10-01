@@ -1,0 +1,134 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=1/0
+    direction3=0/0/1
+    raw3=0/0/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0.786567252229/0.617504621619
+    direction3=0.386088413661/-0.0404987846497/0.921572344029
+    raw3=0.837890625/-0.087890625/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0.471412786739/0.881912685303
+    direction3=0.633288977533/-0.05428191236/0.772009420231
+    raw3=1.640625/-0.140625/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0.225462457079/0.974251856785
+    direction3=0.724461610765/0.0576886097461/0.686896934651
+    raw3=2.109375/0.16796875/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=-0.25449329928/0.967074537263
+    direction3=0.709299365615/0.315244162496/0.630488324991
+    raw3=2.25/1/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0006 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=-0.804266677036/0.594268552263
+    direction3=0.61391190893/0.533193861644/0.582079439578
+    raw3=2.109375/1.83203125/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0007 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=-0.987793750441/0.155767476031
+    direction3=0.488620562541/0.637533495887/0.595651733384
+    raw3=1.640625/2.140625/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0008 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=-0.881413949931/-0.47234462934
+    direction3=0.278349808757/0.693603602707/0.66440607032
+    raw3=0.837890625/2.087890625/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
+
+frame-0009 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=-0.4472135955/-0.894427191
+    direction3=0/0.707106781187/0.707106781187
+    raw3=0/2/2
+    tiny2=0/1
+    hull2=1/0
+    raw2=1/2
+}
