@@ -1,0 +1,84 @@
+{
+  "parameter-catalogs": [
+    "input/julibrot-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Julibrot_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "name": "view",
+      "type": "julibrot-view",
+      "outputs": {
+        "mode": "3dmode",
+        "geometry": "julibrot3d",
+        "eyes": "julibroteyes",
+        "from-to": "julibrotfromto"
+      },
+      "mode": {
+        "type": "enum",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "monocular"
+          },
+          {
+            "frame": 2,
+            "value": "red-blue",
+            "curve": "step"
+          }
+        ]
+      },
+      "geometry": {
+        "type": "numeric-tuple",
+        "arity": 6,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "128/8/8/7/10/24"
+          },
+          {
+            "frame": 2,
+            "value": "256/4/6/9/12/13"
+          }
+        ]
+      },
+      "eyes": {
+        "type": "double",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0.5
+          },
+          {
+            "frame": 2,
+            "value": 1.75
+          }
+        ]
+      },
+      "from-to": {
+        "type": "numeric-tuple",
+        "arity": 4,
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/1/-2/2"
+          },
+          {
+            "frame": 2,
+            "value": "-4/3/-6/5"
+          }
+        ]
+      }
+    }
+  ]
+}

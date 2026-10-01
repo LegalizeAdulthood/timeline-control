@@ -1,0 +1,13 @@
+; Julibrot layer source and output alias fixture.
+Aliased {
+  reset type=julibrot geometry-alias=64/3/4/5/6/99
+}
+Missing {
+  reset type=julibrot
+}
+BadArity {
+  reset type=julibrot julibrot3d=1/2/3
+}
+BadValue {
+  reset type=julibrot julibrot3d=1/2/3/4/5/oops
+}

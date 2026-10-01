@@ -1,0 +1,383 @@
+{
+  "parameter-catalogs": [
+    "input/julibrot-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Julibrot_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "layers": [
+    {
+      "id": "Missing",
+      "source": {
+        "file": "input/julibrot-sources.par",
+        "name": "Missing"
+      },
+      "tracks": [
+        {
+          "name": "view",
+          "type": "julibrot-view",
+          "outputs": {
+            "geometry": "julibrot3d"
+          },
+          "camera3d": {
+            "eye": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/24"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/12"
+                }
+              ]
+            },
+            "look-at": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/0"
+                }
+              ]
+            },
+            "view-up": {
+              "type": "vector3",
+              "normalize": true,
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/1/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/1/0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "BadArity",
+      "source": {
+        "file": "input/julibrot-sources.par",
+        "name": "BadArity"
+      },
+      "tracks": [
+        {
+          "name": "view",
+          "type": "julibrot-view",
+          "outputs": {
+            "geometry": "julibrot3d"
+          },
+          "camera3d": {
+            "eye": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/24"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/12"
+                }
+              ]
+            },
+            "look-at": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/0"
+                }
+              ]
+            },
+            "view-up": {
+              "type": "vector3",
+              "normalize": true,
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/1/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/1/0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "BadValue",
+      "source": {
+        "file": "input/julibrot-sources.par",
+        "name": "BadValue"
+      },
+      "tracks": [
+        {
+          "name": "view",
+          "type": "julibrot-view",
+          "outputs": {
+            "geometry": "julibrot3d"
+          },
+          "camera3d": {
+            "eye": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/24"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/12"
+                }
+              ]
+            },
+            "look-at": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/0"
+                }
+              ]
+            },
+            "view-up": {
+              "type": "vector3",
+              "normalize": true,
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/1/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/1/0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "underflow",
+      "source": {
+        "file": "input/source.par",
+        "name": "Julibrot_Demo"
+      },
+      "tracks": [
+        {
+          "name": "view",
+          "type": "julibrot-view",
+          "outputs": {
+            "geometry": "julibrot3d"
+          },
+          "camera3d": {
+            "eye": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/24"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/12"
+                }
+              ]
+            },
+            "look-at": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/0"
+                }
+              ]
+            },
+            "view-up": {
+              "type": "vector3",
+              "normalize": true,
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/1e-170/1e-160"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/1e-170/-3e-160"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "bounds",
+      "source": {
+        "file": "input/source.par",
+        "name": "Julibrot_Demo"
+      },
+      "tracks": [
+        {
+          "name": "view",
+          "type": "julibrot-view",
+          "outputs": {
+            "mode": "3dmode",
+            "geometry": "julibrot3d",
+            "eyes": "bounded-eyes",
+            "from-to": "julibrotfromto"
+          },
+          "mode": {
+            "type": "enum",
+            "keys": [
+              {
+                "frame": 0,
+                "value": "monocular"
+              },
+              {
+                "frame": 2,
+                "value": "red-blue",
+                "curve": "step"
+              }
+            ]
+          },
+          "geometry": {
+            "type": "numeric-tuple",
+            "arity": 6,
+            "keys": [
+              {
+                "frame": 0,
+                "value": "128/8/8/7/10/24"
+              },
+              {
+                "frame": 2,
+                "value": "256/4/6/9/12/13"
+              }
+            ]
+          },
+          "eyes": {
+            "type": "double",
+            "keys": [
+              {
+                "frame": 0,
+                "value": 0.5
+              },
+              {
+                "frame": 2,
+                "value": 1.75
+              }
+            ]
+          },
+          "from-to": {
+            "type": "numeric-tuple",
+            "arity": 4,
+            "keys": [
+              {
+                "frame": 0,
+                "value": "-1/1/-2/2"
+              },
+              {
+                "frame": 2,
+                "value": "-4/3/-6/5"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "valid",
+      "source": {
+        "file": "input/source.par",
+        "name": "Julibrot_Demo"
+      },
+      "tracks": [
+        {
+          "name": "view",
+          "type": "julibrot-view",
+          "outputs": {
+            "geometry": "julibrot3d"
+          },
+          "camera3d": {
+            "eye": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/24"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/12"
+                }
+              ]
+            },
+            "look-at": {
+              "type": "point3",
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/0/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/0/0"
+                }
+              ]
+            },
+            "view-up": {
+              "type": "vector3",
+              "normalize": true,
+              "keys": [
+                {
+                  "frame": 0,
+                  "value": "0/1/0"
+                },
+                {
+                  "frame": 2,
+                  "value": "0/1/0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

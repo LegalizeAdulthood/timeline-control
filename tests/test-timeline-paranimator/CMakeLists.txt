@@ -2,6 +2,24 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/partial-julibrot-sources.json
+    fixtures/julibrot-view-camera-hold.json
+    fixtures/gold-julibrot-view-camera-hold.par
+    fixtures/julibrot-view-camera.json
+    fixtures/julibrot-view-keyed.json
+    fixtures/julibrot-view-hold.json
+    fixtures/julibrot-view-normalized.json
+    fixtures/julibrot-view-override.json
+    fixtures/julibrot-view-layers.json
+    fixtures/partial-julibrot-view.json
+    fixtures/invalid-julibrot-view.json
+    fixtures/input/julibrot-catalog.json
+    fixtures/input/julibrot-sources.par
+    fixtures/gold-julibrot-view-camera.par
+    fixtures/gold-julibrot-view-keyed.par
+    fixtures/gold-julibrot-view-hold.par
+    fixtures/gold-julibrot-view-normalized.par
+    fixtures/gold-julibrot-view-override.par
     fixtures/id-3d-view-camera.json
     fixtures/id-3d-view-layers.json
     fixtures/id-3d-view-keyed.json
@@ -231,6 +249,7 @@ add_executable(test-timeline-paranimator
     camera_corners_test.cpp
     camera_skew_test.cpp
     id_3d_test.cpp
+    julibrot_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

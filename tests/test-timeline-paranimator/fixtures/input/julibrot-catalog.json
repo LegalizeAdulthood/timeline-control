@@ -1,0 +1,56 @@
+{
+  "parameters": {
+    "3dmode": {
+      "type": "enum",
+      "description": "Selects the Julibrot viewing mode, including monocular, left eye, right eye, or red-blue.",
+      "format": "raw",
+      "values": [
+        "monocular",
+        "lefteye",
+        "righteye",
+        "red-blue"
+      ],
+      "default-curve": "hold",
+      "extrapolate": "clamp"
+    },
+    "julibrot3d": {
+      "type": "numeric-tuple",
+      "description": "Sets Julibrot 3D depth, origin, height, width, and distance parameters.",
+      "format": "slash",
+      "arity": 6,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "julibroteyes": {
+      "type": "double",
+      "description": "Sets the distance between the virtual eyes for Julibrot rendering.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "julibrotfromto": {
+      "type": "numeric-tuple",
+      "description": "Sets the source and destination coordinate range used for Julibrot rendering.",
+      "format": "slash",
+      "arity": 4,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "geometry-alias": {
+      "type": "numeric-tuple",
+      "description": "Sets Julibrot 3D depth, origin, height, width, and distance parameters.",
+      "format": "slash",
+      "arity": 6,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "bounded-eyes": {
+      "type": "double",
+      "description": "Sets the distance between the virtual eyes for Julibrot rendering.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp",
+      "max": 1
+    }
+  }
+}

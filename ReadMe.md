@@ -240,6 +240,38 @@ twenty-five lanes; perspective is 12 at frame 1. Opening
 displayed document, selection, and playhead unchanged. These files are under
 `tests/test-timeline-paranimator/fixtures`.
 
+Julibrot view tracks support mode, six-component geometry, eyes, and
+four-component from-to signals. Each explicit member uses two full-range
+keys with catalog types, aliases, and bounds. Mode is a held enum; numeric
+members support linear and hold/step interpolation without integer
+rounding. Component identities, layer sources, and complete recipes remain
+inspectable. Invalid tracks contribute no partial lanes.
+
+Julibrot camera3d uses centered, straight-on axis-aligned keyed inputs.
+View-up has zero x and positive y; z may vary. Normalization follows
+interpolation, and the source geometry's first five components stay fixed;
+only its distance component comes from the camera. Continuous bounds
+reject degenerate directions and unsafe normalization, including between
+frames. Explicit geometry overrides retain unevaluated raw camera inputs.
+Near-axis tolerance variants and extreme normalization ranges receive
+explicit diagnostics pending the final parameter-evaluation audit.
+
+The Julibrot camera fixture is copied from ParAnimator. Six
+source-generated goldens cover camera, normalized view-up, keyed members,
+hold/step, and overrides. Like Id tuples, explicit Julibrot tuple strings
+are converted to arrays only for reference generation with the source
+loader; the importer accepts the schema-defined strings without changing
+ParAnimator.
+
+Open `julibrot-view-normalized.json` for fifteen lanes and distance 18.5
+at frame 1. Add the RMS mapping for nineteen comparison lanes; inspect
+geometry component 5 and its owned camera recipe. Open
+`julibrot-view-keyed.json` to replace the comparison with twelve lanes,
+including held mode and fractional eye spacing. Opening
+`invalid-julibrot-view.json` reports an unsupported camera and leaves the
+displayed document, selection, and playhead unchanged. These fixtures are
+under `tests/test-timeline-paranimator/fixtures`.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible

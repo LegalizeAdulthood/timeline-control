@@ -1868,9 +1868,9 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
     }
 }
 
-/// Catalog contract for one explicit Id view member and its camera eligibility.
+/// Catalog contract for one specialized view member and its camera eligibility.
 ///
-struct IdViewMember
+struct ViewMember
 {
     std::string name;
     std::string type;
@@ -1878,77 +1878,93 @@ struct IdViewMember
     bool camera;
 };
 
-const std::array<IdViewMember, 12> ID_VIEW_MEMBERS{
-    IdViewMember{"rotation", "numeric-tuple", 3, true},
-    IdViewMember{"perspective", "integer", 1, true},
-    IdViewMember{"xyshift", "numeric-tuple", 2, true},
-    IdViewMember{"scalexyz", "numeric-tuple", 3, false},
-    IdViewMember{"roughness", "integer", 1, false},
-    IdViewMember{"sphere", "yes-no", 1, false},
-    IdViewMember{"longitude", "numeric-tuple", 2, false},
-    IdViewMember{"latitude", "numeric-tuple", 2, false},
-    IdViewMember{"radius", "integer", 1, false},
-    IdViewMember{"stereo", "integer", 1, false},
-    IdViewMember{"interocular", "integer", 1, false},
-    IdViewMember{"converge", "integer", 1, false},
+const std::array<ViewMember, 12> ID_VIEW_MEMBERS{
+    ViewMember{"rotation", "numeric-tuple", 3, true},
+    ViewMember{"perspective", "integer", 1, true},
+    ViewMember{"xyshift", "numeric-tuple", 2, true},
+    ViewMember{"scalexyz", "numeric-tuple", 3, false},
+    ViewMember{"roughness", "integer", 1, false},
+    ViewMember{"sphere", "yes-no", 1, false},
+    ViewMember{"longitude", "numeric-tuple", 2, false},
+    ViewMember{"latitude", "numeric-tuple", 2, false},
+    ViewMember{"radius", "integer", 1, false},
+    ViewMember{"stereo", "integer", 1, false},
+    ViewMember{"interocular", "integer", 1, false},
+    ViewMember{"converge", "integer", 1, false},
 };
 
-void id_view_fields(const Json &object, const std::vector<std::string> &allowed)
+void view_fields(const Json &object, const std::vector<std::string> &allowed, const std::string &family)
 {
     if (!object.is_object())
     {
-        throw std::invalid_argument("Id 3D view requires an object");
+        throw std::invalid_argument(family + " view requires an object");
     }
     for (Json::const_iterator field = object.begin(); field != object.end(); ++field)
     {
         if (std::find(allowed.begin(), allowed.end(), field.key()) == allowed.end())
         {
-            throw std::invalid_argument("unsupported Id 3D view field '" + field.key() + "'");
+            throw std::invalid_argument("unsupported " + family + " view field '" + field.key() + "'");
         }
     }
 }
 
-std::vector<timeline::Lane> id_view_keys(const Json &signal, const Json &metadata, const std::string &member,
-    const std::string &id, const std::string &label, const std::string &layer, const timeline::FrameGrid &grid)
+std::vector<timeline::Lane> view_keys(const Json &signal, const Json &metadata, const std::string &member,
+    const std::string &id, const std::string &label, const std::string &layer, const timeline::FrameGrid &grid,
+    const std::string &family)
 {
     if (signal.contains("path"))
     {
-        throw std::invalid_argument("Id 3D view paths are not allowed");
+        throw std::invalid_argument(family + " view paths are not allowed");
     }
     const std::string type = metadata.at("type").get<std::string>();
     const bool camera = type == "point3" || type == "vector3";
-    id_view_fields(signal,
+    view_fields(signal,
         camera ? std::vector<std::string>{"type", "keys", "normalize"}
-               : std::vector<std::string>{"type", "arity", "keys"});
+               : std::vector<std::string>{"type", "arity", "keys"},
+        family);
     if (signal.at("type") != type || (type == "numeric-tuple" && signal.at("arity") != metadata.at("arity")))
     {
-        throw std::invalid_argument("Id 3D view " + member + " has the wrong type or arity");
+        throw std::invalid_argument(family + " view " + member + " has the wrong type or arity");
     }
     if (signal.contains("normalize") && (type != "vector3" || signal.at("normalize") != true))
     {
-        throw std::invalid_argument("Id 3D view-up normalize must be true");
+        throw std::invalid_argument(family + " view-up normalize must be true");
     }
     const Json &keys = signal.at("keys");
     if (!keys.is_array() || keys.size() != 2 || source_frame(keys[0]) != 0 ||
         source_frame(keys[1]) != grid.frame_count() - 1)
     {
-        throw std::invalid_argument("Id 3D view " + member + " requires two keys spanning the full frame range");
+        throw std::invalid_argument(family + " view " + member + " requires two keys spanning the full frame range");
     }
     const int components = camera ? 3 : metadata.value("arity", 1);
     Json realized = signal;
     for (int index = 0; index < 2; ++index)
     {
         const Json &key = keys[index];
-        id_view_fields(key, {"frame", "value", "curve"});
-        const std::string curve =
-            key.value("curve", metadata.value("default-curve", std::string(type == "yes-no" ? "hold" : "linear")));
+        view_fields(key, {"frame", "value", "curve"}, family);
+        const std::string curve = key.value("curve",
+            metadata.value("default-curve", std::string(type == "yes-no" || type == "enum" ? "hold" : "linear")));
         const timeline::KeyframeInterpolation interpolation = animation_interpolation(curve);
         if (interpolation == timeline::KeyframeInterpolation::GEOMETRIC ||
-            (type == "yes-no" && interpolation != timeline::KeyframeInterpolation::HOLD))
+            ((type == "yes-no" || type == "enum") && interpolation != timeline::KeyframeInterpolation::HOLD))
         {
-            throw std::invalid_argument("Id 3D view " + member + " requires scalar or discrete interpolation");
+            throw std::invalid_argument(family + " view " + member + " requires scalar or discrete interpolation");
         }
         const Json &value = key.at("value");
+        if (type == "enum")
+        {
+            const Json &allowed = metadata.at("values");
+            if (!value.is_string() || !allowed.is_array() ||
+                std::find(allowed.begin(), allowed.end(), value) == allowed.end())
+            {
+                throw std::invalid_argument(family + " " + member + " requires a catalog enum value");
+            }
+            continue;
+        }
+        if (type == "double" && !value.is_number())
+        {
+            throw std::invalid_argument(family + " " + member + " requires a JSON number");
+        }
         if (type == "yes-no")
         {
             if (!value.is_boolean())
@@ -1960,35 +1976,35 @@ std::vector<timeline::Lane> id_view_keys(const Json &signal, const Json &metadat
         }
         if (type == "integer" && !value.is_number_integer())
         {
-            throw std::invalid_argument("Id 3D " + member + " requires a JSON integer");
+            throw std::invalid_argument(family + " " + member + " requires a JSON integer");
         }
         if (components > 1 && !value.is_string())
         {
-            throw std::invalid_argument("Id 3D " + member + " requires a slash-delimited tuple string");
+            throw std::invalid_argument(family + " " + member + " requires a slash-delimited tuple string");
         }
         const std::vector<double> values = animation_value(value);
         if (timeline::size_cast(values) != components)
         {
-            throw std::invalid_argument("Id 3D " + member + " has the wrong component count");
+            throw std::invalid_argument(family + " " + member + " has the wrong component count");
         }
         for (double scalar : values)
         {
             if (type == "integer" &&
                 (scalar < std::numeric_limits<int>::min() || scalar > std::numeric_limits<int>::max()))
             {
-                throw std::invalid_argument("Id 3D " + member + " exceeds the source integer range");
+                throw std::invalid_argument(family + " " + member + " exceeds the source integer range");
             }
             if ((metadata.contains("min") && scalar < metadata.at("min").get<double>()) ||
                 (metadata.contains("max") && scalar > metadata.at("max").get<double>()) ||
                 (member == "radius" && scalar < 0) || (member == "stereo" && (scalar < 0 || scalar > 4)))
             {
-                throw std::invalid_argument("Id 3D " + member + " exceeds catalog or source bounds");
+                throw std::invalid_argument(family + " " + member + " exceeds catalog or source bounds");
             }
         }
     }
     std::vector<timeline::Lane> lanes;
     animation_key_lanes(realized, metadata, id, label, member, layer, grid, lanes);
-    if (type != "yes-no")
+    if (type != "yes-no" && type != "enum")
     {
         for (const timeline::Lane &lane : lanes)
         {
@@ -1997,14 +2013,14 @@ std::vector<timeline::Lane> id_view_keys(const Json &signal, const Json &metadat
             if (from.interpolation() == timeline::KeyframeInterpolation::LINEAR &&
                 !std::isfinite(to.value() - from.value()))
             {
-                throw std::invalid_argument("Id 3D interpolation requires a finite difference");
+                throw std::invalid_argument(family + " interpolation requires a finite difference");
             }
         }
     }
     return lanes;
 }
 
-timeline::Lane id_view_annotated(const timeline::Lane &source, const timeline::Attributes &attributes)
+timeline::Lane view_annotated(const timeline::Lane &source, const timeline::Attributes &attributes)
 {
     timeline::Lane lane(source.id(), source.label(), source.kind(), source.start(), source.end());
     for (const timeline::Item &item : source.items())
@@ -2035,7 +2051,7 @@ timeline::Lane id_view_annotated(const timeline::Lane &source, const timeline::A
                 }
                 else
                 {
-                    throw std::logic_error("Id 3D key definition contains an unexpected item");
+                    throw std::logic_error("view key definition contains an unexpected item");
                 }
             },
             item);
@@ -2106,16 +2122,16 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
 {
     std::vector<std::string> fields{"name", "type", "outputs", "camera3d"};
     std::vector<std::string> output_fields;
-    for (const IdViewMember &member : ID_VIEW_MEMBERS)
+    for (const ViewMember &member : ID_VIEW_MEMBERS)
     {
         fields.push_back(member.name);
         output_fields.push_back(member.name);
     }
-    id_view_fields(track, fields);
+    view_fields(track, fields, "Id 3D");
     const std::string name = track.at("name").get<std::string>();
     const std::string label = layer.empty() ? name : layer + " / " + name;
     const Json &outputs = track.at("outputs");
-    id_view_fields(outputs, output_fields);
+    view_fields(outputs, output_fields, "Id 3D");
     if (outputs.empty())
     {
         throw std::invalid_argument("Id 3D view requires at least one output");
@@ -2130,12 +2146,12 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
     if (track.contains("camera3d"))
     {
         const Json &camera = track.at("camera3d");
-        id_view_fields(camera, {"eye", "look-at", "view-up"});
+        view_fields(camera, {"eye", "look-at", "view-up"}, "Id 3D");
         for (const std::string &member : {"eye", "look-at", "view-up"})
         {
             const Json metadata{{"type", member == "view-up" ? "vector3" : "point3"}};
-            std::vector<timeline::Lane> input = id_view_keys(
-                camera.at(member), metadata, member, id + "-" + member, label + " / " + member, layer, grid);
+            std::vector<timeline::Lane> input = view_keys(
+                camera.at(member), metadata, member, id + "-" + member, label + " / " + member, layer, grid, "Id 3D");
             for (timeline::Lane &lane : input)
             {
                 signals.push_back(std::move(lane));
@@ -2143,7 +2159,7 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         }
     }
     const bool derived =
-        std::any_of(ID_VIEW_MEMBERS.begin(), ID_VIEW_MEMBERS.end(), [&track, &outputs](const IdViewMember &member)
+        std::any_of(ID_VIEW_MEMBERS.begin(), ID_VIEW_MEMBERS.end(), [&track, &outputs](const ViewMember &member)
             { return member.camera && outputs.contains(member.name) && !track.contains(member.name); });
     std::pair<double, double> camera_bounds{0, 0};
     if (derived)
@@ -2155,7 +2171,7 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         camera_bounds = id_view_validate_camera(signals, start, end);
     }
     std::vector<timeline::Lane> authored;
-    for (const IdViewMember &member : ID_VIEW_MEMBERS)
+    for (const ViewMember &member : ID_VIEW_MEMBERS)
     {
         if (!outputs.contains(member.name))
         {
@@ -2185,8 +2201,8 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         std::vector<timeline::Lane> input;
         if (track.contains(member.name))
         {
-            input = id_view_keys(track.at(member.name), metadata, member.name, id + "-" + member.name,
-                label + " / " + member.name, layer, grid);
+            input = view_keys(track.at(member.name), metadata, member.name, id + "-" + member.name,
+                label + " / " + member.name, layer, grid, "Id 3D");
         }
         else if (!member.camera || signals.empty())
         {
@@ -2198,7 +2214,7 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
             {
                 output_attributes["component"] = std::to_string(component);
                 output_attributes["signal"] = track.at(member.name).dump();
-                lanes.push_back(id_view_annotated(input[component], output_attributes));
+                lanes.push_back(view_annotated(input[component], output_attributes));
             }
             continue;
         }
@@ -2229,7 +2245,7 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
                 {
                     definition.add(std::get<timeline::Keyframe>(item));
                 }
-                authored.push_back(id_view_annotated(definition, output_attributes));
+                authored.push_back(view_annotated(definition, output_attributes));
             }
             else
             {
@@ -2297,7 +2313,257 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         }
         else
         {
-            lanes.push_back(id_view_annotated(signals[component], input_attributes));
+            lanes.push_back(view_annotated(signals[component], input_attributes));
+        }
+    }
+}
+
+const std::array<ViewMember, 4> JULIBROT_VIEW_MEMBERS{
+    ViewMember{"mode", "enum", 1, false},
+    ViewMember{"geometry", "numeric-tuple", 6, true},
+    ViewMember{"eyes", "double", 1, false},
+    ViewMember{"from-to", "numeric-tuple", 4, false},
+};
+
+std::pair<double, double> julibrot_camera_bounds(
+    const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+{
+    double minimum = std::numeric_limits<double>::max();
+    double maximum = 0;
+    double minimum_up_y = std::numeric_limits<double>::max();
+    double maximum_up_length = 0;
+    for (timeline::Time time : {start, end})
+    {
+        for (int component = 0; component < 3; ++component)
+        {
+            const double look = clean_path_value(camera2d_sample(signals[3 + component], time));
+            if (std::abs(look) >= 1e-9)
+            {
+                throw std::invalid_argument("Julibrot camera requires a centered look-at");
+            }
+            if (component < 2 && (look != 0 || clean_path_value(camera2d_sample(signals[component], time)) != 0))
+            {
+                throw std::invalid_argument(
+                    "unsupported Julibrot camera; only straight-on axis-aligned input is supported");
+            }
+        }
+        const double distance =
+            clean_path_value(camera2d_sample(signals[2], time)) - clean_path_value(camera2d_sample(signals[5], time));
+        if (distance <= 0 || !std::isfinite(distance * distance) || distance * distance == 0)
+        {
+            throw std::invalid_argument("Julibrot camera requires a nondegenerate straight-on direction");
+        }
+        minimum = std::min(minimum, std::sqrt(distance * distance));
+        maximum = std::max(maximum, std::sqrt(distance * distance));
+        const double up_x = camera2d_sample(signals[6], time);
+        const double up_y = camera2d_sample(signals[7], time);
+        const double up_z = camera2d_sample(signals[8], time);
+        const double length = std::sqrt(up_x * up_x + up_y * up_y + up_z * up_z);
+        if (up_x != 0 || up_y <= 0 || length == 0 || !std::isfinite(length))
+        {
+            throw std::invalid_argument("unsupported Julibrot camera view-up; requires positive y and zero x");
+        }
+        minimum_up_y = std::min(minimum_up_y, up_y);
+        maximum_up_length = std::max(maximum_up_length, length);
+    }
+    // Linear/held axis-aligned inputs remain straight-on throughout the interval.
+    // Bound normalization before source cleanup can make view-up parallel.
+    if (minimum_up_y * minimum_up_y == 0 || minimum_up_y / maximum_up_length < 1e-12)
+    {
+        throw std::invalid_argument("unsupported Julibrot camera view-up normalization interval");
+    }
+    const std::pair<double, double> eye = camera2d_bounds(signals[2], start, end);
+    const std::pair<double, double> look = camera2d_bounds(signals[5], start, end);
+    minimum = std::min(minimum, clean_path_value(eye.first) - clean_path_value(look.second));
+    maximum = std::max(maximum, clean_path_value(eye.second) - clean_path_value(look.first));
+    if (minimum <= 0 || minimum * minimum == 0 || !std::isfinite(maximum * maximum))
+    {
+        throw std::invalid_argument("Julibrot camera requires a finite nondegenerate straight-on interval");
+    }
+    return {minimum, maximum};
+}
+
+void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const std::filesystem::path &source_path,
+    const Json &config, const std::string &id, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    view_fields(track, {"name", "type", "outputs", "camera3d", "mode", "geometry", "eyes", "from-to"}, "Julibrot");
+    const std::string name = track.at("name").get<std::string>();
+    if (name.empty())
+    {
+        throw std::invalid_argument("Julibrot view requires a nonempty name");
+    }
+    const std::string label = layer.empty() ? name : layer + " / " + name;
+    const Json &outputs = track.at("outputs");
+    view_fields(outputs, {"mode", "geometry", "eyes", "from-to"}, "Julibrot");
+    if (outputs.empty())
+    {
+        throw std::invalid_argument("Julibrot view requires at least one output");
+    }
+    const std::map<std::string, std::string> source = animation_source(source_path, config);
+    const timeline::Time start = grid.offset();
+    const timeline::Time end = grid.frame_start(grid.frame_count() - 1);
+    const timeline::Attributes attributes{{"julibrot-view", track.dump()}, {"view-name", name}, {"layer", layer},
+        {"track", id}, {"source-entry", config.at("source").at("name").get<std::string>()},
+        {"source-file", (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()}};
+    std::vector<timeline::Lane> signals;
+    if (track.contains("camera3d"))
+    {
+        const Json &camera = track.at("camera3d");
+        view_fields(camera, {"eye", "look-at", "view-up"}, "Julibrot");
+        for (const std::string &member : {"eye", "look-at", "view-up"})
+        {
+            const Json metadata{{"type", member == "view-up" ? "vector3" : "point3"}};
+            std::vector<timeline::Lane> input = view_keys(camera.at(member), metadata, member, id + "-" + member,
+                label + " / " + member, layer, grid, "Julibrot");
+            for (timeline::Lane &lane : input)
+            {
+                signals.push_back(std::move(lane));
+            }
+        }
+    }
+    const bool derived = outputs.contains("geometry") && !track.contains("geometry");
+    std::pair<double, double> camera_bounds{0, 0};
+    if (derived)
+    {
+        if (signals.empty())
+        {
+            throw std::invalid_argument("Julibrot geometry output requires an explicit member or camera3d");
+        }
+        camera_bounds = julibrot_camera_bounds(signals, start, end);
+    }
+    for (const ViewMember &member : JULIBROT_VIEW_MEMBERS)
+    {
+        if (!outputs.contains(member.name))
+        {
+            if (track.contains(member.name))
+            {
+                throw std::invalid_argument("Julibrot member requires its output declaration");
+            }
+            continue;
+        }
+        const std::string parameter = outputs.at(member.name).get<std::string>();
+        const Json &parameters = catalog.at("parameters");
+        if (!parameters.contains(parameter))
+        {
+            throw std::invalid_argument("Julibrot output is missing from the catalog");
+        }
+        const Json &metadata = parameters.at(parameter);
+        if (metadata.at("type") != member.type ||
+            (member.components > 1 && metadata.at("arity") != member.components) ||
+            metadata.value("extrapolate", std::string("clamp")) != "clamp")
+        {
+            throw std::invalid_argument("Julibrot output catalog has an incompatible type, arity, or extrapolation");
+        }
+        timeline::Attributes output_attributes = attributes;
+        output_attributes["parameter"] = parameter;
+        output_attributes["member"] = member.name;
+        output_attributes["source-value"] = source.count(parameter) ? source.at(parameter) : "";
+        if (track.contains(member.name))
+        {
+            const Json &signal = track.at(member.name);
+            if (member.name == "mode")
+            {
+                for (const Json &key : signal.at("keys"))
+                {
+                    const Json &value = key.at("value");
+                    if (value != "monocular" && value != "lefteye" && value != "righteye" && value != "red-blue")
+                    {
+                        throw std::invalid_argument("Julibrot mode requires a supported enum value");
+                    }
+                }
+            }
+            const std::vector<timeline::Lane> input = view_keys(signal, metadata, member.name, id + "-" + member.name,
+                label + " / " + member.name, layer, grid, "Julibrot");
+            output_attributes["signal"] = signal.dump();
+            if (!source.count(parameter))
+            {
+                const Json &value = signal.at("keys")[0].at("value");
+                output_attributes["source-value"] = value.is_string() ? value.get<std::string>() : value.dump();
+            }
+            for (int component = 0; component < timeline::size_cast(input); ++component)
+            {
+                output_attributes["component"] = std::to_string(component);
+                lanes.push_back(view_annotated(input[component], output_attributes));
+            }
+            continue;
+        }
+        if (!member.camera || signals.empty())
+        {
+            throw std::invalid_argument("Julibrot output requires an explicit member");
+        }
+        if (!source.count(parameter))
+        {
+            throw std::invalid_argument("Julibrot camera output requires source geometry");
+        }
+        const std::vector<double> base = animation_value(source.at(parameter));
+        if (timeline::size_cast(base) != 6)
+        {
+            throw std::invalid_argument("Julibrot source geometry must have six values");
+        }
+        const std::array<timeline::Lane, 2> inputs{signals[2], signals[5]};
+        for (int component = 0; component < 6; ++component)
+        {
+            const double constant = clean_path_value(base[component]);
+            const double minimum = component == 5 ? camera_bounds.first : constant;
+            const double maximum = component == 5 ? camera_bounds.second : constant;
+            if ((metadata.contains("min") && minimum < metadata.at("min").get<double>()) ||
+                (metadata.contains("max") && maximum > metadata.at("max").get<double>()))
+            {
+                throw std::invalid_argument("Julibrot geometry exceeds catalog bounds");
+            }
+            const std::string suffix = "[" + std::to_string(component) + "]";
+            timeline::Lane lane(
+                id + "-geometry" + suffix, label + " / geometry" + suffix, "curve", start, grid.end_time());
+            output_attributes["component"] = std::to_string(component);
+            output_attributes["derived-from"] = "camera3d";
+            lane.add(timeline::Curve(
+                lane.id() + "-view", "julibrot-view", start, end,
+                [inputs, component, constant](timeline::Time time)
+                {
+                    if (component != 5)
+                    {
+                        return constant;
+                    }
+                    const double distance = clean_path_value(*inputs[0].evaluate_keyframes(time)) -
+                        clean_path_value(*inputs[1].evaluate_keyframes(time));
+                    return clean_path_value(std::sqrt(distance * distance));
+                },
+                lane.label(), minimum, maximum, output_attributes));
+            lanes.push_back(std::move(lane));
+        }
+    }
+    for (int component = 0; component < timeline::size_cast(signals); ++component)
+    {
+        const std::string member = component < 3 ? "eye" : component < 6 ? "look-at" : "view-up";
+        timeline::Attributes input_attributes = attributes;
+        input_attributes["parameter"] = name + "." + member;
+        input_attributes["component"] = std::to_string(component % 3);
+        input_attributes["signal"] = track.at("camera3d").at(member).dump();
+        input_attributes["used-by-camera"] = derived ? "true" : "false";
+        if (member == "view-up" && derived)
+        {
+            const std::array<timeline::Lane, 3> inputs{signals[6], signals[7], signals[8]};
+            timeline::Lane lane(signals[component].id(), signals[component].label(), "curve", start, grid.end_time());
+            input_attributes["normalize"] = "true";
+            lane.add(timeline::Curve(
+                lane.id() + "-normalized", "julibrot-input", start, end,
+                [inputs, axis = component % 3](timeline::Time time)
+                {
+                    std::array<double, 3> up{};
+                    for (int index = 0; index < 3; ++index)
+                    {
+                        up[index] = *inputs[index].evaluate_keyframes(time);
+                    }
+                    const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
+                    return clean_path_value(up[axis] / length);
+                },
+                lane.label(), component % 3 == 2 ? -1 : 0, component % 3 == 0 ? 0 : 1, input_attributes));
+            lanes.push_back(std::move(lane));
+        }
+        else
+        {
+            lanes.push_back(view_annotated(signals[component], input_attributes));
         }
     }
 }
@@ -2312,6 +2578,16 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
         const std::string id = prefix + std::to_string(index++);
         try
         {
+            if (track.value("type", std::string("parameter")) == "julibrot-view")
+            {
+                std::vector<timeline::Lane> track_lanes;
+                animation_julibrot_view_lanes(track, catalog, source_path, config, id, layer, grid, track_lanes);
+                for (timeline::Lane &lane : track_lanes)
+                {
+                    lanes.push_back(std::move(lane));
+                }
+                continue;
+            }
             if (track.value("type", std::string("parameter")) == "id-3d-view")
             {
                 std::vector<timeline::Lane> track_lanes;
