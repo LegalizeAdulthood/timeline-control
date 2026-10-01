@@ -53,8 +53,8 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
 {
-    const std::array<std::string, 10> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
-        "oblique", "oblique-hold", "plane-hold", "oblique-plane-step"};
+    const std::array<std::string, 12> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
+        "oblique", "oblique-hold", "plane-hold", "oblique-plane-step", "azimuth", "azimuth-reverse"};
     for (const std::string &fixture : fixtures)
     {
         SCOPED_TRACE(fixture);
@@ -338,6 +338,82 @@ TEST(Id3DView, holds_owned_camera_planes_until_the_exact_destination_key)
         ASSERT_TRUE(after.lanes[1].items.front().value.has_value());
         EXPECT_NEAR(initial_yaw, *before.lanes[1].items.front().value, 1e-12);
         EXPECT_NEAR(final_yaw, *after.lanes[1].items.front().value, 1e-12);
+    }
+}
+
+TEST(Id3DView, samples_owned_moving_azimuth_and_tilted_hints_between_frames)
+{
+    for (const std::string &fixture : {"azimuth", "azimuth-reverse"})
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            JsonImportOptions options;
+            options.frames_per_second_numerator = 30000;
+            options.frames_per_second_denominator = 1001;
+            const JsonImportResult imported = import_timeline_json("fixtures/id-3d-view-" + fixture + ".json", options);
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Moving-azimuth Id camera import failed");
+            }
+            return *imported.document;
+        }();
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        const timeline::Ticks span = (grid.frame_start(2) - grid.offset()).ticks();
+        constexpr double PI = 3.14159265358979323846;
+        for (int step = 0; step <= 100; ++step)
+        {
+            const timeline::Ticks ticks = span * step / 100;
+            const timeline::Time time = grid.offset() + timeline::Duration::from_ticks(ticks);
+            const double fraction = static_cast<double>(ticks) / static_cast<double>(span);
+            const double motion = fixture == "azimuth" ? fraction : 1 - fraction;
+            const std::array<double, 3> eye{3 + 5 * motion, 10 - 5 * motion, 4 + 2 * motion};
+            const std::array<double, 3> up{-0.6 - motion, -1 + 3 * motion, -0.8 - 0.4 * motion};
+            const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[12 + axis].items().front());
+                EXPECT_NEAR(up[axis] / length, curve.sample(time), 1e-12);
+                EXPECT_LE(*curve.minimum(), curve.sample(time));
+                EXPECT_GE(*curve.maximum(), curve.sample(time));
+                EXPECT_TRUE(curve.samples().empty());
+                EXPECT_EQ("true", curve.attributes().at("normalize"));
+                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("keys"));
+            }
+            const double horizontal = std::hypot(eye[0], eye[2]);
+            const timeline::Curve &pitch = std::get<timeline::Curve>(document.lanes()[0].items().front());
+            const timeline::Curve &yaw = std::get<timeline::Curve>(document.lanes()[1].items().front());
+            const timeline::Curve &distance = std::get<timeline::Curve>(document.lanes()[3].items().front());
+            EXPECT_NEAR(std::atan2(eye[1], horizontal) * 180 / PI, pitch.sample(time), 1e-12);
+            EXPECT_NEAR(-std::atan2(eye[0], eye[2]) * 180 / PI, yaw.sample(time), 1e-12);
+            EXPECT_DOUBLE_EQ(std::round(std::hypot(horizontal, eye[1])), distance.sample(time));
+            for (const timeline::Curve &curve : {pitch, yaw, distance})
+            {
+                EXPECT_LE(*curve.minimum(), curve.sample(time));
+                EXPECT_GE(*curve.maximum(), curve.sample(time));
+                EXPECT_TRUE(curve.samples().empty());
+            }
+        }
+    }
+}
+
+TEST(Id3DView, rejects_roll_between_sampled_frames_and_unsafe_azimuth_intervals)
+{
+    // Both authored endpoints are coplanar; their interpolated midpoint is not.
+    EXPECT_NEAR(0, 3 * -0.8 - 4 * -0.6, 1e-12);
+    EXPECT_NEAR(0, 8 * -0.6 - 6 * -0.8, 1e-12);
+    EXPECT_NEAR(-0.35, 5.5 * -0.7 - 5 * -0.7, 1e-12);
+    const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-azimuth.json");
+    EXPECT_FALSE(imported.succeeded());
+    EXPECT_FALSE(imported.document.has_value());
+    const std::array<std::string, 5> messages{
+        "proportional", "orientation", "vertical", "source tolerance", "normalization"};
+    ASSERT_EQ(timeline::size_cast(messages) + 1, timeline::size_cast(imported.diagnostics));
+    for (int index = 0; index < timeline::size_cast(messages); ++index)
+    {
+        SCOPED_TRACE(imported.diagnostics[index]);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(messages[index]));
     }
 }
 

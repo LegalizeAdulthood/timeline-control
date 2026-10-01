@@ -1,0 +1,102 @@
+{
+  "parameter-catalogs": ["input/id-3d-catalog.json"],
+  "source": {"file": "input/source.par", "name": "Mandel_Demo"},
+  "output": {
+    "directory": "output", "par": "frames.par",
+    "entry": "frame-%04d", "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 2,
+  "tracks": [
+    {
+      "name": "between-frame-roll", "type": "id-3d-view",
+      "outputs": {"rotation": "rotation"},
+      "camera3d": {
+        "eye": {"type": "point3", "keys": [
+          {"frame": 0, "value": "3/10/4"},
+          {"frame": 1, "value": "8/5/6"}
+        ]},
+        "look-at": {"type": "point3", "keys": [
+          {"frame": 0, "value": "0/0/0"},
+          {"frame": 1, "value": "0/0/0"}
+        ]},
+        "view-up": {"type": "vector3", "normalize": true, "keys": [
+          {"frame": 0, "value": "-0.6/-1/-0.8"},
+          {"frame": 1, "value": "-0.8/2/-0.6"}
+        ]}
+      }
+    },
+    {
+      "name": "reversed-orientation", "type": "id-3d-view",
+      "outputs": {"rotation": "rotation"},
+      "camera3d": {
+        "eye": {"type": "point3", "keys": [
+          {"frame": 0, "value": "3/10/4"},
+          {"frame": 1, "value": "8/5/6"}
+        ]},
+        "look-at": {"type": "point3", "keys": [
+          {"frame": 0, "value": "0/0/0"},
+          {"frame": 1, "value": "0/0/0"}
+        ]},
+        "view-up": {"type": "vector3", "normalize": true, "keys": [
+          {"frame": 0, "value": "-0.6/-1/-0.8"},
+          {"frame": 1, "value": "-1.6/-2/-1.2"}
+        ]}
+      }
+    },
+    {
+      "name": "between-frame-vertical", "type": "id-3d-view",
+      "outputs": {"rotation": "rotation"},
+      "camera3d": {
+        "eye": {"type": "point3", "keys": [
+          {"frame": 0, "value": "3/10/4"},
+          {"frame": 1, "value": "-3/10/-4"}
+        ]},
+        "look-at": {"type": "point3", "keys": [
+          {"frame": 0, "value": "0/0/0"},
+          {"frame": 1, "value": "0/0/0"}
+        ]},
+        "view-up": {"type": "vector3", "normalize": true, "keys": [
+          {"frame": 0, "value": "-0.6/-1/-0.8"},
+          {"frame": 1, "value": "0.6/-1/0.8"}
+        ]}
+      }
+    },
+    {
+      "name": "unresolved-cleanup", "type": "id-3d-view",
+      "outputs": {"rotation": "rotation"},
+      "camera3d": {
+        "eye": {"type": "point3", "keys": [
+          {"frame": 0, "value": "3/10/4"},
+          {"frame": 1, "value": "8/5/6"}
+        ]},
+        "look-at": {"type": "point3", "keys": [
+          {"frame": 0, "value": "0/0/0"},
+          {"frame": 1, "value": "0/0/0"}
+        ]},
+        "view-up": {"type": "vector3", "normalize": true, "keys": [
+          {"frame": 0, "value": "-3/-9.99999999/-4"},
+          {"frame": 1, "value": "-8/-4.99999999/-6"}
+        ]}
+      }
+    },
+    {
+      "name": "zero-hint", "type": "id-3d-view",
+      "outputs": {"rotation": "rotation"},
+      "camera3d": {
+        "eye": {"type": "point3", "keys": [
+          {"frame": 0, "value": "3/10/4"},
+          {"frame": 1, "value": "8/5/6"}
+        ]},
+        "look-at": {"type": "point3", "keys": [
+          {"frame": 0, "value": "0/0/0"},
+          {"frame": 1, "value": "0/0/0"}
+        ]},
+        "view-up": {"type": "vector3", "normalize": true, "keys": [
+          {"frame": 0, "value": "0/0/0"},
+          {"frame": 1, "value": "-1.6/2/-1.2"}
+        ]}
+      }
+    }
+  ]
+}

@@ -2371,6 +2371,85 @@ timeline::Lane view_annotated(const timeline::Lane &source, const timeline::Attr
     return lane;
 }
 
+void id_view_validate_azimuth(const std::array<std::array<double, 3>, 2> &direction,
+    const std::array<std::array<double, 3>, 2> &up, double direction_scale, double up_scale)
+{
+    constexpr double ROUNDING = 128 * std::numeric_limits<double>::epsilon();
+    const double horizontal_squared = direction[0][0] * direction[0][0] + direction[0][2] * direction[0][2];
+    const double proportional = (up[0][0] * direction[0][0] + up[0][2] * direction[0][2]) / horizontal_squared;
+    const double residual_margin = ROUNDING * std::max(1.0, std::abs(proportional));
+    double residual = 0;
+    double minimum_orientation = std::numeric_limits<double>::max();
+    double maximum_direction = 0;
+    double maximum_up = 0;
+    for (int point = 0; point < 2; ++point)
+    {
+        const double x = up[point][0] - proportional * direction[point][0];
+        const double z = up[point][2] - proportional * direction[point][2];
+        if (!std::isfinite(proportional) || std::abs(x) > residual_margin || std::abs(z) > residual_margin)
+        {
+            throw std::invalid_argument("unsupported Id 3D camera view-up; requires world-up, a fixed vertical "
+                                        "viewing plane, or a proportional moving-azimuth hint");
+        }
+        residual = std::max(residual, std::hypot(x, z));
+        minimum_orientation = std::min(minimum_orientation, up[point][1] - proportional * direction[point][1]);
+        maximum_direction = std::max(maximum_direction,
+            std::abs(direction[point][0]) + std::abs(direction[point][1]) + std::abs(direction[point][2]));
+        maximum_up = std::max(maximum_up, std::abs(up[point][0]) + std::abs(up[point][1]) + std::abs(up[point][2]));
+    }
+    if (minimum_orientation <= 0)
+    {
+        throw std::invalid_argument("unsupported Id 3D camera view-up orientation interval");
+    }
+
+    // Affine horizontal hints must share one proportionality constant with
+    // the moving direction. Their signed cross product is then h(t) * S(t).
+    const double dx = direction[1][0] - direction[0][0];
+    const double dz = direction[1][2] - direction[0][2];
+    const double squared_delta = dx * dx + dz * dz;
+    const double nearest =
+        squared_delta == 0 ? 0 : std::clamp(-(direction[0][0] * dx + direction[0][2] * dz) / squared_delta, 0.0, 1.0);
+    const double minimum_horizontal = std::hypot(direction[0][0] + nearest * dx, direction[0][2] + nearest * dz);
+    if (minimum_horizontal <= 2e-12 / direction_scale)
+    {
+        throw std::invalid_argument("Id 3D camera view-up has a vertical direction interval");
+    }
+    double up_delta_squared = 0;
+    double up_projection = 0;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const double delta = up[1][axis] - up[0][axis];
+        up_delta_squared += delta * delta;
+        up_projection += up[0][axis] * delta;
+    }
+    const double nearest_up = up_delta_squared == 0 ? 0 : std::clamp(-up_projection / up_delta_squared, 0.0, 1.0);
+    double minimum_up_squared = 0;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const double component = (up[0][axis] + nearest_up * (up[1][axis] - up[0][axis])) * up_scale;
+        minimum_up_squared += component * component;
+    }
+    if (minimum_up_squared < std::numeric_limits<double>::min())
+    {
+        throw std::invalid_argument("Id 3D camera view-up has an invalid normalization interval");
+    }
+
+    // Bound cleanup and floating-point residuals over the whole interval,
+    // before comparing normalized camera-up vectors with source tolerance.
+    const double cleanup = std::sqrt(3.0) * 1e-12;
+    const double direction_error = 2 * cleanup / direction_scale + 2 * ROUNDING;
+    const double up_error = cleanup + residual + 2 * residual_margin;
+    const double minimum = minimum_horizontal * minimum_orientation;
+    const double cross_error = (maximum_direction + direction_error) * up_error + maximum_up * direction_error;
+    if (minimum <= cross_error || minimum_horizontal <= direction_error ||
+        4 * cross_error / (minimum - cross_error) + 4 * direction_error / (minimum_horizontal - direction_error) >=
+            5e-10)
+    {
+        throw std::invalid_argument(
+            "unsupported Id 3D camera view-up; cannot bound moving-azimuth roll within source tolerance");
+    }
+}
+
 void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
 {
     const auto sample = [&](int component, int point)
@@ -2446,8 +2525,8 @@ void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, ti
         if (std::abs(plane_x * direction[point][2] - plane_z * direction[point][0]) > PLANE_TOLERANCE ||
             std::abs(plane_x * up[point][2] - plane_z * up[point][0]) > PLANE_TOLERANCE)
         {
-            throw std::invalid_argument(
-                "unsupported Id 3D camera view-up; requires world-up or a fixed vertical viewing plane");
+            id_view_validate_azimuth(direction, up, direction_scale, up_scale);
+            return;
         }
         horizontal_direction[point] = plane_x * direction[point][0] + plane_z * direction[point][2];
         horizontal_up[point] = plane_x * up[point][0] + plane_z * up[point][2];

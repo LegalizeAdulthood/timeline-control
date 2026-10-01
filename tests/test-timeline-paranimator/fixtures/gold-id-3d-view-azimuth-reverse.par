@@ -1,0 +1,39 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    rotation=26.5650511771/-53.1301023542/0
+    perspective=11
+    xyshift=0/0
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    rotation=45.2569351912/-47.7263109939/0
+    perspective=11
+    xyshift=0/0
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    rotation=63.4349488229/-36.8698976458/0
+    perspective=11
+    xyshift=0/0
+}
+

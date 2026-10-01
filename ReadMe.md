@@ -262,7 +262,9 @@ remain inspectable. Invalid tracks contribute no partial lanes.
 
 Shared camera3d input supports keyed point3 eye and look-at signals, plus
 positive world-up or tilted vector3 hints in fixed vertical viewing planes,
-including XY, YZ, and oblique planes.
+including XY, YZ, and oblique planes. Moving azimuth also supports tilted
+hints whose horizontal components remain proportional to the horizontal
+camera direction with one constant ratio across the linear interval.
 Tilted hints need not have positive authored y: their projection must face
 the roll-free camera up direction throughout the interval. Hints normalize
 after interpolation, with source tiny-component cleanup; their complete
@@ -277,16 +279,18 @@ held-key endpoints. Hold/step destinations may change viewing plane or
 reverse azimuth: the left-limit interval and exact destination are
 validated independently, without interpolating the camera through a jump.
 Quadratic orientation minima include source cleanup and rounding margins.
-Oblique planes additionally require bounded coplanarity and roll error
-within the source tolerance. Continuous changes of plane, near-degenerate
-hints, and extreme normalization ranges retain explicit diagnostics
-pending the parameter-evaluation audit.
+Oblique planes and moving azimuth additionally require bounded coplanarity
+and roll error within the source tolerance. Moving azimuth checks the
+continuous minimum horizontal direction, hint length, and positive
+orientation, including cleanup and rounding margins. Nonproportional
+moving hints, near-degenerate hints, and extreme normalization ranges
+retain explicit diagnostics pending the parameter-evaluation audit.
 Camera3d paths are not part of the source format.
 
 The Id camera fixture and golden output are copied from ParAnimator. The
 keyed, hold, and override goldens use its existing loader and renderer.
-The tilted YZ, held XY, linear and held oblique, and held plane-change
-goldens come from its reference executable.
+The tilted YZ, held XY, linear and held oblique, held plane-change, and
+forward/reverse moving-azimuth goldens come from its reference executable.
 The local source schema declares slash-delimited Id tuple strings, but
 its loader requires numeric arrays. Golden generation converts only that
 tuple representation before calling the source evaluator; the importer
@@ -309,6 +313,15 @@ Adding RMS beat-keys yields nineteen lanes. Opening
 `invalid-id-3d-view-plane-jump.json` reports rolled, vertical, or singular
 destinations and unsafe mixed motion without replacing the comparison,
 selection, or playhead. Reopening a valid fixture resets viewer state.
+
+Open `id-3d-view-azimuth.json` for fifteen lanes. At frame 1, pitch/yaw
+are 45.256935/-47.726311, perspective is 11, and normalized hint z is
+-0.637577. Adding RMS beat-keys yields nineteen lanes. Opening
+`invalid-id-3d-view-azimuth.json` diagnoses between-frame roll, reversed
+orientation, vertical crossings, unresolved cleanup, and invalid hint
+normalization without replacing the comparison, selection, or playhead.
+Open `id-3d-view-azimuth-reverse.json` to reset viewer state and restore
+fifteen lanes; its final pitch/yaw are 63.434949/-36.869898.
 
 Julibrot view tracks support mode, six-component geometry, eyes, and
 four-component from-to signals. Each explicit member uses two full-range
