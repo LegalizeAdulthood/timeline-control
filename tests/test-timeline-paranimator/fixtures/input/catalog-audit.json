@@ -1,0 +1,12 @@
+{
+  "parameters": {
+    "position": { "type": "point2", "normalize": true, "min": -10, "max": 20, "default-curve": "linear", "description": "Unnormalized point alias." },
+    "direction": { "type": "vector3", "arity": 3, "normalize": false, "min": -10, "max": 20, "default-curve": "hold", "description": "Raw vector alias." },
+    "tuple": { "type": "numeric-tuple", "arity": 2, "min": -10, "max": 20, "default-curve": "step", "description": "Explicit tuple arity." },
+    "scalar": { "type": "double", "min": 1, "max": 20, "default-curve": "linear", "description": "Bounded scalar." },
+    "maxiter": { "type": "integer", "min": 2, "default-curve": "linear", "description": "Rounded integer." },
+    "missing": { "type": "point2", "description": "Missing default curve." },
+    "integers": { "type": "integer-tuple", "arity": 2, "default-curve": "linear", "description": "Integer tuple array keys." },
+    "missing-integers": { "type": "integer-tuple", "arity": 2, "description": "Missing integer tuple default." }
+  }
+}

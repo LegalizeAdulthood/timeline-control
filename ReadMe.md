@@ -55,10 +55,20 @@ paths adjusted to the copied music fixtures.
 
 File > Open imports realized parameter keyframes from ParAnimator JSON,
 including tracks inside layers. Catalog paths are relative to the JSON
-file. Numeric scalars, arrays, and slash-separated tuples become numeric
-keyframe lanes; tuples use one lane per component and retain the original
-authored value. Catalog defaults and destination-key curve declarations
-are translated to outgoing hold, linear, or geometric segments.
+file. Scalars and complex slash-separated values become numeric keyframe
+lanes. Catalog numeric and integer tuples, points, and vectors require
+numeric array keys. Tuples use one lane per component and retain the
+original authored value. Catalog defaults and destination-key curve
+declarations are translated to outgoing segments. Ordinary numeric
+targets support linear, hold, and step curves; specialized camera values
+retain their geometric policies.
+
+Keyed scalar and tuple targets require catalog default curves even when
+the destination key overrides the curve. Raw tuples validate catalog
+arity and component bounds; doubles require scalar values within bounds.
+The inspector retains component index, arity, catalog, and track recipes.
+See [the catalog compatibility audit](docs/catalog-compatibility.md) for
+reference evidence, rejected forms, and unresolved review items.
 
 Categorical values use key instants and held spans without inventing
 numeric values. The inspector shows source attributes and evaluated numeric

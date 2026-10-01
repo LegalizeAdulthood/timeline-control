@@ -2,6 +2,11 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/catalog-audit.json
+    fixtures/catalog-audit-invalid.json
+    fixtures/gold-catalog-audit.par
+    fixtures/input/catalog-audit.json
+    fixtures/input/catalog-audit-source.par
     fixtures/normalized-keyed-vectors.json
     fixtures/normalized-keyed-partial.json
     fixtures/normalized-keyed-invalid.json
@@ -503,6 +508,7 @@ add_executable(test-timeline-paranimator
     animation_test.cpp
     extrapolation_test.cpp
     integer_output_test.cpp
+    catalog_test.cpp
     normalized_vector_test.cpp
     camera_test.cpp
     camera_corners_test.cpp

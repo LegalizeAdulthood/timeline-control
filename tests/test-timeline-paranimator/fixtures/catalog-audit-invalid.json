@@ -1,0 +1,24 @@
+{
+  "parameter-catalogs": [ "input/catalog-audit.json" ],
+  "source": { "file": "input/catalog-audit-source.par", "name": "Catalog_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "position", "keys": [ { "frame": 0, "value": [1, 2, 3] }, { "frame": 4, "value": [5, 10, 15] } ] },
+    { "parameter": "direction", "keys": [ { "frame": 0, "value": [1, 2] }, { "frame": 4, "value": [5, 10] } ] },
+    { "parameter": "scalar", "keys": [ { "frame": 0, "value": [1, 2] }, { "frame": 4, "value": [5, 10] } ] },
+    { "parameter": "tuple", "keys": [ { "frame": 0, "value": "1/2" }, { "frame": 4, "value": "5/10" } ] },
+    { "parameter": "scalar", "keys": [ { "frame": 0, "value": 1 }, { "frame": 4, "value": 21 } ] },
+    { "parameter": "position", "keys": [ { "frame": 0, "value": [-11, 2] }, { "frame": 4, "value": [5, 10] } ] },
+    { "parameter": "missing", "keys": [ { "frame": 0, "value": [1, 2] }, { "frame": 4, "value": [5, 10], "curve": "linear" } ] },
+    { "parameter": "direction", "path": { "kind": "constant", "value": "1/2/3" } },
+    { "parameter": "direction", "path": { "kind": "line", "from": "1/2/3", "to": "4/5/6" } },
+    { "parameter": "scalar", "keys": [ { "frame": 0, "value": 1 }, { "frame": 4, "value": 16, "curve": "geometric" } ] },
+    { "parameter": "position", "keys": [ { "frame": 0, "value": [1, 2] }, { "frame": 4, "value": [5, 10], "curve": "geometric" } ] },
+    { "parameter": "integers", "keys": [ { "frame": 0, "value": "1/2" }, { "frame": 4, "value": "5/10" } ] },
+    { "parameter": "missing-integers", "keys": [ { "frame": 0, "value": [1, 2] }, { "frame": 4, "value": [5, 10], "curve": "linear" } ] },
+    { "parameter": "position", "path": { "kind": "constant", "value": "1/2" } },
+    { "parameter": "position", "path": { "kind": "line", "from": "1/2", "to": "5/10" } }
+  ]
+}

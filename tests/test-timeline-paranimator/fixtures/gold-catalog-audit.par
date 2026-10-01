@@ -1,0 +1,84 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    position=1/2
+    direction=0/0/2
+    tuple=2/4
+    scalar=1
+    maxiter=100
+    missing=1/2
+    integers=1/2
+    missing-integers=1/2
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    position=2/4
+    direction=1/2/3
+    tuple=2/4
+    scalar=4.75
+    maxiter=101
+    missing=1/2
+    integers=1/2
+    missing-integers=1/2
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    position=3/6
+    direction=2/4/4
+    tuple=2/4
+    scalar=8.5
+    maxiter=102
+    missing=1/2
+    integers=1/2
+    missing-integers=1/2
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    position=4/8
+    direction=3/6/5
+    tuple=2/4
+    scalar=12.25
+    maxiter=102
+    missing=1/2
+    integers=1/2
+    missing-integers=1/2
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    position=5/10
+    direction=4/8/6
+    tuple=6/8
+    scalar=16
+    maxiter=103
+    missing=1/2
+    integers=1/2
+    missing-integers=1/2
+}

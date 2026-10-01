@@ -1,0 +1,6 @@
+; Copyright (c) 2026 Richard Thomson
+Catalog_Demo {
+ reset type=mandel center-mag=-0.5/0/1 params=0/0 inside=0 sound=no
+ position=1/2 direction=0/0/2 tuple=2/4 scalar=1 maxiter=100 missing=1/2
+ integers=1/2 missing-integers=1/2
+}

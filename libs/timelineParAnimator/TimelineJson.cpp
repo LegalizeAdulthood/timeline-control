@@ -929,6 +929,68 @@ void integer_output(timeline::Lane &lane, const Json &metadata)
         { return base && (time < start || end < time) ? value : std::round(value); });
 }
 
+void validate_catalog_key_target(const Json &track, const Json &metadata)
+{
+    const std::string target = metadata.value("type", std::string{});
+    const bool tuple = target == "numeric-tuple" || target == "point2" || target == "point3" || target == "vector2" ||
+        target == "vector3";
+    const bool normalized = (target == "vector2" || target == "vector3") && metadata.value("normalize", false);
+    const bool integer_tuple = target == "integer-tuple";
+    const bool scalar = target == "double" || target == "integer" || target == "integer-or-enum";
+    if (track.contains("path") && (tuple || integer_tuple) && !normalized)
+    {
+        throw std::invalid_argument("constant and line tuple paths cannot supply ParAnimator's numeric array keys");
+    }
+    if (!track.contains("path") && (tuple || scalar || integer_tuple) && !metadata.contains("default-curve") &&
+        metadata.value("extrapolate", std::string("clamp")) == "clamp")
+    {
+        throw std::invalid_argument(normalized ? "vector normalization requires a catalog default-curve"
+                                               : "keyed target requires a catalog default-curve");
+    }
+    if (track.contains("path") || normalized || (!tuple && !integer_tuple && target != "double"))
+    {
+        return;
+    }
+    const Json &keys = track.at("keys");
+    if (!keys.is_array() || keys.empty())
+    {
+        throw std::invalid_argument("track keys must be a nonempty array");
+    }
+    for (const Json &key : keys)
+    {
+        const std::vector<double> values = animation_value(key.at("value"));
+        const int components = timeline::size_cast(values);
+        if (tuple && components != animation_path_arity(metadata, components))
+        {
+            throw std::invalid_argument("keyframe arity does not match its catalog target");
+        }
+        if (target == "double" && components != 1)
+        {
+            throw std::invalid_argument("double target requires a numeric scalar key value");
+        }
+        if ((tuple || integer_tuple) &&
+            (!key.at("value").is_array() ||
+                !std::all_of(key.at("value").begin(), key.at("value").end(),
+                    [](const Json &value) { return value.is_number(); })))
+        {
+            throw std::invalid_argument("tuple targets require numeric array key values");
+        }
+        for (double value : values)
+        {
+            if ((metadata.contains("min") && value < metadata.at("min").get<double>()) ||
+                (metadata.contains("max") && value > metadata.at("max").get<double>()))
+            {
+                throw std::invalid_argument("key value exceeds catalog bounds");
+            }
+        }
+    }
+    const std::string curve = keys.back().value("curve", metadata.at("default-curve").get<std::string>());
+    if (animation_interpolation(curve) == timeline::KeyframeInterpolation::GEOMETRIC)
+    {
+        throw std::invalid_argument("numeric targets support linear, hold, or step curves");
+    }
+}
+
 void animation_key_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
@@ -1061,6 +1123,10 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
             timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer},
                 {"value", key.at("value").dump()}, {"curve", authored_curve}, {"outgoing-curve", outgoing_curve},
                 {"track", id}};
+            attributes["component"] = std::to_string(component);
+            attributes["arity"] = std::to_string(components);
+            attributes["catalog-definition"] = metadata.dump();
+            attributes["track-definition"] = track.dump();
             if (track.contains("path"))
             {
                 attributes["path"] = track.at("path").dump();
@@ -3859,6 +3925,7 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             }
             else
             {
+                validate_catalog_key_target(track, metadata);
                 animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
                 const std::string type = metadata.value("type", std::string{});
                 if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
