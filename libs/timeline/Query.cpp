@@ -115,6 +115,7 @@ std::optional<FrameInspection> inspect_frame(const Document &document, Ticks fra
     {
         LaneInspection lane_inspection = lane_summary(lane);
         lane_inspection.value = lane.evaluate_keyframes(start);
+        lane_inspection.output_value = lane.evaluate_keyframe_output(start);
         for (const Item &item : lane.items())
         {
             if (!std::holds_alternative<Keyframe>(item) && active_in_frame(item, start, end))

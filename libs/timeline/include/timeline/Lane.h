@@ -25,6 +25,10 @@ using Item = std::variant<Instant, Interval, Envelope, Curve, Keyframe, PaletteC
 /// Captures must own their data independently of the containing lane.
 using KeyframeEvaluator = std::function<std::optional<double>(Time)>;
 
+/// Owned, pure conversion from an authored keyframe sample to application output.
+/// The time permits source-specific boundary rules without changing the curve.
+using KeyframeOutputEvaluator = std::function<double(Time, double)>;
+
 /// Ordered collection of timeline content within a finite range.
 ///
 /// A lane owns its items, retains insertion order, and rejects items that do
@@ -81,6 +85,10 @@ public:
     {
         return static_cast<bool>(m_keyframe_evaluator);
     }
+    /// Install a separate owned output rule without altering authored samples.
+    void set_keyframe_output_evaluator(KeyframeOutputEvaluator evaluator);
+    /// Return no value when no output rule is installed or the signal has a gap.
+    std::optional<double> evaluate_keyframe_output(Time time) const;
 
 private:
     void add_item(Item item);
@@ -92,6 +100,7 @@ private:
     Time m_end;
     std::vector<Item> m_items;
     KeyframeEvaluator m_keyframe_evaluator;
+    KeyframeOutputEvaluator m_keyframe_output_evaluator;
 };
 
 Time item_start(const Item &item);

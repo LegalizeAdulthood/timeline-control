@@ -345,6 +345,10 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         {
             text += wxString::Format("\n  Frame value: %.6f", *lane.value);
         }
+        if (lane.output_value)
+        {
+            text += wxString::Format("\n  Parameter output: %.6f", *lane.output_value);
+        }
         if (lane.items.empty())
         {
             text += "\n  No activity";

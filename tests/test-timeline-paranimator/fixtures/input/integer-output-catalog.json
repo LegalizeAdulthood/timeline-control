@@ -1,0 +1,16 @@
+{
+  "parameters": {
+    "maxiter": { "type": "integer", "description": "Positive half values", "default-curve": "linear", "min": 2 },
+    "negative": { "type": "integer", "description": "Negative half values", "default-curve": "linear" },
+    "choice": { "type": "integer-or-enum", "description": "Numeric choice", "values": [ "zmag" ], "default-curve": "linear" },
+    "tuple": { "type": "integer-tuple", "description": "Integer components", "arity": 2, "default-curve": "linear" },
+    "bailout": { "type": "double", "description": "Unquantized double", "default-curve": "linear" },
+    "named": { "type": "enum", "description": "Categorical output", "values": [ "a", "b" ], "default-curve": "hold" },
+    "base": { "type": "integer", "description": "Original source output", "default-curve": "linear", "extrapolate": "base" },
+    "omit": { "type": "integer", "description": "Absent outer output", "default-curve": "linear", "extrapolate": "omit" },
+    "cycle": { "type": "integer", "description": "Repeated rounded output", "default-curve": "linear", "extrapolate": "cycle" },
+    "ping": { "type": "integer-or-enum", "description": "Reflected rounded output", "values": [ "zmag" ], "default-curve": "linear", "extrapolate": "ping-pong" },
+    "hold": { "type": "integer", "description": "Held integer", "default-curve": "hold" },
+    "step": { "type": "integer", "description": "Stepped integer", "default-curve": "step" }
+  }
+}

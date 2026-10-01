@@ -1,0 +1,15 @@
+{
+  "parameter-catalogs": [ "input/integer-output-catalog.json" ],
+  "source": { "file": "input/integer-output-source.par", "name": "Integer_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 9,
+  "tracks": [
+    { "parameter": "base", "keys": [ { "frame": 1, "value": "100" }, { "frame": 5, "value": "103" } ] },
+    { "parameter": "omit", "keys": [ { "frame": 1, "value": "100" }, { "frame": 5, "value": "103" } ] },
+    { "parameter": "cycle", "keys": [ { "frame": 1, "value": "100" }, { "frame": 5, "value": "103" } ] },
+    { "parameter": "ping", "keys": [ { "frame": 1, "value": -3 }, { "frame": 5, "value": 0 } ] },
+    { "parameter": "hold", "keys": [ { "frame": 1, "value": "-3" }, { "frame": 5, "value": "0" } ] },
+    { "parameter": "step", "keys": [ { "frame": 1, "value": "100" }, { "frame": 5, "value": "103" } ] }
+  ]
+}

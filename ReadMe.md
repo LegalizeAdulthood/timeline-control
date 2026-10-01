@@ -551,7 +551,7 @@ supported; unsupported forms receive indexed importer diagnostics.
 includes both endpoint frames in its period and holds the last value
 through the final frame interval. `ping-pong` reflects across the key
 span without repeating endpoint frames. Continuous queries retain exact
-tick periods and fractional values; integer output rounding is pending.
+tick periods and fractional values without quantizing the authored curve.
 
 Open `maxiter-cycle.json`: frame 0 is `300` and frame 4 is `100`.
 Add `beat-keys/rms.beat-keys.json` for five comparison lanes. Open
@@ -566,8 +566,39 @@ Its golden PAR file was generated with ParAnimator. Select an
 extrapolated segment, then open `extrapolation-invalid.json` to verify
 that rejection preserves the document, selection, and playhead.
 
-Other specialized track kinds and parameter-specific output
-quantization remain unsupported.
+Integer, integer-tuple, and numeric JSON integer-or-enum keyframes expose
+parameter output separately from their continuous curves. Output rounds
+to the nearest integer, with halfway values rounded away from zero, after
+extrapolation. Original PAR values under `base` remain unchanged; `omit`
+has neither a continuous value nor parameter output outside its keys.
+Authored keys, catalog definitions, and complete recipes remain intact.
+Double curves and named categorical values remain unchanged.
+
+The core owns an optional `KeyframeOutputEvaluator` rule. Its
+`evaluate_keyframe_output` result appears as `LaneInspection::output_value`
+and as Parameter output in the viewer, beside the continuous Frame value.
+The importer supplies source-specific rounding; layout still draws the
+unquantized curve.
+
+Open `integer-output.json` for seven lanes. At frame 1, `maxiter` shows
+`100.5` with output `101`, and `negative` shows `-2.5` with output `-3`.
+Numeric integer-or-enum and tuple components follow the same rule. Add
+`beat-keys/rms.beat-keys.json` for eleven comparison lanes. Open
+`integer-output-policies.json` to replace them with six lanes. Frame 0
+retains the base value `678` and has no omit value or output; frame 3
+shows cycle `101.5` with output `102` and ping-pong `-1.5` with output
+`-2`.
+Select a cycle segment, then open `integer-output-invalid.json` to verify
+that rejection preserves the document, selection, and playhead.
+
+Open `integer-output-boundary.json` for two lanes. At frame 15, the samples
+are just inside `7.5` and `-7.5`, so their outputs are `7` and `-7` even
+though the six-decimal inspector displays the samples as halfway values.
+Fraction-first linear arithmetic preserves ParAnimator's behavior at
+these rounding boundaries. All three golden PAR files were generated
+with ParAnimator and verify output across every fixture frame.
+
+Other specialized track kinds and parameter forms remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 

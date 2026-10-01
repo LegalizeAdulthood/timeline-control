@@ -770,6 +770,20 @@ Json animation_path_keys(const Json &path, const timeline::FrameGrid &grid)
         Json{{"frame", grid.frame_count() - 1}, {"value", to}, {"curve", curve}}});
 }
 
+void integer_output(timeline::Lane &lane, const Json &metadata)
+{
+    const timeline::Keyframe &first = std::get<timeline::Keyframe>(lane.items().front());
+    if (first.attributes().count("output-rounding") == 0)
+    {
+        return;
+    }
+    const timeline::Time start = first.time();
+    const timeline::Time end = std::get<timeline::Keyframe>(lane.items().back()).time();
+    const bool base = metadata.value("extrapolate", std::string("clamp")) == "base";
+    lane.set_keyframe_output_evaluator([start, end, base](timeline::Time time, double value)
+        { return base && (time < start || end < time) ? value : std::round(value); });
+}
+
 void animation_key_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
     std::vector<timeline::Lane> &lanes)
@@ -853,6 +867,34 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
         }
     }
     const int components = timeline::size_cast(values.front());
+    const std::string type = metadata.value("type", std::string{});
+    const bool integer = type == "integer" || type == "integer-tuple" ||
+        (type == "integer-or-enum" &&
+            std::all_of(keys.begin(), keys.end(), [](const Json &key) { return key.at("value").is_number_integer(); }));
+    if (integer)
+    {
+        if ((type != "integer-tuple" && components != 1) ||
+            (type == "integer-tuple" && components != metadata.at("arity").get<int>()))
+        {
+            throw std::invalid_argument("integer output key arity does not match its target");
+        }
+        for (const std::vector<double> &value : values)
+        {
+            for (double scalar : value)
+            {
+                if (scalar != std::trunc(scalar) || scalar < std::numeric_limits<int>::min() ||
+                    scalar > std::numeric_limits<int>::max())
+                {
+                    throw std::invalid_argument("integer output requires integral key values in int range");
+                }
+                if ((metadata.contains("min") && scalar < metadata.at("min").get<double>()) ||
+                    (metadata.contains("max") && scalar > metadata.at("max").get<double>()))
+                {
+                    throw std::invalid_argument("integer output key exceeds catalog bounds");
+                }
+            }
+        }
+    }
     for (int component = 0; component < components; ++component)
     {
         const std::string suffix = components == 1 ? "" : "[" + std::to_string(component) + "]";
@@ -882,9 +924,20 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
             {
                 attributes["value"] = key.at("value").get<std::string>();
             }
+            if (integer)
+            {
+                if (animation_interpolation(outgoing_curve) == timeline::KeyframeInterpolation::GEOMETRIC)
+                {
+                    throw std::invalid_argument("integer output supports linear, hold, or step curves");
+                }
+                attributes["output-rounding"] = "nearest-half-away-from-zero";
+                attributes["catalog-definition"] = metadata.dump();
+                attributes["track-definition"] = track.dump();
+            }
             lane.add(timeline::Keyframe(id + "-key-" + std::to_string(index), grid.frame_start(source_frame(key)),
                 values[index][component], animation_interpolation(outgoing_curve), std::move(attributes)));
         }
+        integer_output(lane, metadata);
         lanes.push_back(std::move(lane));
     }
 }
@@ -2685,6 +2738,7 @@ void extrapolate_keyframes(const Json &track, const Json &metadata, const std::s
             timeline::Keyframe(key.id(), key.time(), key.value(), key.interpolation(), std::move(attributes)));
     }
     decorated.set_keyframe_evaluator(std::move(evaluator));
+    integer_output(decorated, metadata);
     lane = std::move(decorated);
 }
 

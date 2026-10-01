@@ -63,6 +63,8 @@ struct LaneInspection
     std::vector<InspectionItem> items;
     /// Evaluated numeric keyframe signal at a frame query's exact time.
     std::optional<double> value;
+    /// Application output at that time, separate from the unmodified signal.
+    std::optional<double> output_value{};
 };
 
 /// Read-only snapshot of one frame across every document lane.

@@ -189,7 +189,9 @@ std::optional<double> Lane::evaluate_keyframes(Time time) const
         return std::exp(
             std::log(before.value()) + (std::log(after.value()) - std::log(before.value())) * elapsed / duration);
     }
-    return before.value() + (after.value() - before.value()) * elapsed / duration;
+    // Preserve fraction-first arithmetic at output rounding boundaries.
+    const double fraction = elapsed / duration;
+    return before.value() + fraction * (after.value() - before.value());
 }
 
 void Lane::set_keyframe_evaluator(KeyframeEvaluator evaluator)
@@ -199,6 +201,34 @@ void Lane::set_keyframe_evaluator(KeyframeEvaluator evaluator)
         throw std::invalid_argument("keyframe evaluator requires an owned recipe and authored keys");
     }
     m_keyframe_evaluator = std::move(evaluator);
+}
+
+void Lane::set_keyframe_output_evaluator(KeyframeOutputEvaluator evaluator)
+{
+    if (!evaluator || !neighboring_keyframes(m_start).after())
+    {
+        throw std::invalid_argument("keyframe output requires an owned rule and authored keys");
+    }
+    m_keyframe_output_evaluator = std::move(evaluator);
+}
+
+std::optional<double> Lane::evaluate_keyframe_output(Time time) const
+{
+    if (!m_keyframe_output_evaluator)
+    {
+        return std::nullopt;
+    }
+    const std::optional<double> sample = evaluate_keyframes(time);
+    if (!sample)
+    {
+        return std::nullopt;
+    }
+    const double value = m_keyframe_output_evaluator(time, *sample);
+    if (!std::isfinite(value))
+    {
+        throw std::invalid_argument("keyframe output must be finite");
+    }
+    return value;
 }
 
 void Lane::add_item(Item item)

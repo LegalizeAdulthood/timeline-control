@@ -1,0 +1,184 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=678
+    cycle=103
+    ping=-2
+    hold=-3
+    step=100
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=100
+    omit=100
+    cycle=100
+    ping=-3
+    hold=-3
+    step=100
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=101
+    omit=101
+    cycle=101
+    ping=-2
+    hold=-3
+    step=100
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=102
+    omit=102
+    cycle=102
+    ping=-2
+    hold=-3
+    step=100
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=102
+    omit=102
+    cycle=102
+    ping=-1
+    hold=-3
+    step=100
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0006 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=103
+    omit=103
+    cycle=103
+    ping=0
+    hold=0
+    step=103
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0007 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=678
+    cycle=100
+    ping=-1
+    hold=0
+    step=103
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0008 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=678
+    cycle=101
+    ping=-2
+    hold=0
+    step=103
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}
+
+frame-0009 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    base=678
+    cycle=102
+    ping=-2
+    hold=0
+    step=103
+    negative=-3
+    choice=0
+    tuple=100/-3
+    bailout=1.25
+    named=a
+}

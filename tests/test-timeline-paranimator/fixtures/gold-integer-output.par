@@ -1,0 +1,146 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=100
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=-3
+    choice=-3
+    tuple=100/-3
+    bailout=1
+    named=a
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=101
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=-3
+    choice=-3
+    tuple=101/-3
+    bailout=1.5
+    named=a
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=101
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=-2
+    choice=-2
+    tuple=101/-2
+    bailout=2
+    named=a
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=102
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=-2
+    choice=-2
+    tuple=102/-2
+    bailout=2.5
+    named=a
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=102
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=-1
+    choice=-1
+    tuple=102/-1
+    bailout=3
+    named=a
+}
+
+frame-0006 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=103
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=-1
+    choice=-1
+    tuple=103/-1
+    bailout=3.5
+    named=a
+}
+
+frame-0007 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=103
+    base=678
+    omit=678
+    cycle=678
+    ping=0
+    hold=-3
+    step=100
+    negative=0
+    choice=0
+    tuple=103/0
+    bailout=4
+    named=b
+}

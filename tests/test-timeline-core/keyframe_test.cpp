@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 
@@ -62,6 +63,38 @@ TEST(Lane, owns_optional_keyframe_evaluation_and_rejects_invalid_recipes)
     EXPECT_FALSE(lane.evaluate_keyframes(at(30)));
     lane.set_keyframe_evaluator([](Time) { return std::optional<double>(std::numeric_limits<double>::infinity()); });
     EXPECT_THROW(lane.evaluate_keyframes(at(0)), std::invalid_argument);
+}
+
+TEST(Lane, owns_output_rules_without_changing_authored_samples)
+{
+    Lane empty("empty", "Empty", "keyframes", at(0), at(60));
+    EXPECT_FALSE(empty.evaluate_keyframe_output(at(0)));
+    EXPECT_THROW(empty.set_keyframe_output_evaluator([](Time, double value) { return value; }), std::invalid_argument);
+    Lane lane("output", "Output", "keyframes", at(0), at(60));
+    lane.add(Keyframe("first", at(0), -3, KeyframeInterpolation::LINEAR, {}));
+    lane.add(Keyframe("last", at(40), 0));
+    EXPECT_FALSE(lane.evaluate_keyframe_output(at(20)));
+    const double scale = 2;
+    lane.set_keyframe_output_evaluator([scale](Time, double value) { return std::round(value * scale) / scale; });
+    EXPECT_DOUBLE_EQ(-1.5, *lane.evaluate_keyframes(at(20)));
+    EXPECT_DOUBLE_EQ(-1.5, *lane.evaluate_keyframe_output(at(20)));
+    EXPECT_THROW(lane.set_keyframe_output_evaluator(KeyframeOutputEvaluator{}), std::invalid_argument);
+    EXPECT_DOUBLE_EQ(-1.5, *lane.evaluate_keyframe_output(at(20)));
+    const Lane copy = lane;
+    lane.set_keyframe_output_evaluator([](Time, double) { return std::numeric_limits<double>::infinity(); });
+    EXPECT_THROW(lane.evaluate_keyframe_output(at(20)), std::invalid_argument);
+    EXPECT_DOUBLE_EQ(-1.5, *copy.evaluate_keyframe_output(at(20)));
+    lane.set_keyframe_evaluator([](Time) { return std::optional<double>{}; });
+    EXPECT_FALSE(lane.evaluate_keyframe_output(at(20)));
+    EXPECT_EQ(2, lane.item_count());
+    Document document(FrameGrid(Timebase(60), 6, 6, 1), 1, 2);
+    document.add_lane(copy);
+    const FrameInspection inspection = *inspect_frame(document, 1);
+    EXPECT_DOUBLE_EQ(-2.25, *inspection.lanes[0].value);
+    EXPECT_DOUBLE_EQ(-2.5, *inspection.lanes[0].output_value);
+    const RangeInspection range = inspect_range(document, at(0), at(40));
+    EXPECT_FALSE(range.lanes[0].output_value);
+    EXPECT_DOUBLE_EQ(-3, *range.lanes[0].items[0].value);
 }
 
 TEST(Layout, samples_owned_keyframe_recipes_without_bridging_gaps)

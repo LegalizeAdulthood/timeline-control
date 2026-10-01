@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/integer-output-catalog.json" ],
+  "source": { "file": "input/source.par", "name": "Mandel_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 7,
+  "tracks": [
+    { "parameter": "maxiter", "keys": [ { "frame": 0, "value": "100.5" }, { "frame": 6, "value": "103" } ] }
+  ]
+}

@@ -1,0 +1,6 @@
+; Copyright (c) 2026 Richard Thomson
+Integer_Demo {
+ reset type=mandel center-mag=-0.5/0/1 params=0/0 inside=0
+ sound=no maxiter=678 base=678 omit=678 cycle=678 ping=0 hold=-3 step=100
+ negative=-3 choice=0 tuple=100/-3 bailout=1.25 named=a
+}

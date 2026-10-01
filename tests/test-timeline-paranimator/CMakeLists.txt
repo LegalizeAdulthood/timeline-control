@@ -2,6 +2,16 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/integer-output.json
+    fixtures/integer-output-policies.json
+    fixtures/integer-output-invalid.json
+    fixtures/integer-output-partial.json
+    fixtures/integer-output-boundary.json
+    fixtures/gold-integer-output-boundary.par
+    fixtures/gold-integer-output.par
+    fixtures/gold-integer-output-policies.par
+    fixtures/input/integer-output-catalog.json
+    fixtures/input/integer-output-source.par
     fixtures/extrapolation-variants.json
     fixtures/input/extrapolation-variants-catalog.json
     fixtures/input/extrapolation-source.par
@@ -421,6 +431,7 @@ add_executable(test-timeline-paranimator
     mapping_test.cpp
     animation_test.cpp
     extrapolation_test.cpp
+    integer_output_test.cpp
     camera_test.cpp
     camera_corners_test.cpp
     camera_skew_test.cpp

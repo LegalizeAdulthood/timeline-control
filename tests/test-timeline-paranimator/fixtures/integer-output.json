@@ -1,0 +1,15 @@
+{
+  "parameter-catalogs": [ "input/integer-output-catalog.json" ],
+  "source": { "file": "input/integer-output-source.par", "name": "Integer_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 7,
+  "tracks": [
+    { "parameter": "maxiter", "keys": [ { "frame": 0, "value": "100" }, { "frame": 6, "value": "103" } ] },
+    { "parameter": "negative", "keys": [ { "frame": 0, "value": "-3" }, { "frame": 6, "value": "0" } ] },
+    { "parameter": "choice", "keys": [ { "frame": 0, "value": -3 }, { "frame": 6, "value": 0 } ] },
+    { "parameter": "tuple", "keys": [ { "frame": 0, "value": [ 100, -3 ] }, { "frame": 6, "value": [ 103, 0 ] } ] },
+    { "parameter": "bailout", "keys": [ { "frame": 0, "value": "1" }, { "frame": 6, "value": "4" } ] },
+    { "parameter": "named", "keys": [ { "frame": 0, "value": "a" }, { "frame": 6, "value": "b" } ] }
+  ]
+}
