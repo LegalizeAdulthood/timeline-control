@@ -3189,58 +3189,250 @@ const std::array<ViewMember, 4> JULIBROT_VIEW_MEMBERS{
     ViewMember{"from-to", "numeric-tuple", 4, false},
 };
 
+/// Inclusive component bounds used to certify a Julibrot camera interval.
+using JulibrotRange = std::pair<double, double>;
+
+double julibrot_maximum_absolute(JulibrotRange range)
+{
+    return std::max(std::abs(range.first), std::abs(range.second));
+}
+
+double julibrot_minimum_absolute(JulibrotRange range)
+{
+    return range.first <= 0 && range.second >= 0 ? 0 : std::min(std::abs(range.first), std::abs(range.second));
+}
+
+JulibrotRange julibrot_product(JulibrotRange lhs, JulibrotRange rhs)
+{
+    const std::array<double, 4> products{
+        lhs.first * rhs.first, lhs.first * rhs.second, lhs.second * rhs.first, lhs.second * rhs.second};
+    return {*std::min_element(products.begin(), products.end()), *std::max_element(products.begin(), products.end())};
+}
+
+JulibrotRange julibrot_difference(JulibrotRange lhs, JulibrotRange rhs)
+{
+    return {lhs.first - rhs.second, lhs.second - rhs.first};
+}
+
+JulibrotRange julibrot_clean_range(JulibrotRange range)
+{
+    return {clean_path_value(range.first), clean_path_value(range.second)};
+}
+
+double julibrot_camera_distance(const std::array<double, 9> &camera)
+{
+    std::array<double, 3> forward{};
+    std::array<double, 3> hint{};
+    const double hint_length = std::sqrt(camera[6] * camera[6] + camera[7] * camera[7] + camera[8] * camera[8]);
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const double look = clean_path_value(camera[3 + axis]);
+        if (std::abs(look) >= 1e-9)
+        {
+            throw std::invalid_argument("Julibrot camera requires a centered look-at");
+        }
+        forward[axis] = look - clean_path_value(camera[axis]);
+        hint[axis] = clean_path_value(camera[6 + axis] / hint_length);
+    }
+    const double distance = std::sqrt(forward[0] * forward[0] + forward[1] * forward[1] + forward[2] * forward[2]);
+    if (distance == 0 || !std::isfinite(distance))
+    {
+        throw std::invalid_argument("Julibrot camera requires a finite nondegenerate straight-on direction");
+    }
+    for (double &component : forward)
+    {
+        component /= distance;
+    }
+    if (std::abs(forward[0]) >= 1e-9 || std::abs(forward[1]) >= 1e-9 || std::abs(forward[2] + 1) >= 1e-9)
+    {
+        throw std::invalid_argument("unsupported Julibrot camera; requires a straight-on direction");
+    }
+    const double cleaned_length = std::sqrt(hint[0] * hint[0] + hint[1] * hint[1] + hint[2] * hint[2]);
+    if (hint_length == 0 || !std::isfinite(hint_length) || cleaned_length == 0 || !std::isfinite(cleaned_length))
+    {
+        throw std::invalid_argument("Julibrot camera view-up has an invalid normalization length");
+    }
+    for (double &component : hint)
+    {
+        component /= cleaned_length;
+    }
+    std::array<double, 3> right{forward[1] * hint[2] - forward[2] * hint[1],
+        forward[2] * hint[0] - forward[0] * hint[2], forward[0] * hint[1] - forward[1] * hint[0]};
+    const double right_length = std::sqrt(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
+    if (right_length == 0 || !std::isfinite(right_length))
+    {
+        throw std::invalid_argument("Julibrot camera view-up is parallel to its direction");
+    }
+    for (double &component : right)
+    {
+        component /= right_length;
+    }
+    const std::array<double, 3> up{right[1] * forward[2] - right[2] * forward[1],
+        right[2] * forward[0] - right[0] * forward[2], right[0] * forward[1] - right[1] * forward[0]};
+    if (std::abs(up[0]) >= 1e-9 || std::abs(up[1] - 1) >= 1e-9 || std::abs(up[2]) >= 1e-9)
+    {
+        throw std::invalid_argument("unsupported Julibrot camera view-up; requires a straight-on camera frame");
+    }
+    return distance;
+}
+
+bool julibrot_camera_interval(
+    const std::array<double, 9> &first, const std::array<double, 9> &last, JulibrotRange &distance)
+{
+    constexpr double ROUNDING = 32 * std::numeric_limits<double>::epsilon();
+    std::array<JulibrotRange, 9> input{};
+    for (int component = 0; component < 9; ++component)
+    {
+        const double minimum = std::min(first[component], last[component]);
+        const double maximum = std::max(first[component], last[component]);
+        const double margin =
+            first[component] == last[component] ? 0 : ROUNDING * std::max(std::abs(minimum), std::abs(maximum));
+        input[component] = {minimum - margin, maximum + margin};
+    }
+    std::array<JulibrotRange, 3> direction{};
+    double minimum_squared = 0;
+    double maximum_squared = 0;
+    double hint_minimum_squared = 0;
+    double hint_maximum_squared = 0;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const JulibrotRange look = julibrot_clean_range(input[3 + axis]);
+        if (julibrot_maximum_absolute(look) >= 1e-9)
+        {
+            return false;
+        }
+        direction[axis] = julibrot_difference(look, julibrot_clean_range(input[axis]));
+        const double minimum = julibrot_minimum_absolute(direction[axis]);
+        const double maximum = julibrot_maximum_absolute(direction[axis]);
+        minimum_squared += minimum * minimum;
+        maximum_squared += maximum * maximum;
+        const double hint_minimum = julibrot_minimum_absolute(input[6 + axis]);
+        const double hint_maximum = julibrot_maximum_absolute(input[6 + axis]);
+        hint_minimum_squared += hint_minimum * hint_minimum;
+        hint_maximum_squared += hint_maximum * hint_maximum;
+    }
+    if (direction[2].second >= 0 || minimum_squared < std::numeric_limits<double>::min() ||
+        !std::isfinite(maximum_squared) || hint_minimum_squared == 0 || !std::isfinite(hint_maximum_squared))
+    {
+        return false;
+    }
+    distance = {std::sqrt(minimum_squared), std::sqrt(maximum_squared)};
+    const double minimum_z = -direction[2].second;
+    const double maximum_z = -direction[2].first;
+    const JulibrotRange inverse_z{1 / maximum_z, 1 / minimum_z};
+    const JulibrotRange x = julibrot_product(direction[0], inverse_z);
+    const JulibrotRange y = julibrot_product(direction[1], inverse_z);
+    const double forward_x = julibrot_maximum_absolute(x) * (1 + ROUNDING);
+    const double forward_y = julibrot_maximum_absolute(y) * (1 + ROUNDING);
+    if (forward_x >= 1e-9 || forward_y >= 1e-9)
+    {
+        return false;
+    }
+    const JulibrotRange inverse_hint{1 / std::sqrt(hint_maximum_squared), 1 / std::sqrt(hint_minimum_squared)};
+    std::array<JulibrotRange, 3> hint{};
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        JulibrotRange normalized = julibrot_product(input[6 + axis], inverse_hint);
+        const double margin = ROUNDING * julibrot_maximum_absolute(normalized);
+        hint[axis] = julibrot_clean_range({normalized.first - margin, normalized.second + margin});
+    }
+    // Positive normalization scales cancel from the right-vector direction.
+    // Keep source hint cleanup before taking this cross product. Small-angle
+    // bounds avoid losing the strict tolerance in a broad [-1, -1] enclosure.
+    const JulibrotRange yz = julibrot_product(y, hint[2]);
+    const JulibrotRange xz = julibrot_product(x, hint[2]);
+    const JulibrotRange right_x{yz.first + hint[1].first, yz.second + hint[1].second};
+    const JulibrotRange right_y{-hint[0].second - xz.second, -hint[0].first - xz.first};
+    const JulibrotRange right_z = julibrot_difference(julibrot_product(x, hint[1]), julibrot_product(y, hint[0]));
+    const double minimum_right_x =
+        right_x.first - ROUNDING * (julibrot_maximum_absolute(yz) + julibrot_maximum_absolute(hint[1]));
+    if (minimum_right_x <= 0)
+    {
+        return false;
+    }
+    const double right_y_ratio = (julibrot_maximum_absolute(right_y) +
+                                     ROUNDING * (julibrot_maximum_absolute(hint[0]) + julibrot_maximum_absolute(xz))) /
+        minimum_right_x;
+    const double right_z_ratio =
+        (julibrot_maximum_absolute(right_z) +
+            ROUNDING *
+                (forward_x * julibrot_maximum_absolute(hint[1]) + forward_y * julibrot_maximum_absolute(hint[0]))) /
+        minimum_right_x;
+    const double up_x = (right_y_ratio + right_z_ratio * forward_y) * (1 + ROUNDING);
+    const double up_z = (forward_y + right_y_ratio * forward_x) * (1 + ROUNDING);
+    const double up_y_error = (right_y_ratio * right_y_ratio + right_z_ratio * right_z_ratio + forward_x * forward_x +
+                                  forward_y * forward_y) /
+            2 +
+        right_z_ratio * forward_x + ROUNDING;
+    return up_x < 1e-9 && up_z < 1e-9 && up_y_error < 1e-9;
+}
+
+JulibrotRange julibrot_camera_subdivide(
+    const std::array<double, 9> &first, const std::array<double, 9> &last, int depth, int &budget)
+{
+    const double first_distance = julibrot_camera_distance(first);
+    const double last_distance = julibrot_camera_distance(last);
+    if (first == last)
+    {
+        return {first_distance, last_distance};
+    }
+    JulibrotRange distance;
+    if (julibrot_camera_interval(first, last, distance))
+    {
+        return distance;
+    }
+    if (depth == 16 || --budget == 0)
+    {
+        throw std::invalid_argument("unsupported Julibrot straight-on direction or view-up tolerance interval");
+    }
+    std::array<double, 9> middle{};
+    for (int component = 0; component < 9; ++component)
+    {
+        middle[component] = first[component] + (last[component] - first[component]) / 2;
+    }
+    const JulibrotRange left = julibrot_camera_subdivide(first, middle, depth + 1, budget);
+    const JulibrotRange right = julibrot_camera_subdivide(middle, last, depth + 1, budget);
+    return {std::min(left.first, right.first), std::max(left.second, right.second)};
+}
+
 std::pair<double, double> julibrot_camera_bounds(
     const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
 {
-    double minimum = std::numeric_limits<double>::max();
-    double maximum = 0;
-    for (timeline::Time time : {start, end})
+    std::array<double, 9> first{};
+    std::array<double, 9> last{};
+    std::array<double, 9> endpoint{};
+    bool straight = true;
+    for (int component = 0; component < 9; ++component)
     {
-        for (int component = 0; component < 3; ++component)
+        first[component] = camera2d_sample(signals[component], start);
+        last[component] = camera2d_segment_end(signals[component], start, end);
+        endpoint[component] = camera2d_sample(signals[component], end);
+        if (component < 6 && component % 3 != 2)
         {
-            const double look = clean_path_value(camera2d_sample(signals[3 + component], time));
-            if (std::abs(look) >= 1e-9)
-            {
-                throw std::invalid_argument("Julibrot camera requires a centered look-at");
-            }
-            if (component < 2 && (look != 0 || clean_path_value(camera2d_sample(signals[component], time)) != 0))
-            {
-                throw std::invalid_argument(
-                    "unsupported Julibrot camera; only straight-on axis-aligned input is supported");
-            }
-        }
-        const double distance =
-            clean_path_value(camera2d_sample(signals[2], time)) - clean_path_value(camera2d_sample(signals[5], time));
-        if (distance <= 0 || !std::isfinite(distance * distance) || distance * distance == 0)
-        {
-            throw std::invalid_argument("Julibrot camera requires a nondegenerate straight-on direction");
-        }
-        minimum = std::min(minimum, std::sqrt(distance * distance));
-        maximum = std::max(maximum, std::sqrt(distance * distance));
-        const double up_x = camera2d_sample(signals[6], time);
-        const double up_y = camera2d_sample(signals[7], time);
-        const double up_z = camera2d_sample(signals[8], time);
-        const double length = std::sqrt(up_x * up_x + up_y * up_y + up_z * up_z);
-        if (up_x != 0 || up_y <= 0 || length == 0 || !std::isfinite(length))
-        {
-            throw std::invalid_argument("unsupported Julibrot camera view-up; requires positive y and zero x");
+            straight = straight && clean_path_value(first[component]) == 0 && clean_path_value(last[component]) == 0 &&
+                clean_path_value(endpoint[component]) == 0;
         }
     }
-    // Linear/held axis-aligned inputs remain straight-on throughout the interval.
-    // Bound normalization before source cleanup can make view-up parallel.
-    if (!camera3d_straight_up(signals, start, end))
+    const double endpoint_distance = julibrot_camera_distance(endpoint);
+    julibrot_camera_distance(first);
+    julibrot_camera_distance(last);
+    if (straight && camera3d_straight_up(signals, start, end))
     {
-        throw std::invalid_argument("unsupported Julibrot camera view-up normalization interval");
+        // Preserve the local-ratio proof for exact-axis hints whose magnitude
+        // spans the subnormal and large finite ranges.
+        const std::pair<double, double> eye = camera2d_bounds(signals[2], start, end);
+        const std::pair<double, double> look = camera2d_bounds(signals[5], start, end);
+        const double minimum = clean_path_value(eye.first) - clean_path_value(look.second);
+        const double maximum = clean_path_value(eye.second) - clean_path_value(look.first);
+        if (minimum > 0 && minimum * minimum > 0 && std::isfinite(maximum * maximum))
+        {
+            return {std::min(std::sqrt(minimum * minimum), endpoint_distance),
+                std::max(std::sqrt(maximum * maximum), endpoint_distance)};
+        }
     }
-    const std::pair<double, double> eye = camera2d_bounds(signals[2], start, end);
-    const std::pair<double, double> look = camera2d_bounds(signals[5], start, end);
-    minimum = std::min(minimum, clean_path_value(eye.first) - clean_path_value(look.second));
-    maximum = std::max(maximum, clean_path_value(eye.second) - clean_path_value(look.first));
-    if (minimum <= 0 || minimum * minimum == 0 || !std::isfinite(maximum * maximum))
-    {
-        throw std::invalid_argument("Julibrot camera requires a finite nondegenerate straight-on interval");
-    }
-    return {minimum, maximum};
+    int budget = 4096;
+    const JulibrotRange distance = julibrot_camera_subdivide(first, last, 0, budget);
+    return {std::min(distance.first, endpoint_distance), std::max(distance.second, endpoint_distance)};
 }
 
 void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const std::filesystem::path &source_path,
@@ -3363,7 +3555,8 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
         {
             throw std::invalid_argument("Julibrot source geometry must have six values");
         }
-        const std::array<timeline::Lane, 2> inputs{signals[2], signals[5]};
+        const std::array<timeline::Lane, 6> inputs{
+            signals[0], signals[1], signals[2], signals[3], signals[4], signals[5]};
         for (int component = 0; component < 6; ++component)
         {
             const double constant = clean_path_value(base[component]);
@@ -3387,9 +3580,14 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
                     {
                         return constant;
                     }
-                    const double distance = clean_path_value(*inputs[0].evaluate_keyframes(time)) -
-                        clean_path_value(*inputs[1].evaluate_keyframes(time));
-                    return clean_path_value(std::sqrt(distance * distance));
+                    std::array<double, 3> target{};
+                    for (int axis = 0; axis < 3; ++axis)
+                    {
+                        target[axis] = clean_path_value(*inputs[3 + axis].evaluate_keyframes(time)) -
+                            clean_path_value(*inputs[axis].evaluate_keyframes(time));
+                    }
+                    return clean_path_value(
+                        std::sqrt(target[0] * target[0] + target[1] * target[1] + target[2] * target[2]));
                 },
                 lane.label(), minimum, maximum, output_attributes));
             lanes.push_back(std::move(lane));
@@ -3420,8 +3618,7 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
                     const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
                     return clean_path_value(up[axis] / length);
                 },
-                lane.label(), component % 3 == 2 ? -up_extent : 0, component % 3 == 0 ? 0 : up_extent,
-                input_attributes));
+                lane.label(), -up_extent, up_extent, input_attributes));
             lanes.push_back(std::move(lane));
         }
         else

@@ -349,16 +349,18 @@ members support linear and hold/step interpolation without integer
 rounding. Component identities, layer sources, and complete recipes remain
 inspectable. Invalid tracks contribute no partial lanes.
 
-Julibrot camera3d uses centered, straight-on axis-aligned keyed inputs.
-View-up has zero x and positive y; z may vary. Normalization follows
-interpolation, and the source geometry's first five components stay fixed;
-only its distance component comes from the camera. Continuous bounds
-reject degenerate directions and unsafe normalization, including between
-frames. Explicit geometry overrides retain unevaluated raw camera inputs.
-Near-axis tolerance variants remain explicitly diagnosed pending their
-separate compatibility audit.
+Julibrot camera3d supports centered, straight-on keyed inputs, including
+near-axis eye/look-at offsets and tilted hints accepted by ParAnimator's
+strict `1e-9` camera-frame tolerances. Normalization follows interpolation
+and component cleanup. The source geometry's first five components stay
+fixed; its distance is computed from all three eye/look-at coordinates.
+Continuous bounds reject degenerate directions, unsafe normalization,
+and off-grid departures from forward or camera-up tolerance. Bounded
+subdivision diagnoses intervals whose validity cannot be certified;
+held endpoints are checked separately. Explicit geometry overrides retain
+unevaluated raw camera inputs.
 
-The Julibrot camera fixture is copied from ParAnimator. Ten
+The Julibrot camera fixture is copied from ParAnimator. Thirteen
 source-generated goldens cover camera, normalized view-up, keyed members,
 hold/step, and overrides. Like Id tuples, explicit Julibrot tuple strings
 are converted to arrays only for reference generation with the source
@@ -373,6 +375,18 @@ including held mode and fractional eye spacing. Opening
 `invalid-julibrot-view.json` reports an unsupported camera and leaves the
 displayed document, selection, and playhead unchanged. These fixtures are
 under `tests/test-timeline-paranimator/fixtures`.
+
+Open `julibrot-view-near-axis.json` for fifteen lanes and distance 18 at
+frame 1, with the original small offsets retained in source attributes.
+Add the RMS mapping for nineteen comparison lanes. Opening
+`invalid-julibrot-near-axis.json` reports seven indexed failures and leaves
+the comparison, selection, and playhead unchanged. Its two off-grid cases
+pass the reference's three frame samples but fail with denser reference
+sampling. Replace the document with `julibrot-view-near-axis-hold.json`:
+selection and playhead reset, frame-1 distance stays 24, and normalized
+hint z is 0.707107. The final endpoint changes distance to 12. The mixed
+`partial-julibrot-near-axis.json` retains thirty lanes from its valid
+camera and explicit override without partial lanes from rejected tracks.
 
 Id and Julibrot camera hints use the source's ordinary squared-length
 arithmetic after interpolation, then component cleanup. Nonzero subnormal

@@ -1,0 +1,22 @@
+{
+  "parameter-catalogs": ["input/julibrot-catalog.json"],
+  "source": {"file": "input/source.par", "name": "Julibrot_Demo"},
+  "output": {"directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat"},
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [{
+    "name": "view", "type": "julibrot-view",
+    "outputs": {"geometry": "julibrot3d"},
+    "camera3d": {
+      "eye": {"type": "point3", "keys": [
+        {"frame": 0, "value": "8e-9/-6e-9/24"},
+        {"frame": 2, "value": "-5e-9/8e-9/12", "curve": "hold"}]},
+      "look-at": {"type": "point3", "keys": [
+        {"frame": 0, "value": "5e-10/-4e-10/3e-10"},
+        {"frame": 2, "value": "-6e-10/5e-10/-4e-10", "curve": "step"}]},
+      "view-up": {"type": "vector3", "normalize": true, "keys": [
+        {"frame": 0, "value": "5e-10/1/1"},
+        {"frame": 2, "value": "-4e-10/2/-1", "curve": "hold"}]}
+    }
+  }]
+}

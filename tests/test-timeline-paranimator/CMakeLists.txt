@@ -205,6 +205,14 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/julibrot-view-camera-hold.json
     fixtures/gold-julibrot-view-camera-hold.par
     fixtures/julibrot-view-camera.json
+    fixtures/julibrot-view-near-axis.json
+    fixtures/julibrot-view-near-axis-hold.json
+    fixtures/julibrot-view-near-axis-tolerance.json
+    fixtures/invalid-julibrot-near-axis.json
+    fixtures/partial-julibrot-near-axis.json
+    fixtures/gold-julibrot-view-near-axis.par
+    fixtures/gold-julibrot-view-near-axis-hold.par
+    fixtures/gold-julibrot-view-near-axis-tolerance.par
     fixtures/julibrot-view-keyed.json
     fixtures/julibrot-view-hold.json
     fixtures/julibrot-view-normalized.json

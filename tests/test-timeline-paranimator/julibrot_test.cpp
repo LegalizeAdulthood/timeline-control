@@ -54,7 +54,7 @@ std::vector<std::map<std::string, std::string>> julibrot_source_frames(const std
 TEST(JulibrotView, matches_source_golden_and_preserves_owned_recipes)
 {
     for (const std::string &fixture : {"camera", "keyed", "hold", "normalized", "override", "camera-hold", "subnormal",
-             "range", "range-hold", "tiny-component"})
+             "range", "range-hold", "tiny-component", "near-axis", "near-axis-hold", "near-axis-tolerance"})
     {
         SCOPED_TRACE(fixture);
         const timeline::Document document = [&fixture]
@@ -153,6 +153,84 @@ TEST(JulibrotView, samples_fractional_distance_and_normalizes_after_interpolatio
     EXPECT_DOUBLE_EQ(0.8125, *keyed.document->lanes()[7].evaluate_keyframes(half));
     EXPECT_EQ("monocular", timeline::inspect_frame(*keyed.document, 1)->lanes[0].items.front().attributes.at("value"));
     EXPECT_EQ("red-blue", timeline::inspect_frame(*keyed.document, 2)->lanes[0].items.front().attributes.at("value"));
+}
+
+TEST(JulibrotView, evaluates_near_axis_distance_and_signed_hints_continuously)
+{
+    for (const std::string &fixture : {"near-axis", "near-axis-hold", "near-axis-tolerance"})
+    {
+        SCOPED_TRACE(fixture);
+        JsonImportOptions options;
+        options.frames_per_second_numerator = 30000;
+        options.frames_per_second_denominator = 1001;
+        const JsonImportResult imported = import_timeline_json("fixtures/julibrot-view-" + fixture + ".json", options);
+        ASSERT_TRUE(imported.succeeded());
+        ASSERT_TRUE(imported.diagnostics.empty());
+        const timeline::Document document = *imported.document;
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        const timeline::Curve &distance = std::get<timeline::Curve>(document.lanes()[5].items().front());
+        for (int index = 0; index <= 200; ++index)
+        {
+            const timeline::Time time = grid.offset() +
+                timeline::Duration::from_ticks((grid.frame_start(2) - grid.offset()).ticks() * index / 200);
+            std::array<double, 3> target{};
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const double eye = *document.lanes()[6 + axis].evaluate_keyframes(time);
+                const double look = *document.lanes()[9 + axis].evaluate_keyframes(time);
+                target[axis] = (std::abs(look) < 1e-12 ? 0 : look) - (std::abs(eye) < 1e-12 ? 0 : eye);
+            }
+            EXPECT_DOUBLE_EQ(std::sqrt(target[0] * target[0] + target[1] * target[1] + target[2] * target[2]),
+                distance.sample(time));
+            EXPECT_GE(distance.sample(time), distance.minimum());
+            EXPECT_LE(distance.sample(time), distance.maximum());
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const timeline::Curve &hint = std::get<timeline::Curve>(document.lanes()[12 + axis].items().front());
+                EXPECT_GE(hint.sample(time), hint.minimum());
+                EXPECT_LE(hint.sample(time), hint.maximum());
+                EXPECT_TRUE(hint.samples().empty());
+                EXPECT_EQ("true", hint.attributes().at("used-by-camera"));
+            }
+        }
+        EXPECT_EQ("128/8/8/7/10/24", distance.attributes().at("source-value"));
+        const timeline::Curve &up_x = std::get<timeline::Curve>(document.lanes()[12].items().front());
+        EXPECT_LT(up_x.sample(grid.frame_start(2)), 0);
+        const double expected_x = fixture == "near-axis-tolerance" ? -9.99999e-10 : -4e-10 / std::sqrt(5.0);
+        EXPECT_NEAR(expected_x, up_x.sample(grid.frame_start(2)), 1e-22);
+        if (fixture == "near-axis-hold")
+        {
+            EXPECT_DOUBLE_EQ(distance.sample(grid.offset()), distance.sample(grid.frame_start(1)));
+            EXPECT_NE(distance.sample(grid.frame_start(1)), distance.sample(grid.frame_start(2)));
+        }
+    }
+}
+
+TEST(JulibrotView, rejects_near_axis_boundaries_and_off_grid_departures)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/invalid-julibrot-near-axis.json");
+    EXPECT_FALSE(imported.succeeded());
+    const std::array<std::string, 7> diagnostics{
+        "centered", "straight-on", "straight-on", "view-up", "view-up", "straight-on", "view-up"};
+    ASSERT_EQ(diagnostics.size() + 1, imported.diagnostics.size());
+    EXPECT_NE(std::string::npos, imported.diagnostics.back().find("no supported animation tracks"));
+    for (int index = 0; index < timeline::size_cast(diagnostics); ++index)
+    {
+        SCOPED_TRACE(index);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(diagnostics[index]));
+    }
+    const JsonImportResult partial = import_timeline_json("fixtures/partial-julibrot-near-axis.json");
+    ASSERT_TRUE(partial.succeeded());
+    ASSERT_EQ(7, timeline::size_cast(partial.diagnostics));
+    ASSERT_EQ(30, partial.document->lane_count());
+    EXPECT_EQ("animation-7-geometry[0]", partial.document->lanes()[0].id());
+    EXPECT_EQ("animation-8-geometry[0]", partial.document->lanes()[15].id());
+    const timeline::Time middle = partial.document->frame_grid()->frame_start(1);
+    EXPECT_DOUBLE_EQ(18.5, *partial.document->lanes()[20].evaluate_keyframes(middle));
+    const timeline::Keyframe &raw_eye = std::get<timeline::Keyframe>(partial.document->lanes()[21].items().front());
+    EXPECT_DOUBLE_EQ(1, raw_eye.value());
+    EXPECT_EQ("false", raw_eye.attributes().at("used-by-camera"));
 }
 
 TEST(JulibrotView, preserves_layer_base_geometry_aliases_and_unused_camera)

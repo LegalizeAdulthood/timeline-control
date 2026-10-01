@@ -1,0 +1,26 @@
+frame-0001 {
+    reset
+    type=julibrot
+    3dmode=monocular
+    julibrot3d=128/8/8/7/10/23.9999999997
+    sound=no
+    maxiter=678
+}
+
+frame-0002 {
+    reset
+    type=julibrot
+    3dmode=monocular
+    julibrot3d=128/8/8/7/10/18.0000000001
+    sound=no
+    maxiter=678
+}
+
+frame-0003 {
+    reset
+    type=julibrot
+    3dmode=monocular
+    julibrot3d=128/8/8/7/10/12.0000000004
+    sound=no
+    maxiter=678
+}
