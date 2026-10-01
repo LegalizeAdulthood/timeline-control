@@ -203,6 +203,43 @@ or between frames, but allow held jumps between valid tangent branches.
 Bounds enclose the full sheared, rotating camera interval. Skew paths are
 not part of the ParAnimator format and produce importer diagnostics.
 
+Id 3D view tracks support all twelve explicit keyed members: rotation,
+perspective, xyshift, scalexyz, roughness, sphere, longitude, latitude,
+radius, stereo, interocular, and converge. Each has two full-range keys;
+numeric tuples declare their arity and use slash-delimited strings.
+Numeric members use linear or hold/step interpolation. Integer output
+rounds halfway values away from zero and retains separate authored-key
+lanes. Sphere uses boolean keys and held yes/no output intervals. Catalog
+output aliases, component identities, layer sources, and complete recipes
+remain inspectable. Invalid tracks contribute no partial lanes.
+
+Shared camera3d input supports keyed point3 eye and look-at signals, plus
+a positive world-up vector3. Centered look-at and nonvertical direction
+produce analytic Euler rotation, rounded perspective distance, and zero
+xyshift. Explicit members override their corresponding camera outputs;
+fully overridden cameras retain unused raw inputs without evaluating
+their geometry. Continuous interval checks reject vertical crossings,
+zero directions, and perspective overflow, including between frames.
+Other view-up directions receive an explicit unsupported-input diagnostic;
+the remaining parameter-evaluation audit will address roll-free variants.
+Camera3d paths are not part of the source format.
+
+The Id camera fixture and golden output are copied from ParAnimator. The
+keyed, hold, and override goldens use its existing loader and renderer.
+The local source schema declares slash-delimited Id tuple strings, but
+its loader requires numeric arrays. Golden generation converts only that
+tuple representation before calling the source evaluator; the importer
+accepts the schema-defined strings. No ParAnimator source was changed.
+
+Open `id-3d-view-camera.json` for fifteen lanes. At frame 1, rotation y is
+-45 degrees and perspective is 7. Open the RMS mapping and add the camera
+for nineteen comparison lanes; click an output curve to inspect its recipe
+and identity. Open `id-3d-view-keyed.json` to replace the comparison with
+twenty-five lanes; perspective is 12 at frame 1. Opening
+`invalid-id-3d-view.json` reports a singular camera and leaves the
+displayed document, selection, and playhead unchanged. These files are under
+`tests/test-timeline-paranimator/fixtures`.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible

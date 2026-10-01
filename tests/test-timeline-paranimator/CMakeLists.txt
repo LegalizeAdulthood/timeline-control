@@ -2,6 +2,18 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/id-3d-view-camera.json
+    fixtures/id-3d-view-layers.json
+    fixtures/id-3d-view-keyed.json
+    fixtures/id-3d-view-hold.json
+    fixtures/id-3d-view-override.json
+    fixtures/partial-id-3d-view.json
+    fixtures/invalid-id-3d-view.json
+    fixtures/input/id-3d-catalog.json
+    fixtures/gold-id-3d-view-camera.par
+    fixtures/gold-id-3d-view-keyed.par
+    fixtures/gold-id-3d-view-hold.par
+    fixtures/gold-id-3d-view-override.par
     fixtures/invalid-camera2d-skew-near-pole.json
     fixtures/invalid-camera2d-skew-overflow.json
     fixtures/gold-camera2d-skew-eye-corners.par
@@ -218,6 +230,7 @@ add_executable(test-timeline-paranimator
     camera_test.cpp
     camera_corners_test.cpp
     camera_skew_test.cpp
+    id_3d_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

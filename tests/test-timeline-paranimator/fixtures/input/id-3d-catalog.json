@@ -1,0 +1,104 @@
+{
+  "parameters": {
+    "view-rotation": {
+      "type": "numeric-tuple",
+      "description": "Rotates the 3D transform around the x, y, and z axes.",
+      "format": "slash",
+      "arity": 3,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "rotation": {
+      "type": "numeric-tuple",
+      "description": "Rotates the 3D transform around the x, y, and z axes.",
+      "format": "slash",
+      "arity": 3,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "perspective": {
+      "type": "integer",
+      "description": "Sets the viewer distance used for perspective in 3D transforms.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "xyshift": {
+      "type": "numeric-tuple",
+      "description": "Shifts the 3D image in x and y while changing the perspective view.",
+      "format": "slash",
+      "arity": 2,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "scalexyz": {
+      "type": "numeric-tuple",
+      "description": "Sets x, y, and z scale factors for the transformed 3D surface.",
+      "format": "slash",
+      "arity": 3,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "roughness": {
+      "type": "integer",
+      "description": "Sets surface roughness as the z-axis scale factor.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "sphere": {
+      "type": "yes-no",
+      "description": "Enables spherical projection for the 3D transform.",
+      "format": "raw",
+      "default-curve": "hold",
+      "extrapolate": "clamp"
+    },
+    "longitude": {
+      "type": "numeric-tuple",
+      "description": "Sets the minimum and maximum longitude used by spherical projection.",
+      "format": "slash",
+      "arity": 2,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "latitude": {
+      "type": "numeric-tuple",
+      "description": "Sets the minimum and maximum latitude used by spherical projection.",
+      "format": "slash",
+      "arity": 2,
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "radius": {
+      "type": "integer",
+      "description": "Sets the radius scale factor for spherical projection.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp",
+      "min": 0
+    },
+    "stereo": {
+      "type": "integer",
+      "description": "Selects the stereo image mode, including none, alternate, superimpose, photo, or pair.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp",
+      "min": 0,
+      "max": 4
+    },
+    "interocular": {
+      "type": "integer",
+      "description": "Sets stereo eye separation as a percentage of the screen.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    },
+    "converge": {
+      "type": "integer",
+      "description": "Sets stereo convergence and the overall separation of the two stereo images.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "clamp"
+    }
+  }
+}

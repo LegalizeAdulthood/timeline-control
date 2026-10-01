@@ -1,0 +1,2199 @@
+{
+  "parameter-catalogs": [
+    "input/id-3d-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ],
+          "path": {
+            "kind": "linear",
+            "from": "0/0/10",
+            "to": "10/0/0"
+          }
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "1/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "1/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/-10"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "0/10/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": false,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 1,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0",
+              "curve": "geometric"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13.5
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "1/2"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": "yes"
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "perspective",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge",
+        "bogus": "rotation"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      },
+      "mode": "pwm"
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/2147483648"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 2147483648
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift",
+        "scalexyz": "scalexyz",
+        "roughness": "roughness",
+        "sphere": "sphere",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "radius": "radius",
+        "stereo": "stereo",
+        "interocular": "interocular",
+        "converge": "converge"
+      },
+      "rotation": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "2/5/9",
+            "curve": "geometric"
+          }
+        ],
+        "arity": 3
+      },
+      "perspective": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 10
+          },
+          {
+            "frame": 2,
+            "value": 13
+          }
+        ]
+      },
+      "xyshift": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/1"
+          },
+          {
+            "frame": 2,
+            "value": "3/4"
+          }
+        ],
+        "arity": 2
+      },
+      "scalexyz": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "1/2/3"
+          },
+          {
+            "frame": 2,
+            "value": "4/5/6"
+          }
+        ],
+        "arity": 3
+      },
+      "roughness": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -4
+          },
+          {
+            "frame": 2,
+            "value": -1
+          }
+        ]
+      },
+      "sphere": {
+        "type": "yes-no",
+        "keys": [
+          {
+            "frame": 0,
+            "value": false
+          },
+          {
+            "frame": 2,
+            "value": true
+          }
+        ]
+      },
+      "longitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "0/10"
+          },
+          {
+            "frame": 2,
+            "value": "20/30"
+          }
+        ],
+        "arity": 2
+      },
+      "latitude": {
+        "type": "numeric-tuple",
+        "keys": [
+          {
+            "frame": 0,
+            "value": "-20/20"
+          },
+          {
+            "frame": 2,
+            "value": "-10/10"
+          }
+        ],
+        "arity": 2
+      },
+      "radius": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 1
+          },
+          {
+            "frame": 2,
+            "value": 4
+          }
+        ]
+      },
+      "stereo": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 0
+          },
+          {
+            "frame": 2,
+            "value": 3
+          }
+        ]
+      },
+      "interocular": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": 4
+          },
+          {
+            "frame": 2,
+            "value": 7
+          }
+        ]
+      },
+      "converge": {
+        "type": "integer",
+        "keys": [
+          {
+            "frame": 0,
+            "value": -1
+          },
+          {
+            "frame": 2,
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "10/0/0"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/1/0"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

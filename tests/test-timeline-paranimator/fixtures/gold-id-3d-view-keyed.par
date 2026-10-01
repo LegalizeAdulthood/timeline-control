@@ -1,0 +1,65 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    rotation=-1/2/3
+    perspective=10
+    xyshift=0/1
+    scalexyz=1/2/3
+    roughness=-4
+    sphere=no
+    longitude=0/10
+    latitude=-20/20
+    radius=1
+    stereo=0
+    interocular=4
+    converge=-1
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    rotation=0.5/3.5/6
+    perspective=12
+    xyshift=1.5/2.5
+    scalexyz=2.5/3.5/4.5
+    roughness=-3
+    sphere=no
+    longitude=10/20
+    latitude=-15/15
+    radius=3
+    stereo=2
+    interocular=6
+    converge=1
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    maxiter=678
+    rotation=2/5/9
+    perspective=13
+    xyshift=3/4
+    scalexyz=4/5/6
+    roughness=-1
+    sphere=yes
+    longitude=20/30
+    latitude=-10/10
+    radius=4
+    stereo=3
+    interocular=7
+    converge=2
+}
