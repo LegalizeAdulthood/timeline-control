@@ -241,6 +241,24 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/invalid-id-3d-view-tolerance.json
     fixtures/id-3d-view-hint-cleanup.json
     fixtures/gold-id-3d-view-hint-cleanup.par
+    fixtures/id-3d-view-subnormal.json
+    fixtures/id-3d-view-range.json
+    fixtures/id-3d-view-range-hold.json
+    fixtures/id-3d-view-tiny-component.json
+    fixtures/invalid-id-3d-view-normalization.json
+    fixtures/julibrot-view-subnormal.json
+    fixtures/julibrot-view-range.json
+    fixtures/julibrot-view-range-hold.json
+    fixtures/julibrot-view-tiny-component.json
+    fixtures/invalid-julibrot-view-normalization.json
+    fixtures/gold-id-3d-view-subnormal.par
+    fixtures/gold-id-3d-view-range.par
+    fixtures/gold-id-3d-view-range-hold.par
+    fixtures/gold-id-3d-view-tiny-component.par
+    fixtures/gold-julibrot-view-subnormal.par
+    fixtures/gold-julibrot-view-range.par
+    fixtures/gold-julibrot-view-range-hold.par
+    fixtures/gold-julibrot-view-tiny-component.par
     fixtures/gold-id-3d-view-plane-hold.par
     fixtures/gold-id-3d-view-oblique-plane-step.par
     fixtures/invalid-id-3d-view-plane-jump.json
@@ -483,6 +501,7 @@ add_executable(test-timeline-paranimator
     camera_skew_test.cpp
     id_3d_test.cpp
     julibrot_test.cpp
+    camera_normalization_test.cpp
     color_map_test.cpp
     snapshot_test.cpp
 )

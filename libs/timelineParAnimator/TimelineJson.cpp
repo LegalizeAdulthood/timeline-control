@@ -2371,6 +2371,96 @@ timeline::Lane view_annotated(const timeline::Lane &source, const timeline::Attr
     return lane;
 }
 
+double camera3d_normalization_interval(const std::array<std::array<double, 3>, 2> &up, int depth)
+{
+    double minimum_squared = 0;
+    double maximum_squared = 0;
+    constexpr double ROUNDING = 16 * std::numeric_limits<double>::epsilon();
+    for (const std::array<double, 3> &point : up)
+    {
+        const double squared = point[0] * point[0] + point[1] * point[1] + point[2] * point[2];
+        if (squared == 0 || !std::isfinite(squared))
+        {
+            throw std::invalid_argument("camera view-up has an invalid normalization length");
+        }
+    }
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const double first = up[0][axis];
+        const double last = up[1][axis];
+        const bool constant = first == last;
+        const double minimum = (first <= 0 && last >= 0) || (last <= 0 && first >= 0)
+            ? 0
+            : std::min(std::abs(first), std::abs(last)) * (constant ? 1 : 1 - ROUNDING);
+        const double maximum = std::max(std::abs(first), std::abs(last)) * (constant ? 1 : 1 + ROUNDING);
+        minimum_squared += minimum * minimum;
+        maximum_squared += maximum * maximum;
+    }
+    if (minimum_squared > 0 && std::isfinite(maximum_squared))
+    {
+        // Rounded subnormal squares can make the first normalized component
+        // exceed one. The camera normalizes again after component cleanup.
+        return minimum_squared < std::numeric_limits<double>::min() ? 2 : 1;
+    }
+    if (depth == 16)
+    {
+        throw std::invalid_argument("camera view-up has an invalid normalization interval");
+    }
+    std::array<double, 3> middle{};
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        middle[axis] = up[0][axis] + (up[1][axis] - up[0][axis]) / 2;
+    }
+    return std::max(camera3d_normalization_interval({up[0], middle}, depth + 1),
+        camera3d_normalization_interval({middle, up[1]}, depth + 1));
+}
+
+double camera3d_normalization_bounds(
+    const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+{
+    std::array<std::array<double, 3>, 2> up{};
+    std::array<double, 3> last{};
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        up[0][axis] = camera2d_sample(signals[6 + axis], start);
+        up[1][axis] = camera2d_segment_end(signals[6 + axis], start, end);
+        last[axis] = camera2d_sample(signals[6 + axis], end);
+    }
+    return std::max(camera3d_normalization_interval(up, 0), camera3d_normalization_interval({last, last}, 0));
+}
+
+bool camera3d_straight_up(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+{
+    for (int point = 0; point < 3; ++point)
+    {
+        const auto sample = [&](int component)
+        {
+            return point == 1 ? camera2d_segment_end(signals[component], start, end)
+                              : camera2d_sample(signals[component], point == 0 ? start : end);
+        };
+        const double x = sample(6);
+        const double y = sample(7);
+        const double z = sample(8);
+        const double length = std::sqrt(x * x + y * y + z * z);
+        if (x != 0 || y <= 0 || length == 0 || !std::isfinite(length) || y / length < 1e-12)
+        {
+            return false;
+        }
+    }
+    // Positive affine y makes z/y monotone. Bound source cleanup locally,
+    // not with the smallest y divided by an unrelated endpoint's length.
+    const double y = camera2d_sample(signals[7], start);
+    const double z = camera2d_sample(signals[8], start);
+    const double last_y = camera2d_segment_end(signals[7], start, end);
+    const double last_z = camera2d_segment_end(signals[8], start, end);
+    if (y == last_y && z == last_z)
+    {
+        return true;
+    }
+    const double minimum_y = std::min(1 / std::hypot(1.0, z / y), 1 / std::hypot(1.0, last_z / last_y));
+    return minimum_y >= std::sqrt(2.0) * 1e-12;
+}
+
 void id_view_validate_azimuth(const std::array<std::array<double, 3>, 2> &direction,
     const std::array<std::array<double, 3>, 2> &up, double direction_scale, double up_scale)
 {
@@ -2429,7 +2519,7 @@ void id_view_validate_azimuth(const std::array<std::array<double, 3>, 2> &direct
         const double component = (up[0][axis] + nearest_up * (up[1][axis] - up[0][axis])) * up_scale;
         minimum_up_squared += component * component;
     }
-    if (minimum_up_squared < std::numeric_limits<double>::min())
+    if (minimum_up_squared == 0)
     {
         throw std::invalid_argument("Id 3D camera view-up has an invalid normalization interval");
     }
@@ -2438,7 +2528,8 @@ void id_view_validate_azimuth(const std::array<std::array<double, 3>, 2> &direct
     // before comparing normalized camera-up vectors with source tolerance.
     const double cleanup = std::sqrt(3.0) * 1e-12;
     const double direction_error = 2 * cleanup / direction_scale + 2 * ROUNDING;
-    const double up_error = cleanup + residual + 2 * residual_margin;
+    const double up_error =
+        (minimum_up_squared < std::numeric_limits<double>::min() ? 2 : 1) * cleanup + residual + 2 * residual_margin;
     const double minimum = minimum_horizontal * minimum_orientation;
     const double cross_error = (maximum_direction + direction_error) * up_error + maximum_up * direction_error;
     if (minimum <= cross_error || minimum_horizontal <= direction_error ||
@@ -2474,7 +2565,7 @@ void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, ti
             squared += up[point][axis] * up[point][axis];
         }
         world_up = world_up && up[point][0] == 0 && up[point][2] == 0 && up[point][1] > 0;
-        if (!std::isfinite(squared) || squared < std::numeric_limits<double>::min())
+        if (!std::isfinite(squared) || squared == 0)
         {
             throw std::invalid_argument("Id 3D camera view-up has an invalid normalization length");
         }
@@ -2559,13 +2650,15 @@ void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, ti
             std::max(std::abs(y), std::abs(direction[last][1]));
         const double maximum_up =
             std::max(std::abs(uh), std::abs(horizontal_up[last])) + std::max(std::abs(uy), std::abs(up[last][1]));
-        const double margin = 2e-12 / direction_scale * maximum_up + 1e-12 * maximum_direction +
-            4e-24 / direction_scale + 128 * std::numeric_limits<double>::epsilon();
         const double squared_delta = duh * duh + duy * duy;
         const double nearest = squared_delta == 0 ? 0 : std::clamp(-(uh * duh + uy * duy) / squared_delta, 0.0, 1.0);
         const double nearest_h = (uh + nearest * duh) * up_scale;
         const double nearest_y = (uy + nearest * duy) * up_scale;
-        if (minimum <= margin || nearest_h * nearest_h + nearest_y * nearest_y < std::numeric_limits<double>::min())
+        const double minimum_up_squared = nearest_h * nearest_h + nearest_y * nearest_y;
+        const double up_cleanup = minimum_up_squared < std::numeric_limits<double>::min() ? 2e-12 : 1e-12;
+        const double margin = 2e-12 / direction_scale * maximum_up + up_cleanup * maximum_direction +
+            4e-24 / direction_scale + 128 * std::numeric_limits<double>::epsilon();
+        if (minimum <= margin || minimum_up_squared == 0)
         {
             throw std::invalid_argument("unsupported Id 3D camera view-up orientation or normalization interval");
         }
@@ -2575,7 +2668,7 @@ void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, ti
             // normalized right vectors before comparing source camera up.
             const double cleanup = std::sqrt(3.0) * 1e-12;
             const double direction_error = 2 * cleanup / direction_scale + 2 * PLANE_TOLERANCE;
-            const double up_error = cleanup + 2 * PLANE_TOLERANCE;
+            const double up_error = std::sqrt(3.0) * up_cleanup + 2 * PLANE_TOLERANCE;
             const double cross_error = (maximum_direction + direction_error) * up_error + maximum_up * direction_error;
             if (minimum <= cross_error || minimum_horizontal <= direction_error ||
                 4 * cross_error / (minimum - cross_error) +
@@ -2633,7 +2726,7 @@ bool id_view_certify_up_interval(const std::array<std::array<double, 9>, 2> &val
     for (const std::array<double, 3> &point : up)
     {
         const double squared = point[0] * point[0] + point[1] * point[1] + point[2] * point[2];
-        if (!std::isfinite(squared) || squared < std::numeric_limits<double>::min())
+        if (!std::isfinite(squared) || squared == 0)
         {
             return false;
         }
@@ -2679,22 +2772,24 @@ bool id_view_certify_up_interval(const std::array<std::array<double, 9>, 2> &val
         return std::sqrt(length_squared);
     };
     const double minimum_up = minimum_length(up, false);
-    if (minimum_up * minimum_up * up_scale_squared < std::numeric_limits<double>::min())
+    const double minimum_up_squared = minimum_up * minimum_up * up_scale_squared;
+    if (minimum_up_squared == 0)
     {
         return false;
     }
+    const double up_cleanup = minimum_up_squared < std::numeric_limits<double>::min() ? 2e-12 : 1e-12;
     double up_error = 0;
     for (int axis = 0; axis < 3; ++axis)
     {
         const double maximum = std::max(std::abs(up[0][axis]), std::abs(up[1][axis]));
-        if (maximum < 1e-12 * minimum_up * (1 - ROUNDING))
+        if (maximum < 1e-12 / std::sqrt(2.0) * minimum_up * (1 - ROUNDING))
         {
             up[0][axis] = 0;
             up[1][axis] = 0;
         }
-        else if (minimum_absolute(up[0][axis], up[1][axis]) < 1e-12 * (1 + ROUNDING))
+        else if (minimum_absolute(up[0][axis], up[1][axis]) < up_cleanup * (1 + ROUNDING))
         {
-            up_error += 1e-12;
+            up_error += up_cleanup;
         }
     }
     const auto cross = [](const std::array<double, 3> &first, const std::array<double, 3> &last)
@@ -2786,6 +2881,20 @@ bool id_view_certify_up(const std::vector<timeline::Lane> &signals, timeline::Ti
 
 void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
 {
+    bool straight = true;
+    for (int point = 0; point < 3; ++point)
+    {
+        const auto sample = [&](int component)
+        {
+            return clean_path_value(point == 1 ? camera2d_segment_end(signals[component], start, end)
+                                               : camera2d_sample(signals[component], point == 0 ? start : end));
+        };
+        straight = straight && sample(0) == sample(3) && sample(1) == sample(4) && sample(2) > sample(5);
+    }
+    if (straight && camera3d_straight_up(signals, start, end))
+    {
+        return;
+    }
     // A held destination may have its own viewing plane and normalization scale.
     for (const std::pair<timeline::Time, timeline::Time> &interval : {std::pair{start, end}, std::pair{end, end}})
     {
@@ -2905,12 +3014,14 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         std::any_of(ID_VIEW_MEMBERS.begin(), ID_VIEW_MEMBERS.end(), [&track, &outputs](const ViewMember &member)
             { return member.camera && outputs.contains(member.name) && !track.contains(member.name); });
     std::pair<double, double> camera_bounds{0, 0};
+    double up_extent = 1;
     if (derived)
     {
         if (signals.empty())
         {
             throw std::invalid_argument("Id 3D output requires an explicit member or camera3d");
         }
+        up_extent = camera3d_normalization_bounds(signals, start, end);
         camera_bounds = id_view_validate_camera(signals, start, end);
     }
     std::vector<timeline::Lane> authored;
@@ -3061,7 +3172,7 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
                     const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
                     return clean_path_value(up[axis] / length);
                 },
-                lane.label(), -1, 1, input_attributes));
+                lane.label(), -up_extent, up_extent, input_attributes));
             lanes.push_back(std::move(lane));
         }
         else
@@ -3083,8 +3194,6 @@ std::pair<double, double> julibrot_camera_bounds(
 {
     double minimum = std::numeric_limits<double>::max();
     double maximum = 0;
-    double minimum_up_y = std::numeric_limits<double>::max();
-    double maximum_up_length = 0;
     for (timeline::Time time : {start, end})
     {
         for (int component = 0; component < 3; ++component)
@@ -3116,12 +3225,10 @@ std::pair<double, double> julibrot_camera_bounds(
         {
             throw std::invalid_argument("unsupported Julibrot camera view-up; requires positive y and zero x");
         }
-        minimum_up_y = std::min(minimum_up_y, up_y);
-        maximum_up_length = std::max(maximum_up_length, length);
     }
     // Linear/held axis-aligned inputs remain straight-on throughout the interval.
     // Bound normalization before source cleanup can make view-up parallel.
-    if (minimum_up_y * minimum_up_y == 0 || minimum_up_y / maximum_up_length < 1e-12)
+    if (!camera3d_straight_up(signals, start, end))
     {
         throw std::invalid_argument("unsupported Julibrot camera view-up normalization interval");
     }
@@ -3177,12 +3284,14 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
     }
     const bool derived = outputs.contains("geometry") && !track.contains("geometry");
     std::pair<double, double> camera_bounds{0, 0};
+    double up_extent = 1;
     if (derived)
     {
         if (signals.empty())
         {
             throw std::invalid_argument("Julibrot geometry output requires an explicit member or camera3d");
         }
+        up_extent = camera3d_normalization_bounds(signals, start, end);
         camera_bounds = julibrot_camera_bounds(signals, start, end);
     }
     for (const ViewMember &member : JULIBROT_VIEW_MEMBERS)
@@ -3311,7 +3420,8 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
                     const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
                     return clean_path_value(up[axis] / length);
                 },
-                lane.label(), component % 3 == 2 ? -1 : 0, component % 3 == 0 ? 0 : 1, input_attributes));
+                lane.label(), component % 3 == 2 ? -up_extent : 0, component % 3 == 0 ? 0 : up_extent,
+                input_attributes));
             lanes.push_back(std::move(lane));
         }
         else

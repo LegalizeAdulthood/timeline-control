@@ -53,7 +53,8 @@ std::vector<std::map<std::string, std::string>> julibrot_source_frames(const std
 
 TEST(JulibrotView, matches_source_golden_and_preserves_owned_recipes)
 {
-    for (const std::string &fixture : {"camera", "keyed", "hold", "normalized", "override", "camera-hold"})
+    for (const std::string &fixture : {"camera", "keyed", "hold", "normalized", "override", "camera-hold", "subnormal",
+             "range", "range-hold", "tiny-component"})
     {
         SCOPED_TRACE(fixture);
         const timeline::Document document = [&fixture]

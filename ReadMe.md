@@ -288,8 +288,8 @@ polynomial bounds. Principal planes use exact quadratic orientation
 minima; small oblique roll is accepted only within source tolerance.
 Nearly parallel hints and nearly vertical directions are supported where
 the complete interval remains safe. Singularities and unresolved bounds
-retain explicit diagnostics, without relying on frame samples. Extreme
-normalization ranges remain pending the parameter-evaluation audit.
+retain explicit diagnostics, without relying on frame samples. View-up
+uses the shared camera normalization policy described below.
 Camera3d paths are not part of the source format.
 
 The Id camera fixture and golden output are copied from ParAnimator. The
@@ -355,10 +355,10 @@ interpolation, and the source geometry's first five components stay fixed;
 only its distance component comes from the camera. Continuous bounds
 reject degenerate directions and unsafe normalization, including between
 frames. Explicit geometry overrides retain unevaluated raw camera inputs.
-Near-axis tolerance variants and extreme normalization ranges receive
-explicit diagnostics pending the final parameter-evaluation audit.
+Near-axis tolerance variants remain explicitly diagnosed pending their
+separate compatibility audit.
 
-The Julibrot camera fixture is copied from ParAnimator. Six
+The Julibrot camera fixture is copied from ParAnimator. Ten
 source-generated goldens cover camera, normalized view-up, keyed members,
 hold/step, and overrides. Like Id tuples, explicit Julibrot tuple strings
 are converted to arrays only for reference generation with the source
@@ -373,6 +373,29 @@ including held mode and fractional eye spacing. Opening
 `invalid-julibrot-view.json` reports an unsupported camera and leaves the
 displayed document, selection, and playhead unchanged. These fixtures are
 under `tests/test-timeline-paranimator/fixtures`.
+
+Id and Julibrot camera hints use the source's ordinary squared-length
+arithmetic after interpolation, then component cleanup. Nonzero subnormal
+squares are accepted; zero or overflowing squared lengths are rejected,
+not rescued with scale-invariant normalization. Continuous interval
+bounds detect off-grid underflow and validate held endpoints separately.
+Straight-on orientation uses local hint ratios, not unrelated endpoint
+scales. Subnormal rounding can produce normalized input components above
+one before the source camera's second normalization. Conservative display
+bounds retain those values; analytic recipes own their raw keys and do not
+cache frame samples. Eight reference-generated goldens cover subnormal,
+tiny-component, large-range, and held-range fixtures for both views.
+
+Open `id-3d-view-subnormal.json` for fifteen lanes, pitch -45, perspective
+14, and normalized hint z 0.318121 at frame 1. Open
+`julibrot-view-range-hold.json` for fifteen lanes, distance 18, and held
+hint y/z 1.124728/-0.449891 at frame 1. The final hint is independently
+normalized from `0/1e154/5e153`. Adding RMS beat-keys gives nineteen lanes.
+The corresponding `invalid-*-view-normalization.json` fixtures each report
+six indexed failures without changing comparison, selection, or playhead.
+Five cases are source-rejected; the sixth has valid source frame samples
+but an off-grid normalization underflow. Reopening a valid fixture resets
+viewer state and restores fifteen lanes.
 
 Color-map tracks support static files, gradients, and two keyed source
 files with linear or hold/step interpolation. Import owns all 256 ordered

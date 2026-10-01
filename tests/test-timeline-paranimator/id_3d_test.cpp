@@ -53,9 +53,10 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
 {
-    const std::array<std::string, 17> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
+    const std::array<std::string, 21> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
         "oblique", "oblique-hold", "plane-hold", "oblique-plane-step", "azimuth", "azimuth-reverse", "tolerance",
-        "near-parallel", "orientation-minimum", "near-vertical", "hint-cleanup"};
+        "near-parallel", "orientation-minimum", "near-vertical", "hint-cleanup", "subnormal", "range", "range-hold",
+        "tiny-component"};
     for (const std::string &fixture : fixtures)
     {
         SCOPED_TRACE(fixture);
