@@ -2419,10 +2419,6 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
             break;
         }
     }
-    if (zero_axis < 0)
-    {
-        throw std::invalid_argument("unsupported Id 3D camera view-up; requires world-up or an XY/YZ viewing plane");
-    }
     const double up_scale = std::sqrt(maximum_up_squared);
     if (!std::isfinite(direction_scale) || direction_scale == 0)
     {
@@ -2436,35 +2432,55 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
             direction[point][axis] /= direction_scale;
         }
     }
-    const int horizontal = 2 - zero_axis;
+    const double horizontal_length = std::hypot(direction[0][0], direction[0][2]);
+    if (horizontal_length == 0)
+    {
+        throw std::invalid_argument("Id 3D camera view-up has a vertical direction");
+    }
+    const double plane_x = zero_axis == 0 ? 0 : zero_axis == 2 ? 1 : direction[0][0] / horizontal_length;
+    const double plane_z = zero_axis == 0 ? 1 : zero_axis == 2 ? 0 : direction[0][2] / horizontal_length;
+    constexpr double PLANE_TOLERANCE = 128 * std::numeric_limits<double>::epsilon();
+    std::array<double, 3> horizontal_direction{};
+    std::array<double, 3> horizontal_up{};
+    for (int point = 0; point < 3; ++point)
+    {
+        if (std::abs(plane_x * direction[point][2] - plane_z * direction[point][0]) > PLANE_TOLERANCE ||
+            std::abs(plane_x * up[point][2] - plane_z * up[point][0]) > PLANE_TOLERANCE)
+        {
+            throw std::invalid_argument(
+                "unsupported Id 3D camera view-up; requires world-up or a fixed vertical viewing plane");
+        }
+        horizontal_direction[point] = plane_x * direction[point][0] + plane_z * direction[point][2];
+        horizontal_up[point] = plane_x * up[point][0] + plane_z * up[point][2];
+    }
     const auto validate = [&](int first, int last)
     {
-        const double h = direction[first][horizontal];
+        const double h = horizontal_direction[first];
         const double y = direction[first][1];
-        const double dh = direction[last][horizontal] - h;
+        const double dh = horizontal_direction[last] - h;
         const double dy = direction[last][1] - y;
-        const double uh = up[first][horizontal];
+        const double uh = horizontal_up[first];
         const double uy = up[first][1];
-        const double duh = up[last][horizontal] - uh;
+        const double duh = horizontal_up[last] - uh;
         const double duy = up[last][1] - uy;
         const double sign = h < 0 ? -1 : 1;
-        if (sign * direction[last][horizontal] <= 0 ||
-            std::min(std::abs(h), std::abs(direction[last][horizontal])) <= 2e-12 / direction_scale)
+        const double minimum_horizontal = std::min(std::abs(h), std::abs(horizontal_direction[last]));
+        if (sign * horizontal_direction[last] <= 0 || minimum_horizontal <= 2e-12 / direction_scale)
         {
             throw std::invalid_argument("Id 3D camera view-up has a vertical direction interval");
         }
 
-        // In a principal plane, the signed cross product is quadratic.
+        // In a fixed vertical plane, the signed cross product is quadratic.
         // Its minimum must survive source component cleanup and rounding.
         const double a = sign * (dh * duy - dy * duh);
         const double b = sign * (h * duy + dh * uy - y * duh - dy * uh);
         const double c = sign * (h * uy - y * uh);
         const double fraction = a > 0 ? std::clamp(-b / (2 * a), 0.0, 1.0) : 0;
         const double minimum = std::min({c, a + b + c, (a * fraction + b) * fraction + c});
-        const double maximum_direction = std::max(std::abs(h), std::abs(direction[last][horizontal])) +
+        const double maximum_direction = std::max(std::abs(h), std::abs(horizontal_direction[last])) +
             std::max(std::abs(y), std::abs(direction[last][1]));
         const double maximum_up =
-            std::max(std::abs(uh), std::abs(up[last][horizontal])) + std::max(std::abs(uy), std::abs(up[last][1]));
+            std::max(std::abs(uh), std::abs(horizontal_up[last])) + std::max(std::abs(uy), std::abs(up[last][1]));
         const double margin = 2e-12 / direction_scale * maximum_up + 1e-12 * maximum_direction +
             4e-24 / direction_scale + 128 * std::numeric_limits<double>::epsilon();
         const double squared_delta = duh * duh + duy * duy;
@@ -2474,6 +2490,23 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
         if (minimum <= margin || nearest_h * nearest_h + nearest_y * nearest_y < std::numeric_limits<double>::min())
         {
             throw std::invalid_argument("unsupported Id 3D camera view-up orientation or normalization interval");
+        }
+        if (zero_axis < 0)
+        {
+            // Oblique component cleanup can leave the plane. Bound both
+            // normalized right vectors before comparing source camera up.
+            const double cleanup = std::sqrt(3.0) * 1e-12;
+            const double direction_error = 2 * cleanup / direction_scale + 2 * PLANE_TOLERANCE;
+            const double up_error = cleanup + 2 * PLANE_TOLERANCE;
+            const double cross_error = (maximum_direction + direction_error) * up_error + maximum_up * direction_error;
+            if (minimum <= cross_error || minimum_horizontal <= direction_error ||
+                4 * cross_error / (minimum - cross_error) +
+                        4 * direction_error / (minimum_horizontal - direction_error) >=
+                    5e-10)
+            {
+                throw std::invalid_argument(
+                    "unsupported Id 3D camera view-up; cannot bound oblique roll within source tolerance");
+            }
         }
     };
     validate(0, 1);

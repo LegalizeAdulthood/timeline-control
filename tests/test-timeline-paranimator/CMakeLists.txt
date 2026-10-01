@@ -221,6 +221,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/gold-julibrot-view-override.par
     fixtures/id-3d-view-camera.json
     fixtures/id-3d-view-tilted.json
+    fixtures/id-3d-view-oblique.json
+    fixtures/id-3d-view-oblique-hold.json
+    fixtures/gold-id-3d-view-oblique.par
+    fixtures/gold-id-3d-view-oblique-hold.par
+    fixtures/invalid-id-3d-view-oblique.json
     fixtures/id-3d-view-tilted-hold.json
     fixtures/gold-id-3d-view-tilted.par
     fixtures/gold-id-3d-view-tilted-hold.par

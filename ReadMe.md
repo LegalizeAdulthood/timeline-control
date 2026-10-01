@@ -261,7 +261,8 @@ output aliases, component identities, layer sources, and complete recipes
 remain inspectable. Invalid tracks contribute no partial lanes.
 
 Shared camera3d input supports keyed point3 eye and look-at signals, plus
-positive world-up or tilted vector3 hints in the XY and YZ viewing planes.
+positive world-up or tilted vector3 hints in fixed vertical viewing planes,
+including XY, YZ, and oblique planes.
 Tilted hints need not have positive authored y: their projection must face
 the roll-free camera up direction throughout the interval. Hints normalize
 after interpolation, with source tiny-component cleanup; their complete
@@ -274,13 +275,16 @@ crossings, zero directions, reversed or singular hints, unsafe
 normalization, and perspective overflow, including between frames and at
 held-key endpoints.
 Quadratic orientation minima include source cleanup and rounding margins.
-Other viewing planes, near-degenerate hints, and extreme normalization
-ranges retain explicit diagnostics pending the parameter-evaluation audit.
+Oblique planes additionally require bounded coplanarity and roll error
+within the source tolerance. Changing planes, near-degenerate hints, and
+extreme normalization ranges retain explicit diagnostics pending the
+parameter-evaluation audit.
 Camera3d paths are not part of the source format.
 
 The Id camera fixture and golden output are copied from ParAnimator. The
 keyed, hold, and override goldens use its existing loader and renderer.
-The tilted YZ and held XY goldens come from its reference executable.
+The tilted YZ, held XY, and linear and held oblique goldens come from its
+reference executable.
 The local source schema declares slash-delimited Id tuple strings, but
 its loader requires numeric arrays. Golden generation converts only that
 tuple representation before calling the source evaluator; the importer

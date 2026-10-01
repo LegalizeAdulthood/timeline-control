@@ -53,7 +53,8 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
 {
-    const std::array<std::string, 6> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold"};
+    const std::array<std::string, 8> fixtures{
+        "camera", "keyed", "hold", "override", "tilted", "tilted-hold", "oblique", "oblique-hold"};
     for (const std::string &fixture : fixtures)
     {
         SCOPED_TRACE(fixture);
@@ -217,6 +218,79 @@ TEST(Id3DView, rejects_invalid_tracks_transactionally_with_indexed_diagnostics)
     const JsonImportResult failed = import_timeline_json("fixtures/invalid-id-3d-view.json");
     EXPECT_FALSE(failed.succeeded());
     EXPECT_FALSE(failed.diagnostics.empty());
+}
+
+TEST(Id3DView, samples_owned_oblique_hints_and_outputs_continuously)
+{
+    for (const std::string &fixture : {"oblique", "oblique-hold"})
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            const JsonImportResult imported = import_timeline_json("fixtures/id-3d-view-" + fixture + ".json");
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Oblique Id camera import failed");
+            }
+            return *imported.document;
+        }();
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        constexpr double PI = 3.14159265358979323846;
+        for (int step = 0; step <= 100; ++step)
+        {
+            const timeline::Time time = grid.offset() +
+                timeline::Duration::from_ticks((grid.frame_start(2) - grid.offset()).ticks() * step / 100);
+            const double fraction = fixture == "oblique" ? step / 100.0 : step == 100 ? 1 : 0;
+            const double sign = fixture == "oblique" ? 1 : -1;
+            const std::array<double, 3> up{sign * (-3 + 3.6 * fraction), -1 + 3 * fraction, -4 + 4.8 * fraction};
+            const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[12 + axis].items().front());
+                EXPECT_NEAR(up[axis] / length, curve.sample(time), 1e-12);
+                EXPECT_LE(*curve.minimum(), curve.sample(time));
+                EXPECT_GE(*curve.maximum(), curve.sample(time));
+                EXPECT_TRUE(curve.samples().empty());
+                EXPECT_EQ("true", curve.attributes().at("normalize"));
+                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("keys"));
+            }
+            const double horizontal = 5 + 5 * fraction;
+            const double y = 10 - 5 * fraction;
+            EXPECT_NEAR(std::atan2(y, horizontal) * 180 / PI,
+                std::get<timeline::Curve>(document.lanes()[0].items().front()).sample(time), 1e-12);
+            EXPECT_NEAR(-sign * std::atan2(3.0, 4.0) * 180 / PI,
+                std::get<timeline::Curve>(document.lanes()[1].items().front()).sample(time), 1e-12);
+            EXPECT_DOUBLE_EQ(std::round(std::hypot(horizontal, y)),
+                std::get<timeline::Curve>(document.lanes()[3].items().front()).sample(time));
+        }
+        for (int frame = 0; frame < grid.frame_count(); ++frame)
+        {
+            const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const std::optional<double> value = inspection.lanes[12 + axis].items.front().value;
+                ASSERT_TRUE(value.has_value());
+                EXPECT_DOUBLE_EQ(std::get<timeline::Curve>(document.lanes()[12 + axis].items().front())
+                                     .sample(grid.frame_start(frame)),
+                    *value);
+            }
+        }
+    }
+}
+
+TEST(Id3DView, diagnoses_oblique_roll_and_unsupported_motion_without_partial_lanes)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-oblique.json");
+    EXPECT_FALSE(imported.succeeded());
+    const std::array<std::string, 5> messages{
+        "fixed vertical", "fixed vertical", "orientation", "source tolerance", "orientation"};
+    ASSERT_EQ(timeline::size_cast(messages) + 1, timeline::size_cast(imported.diagnostics));
+    for (int index = 0; index < timeline::size_cast(messages); ++index)
+    {
+        SCOPED_TRACE(imported.diagnostics[index]);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(messages[index]));
+    }
 }
 
 TEST(Id3DView, rejects_tilted_singularities_between_frames_and_at_held_endpoints)
