@@ -1,0 +1,70 @@
+{
+  "parameter-catalogs": [
+    "input/id-3d-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "name": "view",
+      "type": "id-3d-view",
+      "outputs": {
+        "rotation": "rotation",
+        "perspective": "perspective",
+        "xyshift": "xyshift"
+      },
+      "camera3d": {
+        "eye": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/10"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/10"
+            }
+          ]
+        },
+        "look-at": {
+          "type": "point3",
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/0/0"
+            },
+            {
+              "frame": 2,
+              "value": "0/0/0"
+            }
+          ]
+        },
+        "view-up": {
+          "type": "vector3",
+          "normalize": true,
+          "keys": [
+            {
+              "frame": 0,
+              "value": "0/1.1e-12/-1"
+            },
+            {
+              "frame": 2,
+              "value": "0/1.1e-12/-1"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

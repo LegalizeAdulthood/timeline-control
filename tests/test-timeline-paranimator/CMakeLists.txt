@@ -230,6 +230,17 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/gold-id-3d-view-azimuth.par
     fixtures/gold-id-3d-view-azimuth-reverse.par
     fixtures/invalid-id-3d-view-azimuth.json
+    fixtures/id-3d-view-tolerance.json
+    fixtures/id-3d-view-near-parallel.json
+    fixtures/id-3d-view-orientation-minimum.json
+    fixtures/id-3d-view-near-vertical.json
+    fixtures/gold-id-3d-view-tolerance.par
+    fixtures/gold-id-3d-view-near-parallel.par
+    fixtures/gold-id-3d-view-orientation-minimum.par
+    fixtures/gold-id-3d-view-near-vertical.par
+    fixtures/invalid-id-3d-view-tolerance.json
+    fixtures/id-3d-view-hint-cleanup.json
+    fixtures/gold-id-3d-view-hint-cleanup.par
     fixtures/gold-id-3d-view-plane-hold.par
     fixtures/gold-id-3d-view-oblique-plane-step.par
     fixtures/invalid-id-3d-view-plane-jump.json

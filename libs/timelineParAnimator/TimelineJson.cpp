@@ -2590,11 +2590,217 @@ void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, ti
     validate(0, 1);
 }
 
+bool id_view_certify_up_interval(const std::array<std::array<double, 9>, 2> &values, int depth, int &budget)
+{
+    if (--budget < 0)
+    {
+        return false;
+    }
+    constexpr double ROUNDING = 32 * std::numeric_limits<double>::epsilon();
+    std::array<std::array<double, 3>, 2> direction{};
+    std::array<std::array<double, 3>, 2> up{};
+    double direction_scale = 0;
+    double up_scale_squared = 0;
+    double direction_error = 0;
+    double maximum_input = 0;
+    const auto minimum_absolute = [](double first, double last)
+    {
+        return first * last <= 0 ? 0 : std::min(std::abs(first), std::abs(last));
+    };
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        for (int offset : {0, 3})
+        {
+            const double first = values[0][offset + axis];
+            const double last = values[1][offset + axis];
+            maximum_input = std::max({maximum_input, std::abs(first), std::abs(last)});
+            const bool cleaned = std::max(std::abs(first), std::abs(last)) < 1e-12;
+            if (!cleaned && minimum_absolute(first, last) < 1e-12)
+            {
+                direction_error += 1e-12;
+            }
+            for (int point = 0; point < 2; ++point)
+            {
+                direction[point][axis] += (offset == 0 ? -1 : 1) * (cleaned ? 0 : values[point][offset + axis]);
+            }
+        }
+        for (int point = 0; point < 2; ++point)
+        {
+            direction_scale = std::max(direction_scale, std::abs(direction[point][axis]));
+            up[point][axis] = values[point][6 + axis];
+        }
+    }
+    for (const std::array<double, 3> &point : up)
+    {
+        const double squared = point[0] * point[0] + point[1] * point[1] + point[2] * point[2];
+        if (!std::isfinite(squared) || squared < std::numeric_limits<double>::min())
+        {
+            return false;
+        }
+        up_scale_squared = std::max(up_scale_squared, squared);
+    }
+    if (!std::isfinite(direction_scale) || direction_scale == 0)
+    {
+        return false;
+    }
+    const double up_scale = std::sqrt(up_scale_squared);
+    direction_error = (direction_error + ROUNDING * maximum_input) / direction_scale;
+    for (int point = 0; point < 2; ++point)
+    {
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            direction[point][axis] /= direction_scale;
+            up[point][axis] /= up_scale;
+        }
+    }
+    const auto minimum_length = [](const std::array<std::array<double, 3>, 2> &points, bool horizontal)
+    {
+        double squared = 0;
+        double projection = 0;
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            if (!horizontal || axis != 1)
+            {
+                const double delta = points[1][axis] - points[0][axis];
+                squared += delta * delta;
+                projection += points[0][axis] * delta;
+            }
+        }
+        const double fraction = squared == 0 ? 0 : std::clamp(-projection / squared, 0.0, 1.0);
+        double length_squared = 0;
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            if (!horizontal || axis != 1)
+            {
+                const double component = points[0][axis] + fraction * (points[1][axis] - points[0][axis]);
+                length_squared += component * component;
+            }
+        }
+        return std::sqrt(length_squared);
+    };
+    const double minimum_up = minimum_length(up, false);
+    if (minimum_up * minimum_up * up_scale_squared < std::numeric_limits<double>::min())
+    {
+        return false;
+    }
+    double up_error = 0;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const double maximum = std::max(std::abs(up[0][axis]), std::abs(up[1][axis]));
+        if (maximum < 1e-12 * minimum_up * (1 - ROUNDING))
+        {
+            up[0][axis] = 0;
+            up[1][axis] = 0;
+        }
+        else if (minimum_absolute(up[0][axis], up[1][axis]) < 1e-12 * (1 + ROUNDING))
+        {
+            up_error += 1e-12;
+        }
+    }
+    const auto cross = [](const std::array<double, 3> &first, const std::array<double, 3> &last)
+    {
+        return std::array<double, 3>{first[1] * last[2] - first[2] * last[1], first[2] * last[0] - first[0] * last[2],
+            first[0] * last[1] - first[1] * last[0]};
+    };
+    const auto dot = [](const std::array<double, 3> &first, const std::array<double, 3> &last)
+    {
+        return first[0] * last[0] + first[1] * last[1] + first[2] * last[2];
+    };
+    const auto quadratic_minimum = [](double first, double middle, double last)
+    {
+        const double a = first - 2 * middle + last;
+        const double b = 2 * (middle - first);
+        const double fraction = a > 0 ? std::clamp(-b / (2 * a), 0.0, 1.0) : 0;
+        return std::min({first, last, (a * fraction + b) * fraction + first});
+    };
+    // Bernstein cross-product controls enclose every continuous sample.
+    // Principal planes retain an exact quadratic orientation minimum.
+    std::array<std::array<double, 3>, 3> right{cross(direction[0], up[0]), {}, cross(direction[1], up[1])};
+    const std::array<double, 3> first_middle = cross(direction[0], up[1]);
+    const std::array<double, 3> last_middle = cross(direction[1], up[0]);
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        right[1][axis] = (first_middle[axis] + last_middle[axis]) / 2;
+    }
+    const double maximum_direction =
+        std::max(std::sqrt(dot(direction[0], direction[0])), std::sqrt(dot(direction[1], direction[1])));
+    const double maximum_up = std::max(std::sqrt(dot(up[0], up[0])), std::sqrt(dot(up[1], up[1])));
+    const double minimum_horizontal = minimum_length(direction, true);
+    const double cross_error = (maximum_direction + direction_error) * up_error + maximum_up * direction_error +
+        ROUNDING * maximum_direction * maximum_up;
+    for (int axis : {0, 2})
+    {
+        if (direction[0][axis] == 0 && direction[1][axis] == 0 && up[0][axis] == 0 && up[1][axis] == 0)
+        {
+            const int horizontal_axis = 2 - axis;
+            const double sign = (axis == 0 ? -1 : 1) * (direction[0][horizontal_axis] < 0 ? -1 : 1);
+            const double minimum =
+                quadratic_minimum(sign * right[0][axis], sign * right[1][axis], sign * right[2][axis]);
+            if (direction[0][horizontal_axis] * direction[1][horizontal_axis] > 0 &&
+                minimum_horizontal > direction_error && minimum > cross_error)
+            {
+                return true;
+            }
+        }
+    }
+    const std::array<double, 3> world_first{-direction[0][2], 0, direction[0][0]};
+    const std::array<double, 3> world_last{-direction[1][2], 0, direction[1][0]};
+    const double minimum_orientation =
+        std::min({dot(right[0], world_first), (2 * dot(right[1], world_first) + dot(right[0], world_last)) / 3,
+            (dot(right[2], world_first) + 2 * dot(right[1], world_last)) / 3, dot(right[2], world_last)});
+    const double maximum_horizontal =
+        std::max(std::hypot(direction[0][0], direction[0][2]), std::hypot(direction[1][0], direction[1][2]));
+    const double minimum_cross = minimum_orientation / maximum_horizontal;
+    const double maximum_roll = std::max({std::abs(right[0][1]), std::abs(right[1][1]), std::abs(right[2][1])});
+    if (minimum_horizontal > direction_error && minimum_cross > cross_error &&
+        2 * maximum_direction * maximum_roll / minimum_orientation + 4 * cross_error / (minimum_cross - cross_error) +
+                4 * direction_error / (minimum_horizontal - direction_error) <
+            1e-9)
+    {
+        return true;
+    }
+    if (depth == 16)
+    {
+        return false;
+    }
+    std::array<double, 9> middle{};
+    for (int component = 0; component < 9; ++component)
+    {
+        middle[component] = values[0][component] + (values[1][component] - values[0][component]) / 2;
+    }
+    return id_view_certify_up_interval({values[0], middle}, depth + 1, budget) &&
+        id_view_certify_up_interval({middle, values[1]}, depth + 1, budget);
+}
+
+bool id_view_certify_up(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+{
+    std::array<std::array<double, 9>, 2> values{};
+    for (int component = 0; component < 9; ++component)
+    {
+        values[0][component] = camera2d_sample(signals[component], start);
+        values[1][component] = camera2d_segment_end(signals[component], start, end);
+    }
+    int budget = 4096;
+    return id_view_certify_up_interval(values, 0, budget);
+}
+
 void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
 {
     // A held destination may have its own viewing plane and normalization scale.
-    id_view_validate_up_interval(signals, start, end);
-    id_view_validate_up_interval(signals, end, end);
+    for (const std::pair<timeline::Time, timeline::Time> &interval : {std::pair{start, end}, std::pair{end, end}})
+    {
+        try
+        {
+            id_view_validate_up_interval(signals, interval.first, interval.second);
+        }
+        catch (const std::invalid_argument &)
+        {
+            if (!id_view_certify_up(signals, interval.first, interval.second))
+            {
+                throw;
+            }
+        }
+    }
 }
 
 std::pair<double, double> id_view_validate_camera(
@@ -2628,7 +2834,11 @@ std::pair<double, double> id_view_validate_camera(
     const double dz = to[2] - from[2];
     const double projected = dx * dx + dz * dz;
     const double fraction = projected == 0 ? 0 : std::clamp(-(from[0] * dx + from[2] * dz) / projected, 0.0, 1.0);
-    if (std::hypot(from[0] + fraction * dx, from[2] + fraction * dz) <= 1e-12 || std::hypot(last[0], last[2]) <= 1e-12)
+    // Cleanup of both eye/look horizontal components can erase a direction
+    // whose norm exceeds one cleanup threshold. Certify that small region.
+    if ((std::hypot(from[0] + fraction * dx, from[2] + fraction * dz) <= 3e-12 ||
+            std::hypot(last[0], last[2]) <= 3e-12) &&
+        (!id_view_certify_up(signals, start, end) || !id_view_certify_up(signals, end, end)))
     {
         throw std::invalid_argument("Id 3D camera has a vertical or zero direction");
     }

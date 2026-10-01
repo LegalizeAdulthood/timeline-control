@@ -53,8 +53,9 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
 {
-    const std::array<std::string, 12> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
-        "oblique", "oblique-hold", "plane-hold", "oblique-plane-step", "azimuth", "azimuth-reverse"};
+    const std::array<std::string, 17> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
+        "oblique", "oblique-hold", "plane-hold", "oblique-plane-step", "azimuth", "azimuth-reverse", "tolerance",
+        "near-parallel", "orientation-minimum", "near-vertical", "hint-cleanup"};
     for (const std::string &fixture : fixtures)
     {
         SCOPED_TRACE(fixture);
@@ -395,6 +396,69 @@ TEST(Id3DView, samples_owned_moving_azimuth_and_tilted_hints_between_frames)
             }
         }
     }
+}
+
+TEST(Id3DView, validates_tolerance_boundaries_continuously_with_owned_hints)
+{
+    for (const std::string &fixture :
+        {"tolerance", "near-parallel", "orientation-minimum", "near-vertical", "hint-cleanup"})
+    {
+        SCOPED_TRACE(fixture);
+        const JsonImportResult imported = import_timeline_json("fixtures/id-3d-view-" + fixture + ".json");
+        ASSERT_TRUE(imported.succeeded());
+        ASSERT_TRUE(imported.diagnostics.empty());
+        const timeline::Document document = *imported.document;
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        for (int step = 0; step <= 100; ++step)
+        {
+            const timeline::Time time = grid.offset() +
+                timeline::Duration::from_ticks((grid.frame_start(2) - grid.offset()).ticks() * step / 100);
+            double squared = 0;
+            const double fraction = step / 100.0;
+            const std::array<double, 3> raw_hint = fixture == "tolerance"
+                ? std::array<double, 3>{-0.6, -1 + (5 + fraction) * 1e-10, -0.8 - (1 + 0.2 * fraction) * 1e-10}
+                : fixture == "near-parallel"       ? std::array<double, 3>{-1, -10 + (1 + fraction) * 1e-10, 0}
+                : fixture == "orientation-minimum" ? std::array<double, 3>{0, 0.0625000000001, fraction}
+                : fixture == "hint-cleanup"        ? std::array<double, 3>{0, 1.1e-12, -1}
+                                                   : std::array<double, 3>{0, 1, 0};
+            const double length =
+                std::sqrt(raw_hint[0] * raw_hint[0] + raw_hint[1] * raw_hint[1] + raw_hint[2] * raw_hint[2]);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const timeline::Curve &hint = std::get<timeline::Curve>(document.lanes()[12 + axis].items().front());
+                const double value = hint.sample(time);
+                EXPECT_NEAR(raw_hint[axis] / length, value, 1e-14);
+                squared += value * value;
+                EXPECT_LE(*hint.minimum(), value);
+                EXPECT_GE(*hint.maximum(), value);
+                EXPECT_TRUE(hint.samples().empty());
+                EXPECT_EQ("true", hint.attributes().at("normalize"));
+                EXPECT_NE(std::string::npos, hint.attributes().at("signal").find("keys"));
+            }
+            EXPECT_NEAR(1, squared, 1e-12);
+            for (int component = 0; component < 6; ++component)
+            {
+                const timeline::Curve &output = std::get<timeline::Curve>(document.lanes()[component].items().front());
+                EXPECT_LE(*output.minimum(), output.sample(time));
+                EXPECT_GE(*output.maximum(), output.sample(time));
+                EXPECT_TRUE(output.samples().empty());
+            }
+        }
+    }
+}
+
+TEST(Id3DView, rejects_roll_and_cleanup_neighbors_without_partial_documents)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-tolerance.json");
+    EXPECT_FALSE(imported.succeeded());
+    EXPECT_FALSE(imported.document.has_value());
+    ASSERT_EQ(7, timeline::size_cast(imported.diagnostics));
+    for (int index = 0; index < 6; ++index)
+    {
+        SCOPED_TRACE(imported.diagnostics[index]);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+    }
+    EXPECT_NE(std::string::npos, imported.diagnostics.back().find("no supported animation tracks"));
 }
 
 TEST(Id3DView, rejects_roll_between_sampled_frames_and_unsafe_azimuth_intervals)

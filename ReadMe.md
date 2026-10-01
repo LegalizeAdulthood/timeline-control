@@ -282,15 +282,23 @@ Quadratic orientation minima include source cleanup and rounding margins.
 Oblique planes and moving azimuth additionally require bounded coplanarity
 and roll error within the source tolerance. Moving azimuth checks the
 continuous minimum horizontal direction, hint length, and positive
-orientation, including cleanup and rounding margins. Nonproportional
-moving hints, near-degenerate hints, and extreme normalization ranges
-retain explicit diagnostics pending the parameter-evaluation audit.
+orientation, including cleanup and rounding margins. Boundary cases use
+a bounded subdivision check with source cleanup masks and cross-product
+polynomial bounds. Principal planes use exact quadratic orientation
+minima; small oblique roll is accepted only within source tolerance.
+Nearly parallel hints and nearly vertical directions are supported where
+the complete interval remains safe. Singularities and unresolved bounds
+retain explicit diagnostics, without relying on frame samples. Extreme
+normalization ranges remain pending the parameter-evaluation audit.
 Camera3d paths are not part of the source format.
 
 The Id camera fixture and golden output are copied from ParAnimator. The
 keyed, hold, and override goldens use its existing loader and renderer.
 The tilted YZ, held XY, linear and held oblique, held plane-change, and
 forward/reverse moving-azimuth goldens come from its reference executable.
+Five boundary goldens cover small oblique roll, nearly parallel hints,
+interior orientation minima, held near-vertical destinations, and hint
+components just above source cleanup.
 The local source schema declares slash-delimited Id tuple strings, but
 its loader requires numeric arrays. Golden generation converts only that
 tuple representation before calling the source evaluator; the importer
@@ -322,6 +330,17 @@ orientation, vertical crossings, unresolved cleanup, and invalid hint
 normalization without replacing the comparison, selection, or playhead.
 Open `id-3d-view-azimuth-reverse.json` to reset viewer state and restore
 fifteen lanes; its final pitch/yaw are 63.434949/-36.869898.
+
+Open `id-3d-view-tolerance.json` for fifteen lanes. At frame 1, pitch/yaw
+are 63.434949/-36.869898, perspective is 11, and normalized hint z is
+-0.565685. The inspector retains the authored near-tolerance values.
+Adding RMS beat-keys yields nineteen lanes. Opening
+`invalid-id-3d-view-tolerance.json` reports excess roll, cleaned eye/hint
+singularities, reversed orientation, a between-frame tangent, and an
+interior cleanup singularity without changing comparison, selection, or
+playhead. Reopening the valid fixture restores fifteen lanes and resets
+viewer state. The tangent is valid at reference frame samples but not
+throughout the continuous interval.
 
 Julibrot view tracks support mode, six-component geometry, eyes, and
 four-component from-to signals. Each explicit member uses two full-range
