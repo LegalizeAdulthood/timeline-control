@@ -7,8 +7,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <fstream>
+#include <random>
 #include <stdexcept>
 
 using namespace timeline_par_animator;
@@ -39,6 +42,198 @@ timeline::Palette golden_palette(const std::string &filename)
 }
 
 } // namespace
+
+TEST(MaskedColorMap, matches_source_maps_with_owned_definitions_and_working_comparison)
+{
+    for (const std::string &fixture : {"effects", "variants"})
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            JsonImportOptions options;
+            options.frames_per_second_numerator = 30000;
+            options.frames_per_second_denominator = 1001;
+            const JsonImportResult imported =
+                import_timeline_json("fixtures/color-map-masked-" + fixture + ".json", options);
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Masked palette import failed");
+            }
+            return *imported.document;
+        }();
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        EXPECT_EQ(4004, grid.frame_duration().ticks());
+        EXPECT_EQ(fixture == "effects" ? 4 : 16, document.lane_count());
+        for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
+        {
+            const timeline::Lane &lane = document.lanes()[lane_index];
+            if (lane.kind() == "palette")
+            {
+                const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
+                const std::string output = curve.attributes().at("output");
+                const std::string prefix = output.substr(0, output.find('%'));
+                for (int frame = 0; frame < grid.frame_count(); ++frame)
+                {
+                    const timeline::Palette expected =
+                        golden_palette("gold-" + prefix + "000" + std::to_string(frame + 1) + ".map");
+                    const timeline::Palette actual = curve.sample(grid.frame_start(frame));
+                    for (int index = 0; index < 256; ++index)
+                    {
+#ifndef _MSVC_STL_VERSION
+                        // Positive sparkle goldens use MSVC's distribution; verify other STLs below.
+                        if ((prefix == "masked-sparkle-" && index >= 2 && index <= 5) ||
+                            (prefix == "masked-sparkle-max-" && index >= 254))
+                        {
+                            continue;
+                        }
+#endif
+                        EXPECT_EQ(expected[index], actual[index]);
+                    }
+                    const timeline::FrameInspection inspected = *timeline::inspect_frame(document, frame);
+                    ASSERT_TRUE(inspected.lanes[lane_index].items[0].palette);
+                    EXPECT_EQ(actual, *inspected.lanes[lane_index].items[0].palette);
+                }
+                EXPECT_EQ(curve.sample(grid.frame_start(grid.frame_count() - 1)), curve.sample(grid.end_time()));
+            }
+            else
+            {
+                const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
+                EXPECT_EQ("amount", key.attributes().at("member"));
+                EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
+                EXPECT_NE(std::string::npos, key.attributes().at("effect").find("kind"));
+            }
+        }
+        const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-" + fixture + ".json");
+        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+        ASSERT_TRUE(imported.succeeded());
+        ASSERT_TRUE(music.succeeded());
+        const timeline::Document combined = timeline::combine_documents(*imported.document, *music.document);
+        EXPECT_EQ(document.lane_count() + 4, combined.lane_count());
+        const timeline::Layout layout(combined,
+            timeline::Viewport(650, 1000, combined.frame_grid()->offset(), combined.frame_grid()->end_time()),
+            timeline::LayoutMetrics(240, 20, 40, 4));
+        const std::string snapshot = timeline::render_snapshot(layout.display_list());
+        EXPECT_NE(std::string::npos, snapshot.find("swatch PALETTE"));
+        EXPECT_NE(std::string::npos, snapshot.find("amount-key-0"));
+        bool palette_hit = false;
+        bool signal_hit = false;
+        for (const timeline::Primitive &primitive : layout.display_list().primitives())
+        {
+            if (std::holds_alternative<timeline::Swatch>(primitive))
+            {
+                const timeline::Swatch &swatch = std::get<timeline::Swatch>(primitive);
+                const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{swatch.x, swatch.y}, 0);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(swatch.id.item_id, hit->id.item_id);
+                palette_hit = true;
+            }
+            else if (std::holds_alternative<timeline::Marker>(primitive))
+            {
+                const timeline::Marker &marker = std::get<timeline::Marker>(primitive);
+                if (marker.id.lane_id.find("-amount") != std::string::npos)
+                {
+                    const std::optional<timeline::HitResult> hit =
+                        layout.hit_test(timeline::Point{marker.x, marker.y}, 0);
+                    ASSERT_TRUE(hit);
+                    EXPECT_EQ(marker.id.item_id, hit->id.item_id);
+                    signal_hit = true;
+                }
+            }
+        }
+        EXPECT_TRUE(palette_hit);
+        EXPECT_TRUE(signal_hit);
+    }
+}
+
+TEST(MaskedColorMap, resets_the_source_random_engine_and_draws_rgb_in_order)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-variants.json");
+    ASSERT_TRUE(imported.succeeded());
+    const timeline::Document &document = *imported.document;
+    const timeline::Palette input = golden_palette("input/indexed.map");
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    for (int lane_index : {4, 6})
+    {
+        const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(document.lanes()[lane_index].items()[0]);
+        for (timeline::Ticks ticks : {timeline::Ticks{249}, timeline::Ticks{250}, timeline::Ticks{251},
+                 grid.frame_start(1).ticks(), grid.frame_start(4).ticks()})
+        {
+            const timeline::Time time = timeline::Time::from_ticks(ticks);
+            const double amount = *document.lanes()[lane_index + 1].evaluate_keyframes(time);
+            const int rounded = static_cast<int>(std::lround(amount));
+            std::mt19937 engine(static_cast<std::mt19937::result_type>(lane_index == 4 ? 1234 : 2147483647));
+            std::uniform_int_distribution<int> distribution(-rounded, rounded);
+            timeline::Palette expected = input;
+            const int first = lane_index == 4 ? 2 : 254;
+            const int last = lane_index == 4 ? 5 : 255;
+            for (int index = first; index <= last; ++index)
+            {
+                const int red = std::clamp(input[index].red() + distribution(engine), 0, 255);
+                const int green = std::clamp(input[index].green() + distribution(engine), 0, 255);
+                const int blue = std::clamp(input[index].blue() + distribution(engine), 0, 255);
+                expected[index] = timeline::RgbColor(red, green, blue);
+            }
+            EXPECT_EQ(expected, curve.sample(time));
+            static_cast<void>(curve.sample(grid.frame_start(2)));
+            EXPECT_EQ(expected, curve.sample(time));
+            const timeline::Document copy = document;
+            EXPECT_EQ(expected, std::get<timeline::PaletteCurve>(copy.lanes()[lane_index].items()[0]).sample(time));
+        }
+    }
+}
+
+TEST(MaskedColorMap, blends_overlaps_once_and_preserves_partial_hold_and_effect_order)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-variants.json");
+    ASSERT_TRUE(imported.succeeded());
+    const timeline::Document &document = *imported.document;
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Palette input = golden_palette("input/indexed.map");
+    const timeline::Palette mask = golden_palette("input/warm.map");
+    const timeline::PaletteCurve &overlap = std::get<timeline::PaletteCurve>(document.lanes()[0].items()[0]);
+    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    EXPECT_DOUBLE_EQ(0.125, *document.lanes()[1].evaluate_keyframes(half));
+    const timeline::RgbColor &from = input[4];
+    const timeline::RgbColor &to = mask[4];
+    EXPECT_EQ(timeline::RgbColor(static_cast<int>(std::lround(from.red() + 0.125 * (to.red() - from.red()))),
+                  static_cast<int>(std::lround(from.green() + 0.125 * (to.green() - from.green()))),
+                  static_cast<int>(std::lround(from.blue() + 0.125 * (to.blue() - from.blue())))),
+        overlap.sample(half)[4]);
+    EXPECT_EQ(input[1], overlap.sample(half)[1]);
+    EXPECT_EQ(input[8], overlap.sample(half)[8]);
+    const timeline::Lane &held = document.lanes()[9];
+    for (int frame = 0; frame < 5; ++frame)
+    {
+        EXPECT_DOUBLE_EQ(frame < 3 ? 0.25 : 0.75, *held.evaluate_keyframes(grid.frame_start(frame)));
+    }
+    const timeline::Keyframe &key = std::get<timeline::Keyframe>(held.items()[0]);
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, key.interpolation());
+    EXPECT_EQ("step", key.attributes().at("outgoing-curve"));
+    const timeline::PaletteCurve &forward = std::get<timeline::PaletteCurve>(document.lanes()[10].items()[0]);
+    const timeline::PaletteCurve &reverse = std::get<timeline::PaletteCurve>(document.lanes()[13].items()[0]);
+    EXPECT_NE(forward.sample(grid.frame_start(2))[4], reverse.sample(grid.frame_start(2))[4]);
+}
+
+TEST(MaskedColorMap, diagnoses_invalid_masks_amounts_colors_and_seeds_transactionally)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-partial.json");
+    ASSERT_TRUE(imported.succeeded());
+    const std::array<std::string, 19> needles{"ranges", "nonempty", "range", "read", "string", "range", "range",
+        "range", "color", "range", "seed", "seed", "seed", "integer", "range", "range", "effect 1", "field",
+        "geometric"};
+    ASSERT_EQ(needles.size(), imported.diagnostics.size());
+    ASSERT_EQ(4, imported.document->lane_count());
+    EXPECT_EQ("animation-19", imported.document->lanes()[0].id());
+    for (int index = 0; index < timeline::size_cast(needles); ++index)
+    {
+        SCOPED_TRACE(index);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(needles[index]));
+    }
+    const JsonImportResult failed = import_timeline_json("fixtures/color-map-masked-invalid.json");
+    EXPECT_FALSE(failed.succeeded());
+    EXPECT_FALSE(failed.diagnostics.empty());
+}
 
 TEST(IndexedColorMap, matches_source_maps_and_preserves_owned_offset_definitions)
 {

@@ -14,6 +14,7 @@
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -361,6 +362,11 @@ timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, c
         {
             throw std::invalid_argument("gamma amount must be positive");
         }
+        if ((kind == "mask-blend" || kind == "pulse" || kind == "sparkle") &&
+            (values[index] < 0 || values[index] > (kind == "sparkle" ? 255 : 1)))
+        {
+            throw std::invalid_argument(kind + " amount out of range");
+        }
         if (member == "offset" &&
             (values[index] <= std::numeric_limits<int>::min() - 0.5 ||
                 values[index] >= std::numeric_limits<int>::max() + 0.5))
@@ -409,13 +415,8 @@ int palette_index(const Json &value)
     return static_cast<int>(index);
 }
 
-std::pair<int, int> effect_range(const Json &effect)
+std::pair<int, int> palette_range(const Json &range)
 {
-    if (!effect.contains("range"))
-    {
-        return {0, 255};
-    }
-    const Json &range = effect.at("range");
     if (!range.is_array() || range.size() != 2)
     {
         throw std::invalid_argument("effect range requires two indices");
@@ -427,6 +428,96 @@ std::pair<int, int> effect_range(const Json &effect)
         throw std::invalid_argument("effect range must be increasing");
     }
     return {first, last};
+}
+
+std::pair<int, int> effect_range(const Json &effect)
+{
+    return effect.contains("range") ? palette_range(effect.at("range")) : std::pair<int, int>{0, 255};
+}
+
+PaletteTransform masked_effect(
+    const Json &effect, const std::string &kind, const std::filesystem::path &source_path, const timeline::Lane &signal)
+{
+    std::vector<std::pair<int, int>> ranges;
+    timeline::Palette target;
+    int seed = 0;
+    if (kind == "mask-blend")
+    {
+        if (!effect.contains("ranges"))
+        {
+            throw std::invalid_argument("mask-blend requires ranges");
+        }
+        const Json &definitions = effect.at("ranges");
+        if (!definitions.is_array() || definitions.empty())
+        {
+            throw std::invalid_argument("mask ranges must be a nonempty array");
+        }
+        for (const Json &range : definitions)
+        {
+            ranges.push_back(palette_range(range));
+        }
+        target = read_palette(source_path.parent_path() / effect.at("source").get<std::string>());
+    }
+    else
+    {
+        if (!effect.contains("range"))
+        {
+            throw std::invalid_argument(kind + " requires range");
+        }
+        ranges.push_back(palette_range(effect.at("range")));
+        if (kind == "pulse")
+        {
+            target.assign(256, color_spec(effect.at("color").get<std::string>()));
+        }
+        else
+        {
+            if (!effect.contains("seed"))
+            {
+                throw std::invalid_argument("sparkle requires seed");
+            }
+            const Json &value = effect.at("seed");
+            if (!value.is_number_integer())
+            {
+                throw std::invalid_argument("sparkle seed must be an integer");
+            }
+            const timeline::Ticks authored = value.get<timeline::Ticks>();
+            if (authored < 0 || authored > std::numeric_limits<int>::max())
+            {
+                throw std::invalid_argument("sparkle seed out of range [0, 2147483647]");
+            }
+            seed = static_cast<int>(authored);
+        }
+    }
+    return [kind, ranges, target, seed, signal](const timeline::Palette &colors, timeline::Time time)
+    {
+        const double amount = *signal.evaluate_keyframes(time);
+        timeline::Palette result = colors;
+        if (kind == "sparkle")
+        {
+            const int rounded = static_cast<int>(std::lround(amount));
+            std::mt19937 engine(static_cast<std::mt19937::result_type>(seed));
+            std::uniform_int_distribution<int> distribution(-rounded, rounded);
+            for (int index = ranges[0].first; index <= ranges[0].second; ++index)
+            {
+                const int red = std::clamp(colors[index].red() + distribution(engine), 0, 255);
+                const int green = std::clamp(colors[index].green() + distribution(engine), 0, 255);
+                const int blue = std::clamp(colors[index].blue() + distribution(engine), 0, 255);
+                result[index] = timeline::RgbColor(red, green, blue);
+            }
+        }
+        else
+        {
+            for (const auto &[first, last] : ranges)
+            {
+                for (int index = first; index <= last; ++index)
+                {
+                    // Overlapping ranges blend the incoming palette, never a previous range's result.
+                    result[index] = interpolate_color(colors[index], target[index], amount);
+                }
+            }
+        }
+        return result;
+    };
 }
 
 timeline::Palette ping_pong_palette(const timeline::Palette &colors, int first, int last, double offset)
@@ -457,7 +548,8 @@ timeline::Palette ping_pong_palette(const timeline::Palette &colors, int first, 
 }
 
 std::vector<PaletteTransform> palette_effects(const Json &effects, const std::string &id, const std::string &label,
-    const timeline::FrameGrid &grid, const timeline::Attributes &attributes, std::vector<timeline::Lane> &lanes)
+    const std::filesystem::path &source_path, const timeline::FrameGrid &grid, const timeline::Attributes &attributes,
+    std::vector<timeline::Lane> &lanes)
 {
     if (!effects.is_array() || effects.empty())
     {
@@ -472,15 +564,19 @@ std::vector<PaletteTransform> palette_effects(const Json &effects, const std::st
             const std::string kind = effect.at("kind").get<std::string>();
             const bool adjustment = kind == "brightness" || kind == "contrast" || kind == "gamma" ||
                 kind == "hue-shift" || kind == "saturation";
-            if (!adjustment && kind != "reverse" && kind != "remap" && kind != "ping-pong")
+            const bool masked = kind == "mask-blend" || kind == "pulse" || kind == "sparkle";
+            if (!adjustment && !masked && kind != "reverse" && kind != "remap" && kind != "ping-pong")
             {
                 throw std::invalid_argument("unsupported color-map effects: " + kind);
             }
             for (const auto &[field, value] : effect.items())
             {
-                if (field != "kind" && !(adjustment && field == "amount") &&
-                    !((kind == "reverse" || kind == "ping-pong") && field == "range") &&
-                    !(kind == "ping-pong" && field == "offset") && !(kind == "remap" && field == "indices"))
+                if (field != "kind" && !((adjustment || masked) && field == "amount") &&
+                    !((kind == "reverse" || kind == "ping-pong" || kind == "pulse" || kind == "sparkle") &&
+                        field == "range") &&
+                    !(kind == "ping-pong" && field == "offset") && !(kind == "remap" && field == "indices") &&
+                    !(kind == "mask-blend" && (field == "ranges" || field == "source")) &&
+                    !(kind == "pulse" && field == "color") && !(kind == "sparkle" && field == "seed"))
                 {
                     throw std::invalid_argument("unsupported effect field: " + field);
                 }
@@ -511,7 +607,7 @@ std::vector<PaletteTransform> palette_effects(const Json &effects, const std::st
                 ++index;
                 continue;
             }
-            const std::pair<int, int> range = adjustment ? std::pair<int, int>{0, 255} : effect_range(effect);
+            const std::pair<int, int> range = adjustment || masked ? std::pair<int, int>{0, 255} : effect_range(effect);
             if (kind == "reverse")
             {
                 transforms.push_back(
@@ -527,7 +623,7 @@ std::vector<PaletteTransform> palette_effects(const Json &effects, const std::st
                 ++index;
                 continue;
             }
-            const std::string member = adjustment ? "amount" : "offset";
+            const std::string member = kind == "ping-pong" ? "offset" : "amount";
             timeline::Attributes effect_attributes = attributes;
             effect_attributes["effect"] = effect.dump();
             effect_attributes["effect-kind"] = kind;
@@ -536,6 +632,13 @@ std::vector<PaletteTransform> palette_effects(const Json &effects, const std::st
             timeline::Lane signal =
                 effect_signal_lane(effect, kind, member, id + "-effect-" + std::to_string(index) + "-" + member,
                     label + " / " + std::to_string(index) + " " + kind + " " + member, grid, effect_attributes);
+            if (masked)
+            {
+                transforms.push_back(masked_effect(effect, kind, source_path, signal));
+                lanes.push_back(std::move(signal));
+                ++index;
+                continue;
+            }
             transforms.push_back(
                 [signal, kind, range, adjustment](const timeline::Palette &colors, timeline::Time time)
                 {
@@ -672,7 +775,7 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
     if (track.contains("effects"))
     {
         const std::vector<PaletteTransform> transforms =
-            palette_effects(track.at("effects"), id, label, grid, attributes, staged);
+            palette_effects(track.at("effects"), id, label, source_path, grid, attributes, staged);
         evaluator = [source = std::move(evaluator), transforms](timeline::Time time)
         {
             timeline::Palette colors = source(time);

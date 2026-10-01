@@ -2,6 +2,48 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/color-map-masked-effects.json
+    fixtures/color-map-masked-variants.json
+    fixtures/color-map-masked-partial.json
+    fixtures/color-map-masked-invalid.json
+    fixtures/gold-masked-0001.map
+    fixtures/gold-masked-0002.map
+    fixtures/gold-masked-0003.map
+    fixtures/gold-masked-overlap-0001.map
+    fixtures/gold-masked-overlap-0002.map
+    fixtures/gold-masked-overlap-0003.map
+    fixtures/gold-masked-overlap-0004.map
+    fixtures/gold-masked-overlap-0005.map
+    fixtures/gold-masked-pulse-0001.map
+    fixtures/gold-masked-pulse-0002.map
+    fixtures/gold-masked-pulse-0003.map
+    fixtures/gold-masked-pulse-0004.map
+    fixtures/gold-masked-pulse-0005.map
+    fixtures/gold-masked-sparkle-0001.map
+    fixtures/gold-masked-sparkle-0002.map
+    fixtures/gold-masked-sparkle-0003.map
+    fixtures/gold-masked-sparkle-0004.map
+    fixtures/gold-masked-sparkle-0005.map
+    fixtures/gold-masked-sparkle-max-0001.map
+    fixtures/gold-masked-sparkle-max-0002.map
+    fixtures/gold-masked-sparkle-max-0003.map
+    fixtures/gold-masked-sparkle-max-0004.map
+    fixtures/gold-masked-sparkle-max-0005.map
+    fixtures/gold-masked-hold-0001.map
+    fixtures/gold-masked-hold-0002.map
+    fixtures/gold-masked-hold-0003.map
+    fixtures/gold-masked-hold-0004.map
+    fixtures/gold-masked-hold-0005.map
+    fixtures/gold-masked-order-forward-0001.map
+    fixtures/gold-masked-order-forward-0002.map
+    fixtures/gold-masked-order-forward-0003.map
+    fixtures/gold-masked-order-forward-0004.map
+    fixtures/gold-masked-order-forward-0005.map
+    fixtures/gold-masked-order-reverse-0001.map
+    fixtures/gold-masked-order-reverse-0002.map
+    fixtures/gold-masked-order-reverse-0003.map
+    fixtures/gold-masked-order-reverse-0004.map
+    fixtures/gold-masked-order-reverse-0005.map
     fixtures/color-map-indexed-effects.json
     fixtures/color-map-indexed-variants.json
     fixtures/color-map-indexed-partial.json

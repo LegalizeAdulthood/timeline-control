@@ -55,7 +55,7 @@
       },
       "effects": [
         {
-          "kind": "mask-blend",
+          "kind": "future-effect",
           "amount": {
             "keys": [
               {

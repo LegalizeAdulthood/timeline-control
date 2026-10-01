@@ -291,7 +291,13 @@ Ping-pong rounds its keyed offset halfway away from zero, folds signed
 offsets through a cycle of twice the range span, and rotates toward higher
 destination indices. Singleton ranges are unchanged. The separate offset
 lane retains unrounded values and destination-key interpolation.
-Masked effects remain explicitly diagnosed as unsupported.
+Mask-blend owns its config-relative input map and blends inclusive ranges
+against the incoming palette once, even when ranges overlap. Pulse blends
+a required inclusive range toward a concrete color. Both amounts are
+bounded to [0, 1]. Sparkle bounds its amount to [0, 255], rounds halfway
+away from zero, and clamps independently perturbed RGB channels. Its
+nonnegative integer seed resets a local random engine for every sample;
+queries and copied documents do not advance hidden random state.
 
 The gradient fixture and golden map are copied from ParAnimator. Other
 color-map goldens use its unmodified loader and renderer, including all
@@ -334,6 +340,24 @@ catalog and output name. Its indexed input reproduces the source test
 generator. Forty maps from the unchanged source evaluator cover inclusive
 ranges, remap duplicates, signed offsets, singleton ranges, integer
 limits, partial hold ranges, and ordered composition with adjustments.
+
+Open `color-map-masked-effects.json` for four palette and amount lanes.
+At frame 1, entries 0 through 3 are RGB `255/0/0`, `1/254/1`,
+`255/255/255`, and `3/3/3`. Add the RMS fixture for eight comparison lanes
+and inspect independent palette and amount identities. Open
+`color-map-masked-variants.json` to replace them with sixteen lanes.
+Opening `color-map-masked-invalid.json` reports an out-of-range mask
+amount without replacing the document, selection, or playhead.
+
+The masked-effects fixture is copied from ParAnimator with a local
+catalog. Thirty-eight maps from its unchanged evaluator cover owned
+masks, overlapping ranges, pulse colors, seeded sparkle, amount limits,
+partial hold ranges, and effect order. Sparkle uses the source's
+`std::mt19937` and `std::uniform_int_distribution<int>`, drawing red,
+green, then blue for each ascending palette index. The distribution's
+mapping is STL-dependent: positive sparkle goldens verify MSVC, while
+independent engine-reset and RGB-order tests verify the same source
+semantics on every platform. Seeded palettes need not match across STLs.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
