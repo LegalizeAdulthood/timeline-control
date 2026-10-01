@@ -220,6 +220,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/gold-julibrot-view-normalized.par
     fixtures/gold-julibrot-view-override.par
     fixtures/id-3d-view-camera.json
+    fixtures/id-3d-view-tilted.json
+    fixtures/id-3d-view-tilted-hold.json
+    fixtures/gold-id-3d-view-tilted.par
+    fixtures/gold-id-3d-view-tilted-hold.par
+    fixtures/invalid-id-3d-view-tilted.json
     fixtures/id-3d-view-layers.json
     fixtures/id-3d-view-keyed.json
     fixtures/id-3d-view-hold.json

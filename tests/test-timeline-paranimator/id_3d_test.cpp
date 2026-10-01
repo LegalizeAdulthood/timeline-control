@@ -53,7 +53,7 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
 {
-    const std::array<std::string, 4> fixtures{"camera", "keyed", "hold", "override"};
+    const std::array<std::string, 6> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold"};
     for (const std::string &fixture : fixtures)
     {
         SCOPED_TRACE(fixture);
@@ -159,6 +159,45 @@ TEST(Id3DView, samples_continuously_with_integer_rounding_and_endpoint_holds)
     }
 }
 
+TEST(Id3DView, normalizes_tilted_hints_after_interpolation_with_owned_recipes)
+{
+    for (const std::string &fixture : {"tilted", "tilted-hold"})
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            const JsonImportResult imported = import_timeline_json("fixtures/id-3d-view-" + fixture + ".json");
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Tilted Id camera import failed");
+            }
+            return *imported.document;
+        }();
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        for (int step = 0; step <= 100; ++step)
+        {
+            const timeline::Time time = grid.offset() +
+                timeline::Duration::from_ticks((grid.frame_start(2) - grid.offset()).ticks() * step / 100);
+            const double fraction = fixture == "tilted" ? step / 100.0 : step == 100 ? 1 : 0;
+            const double y = -1 + 3 * fraction;
+            const double horizontal = (fixture == "tilted" ? 1 : -1) * (-3 + 4 * fraction);
+            const double length = std::hypot(y, horizontal);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const timeline::Curve &up = std::get<timeline::Curve>(document.lanes()[12 + axis].items().front());
+                const int horizontal_axis = fixture == "tilted" ? 2 : 0;
+                const double expected = axis == 1 ? y / length : axis == horizontal_axis ? horizontal / length : 0;
+                EXPECT_NEAR(expected, up.sample(time), 1e-12);
+                EXPECT_LE(*up.minimum(), up.sample(time));
+                EXPECT_GE(*up.maximum(), up.sample(time));
+                EXPECT_TRUE(up.samples().empty());
+                EXPECT_EQ("true", up.attributes().at("normalize"));
+                EXPECT_NE(std::string::npos, up.attributes().at("signal").find("-1"));
+            }
+        }
+    }
+}
+
 TEST(Id3DView, rejects_invalid_tracks_transactionally_with_indexed_diagnostics)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-id-3d-view.json");
@@ -178,6 +217,20 @@ TEST(Id3DView, rejects_invalid_tracks_transactionally_with_indexed_diagnostics)
     const JsonImportResult failed = import_timeline_json("fixtures/invalid-id-3d-view.json");
     EXPECT_FALSE(failed.succeeded());
     EXPECT_FALSE(failed.diagnostics.empty());
+}
+
+TEST(Id3DView, rejects_tilted_singularities_between_frames_and_at_held_endpoints)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-tilted.json");
+    EXPECT_FALSE(imported.succeeded());
+    ASSERT_EQ(8, imported.diagnostics.size());
+    EXPECT_NE(std::string::npos, imported.diagnostics.back().find("no supported animation tracks"));
+    for (int index = 0; index < 7; ++index)
+    {
+        SCOPED_TRACE(imported.diagnostics[index]);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("view-up"));
+    }
 }
 
 TEST(Id3DView, preserves_layer_sources_aliases_and_unused_camera_inputs)
