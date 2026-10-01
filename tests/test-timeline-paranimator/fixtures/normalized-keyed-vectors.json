@@ -1,0 +1,16 @@
+{
+  "parameter-catalogs": [ "input/normalized-keyed-catalog.json" ],
+  "source": { "file": "input/normalized-keyed-source.par", "name": "Vector_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "direction2", "keys": [ { "frame": 0, "value": [10, 0] }, { "frame": 4, "value": [0, 20] } ] },
+    { "parameter": "direction3", "keys": [ { "frame": 0, "value": [2, 0, 0] }, { "frame": 4, "value": [0, 0, -3] } ] },
+    { "parameter": "hull2", "keys": [ { "frame": 0, "value": [2, 0] }, { "frame": 4, "value": [-3, 0], "curve": "step" } ] },
+    { "parameter": "line3", "keys": [ { "frame": 0, "value": [0, 0, 2] }, { "frame": 4, "value": [2, 2, 2] } ] },
+    { "parameter": "tiny2", "keys": [ { "frame": 0, "value": [5e-13, 2e-12] }, { "frame": 4, "value": [5e-13, 2e-12] } ] },
+    { "parameter": "raw3", "keys": [ { "frame": 0, "value": [0, 0, 2] }, { "frame": 4, "value": [2, 2, 2] } ] },
+    { "parameter": "raw2", "keys": [ { "frame": 0, "value": [10, 0] }, { "frame": 4, "value": [0, 20] } ] }
+  ]
+}

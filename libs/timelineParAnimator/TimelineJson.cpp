@@ -685,12 +685,11 @@ double control_path_value(const std::vector<double> &values, bool catmull_rom, d
     return clean_path_value(interpolated.front());
 }
 
-std::vector<double> normalize_path_vector(std::vector<double> values)
+std::vector<double> normalize_vector(std::vector<double> values)
 {
     double squared_length = 0;
-    for (double &value : values)
+    for (double value : values)
     {
-        value = clean_path_value(value);
         squared_length += value * value;
     }
     if (squared_length == 0 || !std::isfinite(squared_length))
@@ -700,7 +699,21 @@ std::vector<double> normalize_path_vector(std::vector<double> values)
     const double length = std::sqrt(squared_length);
     for (double &value : values)
     {
-        value = clean_path_value(value / length);
+        value /= length;
+    }
+    return values;
+}
+
+std::vector<double> normalize_path_vector(std::vector<double> values)
+{
+    for (double &value : values)
+    {
+        value = clean_path_value(value);
+    }
+    values = normalize_vector(std::move(values));
+    for (double &value : values)
+    {
+        value = clean_path_value(value);
     }
     return values;
 }
@@ -1071,6 +1084,118 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
         }
         integer_output(lane, metadata);
         lanes.push_back(std::move(lane));
+    }
+}
+
+void validate_keyed_vector_segment(const std::vector<double> &from, const std::vector<double> &to)
+{
+    double scale = 0;
+    for (int component = 0; component < timeline::size_cast(from); ++component)
+    {
+        scale = std::max({scale, std::abs(from[component]), std::abs(to[component])});
+    }
+    double projection = 0;
+    double squared_delta = 0;
+    for (int component = 0; component < timeline::size_cast(from); ++component)
+    {
+        const double origin = from[component] / scale;
+        const double delta = to[component] / scale - origin;
+        projection += origin * delta;
+        squared_delta += delta * delta;
+    }
+    const double fraction = squared_delta == 0 ? 0 : std::clamp(-projection / squared_delta, 0.0, 1.0);
+    double squared_distance = 0;
+    std::vector<double> closest;
+    for (int component = 0; component < timeline::size_cast(from); ++component)
+    {
+        const double value = from[component] + fraction * (to[component] - from[component]);
+        closest.push_back(value);
+        const double scaled = value / scale;
+        squared_distance += scaled * scaled;
+    }
+    // Reject unresolved near-zero intervals as well as exact off-grid crossings.
+    const double margin = 64 * std::numeric_limits<double>::epsilon();
+    if (squared_distance <= margin * margin)
+    {
+        throw std::invalid_argument("vector normalization has a singular or unresolved linear interval");
+    }
+    static_cast<void>(normalize_vector(std::move(closest)));
+}
+
+void normalized_keyed_output(
+    const Json &track, const Json &metadata, const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes)
+{
+    if (track.contains("path"))
+    {
+        throw std::invalid_argument(
+            "vector normalization requires numeric array keys; constant and line paths are unsupported by ParAnimator");
+    }
+    const Json &keys = track.at("keys");
+    if (timeline::size_cast(keys) != 2 || source_frame(keys[0]) != 0 || source_frame(keys[1]) != grid.frame_count() - 1)
+    {
+        throw std::invalid_argument("vector normalization requires two keys spanning the full frame range");
+    }
+    const int arity = animation_path_arity(metadata, timeline::size_cast(lanes));
+    for (const Json &key : keys)
+    {
+        const Json &value = key.at("value");
+        if (!value.is_array() ||
+            !std::all_of(value.begin(), value.end(), [](const Json &item) { return item.is_number(); }))
+        {
+            throw std::invalid_argument("vector normalization requires numeric array key values");
+        }
+        if (timeline::size_cast(value) != arity)
+        {
+            throw std::invalid_argument("vector normalization key arity does not match its target");
+        }
+        const std::vector<double> parsed = animation_value(value);
+        static_cast<void>(normalize_vector(parsed));
+        for (double component : parsed)
+        {
+            if ((metadata.contains("min") && component < metadata.at("min").get<double>()) ||
+                (metadata.contains("max") && component > metadata.at("max").get<double>()))
+            {
+                throw std::invalid_argument("vector normalization key exceeds catalog bounds");
+            }
+        }
+    }
+    const timeline::KeyframeInterpolation interpolation =
+        std::get<timeline::Keyframe>(lanes[0].items()[0]).interpolation();
+    if (interpolation == timeline::KeyframeInterpolation::GEOMETRIC)
+    {
+        throw std::invalid_argument("vector normalization supports linear, hold, or step curves");
+    }
+    if (interpolation == timeline::KeyframeInterpolation::LINEAR)
+    {
+        validate_keyed_vector_segment(animation_value(keys[0].at("value")), animation_value(keys[1].at("value")));
+    }
+    const std::vector<timeline::Lane> authored = lanes;
+    for (int component = 0; component < timeline::size_cast(lanes); ++component)
+    {
+        timeline::Lane &lane = lanes[component];
+        timeline::Lane decorated(lane.id(), lane.label(), lane.kind(), lane.start(), lane.end());
+        for (const timeline::Item &item : lane.items())
+        {
+            const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
+            timeline::Attributes attributes = key.attributes();
+            attributes["normalize"] = "true";
+            attributes["component"] = std::to_string(component);
+            attributes["catalog-definition"] = metadata.dump();
+            attributes["track-definition"] = track.dump();
+            decorated.add(
+                timeline::Keyframe(key.id(), key.time(), key.value(), key.interpolation(), std::move(attributes)));
+        }
+        decorated.set_keyframe_output_evaluator(
+            [authored, component](timeline::Time time, double)
+            {
+                std::vector<double> values;
+                for (const timeline::Lane &input : authored)
+                {
+                    values.push_back(*input.evaluate_keyframes(time));
+                }
+                return normalize_vector(std::move(values))[component];
+            });
+        lane = std::move(decorated);
     }
 }
 
@@ -2986,13 +3111,12 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             }
             else
             {
+                animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
                 const std::string type = metadata.value("type", std::string{});
                 if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
                 {
-                    throw std::invalid_argument(
-                        "catalog vector normalization for keys, constant, and line paths is not supported");
+                    normalized_keyed_output(track, metadata, grid, track_lanes);
                 }
-                animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
             }
             if (extrapolation != "clamp")
             {

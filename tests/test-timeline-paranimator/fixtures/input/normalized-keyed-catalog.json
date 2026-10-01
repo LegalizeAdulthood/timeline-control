@@ -1,0 +1,15 @@
+{
+  "parameters": {
+    "direction2": { "description": "Linear direction", "type": "vector2", "normalize": true, "default-curve": "linear", "min": -100, "max": 100 },
+    "direction3": { "description": "Held direction", "type": "vector3", "normalize": true, "default-curve": "hold" },
+    "hull2": { "description": "Stepped direction", "type": "vector2", "normalize": true, "default-curve": "linear" },
+    "line3": { "description": "Linear path direction", "type": "vector3", "normalize": true, "default-curve": "linear" },
+    "tiny2": { "description": "Small constant direction", "type": "vector2", "normalize": true, "default-curve": "linear" },
+    "raw3": { "description": "Unnormalized vector", "type": "vector3", "normalize": false, "default-curve": "linear" },
+    "raw2": { "description": "Point ignores normalization", "type": "point2", "normalize": true, "default-curve": "linear" },
+    "base2": { "description": "Unsupported base policy", "type": "vector2", "normalize": true, "extrapolate": "base" },
+    "omit2": { "description": "Unsupported omit policy", "type": "vector2", "normalize": true, "extrapolate": "omit" },
+    "cycle2": { "description": "Unsupported cycle policy", "type": "vector2", "normalize": true, "extrapolate": "cycle" },
+    "ping2": { "description": "Unsupported ping-pong policy", "type": "vector2", "normalize": true, "extrapolate": "ping-pong" }
+  }
+}

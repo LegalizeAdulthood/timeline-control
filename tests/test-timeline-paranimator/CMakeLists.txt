@@ -2,6 +2,12 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/normalized-keyed-vectors.json
+    fixtures/normalized-keyed-partial.json
+    fixtures/normalized-keyed-invalid.json
+    fixtures/input/normalized-keyed-catalog.json
+    fixtures/input/normalized-keyed-source.par
+    fixtures/gold-normalized-keyed-vectors.par
     fixtures/normalized-bezier-vectors.json
     fixtures/normalized-catmull-rom-vectors.json
     fixtures/normalized-vector-partial.json

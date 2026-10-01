@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/normalized-keyed-catalog.json" ],
+  "source": { "file": "input/normalized-keyed-source.par", "name": "Vector_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "hull2", "keys": [ { "frame": 0, "value": [37, 0] }, { "frame": 4, "value": [-63, 0] } ] }
+  ]
+}

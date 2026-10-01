@@ -119,9 +119,21 @@ Bounded control-hull subdivision rejects zero crossings, tangencies, and
 cleanup-induced singularities between frames. Catmull-Rom validation uses
 equivalent cubic Bezier hulls for every segment. Overflowing squared
 lengths and unresolved validation limits produce importer diagnostics.
-Ordinary catalog-normalized keys, constant paths, and line paths remain
-unsupported and receive explicit diagnostics; nested camera normalization
-is unaffected.
+Catalog-normalized numeric-array keys retain raw authored values and
+interpolation for display, with separate normalized parameter output in
+the inspector. Linear, hold, and step curves match ParAnimator; unlike
+control-point paths, tuple keys do not clean tiny components before or
+after normalization. Two keys must span the full frame range. Target
+arity and catalog bounds are validated before installing owned output
+rules. A scaled closest-point check rejects singular or unresolved linear
+intervals between frames; zero or non-finite squared lengths are rejected
+as well. Unnormalized vectors, points, and nested camera behavior remain
+unchanged. Non-clamp vector extrapolation remains unsupported.
+
+Constant and line vector paths remain explicit importer errors:
+ParAnimator resolves them to string-valued endpoint keys, but its numeric
+tuple evaluator requires numeric arrays and rejects those paths. Use
+numeric-array keys for these vector definitions.
 
 Open `normalized-bezier-vectors.json` for twelve lanes. At frame 2,
 `direction2` is approximately `0.447214/0.894427`, not an interpolation
@@ -134,6 +146,18 @@ Select its curve, then open `normalized-vector-invalid.json`: the
 between-frame zero is rejected without replacing the document, selection,
 or playhead. Both golden PAR files were generated with ParAnimator and
 cover every frame in their fixtures.
+
+Open `normalized-keyed-vectors.json` for seventeen lanes. At frame 2,
+`direction2` has raw values `5/10` and normalized parameter output
+approximately `0.447214/0.894427`. Held and stepped directions change at
+the final key. `tiny2` retains the raw `5e-13/2e-12` components and outputs
+approximately `0.242536/0.970143`, without path cleanup. The golden PAR
+file was generated with ParAnimator and covers every fixture frame.
+Add `beat-keys/timeline-features.json` for eighteen lanes, then
+`beat-keys/rms.beat-keys.json` for twenty-two. Select the first direction
+segment at frame 2 and open `normalized-keyed-invalid.json`: its off-grid
+zero is rejected without replacing the document, selection, or playhead.
+Reopen the keyed fixture to replace comparison state with seventeen lanes.
 
 Unslotted PWM tracks support yes-no, enum, inside, outside, and
 integer-or-enum targets. Two mix keys must span frame 0 through the final

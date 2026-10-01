@@ -1,0 +1,79 @@
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=1/0
+    direction3=1/0/0
+    hull2=1/0
+    line3=0/0/1
+    tiny2=0.242535625036/0.970142500145
+    raw3=0/0/2
+    raw2=10/0
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0.832050294338/0.554700196225
+    direction3=1/0/0
+    hull2=1/0
+    line3=0.235702260396/0.235702260396/0.942809041582
+    tiny2=0.242535625036/0.970142500145
+    raw3=0.5/0.5/2
+    raw2=7.5/5
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0.4472135955/0.894427191
+    direction3=1/0/0
+    hull2=1/0
+    line3=0.408248290464/0.408248290464/0.816496580928
+    tiny2=0.242535625036/0.970142500145
+    raw3=1/1/2
+    raw2=5/10
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0.164398987305/0.986393923832
+    direction3=1/0/0
+    hull2=1/0
+    line3=0.514495755428/0.514495755428/0.68599434057
+    tiny2=0.242535625036/0.970142500145
+    raw3=1.5/1.5/2
+    raw2=2.5/15
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    direction2=0/1
+    direction3=0/0/-1
+    hull2=-1/0
+    line3=0.57735026919/0.57735026919/0.57735026919
+    tiny2=0.242535625036/0.970142500145
+    raw3=2/2/2
+    raw2=0/20
+}
