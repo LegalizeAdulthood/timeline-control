@@ -314,34 +314,31 @@ timeline::RgbColor adjusted_color(const timeline::RgbColor &color, const std::st
     return timeline::RgbColor(channel(color.red()), channel(color.green()), channel(color.blue()));
 }
 
-timeline::Lane amount_lane(const Json &effect, const std::string &kind, const std::string &id, const std::string &label,
-    const timeline::FrameGrid &grid, const timeline::Attributes &attributes)
+timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, const std::string &member,
+    const std::string &id, const std::string &label, const timeline::FrameGrid &grid,
+    const timeline::Attributes &attributes)
 {
-    if (!effect.contains("amount"))
+    if (!effect.contains(member))
     {
-        throw std::invalid_argument("effect requires amount");
+        throw std::invalid_argument("effect requires " + member);
     }
-    if (effect.size() != 2)
-    {
-        throw std::invalid_argument("unsupported effect field");
-    }
-    const Json &signal = effect.at("amount");
+    const Json &signal = effect.at(member);
     if (!signal.is_object() || signal.size() != 1 || !signal.contains("keys") || !signal.at("keys").is_array() ||
         signal.at("keys").size() != 2)
     {
-        throw std::invalid_argument("amount signal requires exactly two keys");
+        throw std::invalid_argument(member + " signal requires exactly two keys");
     }
     const Json &keys = signal.at("keys");
     const timeline::Ticks first = key_frame(keys[0], grid);
     const timeline::Ticks last = key_frame(keys[1], grid);
     if (first >= last)
     {
-        throw std::invalid_argument("amount key frames must be strictly increasing");
+        throw std::invalid_argument(member + " key frames must be strictly increasing");
     }
     const std::string destination = key_curve(keys[1]);
     if (destination == "geometric")
     {
-        throw std::invalid_argument("geometric interpolation is not supported for effect amounts");
+        throw std::invalid_argument("geometric interpolation is not supported for effect " + member);
     }
     std::array<double, 2> values{};
     for (int index = 0; index < 2; ++index)
@@ -349,27 +346,33 @@ timeline::Lane amount_lane(const Json &effect, const std::string &kind, const st
         const Json &key = keys[index];
         if (!key.is_object() || !key.at("value").is_number())
         {
-            throw std::invalid_argument("amount key requires a numeric value");
+            throw std::invalid_argument(member + " key requires a numeric value");
         }
         if (key.size() != (key.contains("curve") ? 3 : 2))
         {
-            throw std::invalid_argument("unsupported amount key field");
+            throw std::invalid_argument("unsupported " + member + " key field");
         }
         values[index] = key.at("value").get<double>();
         if (!std::isfinite(values[index]))
         {
-            throw std::invalid_argument("amount values must be finite");
+            throw std::invalid_argument(member + " values must be finite");
         }
         if (kind == "gamma" && values[index] <= 0)
         {
             throw std::invalid_argument("gamma amount must be positive");
+        }
+        if (member == "offset" &&
+            (values[index] <= std::numeric_limits<int>::min() - 0.5 ||
+                values[index] >= std::numeric_limits<int>::max() + 0.5))
+        {
+            throw std::invalid_argument("offset range exceeds safe source rounding");
         }
     }
     const double maximum = std::max(std::abs(values[0]), std::abs(values[1]));
     if (!std::isfinite(values[1] - values[0]) ||
         ((kind == "brightness" || kind == "contrast") && maximum > (std::numeric_limits<int>::max() - 128.0) / 255.0))
     {
-        throw std::invalid_argument("amount range exceeds safe source evaluation");
+        throw std::invalid_argument(member + " range exceeds safe source evaluation");
     }
     timeline::Lane lane(id, label, "keyframes", grid.offset(), grid.end_time());
     for (int index = 0; index < 2; ++index)
@@ -392,7 +395,68 @@ timeline::Lane amount_lane(const Json &effect, const std::string &kind, const st
 /// Owned pure transformation of a palette at an exact timeline time.
 using PaletteTransform = std::function<timeline::Palette(const timeline::Palette &, timeline::Time)>;
 
-std::vector<PaletteTransform> adjustment_effects(const Json &effects, const std::string &id, const std::string &label,
+int palette_index(const Json &value)
+{
+    if (!value.is_number_integer())
+    {
+        throw std::invalid_argument("palette index must be an integer");
+    }
+    const timeline::Ticks index = value.get<timeline::Ticks>();
+    if (index < 0 || index > 255)
+    {
+        throw std::invalid_argument("palette index out of range [0, 255]");
+    }
+    return static_cast<int>(index);
+}
+
+std::pair<int, int> effect_range(const Json &effect)
+{
+    if (!effect.contains("range"))
+    {
+        return {0, 255};
+    }
+    const Json &range = effect.at("range");
+    if (!range.is_array() || range.size() != 2)
+    {
+        throw std::invalid_argument("effect range requires two indices");
+    }
+    const int first = palette_index(range[0]);
+    const int last = palette_index(range[1]);
+    if (first > last)
+    {
+        throw std::invalid_argument("effect range must be increasing");
+    }
+    return {first, last};
+}
+
+timeline::Palette ping_pong_palette(const timeline::Palette &colors, int first, int last, double offset)
+{
+    if (first == last)
+    {
+        return colors;
+    }
+    const int span = last - first;
+    const int period = span * 2;
+    const int rounded = static_cast<int>(std::lround(offset));
+    int phase = rounded % period;
+    if (phase < 0)
+    {
+        phase += period;
+    }
+    if (phase > span)
+    {
+        phase = period - phase;
+    }
+    timeline::Palette result = colors;
+    const int length = span + 1;
+    for (int index = first; index <= last; ++index)
+    {
+        result[index] = colors[first + (index - first - phase + length) % length];
+    }
+    return result;
+}
+
+std::vector<PaletteTransform> palette_effects(const Json &effects, const std::string &id, const std::string &label,
     const timeline::FrameGrid &grid, const timeline::Attributes &attributes, std::vector<timeline::Lane> &lanes)
 {
     if (!effects.is_array() || effects.empty())
@@ -406,22 +470,80 @@ std::vector<PaletteTransform> adjustment_effects(const Json &effects, const std:
         try
         {
             const std::string kind = effect.at("kind").get<std::string>();
-            if (kind != "brightness" && kind != "contrast" && kind != "gamma" && kind != "hue-shift" &&
-                kind != "saturation")
+            const bool adjustment = kind == "brightness" || kind == "contrast" || kind == "gamma" ||
+                kind == "hue-shift" || kind == "saturation";
+            if (!adjustment && kind != "reverse" && kind != "remap" && kind != "ping-pong")
             {
                 throw std::invalid_argument("unsupported color-map effects: " + kind);
             }
+            for (const auto &[field, value] : effect.items())
+            {
+                if (field != "kind" && !(adjustment && field == "amount") &&
+                    !((kind == "reverse" || kind == "ping-pong") && field == "range") &&
+                    !(kind == "ping-pong" && field == "offset") && !(kind == "remap" && field == "indices"))
+                {
+                    throw std::invalid_argument("unsupported effect field: " + field);
+                }
+            }
+            if (kind == "remap")
+            {
+                const Json &indices = effect.at("indices");
+                if (!indices.is_array() || indices.size() != 256)
+                {
+                    throw std::invalid_argument("remap requires 256 indices");
+                }
+                std::vector<int> table;
+                for (const Json &value : indices)
+                {
+                    table.push_back(palette_index(value));
+                }
+                transforms.push_back(
+                    [table](const timeline::Palette &colors, timeline::Time)
+                    {
+                        timeline::Palette result;
+                        result.reserve(table.size());
+                        for (int source : table)
+                        {
+                            result.push_back(colors[source]);
+                        }
+                        return result;
+                    });
+                ++index;
+                continue;
+            }
+            const std::pair<int, int> range = adjustment ? std::pair<int, int>{0, 255} : effect_range(effect);
+            if (kind == "reverse")
+            {
+                transforms.push_back(
+                    [range](const timeline::Palette &colors, timeline::Time)
+                    {
+                        timeline::Palette result = colors;
+                        for (int destination = range.first; destination <= range.second; ++destination)
+                        {
+                            result[destination] = colors[range.second - destination + range.first];
+                        }
+                        return result;
+                    });
+                ++index;
+                continue;
+            }
+            const std::string member = adjustment ? "amount" : "offset";
             timeline::Attributes effect_attributes = attributes;
             effect_attributes["effect"] = effect.dump();
             effect_attributes["effect-kind"] = kind;
             effect_attributes["effect-index"] = std::to_string(index);
-            effect_attributes["member"] = "amount";
-            timeline::Lane signal = amount_lane(effect, kind, id + "-effect-" + std::to_string(index) + "-amount",
-                label + " / " + std::to_string(index) + " " + kind + " amount", grid, effect_attributes);
+            effect_attributes["member"] = member;
+            timeline::Lane signal =
+                effect_signal_lane(effect, kind, member, id + "-effect-" + std::to_string(index) + "-" + member,
+                    label + " / " + std::to_string(index) + " " + kind + " " + member, grid, effect_attributes);
             transforms.push_back(
-                [signal, kind](const timeline::Palette &colors, timeline::Time time)
+                [signal, kind, range, adjustment](const timeline::Palette &colors, timeline::Time time)
                 {
                     const double amount = *signal.evaluate_keyframes(time);
+                    if (!adjustment)
+                    {
+                        return ping_pong_palette(colors, range.first, range.second, amount);
+                    }
                     timeline::Palette transformed;
                     transformed.reserve(colors.size());
                     for (const timeline::RgbColor &color : colors)
@@ -550,7 +672,7 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
     if (track.contains("effects"))
     {
         const std::vector<PaletteTransform> transforms =
-            adjustment_effects(track.at("effects"), id, label, grid, attributes, staged);
+            palette_effects(track.at("effects"), id, label, grid, attributes, staged);
         evaluator = [source = std::move(evaluator), transforms](timeline::Time time)
         {
             timeline::Palette colors = source(time);

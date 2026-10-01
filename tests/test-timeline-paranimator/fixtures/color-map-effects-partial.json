@@ -55,7 +55,7 @@
       },
       "effects": [
         {
-          "kind": "reverse",
+          "kind": "mask-blend",
           "amount": {
             "keys": [
               {

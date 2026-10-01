@@ -285,7 +285,13 @@ Gamma uses the amount as its positive exponent; hue and saturation operate
 in HSL. Each nested amount retains its two authored keys in a separate
 inspectable lane. The destination key selects linear or hold/step
 interpolation, with endpoint clamping outside partial key ranges.
-Indexed and masked effects remain explicitly diagnosed as unsupported.
+Reverse supports whole maps or inclusive ranges; remap retains a
+destination-indexed 256-entry source lookup, including repeated indices.
+Ping-pong rounds its keyed offset halfway away from zero, folds signed
+offsets through a cycle of twice the range span, and rotates toward higher
+destination indices. Singleton ranges are unchanged. The separate offset
+lane retains unrounded values and destination-key interpolation.
+Masked effects remain explicitly diagnosed as unsupported.
 
 The gradient fixture and golden map are copied from ParAnimator. Other
 color-map goldens use its unmodified loader and renderer, including all
@@ -314,6 +320,20 @@ catalog paths. Its unchanged color-map evaluator generated 32 golden maps
 covering all five adjustments, negative amounts, hue wrapping, partial
 hold ranges, and effect order. Import rejects malformed nested signals and
 unsafe numeric ranges transactionally, without exporting partial lanes.
+
+Open `color-map-indexed-effects.json` for palette and ping-pong offset
+lanes. At frame 1, the raw offset is `1` and entry 2 is RGB `2/253/2`.
+Add the RMS fixture for six comparison lanes. Open
+`color-map-indexed-variants.json` to replace them with thirteen lanes;
+the first palette reverses all entries, with RGB `255/0/63` at entry 0.
+Opening `color-map-indexed-invalid.json` reports an unsafe rounded offset
+without replacing the document, selection, or playhead.
+
+The indexed-effects fixture is copied from ParAnimator with a local
+catalog and output name. Its indexed input reproduces the source test
+generator. Forty maps from the unchanged source evaluator cover inclusive
+ranges, remap duplicates, signed offsets, singleton ranges, integer
+limits, partial hold ranges, and ordered composition with adjustments.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined

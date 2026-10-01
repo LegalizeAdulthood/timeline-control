@@ -40,6 +40,157 @@ timeline::Palette golden_palette(const std::string &filename)
 
 } // namespace
 
+TEST(IndexedColorMap, matches_source_maps_and_preserves_owned_offset_definitions)
+{
+    for (const std::string &fixture : {"effects", "variants"})
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            JsonImportOptions options;
+            options.frames_per_second_numerator = 30000;
+            options.frames_per_second_denominator = 1001;
+            const JsonImportResult imported =
+                import_timeline_json("fixtures/color-map-indexed-" + fixture + ".json", options);
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Indexed palette import failed");
+            }
+            return *imported.document;
+        }();
+        EXPECT_EQ(fixture == "effects" ? 2 : 13, document.lane_count());
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        EXPECT_EQ(4004, grid.frame_duration().ticks());
+        for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
+        {
+            const timeline::Lane &lane = document.lanes()[lane_index];
+            if (lane.kind() == "palette")
+            {
+                const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
+                const std::string output = curve.attributes().at("output");
+                const std::string prefix = output.substr(0, output.find('%'));
+                for (int frame = 0; frame < grid.frame_count(); ++frame)
+                {
+                    const timeline::Palette expected =
+                        golden_palette("gold-" + prefix + "000" + std::to_string(frame + 1) + ".map");
+                    EXPECT_EQ(expected, curve.sample(grid.frame_start(frame)));
+                    const timeline::FrameInspection inspected = *timeline::inspect_frame(document, frame);
+                    const std::optional<timeline::Palette> sampled = inspected.lanes[lane_index].items[0].palette;
+                    ASSERT_TRUE(sampled);
+                    EXPECT_EQ(expected, *sampled);
+                }
+                EXPECT_EQ(curve.sample(grid.frame_start(4)), curve.sample(grid.end_time()));
+            }
+            else
+            {
+                const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
+                const std::string member = key.attributes().at("member");
+                EXPECT_TRUE(member == "offset" || member == "amount");
+                EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
+                EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("effects"));
+                if (member == "offset")
+                {
+                    EXPECT_EQ("ping-pong", key.attributes().at("effect-kind"));
+                    EXPECT_NE(std::string::npos, lane.id().find("-offset"));
+                }
+            }
+        }
+    }
+}
+
+TEST(IndexedColorMap, rounds_offsets_away_from_zero_and_retains_unrounded_signals)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-indexed-effects.json");
+    ASSERT_TRUE(imported.succeeded());
+    const timeline::Document &document = *imported.document;
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(document.lanes()[0].items()[0]);
+    EXPECT_DOUBLE_EQ(0.5, *document.lanes()[1].evaluate_keyframes(half));
+    EXPECT_EQ(timeline::RgbColor(5, 250, 5), curve.sample(half + timeline::Duration::from_ticks(-1))[2]);
+    EXPECT_EQ(timeline::RgbColor(2, 253, 2), curve.sample(half)[2]);
+    EXPECT_EQ(timeline::RgbColor(1, 254, 1), curve.sample(half)[1]);
+    EXPECT_EQ(timeline::RgbColor(6, 249, 6), curve.sample(half)[6]);
+
+    const JsonImportResult variants = import_timeline_json("fixtures/color-map-indexed-variants.json");
+    ASSERT_TRUE(variants.succeeded());
+    const timeline::Lane &held = variants.document->lanes()[9];
+    const timeline::PaletteCurve &held_palette =
+        std::get<timeline::PaletteCurve>(variants.document->lanes()[8].items()[0]);
+    for (int frame = 0; frame < 5; ++frame)
+    {
+        const timeline::Time time = variants.document->frame_grid()->frame_start(frame);
+        EXPECT_DOUBLE_EQ(frame < 3 ? -0.5 : 6.5, *held.evaluate_keyframes(time));
+        EXPECT_EQ(timeline::RgbColor(5, 250, 5), held_palette.sample(time)[2]);
+    }
+    const timeline::Keyframe &first = std::get<timeline::Keyframe>(held.items()[0]);
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
+    EXPECT_EQ("geometric", first.attributes().at("curve"));
+    EXPECT_EQ("step", first.attributes().at("outgoing-curve"));
+}
+
+TEST(IndexedColorMap, renders_compares_and_hits_palette_and_offset_lanes)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-indexed-effects.json");
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document combined = timeline::combine_documents(*imported.document, *music.document);
+    ASSERT_EQ(6, combined.lane_count());
+    const timeline::Layout layout(combined,
+        timeline::Viewport(600, 400, combined.frame_grid()->offset(), combined.frame_grid()->end_time()),
+        timeline::LayoutMetrics(140, 20, 40, 4));
+    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    EXPECT_NE(std::string::npos, snapshot.find("swatch PALETTE"));
+    EXPECT_NE(std::string::npos, snapshot.find("animation-0-effect-1-offset-key-0"));
+    bool palette_hit = false;
+    bool offset_hit = false;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<timeline::Swatch>(primitive))
+        {
+            const timeline::Swatch &swatch = std::get<timeline::Swatch>(primitive);
+            const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{swatch.x, swatch.y}, 0);
+            ASSERT_TRUE(hit);
+            EXPECT_EQ(swatch.id.item_id, hit->id.item_id);
+            palette_hit = true;
+        }
+        else if (std::holds_alternative<timeline::Marker>(primitive))
+        {
+            const timeline::Marker &marker = std::get<timeline::Marker>(primitive);
+            if (marker.id.lane_id == "animation-0-effect-1-offset")
+            {
+                const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker.x, marker.y}, 0);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(marker.id.item_id, hit->id.item_id);
+                offset_hit = true;
+            }
+        }
+    }
+    EXPECT_TRUE(palette_hit);
+    EXPECT_TRUE(offset_hit);
+}
+
+TEST(IndexedColorMap, rejects_invalid_effects_transactionally_with_indexed_diagnostics)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-indexed-partial.json");
+    ASSERT_TRUE(imported.succeeded());
+    const std::array<std::string, 14> needles{"range", "range", "range", "range", "integer", "field", "256", "index",
+        "integer", "field", "offset", "geometric", "range", "effect 1"};
+    ASSERT_EQ(needles.size(), imported.diagnostics.size());
+    ASSERT_EQ(2, imported.document->lane_count());
+    EXPECT_EQ("animation-14", imported.document->lanes()[0].id());
+    for (int index = 0; index < timeline::size_cast(needles); ++index)
+    {
+        SCOPED_TRACE(index);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(needles[index]));
+    }
+    const JsonImportResult failed = import_timeline_json("fixtures/color-map-indexed-invalid.json");
+    EXPECT_FALSE(failed.succeeded());
+    EXPECT_FALSE(failed.diagnostics.empty());
+}
+
 TEST(ColorMapEffects, matches_source_maps_and_exposes_owned_amount_signals)
 {
     for (const std::string &fixture : {"brightness", "adjustments", "variants", "amount-hold", "order"})

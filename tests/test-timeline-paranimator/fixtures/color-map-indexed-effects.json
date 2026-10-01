@@ -1,0 +1,54 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "indexed-%04d.map",
+      "source": "input/indexed.map",
+      "effects": [
+        {
+          "kind": "reverse",
+          "range": [
+            2,
+            5
+          ]
+        },
+        {
+          "kind": "ping-pong",
+          "range": [
+            2,
+            5
+          ],
+          "offset": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 0
+              },
+              {
+                "frame": 4,
+                "value": 4
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

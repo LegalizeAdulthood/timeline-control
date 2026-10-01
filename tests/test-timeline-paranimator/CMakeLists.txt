@@ -2,6 +2,51 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/color-map-indexed-effects.json
+    fixtures/color-map-indexed-variants.json
+    fixtures/color-map-indexed-partial.json
+    fixtures/color-map-indexed-invalid.json
+    fixtures/input/indexed.map
+    fixtures/gold-indexed-0001.map
+    fixtures/gold-indexed-0002.map
+    fixtures/gold-indexed-0003.map
+    fixtures/gold-indexed-0004.map
+    fixtures/gold-indexed-0005.map
+    fixtures/gold-indexed-reverse-0001.map
+    fixtures/gold-indexed-reverse-0002.map
+    fixtures/gold-indexed-reverse-0003.map
+    fixtures/gold-indexed-reverse-0004.map
+    fixtures/gold-indexed-reverse-0005.map
+    fixtures/gold-indexed-remap-0001.map
+    fixtures/gold-indexed-remap-0002.map
+    fixtures/gold-indexed-remap-0003.map
+    fixtures/gold-indexed-remap-0004.map
+    fixtures/gold-indexed-remap-0005.map
+    fixtures/gold-indexed-whole-0001.map
+    fixtures/gold-indexed-whole-0002.map
+    fixtures/gold-indexed-whole-0003.map
+    fixtures/gold-indexed-whole-0004.map
+    fixtures/gold-indexed-whole-0005.map
+    fixtures/gold-indexed-signed-0001.map
+    fixtures/gold-indexed-signed-0002.map
+    fixtures/gold-indexed-signed-0003.map
+    fixtures/gold-indexed-signed-0004.map
+    fixtures/gold-indexed-signed-0005.map
+    fixtures/gold-indexed-single-0001.map
+    fixtures/gold-indexed-single-0002.map
+    fixtures/gold-indexed-single-0003.map
+    fixtures/gold-indexed-single-0004.map
+    fixtures/gold-indexed-single-0005.map
+    fixtures/gold-indexed-hold-0001.map
+    fixtures/gold-indexed-hold-0002.map
+    fixtures/gold-indexed-hold-0003.map
+    fixtures/gold-indexed-hold-0004.map
+    fixtures/gold-indexed-hold-0005.map
+    fixtures/gold-indexed-composed-0001.map
+    fixtures/gold-indexed-composed-0002.map
+    fixtures/gold-indexed-composed-0003.map
+    fixtures/gold-indexed-composed-0004.map
+    fixtures/gold-indexed-composed-0005.map
     fixtures/color-map-effects-brightness.json
     fixtures/color-map-effects-adjustments.json
     fixtures/color-map-effects-variants.json
