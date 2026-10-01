@@ -1,0 +1,145 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "variants-brightness-%04d.map",
+      "source": "input/warm.map",
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": -0.5,
+                "curve": "geometric"
+              },
+              {
+                "frame": 2,
+                "value": 2.25
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "variants-contrast-%04d.map",
+      "source": "input/warm.map",
+      "effects": [
+        {
+          "kind": "contrast",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": -0.75,
+                "curve": "geometric"
+              },
+              {
+                "frame": 2,
+                "value": 1.75
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "variants-gamma-%04d.map",
+      "source": "input/warm.map",
+      "effects": [
+        {
+          "kind": "gamma",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 0.5,
+                "curve": "geometric"
+              },
+              {
+                "frame": 2,
+                "value": 2.5
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "variants-hue-shift-%04d.map",
+      "source": "input/warm.map",
+      "effects": [
+        {
+          "kind": "hue-shift",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": -60,
+                "curve": "geometric"
+              },
+              {
+                "frame": 2,
+                "value": 420
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "variants-saturation-%04d.map",
+      "source": "input/warm.map",
+      "effects": [
+        {
+          "kind": "saturation",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": -0.5,
+                "curve": "geometric"
+              },
+              {
+                "frame": 2,
+                "value": 1.75
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+

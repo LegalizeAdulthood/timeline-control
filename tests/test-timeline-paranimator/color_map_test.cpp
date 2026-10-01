@@ -40,6 +40,166 @@ timeline::Palette golden_palette(const std::string &filename)
 
 } // namespace
 
+TEST(ColorMapEffects, matches_source_maps_and_exposes_owned_amount_signals)
+{
+    for (const std::string &fixture : {"brightness", "adjustments", "variants", "amount-hold", "order"})
+    {
+        SCOPED_TRACE(fixture);
+        JsonImportOptions options;
+        options.frames_per_second_numerator = 30000;
+        options.frames_per_second_denominator = 1001;
+        const JsonImportResult imported =
+            import_timeline_json("fixtures/color-map-effects-" + fixture + ".json", options);
+        ASSERT_TRUE(imported.succeeded());
+        ASSERT_TRUE(imported.diagnostics.empty());
+        const timeline::Document document = *imported.document;
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        EXPECT_EQ(4004, grid.frame_duration().ticks());
+        const int count = fixture == "adjustments" ? 5 : fixture == "variants" ? 10 : fixture == "order" ? 6 : 2;
+        ASSERT_EQ(count, document.lane_count());
+        int palettes = 0;
+        for (const timeline::Lane &lane : document.lanes())
+        {
+            if (lane.kind() == "palette")
+            {
+                ++palettes;
+                const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
+                const std::string output = curve.attributes().at("output");
+                const std::string prefix = output.substr(0, output.find('%'));
+                for (int frame = 0; frame < grid.frame_count(); ++frame)
+                {
+                    const std::string number = "000" + std::to_string(frame + 1);
+                    EXPECT_EQ(golden_palette("gold-effects-" + prefix + number + ".map"),
+                        curve.sample(grid.frame_start(frame)));
+                }
+                EXPECT_EQ(curve.sample(grid.frame_start(grid.frame_count() - 1)), curve.sample(grid.end_time()));
+            }
+            else
+            {
+                ASSERT_EQ(2, lane.item_count());
+                const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
+                EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("effects"));
+                EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
+                EXPECT_EQ("amount", key.attributes().at("member"));
+                EXPECT_NE(std::string::npos, lane.id().find("-effect-"));
+            }
+        }
+        EXPECT_EQ(fixture == "variants" ? 5 : fixture == "order" ? 2 : 1, palettes);
+        const timeline::FrameInspection inspected = *timeline::inspect_frame(document, 1);
+        ASSERT_TRUE(inspected.lanes[0].items[0].palette);
+        EXPECT_FALSE(inspected.lanes[0].items[0].value);
+        ASSERT_TRUE(inspected.lanes[1].value);
+        const JsonImportResult animation = import_timeline_json("fixtures/color-map-effects-" + fixture + ".json");
+        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+        ASSERT_TRUE(animation.succeeded());
+        ASSERT_TRUE(music.succeeded());
+        const timeline::Document combined = timeline::combine_documents(*animation.document, *music.document);
+        EXPECT_EQ(count + 4, combined.lane_count());
+        const timeline::Layout layout(combined,
+            timeline::Viewport(600, 600, combined.frame_grid()->offset(), combined.frame_grid()->end_time()),
+            timeline::LayoutMetrics(140, 20, 40, 4));
+        const std::string snapshot = timeline::render_snapshot(layout.display_list());
+        EXPECT_NE(std::string::npos, snapshot.find("swatch PALETTE"));
+        EXPECT_NE(std::string::npos, snapshot.find("animation-0-effect-0-amount-key-0"));
+    }
+}
+
+TEST(ColorMapEffects, samples_nested_amounts_continuously_with_destination_key_interpolation)
+{
+    const timeline::Document document = []
+    {
+        const JsonImportResult imported = import_timeline_json("fixtures/color-map-effects-brightness.json");
+        if (!imported.succeeded())
+        {
+            throw std::runtime_error("brightness import failed");
+        }
+        return *imported.document;
+    }();
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(document.lanes()[0].items()[0]);
+    EXPECT_EQ(timeline::RgbColor(125, 150, 250), curve.sample(half)[0]);
+    EXPECT_DOUBLE_EQ(1.25, *document.lanes()[1].evaluate_keyframes(half));
+    EXPECT_EQ(timeline::RgbColor(150, 180, 255), curve.sample(grid.frame_start(1))[0]);
+    const JsonImportResult held = import_timeline_json("fixtures/color-map-effects-amount-hold.json");
+    ASSERT_TRUE(held.succeeded());
+    const timeline::Lane &signal = held.document->lanes()[1];
+    for (int frame = 0; frame < 5; ++frame)
+    {
+        EXPECT_DOUBLE_EQ(
+            frame < 3 ? 0.5 : 2, *signal.evaluate_keyframes(held.document->frame_grid()->frame_start(frame)));
+    }
+    const timeline::Keyframe &first = std::get<timeline::Keyframe>(signal.items()[0]);
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
+    EXPECT_EQ("linear", first.attributes().at("curve"));
+    EXPECT_EQ("step", first.attributes().at("outgoing-curve"));
+    const JsonImportResult variants = import_timeline_json("fixtures/color-map-effects-variants.json");
+    ASSERT_TRUE(variants.succeeded());
+    const timeline::Keyframe &ignored = std::get<timeline::Keyframe>(variants.document->lanes()[1].items()[0]);
+    EXPECT_EQ("geometric", ignored.attributes().at("curve"));
+    EXPECT_EQ(timeline::KeyframeInterpolation::LINEAR, ignored.interpolation());
+}
+
+TEST(ColorMapEffects, preserves_order_and_distinct_palette_and_signal_hits)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-effects-order.json");
+    ASSERT_TRUE(imported.succeeded());
+    const timeline::Document &document = *imported.document;
+    ASSERT_EQ(6, document.lane_count());
+    const timeline::PaletteCurve &first = std::get<timeline::PaletteCurve>(document.lanes()[0].items()[0]);
+    const timeline::PaletteCurve &second = std::get<timeline::PaletteCurve>(document.lanes()[3].items()[0]);
+    EXPECT_NE(first.sample(timeline::Time{})[64], second.sample(timeline::Time{})[64]);
+    const timeline::Layout layout(document,
+        timeline::Viewport(600, 300, timeline::Time{}, document.frame_grid()->end_time()),
+        timeline::LayoutMetrics(140, 20, 40, 4));
+    bool palette_hit = false;
+    bool signal_hit = false;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<timeline::Swatch>(primitive))
+        {
+            const timeline::Swatch &swatch = std::get<timeline::Swatch>(primitive);
+            const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{swatch.x, swatch.y}, 0);
+            ASSERT_TRUE(hit);
+            EXPECT_EQ(swatch.id.item_id, hit->id.item_id);
+            palette_hit = true;
+        }
+        else if (std::holds_alternative<timeline::Marker>(primitive))
+        {
+            const timeline::Marker &marker = std::get<timeline::Marker>(primitive);
+            if (marker.id.lane_id == "animation-0-effect-0-amount")
+            {
+                const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker.x, marker.y}, 0);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(marker.id.item_id, hit->id.item_id);
+                signal_hit = true;
+            }
+        }
+    }
+    EXPECT_TRUE(palette_hit);
+    EXPECT_TRUE(signal_hit);
+}
+
+TEST(ColorMapEffects, diagnoses_invalid_effects_without_partial_palette_or_signal_lanes)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/color-map-effects-partial.json");
+    ASSERT_TRUE(imported.succeeded());
+    const std::array<std::string, 14> needles{"nonempty", "effects", "amount", "two", "increasing", "frame",
+        "geometric", "numeric", "positive", "curve", "field", "source", "effect 1", "range"};
+    ASSERT_EQ(needles.size(), imported.diagnostics.size());
+    ASSERT_EQ(2, imported.document->lane_count());
+    EXPECT_EQ("animation-14", imported.document->lanes()[0].id());
+    for (int index = 0; index < timeline::size_cast(needles); ++index)
+    {
+        SCOPED_TRACE(index);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(needles[index]));
+    }
+    const JsonImportResult failed = import_timeline_json("fixtures/color-map-effects-invalid.json");
+    EXPECT_FALSE(failed.succeeded());
+    EXPECT_FALSE(failed.diagnostics.empty());
+}
+
 TEST(ColorMapImport, matches_source_evaluator_and_preserves_structured_owned_values)
 {
     for (const std::string &fixture : {"gradient", "file", "mixed", "names", "keyed", "hold", "partial-keys"})

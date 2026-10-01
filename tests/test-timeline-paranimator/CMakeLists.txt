@@ -2,6 +2,45 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/color-map-effects-brightness.json
+    fixtures/color-map-effects-adjustments.json
+    fixtures/color-map-effects-variants.json
+    fixtures/color-map-effects-amount-hold.json
+    fixtures/color-map-effects-order.json
+    fixtures/color-map-effects-partial.json
+    fixtures/color-map-effects-invalid.json
+    fixtures/gold-effects-brightness-0001.map
+    fixtures/gold-effects-brightness-0002.map
+    fixtures/gold-effects-brightness-0003.map
+    fixtures/gold-effects-adjustments-0001.map
+    fixtures/gold-effects-adjustments-0002.map
+    fixtures/gold-effects-adjustments-0003.map
+    fixtures/gold-effects-variants-brightness-0001.map
+    fixtures/gold-effects-variants-brightness-0002.map
+    fixtures/gold-effects-variants-brightness-0003.map
+    fixtures/gold-effects-variants-contrast-0001.map
+    fixtures/gold-effects-variants-contrast-0002.map
+    fixtures/gold-effects-variants-contrast-0003.map
+    fixtures/gold-effects-variants-gamma-0001.map
+    fixtures/gold-effects-variants-gamma-0002.map
+    fixtures/gold-effects-variants-gamma-0003.map
+    fixtures/gold-effects-variants-hue-shift-0001.map
+    fixtures/gold-effects-variants-hue-shift-0002.map
+    fixtures/gold-effects-variants-hue-shift-0003.map
+    fixtures/gold-effects-variants-saturation-0001.map
+    fixtures/gold-effects-variants-saturation-0002.map
+    fixtures/gold-effects-variants-saturation-0003.map
+    fixtures/gold-effects-amount-hold-0001.map
+    fixtures/gold-effects-amount-hold-0002.map
+    fixtures/gold-effects-amount-hold-0003.map
+    fixtures/gold-effects-amount-hold-0004.map
+    fixtures/gold-effects-amount-hold-0005.map
+    fixtures/gold-effects-order-forward-0001.map
+    fixtures/gold-effects-order-forward-0002.map
+    fixtures/gold-effects-order-forward-0003.map
+    fixtures/gold-effects-order-reverse-0001.map
+    fixtures/gold-effects-order-reverse-0002.map
+    fixtures/gold-effects-order-reverse-0003.map
     fixtures/color-map-gradient.json
     fixtures/color-map-keyed.json
     fixtures/color-map-hold.json

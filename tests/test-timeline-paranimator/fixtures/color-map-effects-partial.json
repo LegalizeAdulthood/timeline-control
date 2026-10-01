@@ -1,0 +1,546 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 3,
+  "tracks": [
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": []
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "reverse",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness"
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 0,
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 3,
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2,
+                "curve": "geometric"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": "2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "gamma",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 0
+              },
+              {
+                "frame": 2,
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2,
+                "curve": "bezier"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2
+              }
+            ]
+          },
+          "range": [
+            0,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2
+              }
+            ]
+          }
+        }
+      ],
+      "keys": [
+        {
+          "frame": 0,
+          "value": "input/warm.map"
+        },
+        {
+          "frame": 2,
+          "value": "input/cool.map"
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2
+              }
+            ]
+          }
+        },
+        {
+          "kind": "gamma",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 0
+              },
+              {
+                "frame": 2,
+                "value": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 1e+308
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "brightness-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "100/120/200"
+          },
+          {
+            "index": 255,
+            "color": "100/120/200"
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "brightness",
+          "amount": {
+            "keys": [
+              {
+                "frame": 0,
+                "value": 1
+              },
+              {
+                "frame": 2,
+                "value": 2
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+

@@ -12,6 +12,8 @@
 #include <cctype>
 #include <cmath>
 #include <fstream>
+#include <functional>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -68,6 +70,22 @@ double unit_component(const std::string &text, double maximum)
     return value;
 }
 
+timeline::RgbColor hsv_or_hsl_color(bool hsv, double hue, double saturation, double third)
+{
+    const double chroma = hsv ? saturation * third : (1 - std::abs(2 * third - 1)) * saturation;
+    const double match = hsv ? third - chroma : third - chroma / 2;
+    const double sector = hue == 360 ? 0 : hue / 60;
+    const double second = chroma * (1 - std::abs(std::fmod(sector, 2) - 1));
+    const std::array<std::array<double, 3>, 6> channels{{{chroma, second, 0}, {second, chroma, 0}, {0, chroma, second},
+        {0, second, chroma}, {second, 0, chroma}, {chroma, 0, second}}};
+    const std::array<double, 3> &selected = channels[static_cast<int>(sector)];
+    const auto byte = [match](double channel)
+    {
+        return static_cast<int>(std::lround(std::clamp(channel + match, 0.0, 1.0) * 255));
+    };
+    return timeline::RgbColor(byte(selected[0]), byte(selected[1]), byte(selected[2]));
+}
+
 timeline::RgbColor color_spec(const std::string &text)
 {
     const std::string value = trimmed(text);
@@ -111,18 +129,7 @@ timeline::RgbColor color_spec(const std::string &text)
     const double hue = unit_component(components[0], 360);
     const double saturation = unit_component(components[1], 1);
     const double third = unit_component(components[2], 1);
-    const double chroma = format == "hsv" ? saturation * third : (1 - std::abs(2 * third - 1)) * saturation;
-    const double match = format == "hsv" ? third - chroma : third - chroma / 2;
-    const double sector = hue == 360 ? 0 : hue / 60;
-    const double second = chroma * (1 - std::abs(std::fmod(sector, 2) - 1));
-    const std::array<std::array<double, 3>, 6> channels{{{chroma, second, 0}, {second, chroma, 0}, {0, chroma, second},
-        {0, second, chroma}, {second, 0, chroma}, {chroma, 0, second}}};
-    const std::array<double, 3> &selected = channels[static_cast<int>(sector)];
-    const auto byte = [match](double channel)
-    {
-        return static_cast<int>(std::lround(std::clamp(channel + match, 0.0, 1.0) * 255));
-    };
-    return timeline::RgbColor(byte(selected[0]), byte(selected[1]), byte(selected[2]));
+    return hsv_or_hsl_color(format == "hsv", hue, saturation, third);
 }
 
 timeline::Palette read_palette(const std::filesystem::path &path)
@@ -255,6 +262,185 @@ std::string key_curve(const Json &key)
     return curve;
 }
 
+/// HSL coordinates used only while evaluating a palette adjustment.
+///
+struct HslColor
+{
+    double m_hue;
+    double m_saturation;
+    double m_lightness;
+};
+
+double wrapped_hue(double hue)
+{
+    const double wrapped = std::fmod(hue, 360);
+    return wrapped < 0 ? wrapped + 360 : wrapped;
+}
+
+HslColor hsl_from_rgb(const timeline::RgbColor &color)
+{
+    const double red = color.red() / 255.0;
+    const double green = color.green() / 255.0;
+    const double blue = color.blue() / 255.0;
+    const double maximum = std::max({red, green, blue});
+    const double minimum = std::min({red, green, blue});
+    const double delta = maximum - minimum;
+    const double lightness = (maximum + minimum) / 2;
+    if (delta == 0)
+    {
+        return {0, 0, lightness};
+    }
+    const double hue = maximum == red ? 60 * std::fmod((green - blue) / delta, 6)
+        : maximum == green            ? 60 * ((blue - red) / delta + 2)
+                                      : 60 * ((red - green) / delta + 4);
+    return {wrapped_hue(hue), delta / (1 - std::abs(2 * lightness - 1)), lightness};
+}
+
+timeline::RgbColor adjusted_color(const timeline::RgbColor &color, const std::string &kind, double amount)
+{
+    if (kind == "hue-shift" || kind == "saturation")
+    {
+        const HslColor hsl = hsl_from_rgb(color);
+        return hsv_or_hsl_color(false, wrapped_hue(hsl.m_hue + (kind == "hue-shift" ? amount : 0)),
+            std::clamp(hsl.m_saturation * (kind == "saturation" ? amount : 1), 0.0, 1.0), hsl.m_lightness);
+    }
+    const auto channel = [&kind, amount](int value)
+    {
+        const double transformed = kind == "brightness" ? value * amount
+            : kind == "contrast"                        ? (value - 128.0) * amount + 128
+                                                        : 255 * std::pow(value / 255.0, amount);
+        return static_cast<int>(std::lround(std::clamp(transformed, 0.0, 255.0)));
+    };
+    return timeline::RgbColor(channel(color.red()), channel(color.green()), channel(color.blue()));
+}
+
+timeline::Lane amount_lane(const Json &effect, const std::string &kind, const std::string &id, const std::string &label,
+    const timeline::FrameGrid &grid, const timeline::Attributes &attributes)
+{
+    if (!effect.contains("amount"))
+    {
+        throw std::invalid_argument("effect requires amount");
+    }
+    if (effect.size() != 2)
+    {
+        throw std::invalid_argument("unsupported effect field");
+    }
+    const Json &signal = effect.at("amount");
+    if (!signal.is_object() || signal.size() != 1 || !signal.contains("keys") || !signal.at("keys").is_array() ||
+        signal.at("keys").size() != 2)
+    {
+        throw std::invalid_argument("amount signal requires exactly two keys");
+    }
+    const Json &keys = signal.at("keys");
+    const timeline::Ticks first = key_frame(keys[0], grid);
+    const timeline::Ticks last = key_frame(keys[1], grid);
+    if (first >= last)
+    {
+        throw std::invalid_argument("amount key frames must be strictly increasing");
+    }
+    const std::string destination = key_curve(keys[1]);
+    if (destination == "geometric")
+    {
+        throw std::invalid_argument("geometric interpolation is not supported for effect amounts");
+    }
+    std::array<double, 2> values{};
+    for (int index = 0; index < 2; ++index)
+    {
+        const Json &key = keys[index];
+        if (!key.is_object() || !key.at("value").is_number())
+        {
+            throw std::invalid_argument("amount key requires a numeric value");
+        }
+        if (key.size() != (key.contains("curve") ? 3 : 2))
+        {
+            throw std::invalid_argument("unsupported amount key field");
+        }
+        values[index] = key.at("value").get<double>();
+        if (!std::isfinite(values[index]))
+        {
+            throw std::invalid_argument("amount values must be finite");
+        }
+        if (kind == "gamma" && values[index] <= 0)
+        {
+            throw std::invalid_argument("gamma amount must be positive");
+        }
+    }
+    const double maximum = std::max(std::abs(values[0]), std::abs(values[1]));
+    if (!std::isfinite(values[1] - values[0]) ||
+        ((kind == "brightness" || kind == "contrast") && maximum > (std::numeric_limits<int>::max() - 128.0) / 255.0))
+    {
+        throw std::invalid_argument("amount range exceeds safe source evaluation");
+    }
+    timeline::Lane lane(id, label, "keyframes", grid.offset(), grid.end_time());
+    for (int index = 0; index < 2; ++index)
+    {
+        timeline::Attributes key_attributes = attributes;
+        key_attributes["signal"] = signal.dump();
+        key_attributes["source-key"] = keys[index].dump();
+        key_attributes["value"] = keys[index].at("value").dump();
+        key_attributes["curve"] = key_curve(keys[index]);
+        key_attributes["outgoing-curve"] = index == 0 ? destination : "hold";
+        const timeline::KeyframeInterpolation interpolation = index == 0 && destination == "linear"
+            ? timeline::KeyframeInterpolation::LINEAR
+            : timeline::KeyframeInterpolation::HOLD;
+        lane.add(timeline::Keyframe(id + "-key-" + std::to_string(index), grid.frame_start(index == 0 ? first : last),
+            values[index], interpolation, std::move(key_attributes)));
+    }
+    return lane;
+}
+
+/// Owned pure transformation of a palette at an exact timeline time.
+using PaletteTransform = std::function<timeline::Palette(const timeline::Palette &, timeline::Time)>;
+
+std::vector<PaletteTransform> adjustment_effects(const Json &effects, const std::string &id, const std::string &label,
+    const timeline::FrameGrid &grid, const timeline::Attributes &attributes, std::vector<timeline::Lane> &lanes)
+{
+    if (!effects.is_array() || effects.empty())
+    {
+        throw std::invalid_argument("effects must be a nonempty array");
+    }
+    std::vector<PaletteTransform> transforms;
+    int index = 0;
+    for (const Json &effect : effects)
+    {
+        try
+        {
+            const std::string kind = effect.at("kind").get<std::string>();
+            if (kind != "brightness" && kind != "contrast" && kind != "gamma" && kind != "hue-shift" &&
+                kind != "saturation")
+            {
+                throw std::invalid_argument("unsupported color-map effects: " + kind);
+            }
+            timeline::Attributes effect_attributes = attributes;
+            effect_attributes["effect"] = effect.dump();
+            effect_attributes["effect-kind"] = kind;
+            effect_attributes["effect-index"] = std::to_string(index);
+            effect_attributes["member"] = "amount";
+            timeline::Lane signal = amount_lane(effect, kind, id + "-effect-" + std::to_string(index) + "-amount",
+                label + " / " + std::to_string(index) + " " + kind + " amount", grid, effect_attributes);
+            transforms.push_back(
+                [signal, kind](const timeline::Palette &colors, timeline::Time time)
+                {
+                    const double amount = *signal.evaluate_keyframes(time);
+                    timeline::Palette transformed;
+                    transformed.reserve(colors.size());
+                    for (const timeline::RgbColor &color : colors)
+                    {
+                        transformed.push_back(adjusted_color(color, kind, amount));
+                    }
+                    return transformed;
+                });
+            lanes.push_back(std::move(signal));
+        }
+        catch (const std::exception &error)
+        {
+            throw std::invalid_argument("color-map effect " + std::to_string(index) + ": " + error.what());
+        }
+        ++index;
+    }
+    return transforms;
+}
+
 } // namespace
 
 void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &source_path, const std::string &id,
@@ -272,9 +458,9 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
     {
         throw std::invalid_argument("color-map format must be at-file");
     }
-    if (track.contains("effects"))
+    if (track.contains("effects") && !track.contains("source"))
     {
-        throw std::invalid_argument("color-map effects are not supported yet");
+        throw std::invalid_argument("effects require a source, not keyed map files");
     }
     if (track.contains("source") == track.contains("keys"))
     {
@@ -360,6 +546,20 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
                 index == 0 ? end : grid.end_time(), filename, std::nullopt, key_attributes));
         }
         staged.push_back(std::move(definitions));
+    }
+    if (track.contains("effects"))
+    {
+        const std::vector<PaletteTransform> transforms =
+            adjustment_effects(track.at("effects"), id, label, grid, attributes, staged);
+        evaluator = [source = std::move(evaluator), transforms](timeline::Time time)
+        {
+            timeline::Palette colors = source(time);
+            for (const PaletteTransform &transform : transforms)
+            {
+                colors = transform(colors, time);
+            }
+            return colors;
+        };
     }
     timeline::Lane palette(id, label, "palette", grid.offset(), grid.end_time());
     palette.add(timeline::PaletteCurve(

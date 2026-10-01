@@ -278,7 +278,14 @@ RGB entries; gradients accept RGB, HSV, HSL, and fixed CSS named colors.
 Palette definitions remain the source of truth and are sampled at frame
 boundaries for swatch display. Inspection retains the complete recipe,
 source filenames, authored keys, and sampled RGB values, without inventing
-scalar lanes. Effects receive explicit diagnostics until their next slice.
+scalar lanes. Brightness, contrast, gamma, hue-shift, and saturation
+effects apply in source order, rounding and clipping RGB entries after
+each effect.
+Gamma uses the amount as its positive exponent; hue and saturation operate
+in HSL. Each nested amount retains its two authored keys in a separate
+inspectable lane. The destination key selects linear or hold/step
+interpolation, with endpoint clamping outside partial key ranges.
+Indexed and masked effects remain explicitly diagnosed as unsupported.
 
 The gradient fixture and golden map are copied from ParAnimator. Other
 color-map goldens use its unmodified loader and renderer, including all
@@ -293,6 +300,20 @@ comparison with one gradient lane. Opening `invalid-color-map.json`
 reports an out-of-range color without replacing the document, selection,
 or playhead. These fixtures are under
 `tests/test-timeline-paranimator/fixtures`.
+
+Open `color-map-effects-brightness.json` for palette and amount lanes. At
+frame 1, the amount is `1.5` and every entry is RGB `150/180/255`. Add the
+RMS fixture for six comparison lanes and inspect independent palette and
+amount hit identities. Open `color-map-effects-adjustments.json` to replace
+the comparison with five lanes and RGB `0/255/0`. Opening
+`color-map-effects-invalid.json` reports nonpositive gamma without
+replacing the document, selection, or playhead.
+
+Brightness and adjustment fixtures are copied from ParAnimator with local
+catalog paths. Its unchanged color-map evaluator generated 32 golden maps
+covering all five adjustments, negative amounts, hue wrapping, partial
+hold ranges, and effect order. Import rejects malformed nested signals and
+unsafe numeric ranges transactionally, without exporting partial lanes.
 
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
