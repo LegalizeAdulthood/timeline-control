@@ -2371,27 +2371,27 @@ timeline::Lane view_annotated(const timeline::Lane &source, const timeline::Attr
     return lane;
 }
 
-void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+void id_view_validate_up_interval(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
 {
-    std::array<std::array<double, 3>, 3> direction{};
-    std::array<std::array<double, 3>, 3> up{};
+    const auto sample = [&](int component, int point)
+    {
+        return point == 1 ? camera2d_segment_end(signals[component], start, end)
+                          : camera2d_sample(signals[component], start);
+    };
+    std::array<std::array<double, 3>, 2> direction{};
+    std::array<std::array<double, 3>, 2> up{};
     bool world_up = true;
     int zero_axis = -1;
     double maximum_up_squared = 0;
     double direction_scale = 0;
-    for (int point = 0; point < 3; ++point)
+    for (int point = 0; point < 2; ++point)
     {
         double squared = 0;
         for (int axis = 0; axis < 3; ++axis)
         {
-            const auto sample = [&](int component)
-            {
-                return point == 1 ? camera2d_segment_end(signals[component], start, end)
-                                  : camera2d_sample(signals[component], point == 0 ? start : end);
-            };
-            direction[point][axis] = sample(3 + axis) - sample(axis);
+            direction[point][axis] = sample(3 + axis, point) - sample(axis, point);
             direction_scale = std::max(direction_scale, std::abs(direction[point][axis]));
-            up[point][axis] = sample(6 + axis);
+            up[point][axis] = sample(6 + axis, point);
             squared += up[point][axis] * up[point][axis];
         }
         world_up = world_up && up[point][0] == 0 && up[point][2] == 0 && up[point][1] > 0;
@@ -2410,8 +2410,7 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
         bool zero = true;
         for (int component : {axis, 3 + axis, 6 + axis})
         {
-            zero = zero && camera2d_sample(signals[component], start) == 0 &&
-                camera2d_sample(signals[component], end) == 0;
+            zero = zero && sample(component, 0) == 0 && sample(component, 1) == 0;
         }
         if (zero)
         {
@@ -2424,7 +2423,7 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
     {
         throw std::invalid_argument("Id 3D camera view-up has a singular direction");
     }
-    for (int point = 0; point < 3; ++point)
+    for (int point = 0; point < 2; ++point)
     {
         for (int axis = 0; axis < 3; ++axis)
         {
@@ -2440,9 +2439,9 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
     const double plane_x = zero_axis == 0 ? 0 : zero_axis == 2 ? 1 : direction[0][0] / horizontal_length;
     const double plane_z = zero_axis == 0 ? 1 : zero_axis == 2 ? 0 : direction[0][2] / horizontal_length;
     constexpr double PLANE_TOLERANCE = 128 * std::numeric_limits<double>::epsilon();
-    std::array<double, 3> horizontal_direction{};
-    std::array<double, 3> horizontal_up{};
-    for (int point = 0; point < 3; ++point)
+    std::array<double, 2> horizontal_direction{};
+    std::array<double, 2> horizontal_up{};
+    for (int point = 0; point < 2; ++point)
     {
         if (std::abs(plane_x * direction[point][2] - plane_z * direction[point][0]) > PLANE_TOLERANCE ||
             std::abs(plane_x * up[point][2] - plane_z * up[point][0]) > PLANE_TOLERANCE)
@@ -2510,7 +2509,13 @@ void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::T
         }
     };
     validate(0, 1);
-    validate(2, 2);
+}
+
+void id_view_validate_up(const std::vector<timeline::Lane> &signals, timeline::Time start, timeline::Time end)
+{
+    // A held destination may have its own viewing plane and normalization scale.
+    id_view_validate_up_interval(signals, start, end);
+    id_view_validate_up_interval(signals, end, end);
 }
 
 std::pair<double, double> id_view_validate_camera(

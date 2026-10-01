@@ -273,18 +273,20 @@ outputs; fully overridden cameras retain unused raw inputs without
 evaluating their geometry. Continuous interval checks reject vertical
 crossings, zero directions, reversed or singular hints, unsafe
 normalization, and perspective overflow, including between frames and at
-held-key endpoints.
+held-key endpoints. Hold/step destinations may change viewing plane or
+reverse azimuth: the left-limit interval and exact destination are
+validated independently, without interpolating the camera through a jump.
 Quadratic orientation minima include source cleanup and rounding margins.
 Oblique planes additionally require bounded coplanarity and roll error
-within the source tolerance. Changing planes, near-degenerate hints, and
-extreme normalization ranges retain explicit diagnostics pending the
-parameter-evaluation audit.
+within the source tolerance. Continuous changes of plane, near-degenerate
+hints, and extreme normalization ranges retain explicit diagnostics
+pending the parameter-evaluation audit.
 Camera3d paths are not part of the source format.
 
 The Id camera fixture and golden output are copied from ParAnimator. The
 keyed, hold, and override goldens use its existing loader and renderer.
-The tilted YZ, held XY, and linear and held oblique goldens come from its
-reference executable.
+The tilted YZ, held XY, linear and held oblique, and held plane-change
+goldens come from its reference executable.
 The local source schema declares slash-delimited Id tuple strings, but
 its loader requires numeric arrays. Golden generation converts only that
 tuple representation before calling the source evaluator; the importer
@@ -298,6 +300,15 @@ twenty-five lanes; perspective is 12 at frame 1. Opening
 `invalid-id-3d-view.json` reports a singular camera and leaves the
 displayed document, selection, and playhead unchanged. These files are under
 `tests/test-timeline-paranimator/fixtures`.
+
+Open `id-3d-view-plane-hold.json` for fifteen lanes. Pitch/yaw stay at
+63.434949/0 through frame 1, then become 26.565051/36.869898 at frame 2.
+`id-3d-view-oblique-plane-step.json` changes yaw from -36.869898 to
+126.869898 at the final key. Normalized hints retain the hold/step recipe.
+Adding RMS beat-keys yields nineteen lanes. Opening
+`invalid-id-3d-view-plane-jump.json` reports rolled, vertical, or singular
+destinations and unsafe mixed motion without replacing the comparison,
+selection, or playhead. Reopening a valid fixture resets viewer state.
 
 Julibrot view tracks support mode, six-component geometry, eyes, and
 four-component from-to signals. Each explicit member uses two full-range

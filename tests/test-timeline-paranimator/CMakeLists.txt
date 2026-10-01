@@ -223,6 +223,11 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/id-3d-view-tilted.json
     fixtures/id-3d-view-oblique.json
     fixtures/id-3d-view-oblique-hold.json
+    fixtures/id-3d-view-plane-hold.json
+    fixtures/id-3d-view-oblique-plane-step.json
+    fixtures/gold-id-3d-view-plane-hold.par
+    fixtures/gold-id-3d-view-oblique-plane-step.par
+    fixtures/invalid-id-3d-view-plane-jump.json
     fixtures/gold-id-3d-view-oblique.par
     fixtures/gold-id-3d-view-oblique-hold.par
     fixtures/invalid-id-3d-view-oblique.json

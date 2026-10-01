@@ -53,8 +53,8 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
 {
-    const std::array<std::string, 8> fixtures{
-        "camera", "keyed", "hold", "override", "tilted", "tilted-hold", "oblique", "oblique-hold"};
+    const std::array<std::string, 10> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
+        "oblique", "oblique-hold", "plane-hold", "oblique-plane-step"};
     for (const std::string &fixture : fixtures)
     {
         SCOPED_TRACE(fixture);
@@ -276,6 +276,86 @@ TEST(Id3DView, samples_owned_oblique_hints_and_outputs_continuously)
             }
         }
     }
+}
+
+TEST(Id3DView, holds_owned_camera_planes_until_the_exact_destination_key)
+{
+    for (const std::string &fixture : {"plane-hold", "oblique-plane-step"})
+    {
+        SCOPED_TRACE(fixture);
+        const timeline::Document document = [&fixture]
+        {
+            JsonImportOptions options;
+            options.frames_per_second_numerator = 30000;
+            options.frames_per_second_denominator = 1001;
+            const JsonImportResult imported = import_timeline_json("fixtures/id-3d-view-" + fixture + ".json", options);
+            if (!imported.succeeded() || !imported.diagnostics.empty())
+            {
+                throw std::runtime_error("Held Id camera plane import failed");
+            }
+            return *imported.document;
+        }();
+        const timeline::FrameGrid &grid = *document.frame_grid();
+        const timeline::Time end = grid.frame_start(2);
+        const timeline::Time left = end + timeline::Duration::from_ticks(-1);
+        constexpr double PI = 3.14159265358979323846;
+        const double initial_yaw = fixture == "plane-hold" ? 0 : -std::atan2(3.0, 4.0) * 180 / PI;
+        const double final_yaw =
+            fixture == "plane-hold" ? std::atan2(6.0, 8.0) * 180 / PI : std::atan2(8.0, -6.0) * 180 / PI;
+        const std::array<double, 3> initial_up =
+            fixture == "plane-hold" ? std::array<double, 3>{0, -1, -3} : std::array<double, 3>{-3, -1, -4};
+        const std::array<double, 3> final_up =
+            fixture == "plane-hold" ? std::array<double, 3>{-0.6, 2, 0.8} : std::array<double, 3>{-0.8, 2, -0.6};
+        for (timeline::Time time : {grid.offset(), grid.frame_start(1), left, end})
+        {
+            const bool destination = time == end;
+            const std::array<double, 3> &up = destination ? final_up : initial_up;
+            const double length = std::sqrt(up[0] * up[0] + up[1] * up[1] + up[2] * up[2]);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[12 + axis].items().front());
+                EXPECT_NEAR(up[axis] / length, curve.sample(time), 1e-12);
+                EXPECT_LE(*curve.minimum(), curve.sample(time));
+                EXPECT_GE(*curve.maximum(), curve.sample(time));
+                EXPECT_TRUE(curve.samples().empty());
+                EXPECT_EQ("true", curve.attributes().at("normalize"));
+                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("curve"));
+            }
+            const timeline::Curve &pitch = std::get<timeline::Curve>(document.lanes()[0].items().front());
+            const timeline::Curve &yaw = std::get<timeline::Curve>(document.lanes()[1].items().front());
+            EXPECT_NEAR(
+                std::atan2(destination ? 5.0 : 10.0, destination ? 10.0 : 5.0) * 180 / PI, pitch.sample(time), 1e-12);
+            EXPECT_NEAR(destination ? final_yaw : initial_yaw, yaw.sample(time), 1e-12);
+            EXPECT_LE(*yaw.minimum(), yaw.sample(time));
+            EXPECT_GE(*yaw.maximum(), yaw.sample(time));
+            EXPECT_DOUBLE_EQ(11, std::get<timeline::Curve>(document.lanes()[3].items().front()).sample(time));
+        }
+        const timeline::Keyframe &eye = std::get<timeline::Keyframe>(document.lanes()[6].items().front());
+        EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, eye.interpolation());
+        const timeline::FrameInspection before = *timeline::inspect_frame(document, 1);
+        const timeline::FrameInspection after = *timeline::inspect_frame(document, 2);
+        ASSERT_TRUE(before.lanes[1].items.front().value.has_value());
+        ASSERT_TRUE(after.lanes[1].items.front().value.has_value());
+        EXPECT_NEAR(initial_yaw, *before.lanes[1].items.front().value, 1e-12);
+        EXPECT_NEAR(final_yaw, *after.lanes[1].items.front().value, 1e-12);
+    }
+}
+
+TEST(Id3DView, rejects_unsafe_plane_jump_endpoints_and_mixed_motion)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-plane-jump.json");
+    EXPECT_FALSE(imported.succeeded());
+    EXPECT_FALSE(imported.document.has_value());
+    const std::array<std::string, 5> messages{
+        "fixed vertical", "vertical", "vertical", "fixed vertical", "fixed vertical"};
+    ASSERT_EQ(timeline::size_cast(messages) + 1, timeline::size_cast(imported.diagnostics));
+    for (int index = 0; index < timeline::size_cast(messages); ++index)
+    {
+        SCOPED_TRACE(imported.diagnostics[index]);
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(messages[index]));
+    }
+    EXPECT_NE(std::string::npos, imported.diagnostics.back().find("no supported animation tracks"));
 }
 
 TEST(Id3DView, diagnoses_oblique_roll_and_unsupported_motion_without_partial_lanes)
