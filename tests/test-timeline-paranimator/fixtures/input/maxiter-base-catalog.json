@@ -1,0 +1,11 @@
+{
+  "parameters": {
+    "maxiter": {
+      "type": "integer",
+      "description": "Sets the maximum iteration count before a point is treated as inside the set.",
+      "format": "raw",
+      "default-curve": "linear",
+      "extrapolate": "base"
+    }
+  }
+}

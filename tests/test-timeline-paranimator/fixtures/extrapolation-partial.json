@@ -1,0 +1,87 @@
+{
+  "parameter-catalogs": [
+    "input/extrapolation-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "parameter": "unknown",
+      "keys": [
+        {
+          "frame": 1,
+          "value": "100"
+        },
+        {
+          "frame": 3,
+          "value": "300"
+        }
+      ]
+    },
+    {
+      "parameter": "tuple",
+      "keys": [
+        {
+          "frame": 1,
+          "value": "1/2"
+        },
+        {
+          "frame": 3,
+          "value": "3/4"
+        }
+      ]
+    },
+    {
+      "parameter": "three",
+      "keys": [
+        {
+          "frame": 1,
+          "value": "100"
+        },
+        {
+          "frame": 2,
+          "value": "200"
+        },
+        {
+          "frame": 3,
+          "value": "300"
+        }
+      ]
+    },
+    {
+      "parameter": "missing",
+      "keys": [{"frame": 1, "value": "100"}, {"frame": 3, "value": "300"}]
+    },
+    {
+      "parameter": "fraction",
+      "keys": [{"frame": 1, "value": "100.5"}, {"frame": 3, "value": "300"}]
+    },
+    {
+      "parameter": "named",
+      "keys": [{"frame": 1, "value": "100"}, {"frame": 3, "value": "300"}]
+    },
+    {
+      "parameter": "maxiter",
+      "keys": [
+        {
+          "frame": 1,
+          "value": "100"
+        },
+        {
+          "frame": 3,
+          "value": "300"
+        }
+      ]
+    }
+  ]
+}

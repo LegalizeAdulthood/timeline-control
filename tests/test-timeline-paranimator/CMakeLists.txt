@@ -2,6 +2,25 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/extrapolation-variants.json
+    fixtures/input/extrapolation-variants-catalog.json
+    fixtures/input/extrapolation-source.par
+    fixtures/gold-extrapolation-variants.par
+    fixtures/maxiter-base.json
+    fixtures/maxiter-omit.json
+    fixtures/maxiter-cycle.json
+    fixtures/maxiter-ping-pong.json
+    fixtures/input/maxiter-base-catalog.json
+    fixtures/input/maxiter-omit-catalog.json
+    fixtures/input/maxiter-cycle-catalog.json
+    fixtures/input/maxiter-ping-pong-catalog.json
+    fixtures/gold-maxiter-base.par
+    fixtures/gold-maxiter-omit.par
+    fixtures/gold-maxiter-cycle.par
+    fixtures/gold-maxiter-ping-pong.par
+    fixtures/extrapolation-partial.json
+    fixtures/extrapolation-invalid.json
+    fixtures/input/extrapolation-catalog.json
     fixtures/color-map-masked-effects.json
     fixtures/color-map-masked-variants.json
     fixtures/color-map-masked-partial.json
@@ -401,6 +420,7 @@ add_executable(test-timeline-paranimator
     test.cpp
     mapping_test.cpp
     animation_test.cpp
+    extrapolation_test.cpp
     camera_test.cpp
     camera_corners_test.cpp
     camera_skew_test.cpp

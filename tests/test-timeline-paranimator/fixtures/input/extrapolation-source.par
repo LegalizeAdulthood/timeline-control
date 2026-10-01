@@ -1,0 +1,6 @@
+; Copyright (c) 2026 Richard Thomson
+
+Bailout_Demo {
+    reset type=mandel center-mag=-0.5/0/1 params=0/0 inside=0
+    sound=no maxiter=678 bailout=1.25 choice=0
+}

@@ -9,6 +9,7 @@
 #include <timeline/Palette.h>
 #include <timeline/size_cast.h>
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <variant>
@@ -20,10 +21,16 @@ namespace timeline
 /// One generic piece of timeline content.
 using Item = std::variant<Instant, Interval, Envelope, Curve, Keyframe, PaletteCurve>;
 
+/// Owned, pure keyframe recipe evaluator; an absent value represents a gap.
+/// Captures must own their data independently of the containing lane.
+using KeyframeEvaluator = std::function<std::optional<double>(Time)>;
+
 /// Ordered collection of timeline content within a finite range.
 ///
 /// A lane owns its items, retains insertion order, and rejects items that do
 /// not fit completely inside its half-open time range.
+/// An optional owned evaluator can replace keyframe sampling without replacing
+/// the authored keys; absent samples represent gaps, not endpoint values.
 ///
 class Lane
 {
@@ -68,6 +75,12 @@ public:
     std::vector<Item> items_in_range(Time start, Time end) const;
     KeyframeNeighbors neighboring_keyframes(Time time) const;
     std::optional<double> evaluate_keyframes(Time time) const;
+    /// Replace default interpolation with an owned recipe, retaining authored keys.
+    void set_keyframe_evaluator(KeyframeEvaluator evaluator);
+    bool has_keyframe_evaluator() const
+    {
+        return static_cast<bool>(m_keyframe_evaluator);
+    }
 
 private:
     void add_item(Item item);
@@ -78,6 +91,7 @@ private:
     Time m_start;
     Time m_end;
     std::vector<Item> m_items;
+    KeyframeEvaluator m_keyframe_evaluator;
 };
 
 Time item_start(const Item &item);

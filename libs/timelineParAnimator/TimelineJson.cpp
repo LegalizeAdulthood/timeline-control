@@ -2570,6 +2570,124 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
     }
 }
 
+timeline::Ticks positive_remainder(timeline::Ticks value, timeline::Ticks period)
+{
+    const timeline::Ticks remainder = value % period;
+    return remainder < 0 ? remainder + period : remainder;
+}
+
+void extrapolate_keyframes(const Json &track, const Json &metadata, const std::string &policy,
+    const std::filesystem::path &source_path, const Json &config, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    const std::string type = metadata.value("type", std::string{});
+    if (!track.contains("keys") || track.value("mode", std::string("keyframes")) != "keyframes" ||
+        (type != "integer" && type != "integer-or-enum" && type != "double") || timeline::size_cast(lanes) != 1 ||
+        !std::holds_alternative<timeline::Keyframe>(lanes[0].items()[0]))
+    {
+        throw std::invalid_argument("non-clamp extrapolation requires numeric scalar keyframes");
+    }
+    const Json &keys = track.at("keys");
+    if (timeline::size_cast(keys) != 2)
+    {
+        throw std::invalid_argument("non-clamp extrapolation requires exactly two keys");
+    }
+    if (type == "integer-or-enum" &&
+        (!keys[0].at("value").is_number_integer() || !keys[1].at("value").is_number_integer()))
+    {
+        throw std::invalid_argument("integer-or-enum extrapolation requires JSON integer key values");
+    }
+    timeline::Lane &lane = lanes[0];
+    for (const timeline::Item &item : lane.items())
+    {
+        const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
+        if (key.interpolation() == timeline::KeyframeInterpolation::GEOMETRIC)
+        {
+            throw std::invalid_argument("scalar extrapolation supports linear, hold, or step curves");
+        }
+        if ((type == "integer" || type == "integer-or-enum") &&
+            (key.value() != std::trunc(key.value()) || key.value() < std::numeric_limits<int>::min() ||
+                key.value() > std::numeric_limits<int>::max()))
+        {
+            throw std::invalid_argument("integer extrapolation requires integral key values in int range");
+        }
+        if ((metadata.contains("min") && key.value() < metadata.at("min").get<double>()) ||
+            (metadata.contains("max") && key.value() > metadata.at("max").get<double>()))
+        {
+            throw std::invalid_argument("extrapolation key value exceeds catalog bounds");
+        }
+    }
+    std::optional<double> base;
+    std::string base_text;
+    if (policy == "base")
+    {
+        const std::map<std::string, std::string> source = animation_source(source_path, config);
+        const std::string parameter = track.at("parameter").get<std::string>();
+        if (source.count(parameter) == 0)
+        {
+            throw std::invalid_argument("base extrapolation requires a numeric source value");
+        }
+        base_text = source.at(parameter);
+        const std::vector<double> parsed = animation_value(Json(base_text));
+        if (timeline::size_cast(parsed) != 1)
+        {
+            throw std::invalid_argument("base extrapolation requires a numeric scalar source value");
+        }
+        base = parsed[0];
+    }
+    // Capture the ordinary lane before installing the recipe to avoid self-reference.
+    const timeline::Lane authored = lane;
+    const timeline::Time first = std::get<timeline::Keyframe>(lane.items()[0]).time();
+    const timeline::Time last = std::get<timeline::Keyframe>(lane.items()[1]).time();
+    const timeline::Ticks span = (last - first).ticks();
+    const timeline::Ticks extra = policy == "cycle" ? grid.frame_duration().ticks() : span;
+    if ((policy == "cycle" || policy == "ping-pong") && span > std::numeric_limits<timeline::Ticks>::max() - extra)
+    {
+        throw std::invalid_argument("extrapolation period exceeds timeline tick range");
+    }
+    const timeline::Ticks period = policy == "cycle" || policy == "ping-pong" ? span + extra : 1;
+    timeline::KeyframeEvaluator evaluator = [authored, policy, first, last, span, period, base](
+                                                timeline::Time time) -> std::optional<double>
+    {
+        if (time < first || last < time)
+        {
+            if (policy == "omit")
+            {
+                return std::nullopt;
+            }
+            if (policy == "base")
+            {
+                return base;
+            }
+            const timeline::Ticks phase = positive_remainder(
+                positive_remainder(time.ticks(), period) - positive_remainder(first.ticks(), period), period);
+            const timeline::Ticks offset = policy == "ping-pong" && phase > span ? period - phase : phase;
+            time = first + timeline::Duration::from_ticks(std::min(offset, span));
+        }
+        return authored.evaluate_keyframes(time);
+    };
+    timeline::Lane decorated(lane.id(), lane.label(), lane.kind(), lane.start(), lane.end());
+    for (const timeline::Item &item : lane.items())
+    {
+        const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
+        timeline::Attributes attributes = key.attributes();
+        attributes["extrapolate"] = policy;
+        attributes["track-definition"] = track.dump();
+        attributes["catalog-definition"] = metadata.dump();
+        if (base)
+        {
+            attributes["source-value"] = base_text;
+            attributes["source-entry"] = config.at("source").at("name").get<std::string>();
+            attributes["source-file"] =
+                (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string();
+        }
+        decorated.add(
+            timeline::Keyframe(key.id(), key.time(), key.value(), key.interpolation(), std::move(attributes)));
+    }
+    decorated.set_keyframe_evaluator(std::move(evaluator));
+    lane = std::move(decorated);
+}
+
 void animation_tracks(const Json &tracks, const Json &catalog, const std::string &layer, const std::string &prefix,
     const std::filesystem::path &source_path, const Json &config, const std::string &video,
     const timeline::FrameGrid &grid, std::vector<timeline::Lane> &lanes, std::vector<std::string> &diagnostics)
@@ -2640,9 +2758,11 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
                     {"source-file",
                         (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()}};
             }
-            if (metadata.value("extrapolate", std::string("clamp")) != "clamp")
+            const std::string extrapolation = metadata.value("extrapolate", std::string("clamp"));
+            if (extrapolation != "clamp" && extrapolation != "base" && extrapolation != "omit" &&
+                extrapolation != "cycle" && extrapolation != "ping-pong")
             {
-                throw std::invalid_argument("only clamp extrapolation is supported for realized keyframes");
+                throw std::invalid_argument("unknown extrapolation policy: " + extrapolation);
             }
             const std::string label = layer.empty() ? parameter : layer + " / " + parameter;
             std::vector<timeline::Lane> track_lanes;
@@ -2682,6 +2802,10 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             else
             {
                 animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+            }
+            if (extrapolation != "clamp")
+            {
+                extrapolate_keyframes(track, metadata, extrapolation, source_path, config, grid, track_lanes);
             }
             for (timeline::Lane &lane : track_lanes)
             {

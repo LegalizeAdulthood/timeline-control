@@ -1,0 +1,48 @@
+{
+  "parameters": {
+    "unknown": {
+      "type": "integer",
+      "default-curve": "linear",
+      "extrapolate": "unknown",
+      "description": "Invalid policy"
+    },
+    "tuple": {
+      "type": "numeric-tuple",
+      "arity": 2,
+      "default-curve": "linear",
+      "extrapolate": "cycle",
+      "description": "Unsupported tuple policy"
+    },
+    "three": {
+      "type": "integer",
+      "default-curve": "linear",
+      "extrapolate": "cycle",
+      "description": "Unsupported key count"
+    },
+    "missing": {
+      "type": "integer",
+      "default-curve": "linear",
+      "extrapolate": "base",
+      "description": "Missing source value"
+    },
+    "fraction": {
+      "type": "integer",
+      "default-curve": "linear",
+      "extrapolate": "cycle",
+      "description": "Invalid integer endpoint"
+    },
+    "named": {
+      "type": "integer-or-enum",
+      "values": ["zmag"],
+      "default-curve": "linear",
+      "extrapolate": "ping-pong",
+      "description": "Numeric strings are names"
+    },
+    "maxiter": {
+      "type": "integer",
+      "default-curve": "linear",
+      "extrapolate": "clamp",
+      "description": "Valid tail"
+    }
+  }
+}

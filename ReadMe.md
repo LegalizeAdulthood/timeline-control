@@ -539,8 +539,35 @@ look-at; its frame-2 eye is `0/2.125` and rotation is zero.
 `camera2d-eye-lissajous-slow-y.json` covers the opposite frequency
 ordering. All four golden PAR files were generated with ParAnimator.
 
-Other specialized track kinds, non-clamp extrapolation, and
-parameter-specific output quantization remain unsupported.
+Numeric scalar tracks with two authored keys support `base`, `omit`,
+`cycle`, and `ping-pong` extrapolation. Integer, double, and numeric
+integer-or-enum tracks retain their keys, destination interpolation,
+catalog policy, and complete recipes. Integer-or-enum endpoints must be
+JSON integers, not numeric strings. Linear, hold, and step curves are
+supported; unsupported forms receive indexed importer diagnostics.
+
+`base` captures the original PAR source value outside the key range.
+`omit` produces an absent value and a visible gap, not zero. `cycle`
+includes both endpoint frames in its period and holds the last value
+through the final frame interval. `ping-pong` reflects across the key
+span without repeating endpoint frames. Continuous queries retain exact
+tick periods and fractional values; integer output rounding is pending.
+
+Open `maxiter-cycle.json`: frame 0 is `300` and frame 4 is `100`.
+Add `beat-keys/rms.beat-keys.json` for five comparison lanes. Open
+`maxiter-omit.json` to replace them with one lane; frames outside its
+authored keys have no numeric value or connecting line. The four
+`maxiter-*` fixtures and their golden PAR files come from ParAnimator.
+
+Open `extrapolation-variants.json` for three lanes with held cycle,
+double base, and numeric integer-or-enum ping-pong policies. Frame 0
+shows `300`, `1.25`, and `200`; frame 4 shows `100`, `1.25`, and `200`.
+Its golden PAR file was generated with ParAnimator. Select an
+extrapolated segment, then open `extrapolation-invalid.json` to verify
+that rejection preserves the document, selection, and playhead.
+
+Other specialized track kinds and parameter-specific output
+quantization remain unsupported.
 Unsupported tracks receive importer diagnostics.
 The viewer does not execute ParAnimator or merge values into its output.
 

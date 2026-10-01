@@ -152,6 +152,15 @@ KeyframeNeighbors Lane::neighboring_keyframes(Time time) const
 
 std::optional<double> Lane::evaluate_keyframes(Time time) const
 {
+    if (m_keyframe_evaluator)
+    {
+        const std::optional<double> value = m_keyframe_evaluator(time);
+        if (value && !std::isfinite(*value))
+        {
+            throw std::invalid_argument("keyframe evaluator must return finite values");
+        }
+        return value;
+    }
     const KeyframeNeighbors neighbors = neighboring_keyframes(time);
     if (!neighbors.before() && !neighbors.after())
     {
@@ -181,6 +190,15 @@ std::optional<double> Lane::evaluate_keyframes(Time time) const
             std::log(before.value()) + (std::log(after.value()) - std::log(before.value())) * elapsed / duration);
     }
     return before.value() + (after.value() - before.value()) * elapsed / duration;
+}
+
+void Lane::set_keyframe_evaluator(KeyframeEvaluator evaluator)
+{
+    if (!evaluator || !neighboring_keyframes(m_start).after())
+    {
+        throw std::invalid_argument("keyframe evaluator requires an owned recipe and authored keys");
+    }
+    m_keyframe_evaluator = std::move(evaluator);
 }
 
 void Lane::add_item(Item item)

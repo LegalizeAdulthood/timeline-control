@@ -214,10 +214,74 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
     const auto [minimum, maximum] = std::minmax_element(keyframes.begin(), keyframes.end(),
         [](const std::reference_wrapper<const Keyframe> &lhs, const std::reference_wrapper<const Keyframe> &rhs)
         { return lhs.get().value() < rhs.get().value(); });
-    const double minimum_value = minimum->get().value();
-    const double maximum_value = maximum->get().value();
+    double minimum_value = minimum->get().value();
+    double maximum_value = maximum->get().value();
 
-    for (int index = 1; index < size_cast(keyframes); ++index)
+    if (lane.has_keyframe_evaluator())
+    {
+        std::vector<std::pair<Time, std::optional<double>>> samples;
+        const Time start = std::max(lane.start(), viewport.start());
+        const Time end = std::min(lane.end(), viewport.end());
+        if (frame_grid && frame_grid->frame_count() > 0)
+        {
+            const Ticks first = frame_grid->frame_at_or_before(start).value_or(0);
+            for (Ticks frame = first; frame < frame_grid->frame_count(); ++frame)
+            {
+                const Time time = frame_grid->frame_start(frame);
+                if (end <= time)
+                {
+                    break;
+                }
+                if (start <= time)
+                {
+                    samples.emplace_back(time, lane.evaluate_keyframes(time));
+                }
+            }
+        }
+        else if (start < end)
+        {
+            const int width = std::max(1, viewport.width() - metrics.lane_label_width());
+            for (int step = 0; step <= width; ++step)
+            {
+                const Ticks ticks = static_cast<Ticks>(static_cast<double>((end - start).ticks() - 1) * step / width);
+                const Time time = start + Duration::from_ticks(ticks);
+                samples.emplace_back(time, lane.evaluate_keyframes(time));
+            }
+        }
+        for (const auto &[time, value] : samples)
+        {
+            if (value)
+            {
+                minimum_value = std::min(minimum_value, *value);
+                maximum_value = std::max(maximum_value, *value);
+            }
+        }
+        std::vector<Point> points;
+        for (const auto &[time, value] : samples)
+        {
+            if (value)
+            {
+                points.push_back(Point{
+                    time_x(time, viewport, metrics), keyframe_y(*value, minimum_value, maximum_value, y, height)});
+            }
+            else
+            {
+                if (size_cast(points) >= 2)
+                {
+                    display_list.add(Polyline{std::move(points), StyleRole::KEYFRAME_SEGMENT,
+                        DisplayId{lane.id(), keyframes.front().get().id()}});
+                }
+                points.clear();
+            }
+        }
+        if (size_cast(points) >= 2)
+        {
+            display_list.add(Polyline{
+                std::move(points), StyleRole::KEYFRAME_SEGMENT, DisplayId{lane.id(), keyframes.front().get().id()}});
+        }
+    }
+
+    for (int index = 1; !lane.has_keyframe_evaluator() && index < size_cast(keyframes); ++index)
     {
         const Keyframe &left = keyframes[index - 1].get();
         const Keyframe &right = keyframes[index].get();

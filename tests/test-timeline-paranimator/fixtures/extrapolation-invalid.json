@@ -1,0 +1,32 @@
+{
+  "parameter-catalogs": [
+    "input/extrapolation-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    {
+      "parameter": "unknown",
+      "keys": [
+        {
+          "frame": 1,
+          "value": "100"
+        },
+        {
+          "frame": 3,
+          "value": "300"
+        }
+      ]
+    }
+  ]
+}

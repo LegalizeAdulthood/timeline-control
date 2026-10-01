@@ -1,0 +1,25 @@
+{
+  "parameters": {
+    "maxiter": {
+      "type": "integer",
+      "description": "Held repeating scalar",
+      "default-curve": "linear",
+      "extrapolate": "cycle"
+    },
+    "bailout": {
+      "type": "double",
+      "description": "Source-base scalar",
+      "default-curve": "linear",
+      "extrapolate": "base"
+    },
+    "choice": {
+      "type": "integer-or-enum",
+      "values": [
+        "zmag"
+      ],
+      "description": "Numeric reflecting scalar",
+      "default-curve": "linear",
+      "extrapolate": "ping-pong"
+    }
+  }
+}
