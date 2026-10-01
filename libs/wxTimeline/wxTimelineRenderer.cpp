@@ -50,6 +50,8 @@ wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalett
         return dark ? wxColour(115, 160, 230) : wxColour(66, 100, 166);
     case timeline::StyleRole::CURVE:
         return dark ? wxColour(195, 135, 220) : wxColour(126, 72, 154);
+    case timeline::StyleRole::PALETTE:
+        return palette.foreground;
     case timeline::StyleRole::KEYFRAME_SEGMENT:
         return dark ? wxColour(100, 160, 230) : wxColour(47, 95, 164);
     case timeline::StyleRole::KEYFRAME_MARKER:
@@ -94,6 +96,14 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
                 {
                     dc.SetPen(*wxTRANSPARENT_PEN);
                     dc.SetBrush(wxBrush(colour));
+                    dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
+                }
+                else if constexpr (std::is_same_v<Value, timeline::Swatch>)
+                {
+                    dc.SetPen(*wxTRANSPARENT_PEN);
+                    dc.SetBrush(wxBrush(wxColour(static_cast<unsigned char>(value.color.red()),
+                        static_cast<unsigned char>(value.color.green()),
+                        static_cast<unsigned char>(value.color.blue()))));
                     dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
                 }
                 else if constexpr (std::is_same_v<Value, timeline::Polyline>)

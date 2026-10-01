@@ -1,0 +1,622 @@
+{
+  "parameter-catalogs": [
+    "input/core-catalog.json"
+  ],
+  "source": {
+    "file": "input/source.par",
+    "name": "Mandel_Demo"
+  },
+  "output": {
+    "directory": "output",
+    "par": "frames.par",
+    "entry": "frame-%04d",
+    "script": "frames.bat"
+  },
+  "video": "F6",
+  "num-frames": 1,
+  "tracks": [
+    {
+      "parameter": "colors",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "gradient-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          {
+            "index": 0,
+            "color": "aliceblue"
+          },
+          {
+            "index": 1,
+            "color": "antiquewhite"
+          },
+          {
+            "index": 2,
+            "color": "aqua"
+          },
+          {
+            "index": 3,
+            "color": "aquamarine"
+          },
+          {
+            "index": 4,
+            "color": "azure"
+          },
+          {
+            "index": 5,
+            "color": "beige"
+          },
+          {
+            "index": 6,
+            "color": "bisque"
+          },
+          {
+            "index": 7,
+            "color": "black"
+          },
+          {
+            "index": 8,
+            "color": "blanchedalmond"
+          },
+          {
+            "index": 9,
+            "color": "blue"
+          },
+          {
+            "index": 10,
+            "color": "blueviolet"
+          },
+          {
+            "index": 11,
+            "color": "brown"
+          },
+          {
+            "index": 12,
+            "color": "burlywood"
+          },
+          {
+            "index": 13,
+            "color": "cadetblue"
+          },
+          {
+            "index": 14,
+            "color": "chartreuse"
+          },
+          {
+            "index": 15,
+            "color": "chocolate"
+          },
+          {
+            "index": 16,
+            "color": "coral"
+          },
+          {
+            "index": 17,
+            "color": "cornflowerblue"
+          },
+          {
+            "index": 18,
+            "color": "cornsilk"
+          },
+          {
+            "index": 19,
+            "color": "crimson"
+          },
+          {
+            "index": 20,
+            "color": "cyan"
+          },
+          {
+            "index": 21,
+            "color": "darkblue"
+          },
+          {
+            "index": 22,
+            "color": "darkcyan"
+          },
+          {
+            "index": 23,
+            "color": "darkgoldenrod"
+          },
+          {
+            "index": 24,
+            "color": "darkgray"
+          },
+          {
+            "index": 25,
+            "color": "darkgreen"
+          },
+          {
+            "index": 26,
+            "color": "darkgrey"
+          },
+          {
+            "index": 27,
+            "color": "darkkhaki"
+          },
+          {
+            "index": 28,
+            "color": "darkmagenta"
+          },
+          {
+            "index": 29,
+            "color": "darkolivegreen"
+          },
+          {
+            "index": 30,
+            "color": "darkorange"
+          },
+          {
+            "index": 31,
+            "color": "darkorchid"
+          },
+          {
+            "index": 32,
+            "color": "darkred"
+          },
+          {
+            "index": 33,
+            "color": "darksalmon"
+          },
+          {
+            "index": 34,
+            "color": "darkseagreen"
+          },
+          {
+            "index": 35,
+            "color": "darkslateblue"
+          },
+          {
+            "index": 36,
+            "color": "darkslategray"
+          },
+          {
+            "index": 37,
+            "color": "darkslategrey"
+          },
+          {
+            "index": 38,
+            "color": "darkturquoise"
+          },
+          {
+            "index": 39,
+            "color": "darkviolet"
+          },
+          {
+            "index": 40,
+            "color": "deeppink"
+          },
+          {
+            "index": 41,
+            "color": "deepskyblue"
+          },
+          {
+            "index": 42,
+            "color": "dimgray"
+          },
+          {
+            "index": 43,
+            "color": "dimgrey"
+          },
+          {
+            "index": 44,
+            "color": "dodgerblue"
+          },
+          {
+            "index": 45,
+            "color": "firebrick"
+          },
+          {
+            "index": 46,
+            "color": "floralwhite"
+          },
+          {
+            "index": 47,
+            "color": "forestgreen"
+          },
+          {
+            "index": 48,
+            "color": "fuchsia"
+          },
+          {
+            "index": 49,
+            "color": "gainsboro"
+          },
+          {
+            "index": 50,
+            "color": "ghostwhite"
+          },
+          {
+            "index": 51,
+            "color": "gold"
+          },
+          {
+            "index": 52,
+            "color": "goldenrod"
+          },
+          {
+            "index": 53,
+            "color": "gray"
+          },
+          {
+            "index": 54,
+            "color": "green"
+          },
+          {
+            "index": 55,
+            "color": "greenyellow"
+          },
+          {
+            "index": 56,
+            "color": "grey"
+          },
+          {
+            "index": 57,
+            "color": "honeydew"
+          },
+          {
+            "index": 58,
+            "color": "hotpink"
+          },
+          {
+            "index": 59,
+            "color": "indianred"
+          },
+          {
+            "index": 60,
+            "color": "indigo"
+          },
+          {
+            "index": 61,
+            "color": "ivory"
+          },
+          {
+            "index": 62,
+            "color": "khaki"
+          },
+          {
+            "index": 63,
+            "color": "lavender"
+          },
+          {
+            "index": 64,
+            "color": "lavenderblush"
+          },
+          {
+            "index": 65,
+            "color": "lawngreen"
+          },
+          {
+            "index": 66,
+            "color": "lemonchiffon"
+          },
+          {
+            "index": 67,
+            "color": "lightblue"
+          },
+          {
+            "index": 68,
+            "color": "lightcoral"
+          },
+          {
+            "index": 69,
+            "color": "lightcyan"
+          },
+          {
+            "index": 70,
+            "color": "lightgoldenrodyellow"
+          },
+          {
+            "index": 71,
+            "color": "lightgray"
+          },
+          {
+            "index": 72,
+            "color": "lightgreen"
+          },
+          {
+            "index": 73,
+            "color": "lightgrey"
+          },
+          {
+            "index": 74,
+            "color": "lightpink"
+          },
+          {
+            "index": 75,
+            "color": "lightsalmon"
+          },
+          {
+            "index": 76,
+            "color": "lightseagreen"
+          },
+          {
+            "index": 77,
+            "color": "lightskyblue"
+          },
+          {
+            "index": 78,
+            "color": "lightslategray"
+          },
+          {
+            "index": 79,
+            "color": "lightslategrey"
+          },
+          {
+            "index": 80,
+            "color": "lightsteelblue"
+          },
+          {
+            "index": 81,
+            "color": "lightyellow"
+          },
+          {
+            "index": 82,
+            "color": "lime"
+          },
+          {
+            "index": 83,
+            "color": "limegreen"
+          },
+          {
+            "index": 84,
+            "color": "linen"
+          },
+          {
+            "index": 85,
+            "color": "magenta"
+          },
+          {
+            "index": 86,
+            "color": "maroon"
+          },
+          {
+            "index": 87,
+            "color": "mediumaquamarine"
+          },
+          {
+            "index": 88,
+            "color": "mediumblue"
+          },
+          {
+            "index": 89,
+            "color": "mediumorchid"
+          },
+          {
+            "index": 90,
+            "color": "mediumpurple"
+          },
+          {
+            "index": 91,
+            "color": "mediumseagreen"
+          },
+          {
+            "index": 92,
+            "color": "mediumslateblue"
+          },
+          {
+            "index": 93,
+            "color": "mediumspringgreen"
+          },
+          {
+            "index": 94,
+            "color": "mediumturquoise"
+          },
+          {
+            "index": 95,
+            "color": "mediumvioletred"
+          },
+          {
+            "index": 96,
+            "color": "midnightblue"
+          },
+          {
+            "index": 97,
+            "color": "mintcream"
+          },
+          {
+            "index": 98,
+            "color": "mistyrose"
+          },
+          {
+            "index": 99,
+            "color": "moccasin"
+          },
+          {
+            "index": 100,
+            "color": "navajowhite"
+          },
+          {
+            "index": 101,
+            "color": "navy"
+          },
+          {
+            "index": 102,
+            "color": "oldlace"
+          },
+          {
+            "index": 103,
+            "color": "olive"
+          },
+          {
+            "index": 104,
+            "color": "olivedrab"
+          },
+          {
+            "index": 105,
+            "color": "orange"
+          },
+          {
+            "index": 106,
+            "color": "orangered"
+          },
+          {
+            "index": 107,
+            "color": "orchid"
+          },
+          {
+            "index": 108,
+            "color": "palegoldenrod"
+          },
+          {
+            "index": 109,
+            "color": "palegreen"
+          },
+          {
+            "index": 110,
+            "color": "paleturquoise"
+          },
+          {
+            "index": 111,
+            "color": "palevioletred"
+          },
+          {
+            "index": 112,
+            "color": "papayawhip"
+          },
+          {
+            "index": 113,
+            "color": "peachpuff"
+          },
+          {
+            "index": 114,
+            "color": "peru"
+          },
+          {
+            "index": 115,
+            "color": "pink"
+          },
+          {
+            "index": 116,
+            "color": "plum"
+          },
+          {
+            "index": 117,
+            "color": "powderblue"
+          },
+          {
+            "index": 118,
+            "color": "purple"
+          },
+          {
+            "index": 119,
+            "color": "rebeccapurple"
+          },
+          {
+            "index": 120,
+            "color": "red"
+          },
+          {
+            "index": 121,
+            "color": "rosybrown"
+          },
+          {
+            "index": 122,
+            "color": "royalblue"
+          },
+          {
+            "index": 123,
+            "color": "saddlebrown"
+          },
+          {
+            "index": 124,
+            "color": "salmon"
+          },
+          {
+            "index": 125,
+            "color": "sandybrown"
+          },
+          {
+            "index": 126,
+            "color": "seagreen"
+          },
+          {
+            "index": 127,
+            "color": "seashell"
+          },
+          {
+            "index": 128,
+            "color": "sienna"
+          },
+          {
+            "index": 129,
+            "color": "silver"
+          },
+          {
+            "index": 130,
+            "color": "skyblue"
+          },
+          {
+            "index": 131,
+            "color": "slateblue"
+          },
+          {
+            "index": 132,
+            "color": "slategray"
+          },
+          {
+            "index": 133,
+            "color": "slategrey"
+          },
+          {
+            "index": 134,
+            "color": "snow"
+          },
+          {
+            "index": 135,
+            "color": "springgreen"
+          },
+          {
+            "index": 136,
+            "color": "steelblue"
+          },
+          {
+            "index": 137,
+            "color": "tan"
+          },
+          {
+            "index": 138,
+            "color": "teal"
+          },
+          {
+            "index": 139,
+            "color": "thistle"
+          },
+          {
+            "index": 140,
+            "color": "tomato"
+          },
+          {
+            "index": 141,
+            "color": "turquoise"
+          },
+          {
+            "index": 142,
+            "color": "violet"
+          },
+          {
+            "index": 143,
+            "color": "wheat"
+          },
+          {
+            "index": 144,
+            "color": "white"
+          },
+          {
+            "index": 145,
+            "color": "whitesmoke"
+          },
+          {
+            "index": 146,
+            "color": "yellow"
+          },
+          {
+            "index": 147,
+            "color": "yellowgreen"
+          }
+        ]
+      }
+    }
+  ]
+}

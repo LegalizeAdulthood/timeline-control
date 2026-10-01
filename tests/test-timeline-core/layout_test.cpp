@@ -65,12 +65,17 @@ void expect_same_geometry(const Primitive &lhs, const Primitive &rhs)
                 EXPECT_EQ(left.x2, right.x2);
                 EXPECT_EQ(left.y2, right.y2);
             }
-            else if constexpr (std::is_same_v<Value, Rectangle> || std::is_same_v<Value, Marker>)
+            else if constexpr (std::is_same_v<Value, Rectangle> || std::is_same_v<Value, Marker> ||
+                std::is_same_v<Value, Swatch>)
             {
                 EXPECT_EQ(left.x, right.x);
                 EXPECT_EQ(left.y, right.y);
                 EXPECT_EQ(left.width, right.width);
                 EXPECT_EQ(left.height, right.height);
+                if constexpr (std::is_same_v<Value, Swatch>)
+                {
+                    EXPECT_EQ(left.color, right.color);
+                }
             }
             else if constexpr (std::is_same_v<Value, Text>)
             {

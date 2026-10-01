@@ -10,6 +10,7 @@ add_library(timeline-core
     include/timeline/Lane.h
     include/timeline/Layout.h
     include/timeline/Query.h
+    include/timeline/Palette.h
     include/timeline/Snapshot.h
     include/timeline/size_cast.h
     include/timeline/Time.h
@@ -23,6 +24,7 @@ add_library(timeline-core
     Lane.cpp
     Layout.cpp
     Query.cpp
+    Palette.cpp
     Snapshot.cpp
     Time.cpp
 )

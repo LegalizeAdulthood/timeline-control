@@ -18,7 +18,8 @@ enum class InspectionItemType
     INTERVAL,
     ENVELOPE,
     CURVE,
-    KEYFRAME
+    KEYFRAME,
+    PALETTE
 };
 
 /// Relationship between a returned item and the inspected time or range.
@@ -31,10 +32,11 @@ enum class InspectionItemRole
     EXACT
 };
 
-/// Stable item identity and optional numeric value returned by a query.
+/// Stable item identity and optional sampled content returned by a query.
 ///
 /// Numeric values contain strengths for event-like items, samples for curves,
-/// and authored values for keyframes.
+/// and authored values for keyframes. Palette samples retain ordered RGB
+/// content separately from numeric values.
 ///
 struct InspectionItem
 {
@@ -44,6 +46,8 @@ struct InspectionItem
     InspectionItemRole role;
     std::optional<double> value;
     Attributes attributes;
+    /// Ordered sampled RGB content; never substituted with a numeric value.
+    std::optional<Palette> palette{};
 };
 
 /// Lane summary and matching items returned by a timeline query.

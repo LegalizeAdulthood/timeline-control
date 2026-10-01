@@ -83,6 +83,11 @@ void Lane::add(Curve curve)
     add_item(std::move(curve));
 }
 
+void Lane::add(PaletteCurve curve)
+{
+    add_item(std::move(curve));
+}
+
 void Lane::add(Keyframe keyframe)
 {
     const KeyframeNeighbors neighbors = neighboring_keyframes(keyframe.time());

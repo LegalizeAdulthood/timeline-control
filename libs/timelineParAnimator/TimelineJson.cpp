@@ -2,6 +2,8 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
+#include "ColorMap.h"
+
 #include <timeline/size_cast.h>
 
 #include <nlohmann/json.hpp>
@@ -2578,6 +2580,16 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
         const std::string id = prefix + std::to_string(index++);
         try
         {
+            if (track.value("type", std::string("parameter")) == "color-map")
+            {
+                std::vector<timeline::Lane> track_lanes;
+                detail::color_map_lanes(track, source_path, id, layer, grid, track_lanes);
+                for (timeline::Lane &lane : track_lanes)
+                {
+                    lanes.push_back(std::move(lane));
+                }
+                continue;
+            }
             if (track.value("type", std::string("parameter")) == "julibrot-view")
             {
                 std::vector<timeline::Lane> track_lanes;

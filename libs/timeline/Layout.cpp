@@ -81,6 +81,68 @@ std::pair<double, double> curve_range(const Curve &curve, const std::vector<Curv
     return {curve.minimum().value_or(sample_minimum->value()), curve.maximum().value_or(sample_maximum->value())};
 }
 
+void add_palette(DisplayList &display_list, const PaletteCurve &curve, int y, int height, const Viewport &viewport,
+    const LayoutMetrics &metrics, const std::optional<FrameGrid> &grid, const std::string &lane_id)
+{
+    const Time start = grid && grid->frame_count() > 0 ? std::max({curve.start(), viewport.start(), grid->offset()})
+                                                       : std::max(curve.start(), viewport.start());
+    const Time end = grid && grid->frame_count() > 0 ? std::min({curve.end(), viewport.end(), grid->end_time()})
+                                                     : std::min(curve.end(), viewport.end());
+    if (end <= start)
+    {
+        return;
+    }
+    const int left = time_x(start, viewport, metrics);
+    const int right = time_x(end, viewport, metrics);
+    const int budget = std::max(1, (right - left) / std::max(1, 2 * height));
+    const auto tile = [&](Time time, int x1, int x2)
+    {
+        const int width = x2 - x1;
+        if (width <= 0)
+        {
+            return;
+        }
+        const Palette colors = curve.sample(time);
+        const int columns = std::min(width, static_cast<int>(std::ceil(std::sqrt(curve.color_count()))));
+        const int rows = (curve.color_count() + columns - 1) / columns;
+        for (int index = 0; index < curve.color_count(); ++index)
+        {
+            const int cell_x = x1 + index % columns * width / columns;
+            const int cell_right = x1 + (index % columns + 1) * width / columns;
+            const int cell_y = y + index / columns * height / rows;
+            const int cell_bottom = y + (index / columns + 1) * height / rows;
+            if (cell_bottom > cell_y)
+            {
+                display_list.add(Swatch{cell_x, cell_y, cell_right - cell_x, cell_bottom - cell_y, colors[index],
+                    StyleRole::PALETTE, DisplayId{lane_id, curve.id()}});
+            }
+        }
+    };
+    if (grid && grid->frame_count() > 0)
+    {
+        const Ticks first = grid->frame_at_or_before(start).value_or(0);
+        const Ticks last = *grid->frame_at_or_before(end);
+        const Ticks count = last - first + 1;
+        const Ticks stride = count / budget + (count % budget != 0 ? 1 : 0);
+        for (Ticks frame = first; frame <= last; frame += stride)
+        {
+            const Time time = grid->frame_start(frame);
+            const Time next = frame + stride < grid->frame_count() ? grid->frame_start(frame + stride) : end;
+            tile(std::max(time, curve.start()), time_x(std::max(time, start), viewport, metrics),
+                time_x(std::min(next, end), viewport, metrics));
+        }
+    }
+    else
+    {
+        for (int index = 0; index < budget; ++index)
+        {
+            const Ticks elapsed = static_cast<Ticks>(static_cast<double>((end - start).ticks()) * index / budget);
+            tile(start + Duration::from_ticks(elapsed), left + index * (right - left) / budget,
+                left + (index + 1) * (right - left) / budget);
+        }
+    }
+}
+
 void add_curve(DisplayList &display_list, const Curve &curve, int y, int height, const Viewport &viewport,
     const LayoutMetrics &metrics, const std::optional<FrameGrid> &frame_grid, const std::string &lane_id)
 {
@@ -465,6 +527,11 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                         add_curve(m_display_list, value, item_y, item_height, viewport, metrics, document.frame_grid(),
                             lane.id());
                     }
+                    else if constexpr (std::is_same_v<Value, PaletteCurve>)
+                    {
+                        add_palette(m_display_list, value, item_y, item_height, viewport, metrics,
+                            document.frame_grid(), lane.id());
+                    }
                 },
                 item);
         }
@@ -486,6 +553,11 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
                             0, value.y, metrics.lane_label_width(), value.height, StyleRole::LANE_LABEL, value.id});
                     }
                     m_hit_regions.emplace_back(value);
+                }
+                else if constexpr (std::is_same_v<Value, Swatch>)
+                {
+                    m_hit_regions.emplace_back(
+                        Rectangle{value.x, value.y, value.width, value.height, value.style, value.id});
                 }
                 else if constexpr (std::is_same_v<Value, Marker> || std::is_same_v<Value, Polyline>)
                 {

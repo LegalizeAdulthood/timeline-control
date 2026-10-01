@@ -110,6 +110,8 @@ const char *hit_role_name(timeline::StyleRole role)
         return "envelope decay";
     case timeline::StyleRole::CURVE:
         return "curve";
+    case timeline::StyleRole::PALETTE:
+        return "palette";
     case timeline::StyleRole::KEYFRAME_SEGMENT:
         return "keyframe segment";
     case timeline::StyleRole::KEYFRAME_MARKER:
@@ -136,6 +138,8 @@ const char *item_type_name(timeline::InspectionItemType type)
         return "envelope";
     case timeline::InspectionItemType::CURVE:
         return "curve";
+    case timeline::InspectionItemType::PALETTE:
+        return "palette";
     case timeline::InspectionItemType::KEYFRAME:
         return "keyframe";
     }
@@ -359,6 +363,16 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
                 if (!value.empty())
                 {
                     text += "\n    " + wxString::FromUTF8(name.c_str()) + ": " + wxString::FromUTF8(value.c_str());
+                }
+            }
+            if (item.palette)
+            {
+                text += wxString::Format("\n    Palette: %d colors", timeline::size_cast(*item.palette));
+                for (int index = 0; index < timeline::size_cast(*item.palette); ++index)
+                {
+                    const timeline::RgbColor &color = (*item.palette)[index];
+                    text +=
+                        wxString::Format("\n      [%d] RGB %d/%d/%d", index, color.red(), color.green(), color.blue());
                 }
             }
         }

@@ -3,6 +3,7 @@ include(GoogleTest)
 find_package(GTest CONFIG REQUIRED)
 
 add_executable(test-timeline-core
+    palette_test.cpp
     curve_test.cpp
     keyframe_test.cpp
     interaction_test.cpp

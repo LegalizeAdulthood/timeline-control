@@ -2,6 +2,36 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/color-map-gradient.json
+    fixtures/color-map-keyed.json
+    fixtures/color-map-hold.json
+    fixtures/color-map-partial-keys.json
+    fixtures/color-map-file.json
+    fixtures/color-map-mixed.json
+    fixtures/color-map-names.json
+    fixtures/color-map-layers.json
+    fixtures/partial-color-map.json
+    fixtures/invalid-color-map.json
+    fixtures/input/warm.map
+    fixtures/input/cool.map
+    fixtures/input/short.map
+    fixtures/input/long.map
+    fixtures/input/invalid-component.map
+    fixtures/gold-color-map-gradient.map
+    fixtures/gold-color-map-keyed-0.map
+    fixtures/gold-color-map-keyed-1.map
+    fixtures/gold-color-map-keyed-2.map
+    fixtures/gold-color-map-hold-0.map
+    fixtures/gold-color-map-hold-1.map
+    fixtures/gold-color-map-hold-2.map
+    fixtures/gold-color-map-partial-keys-0.map
+    fixtures/gold-color-map-partial-keys-1.map
+    fixtures/gold-color-map-partial-keys-2.map
+    fixtures/gold-color-map-partial-keys-3.map
+    fixtures/gold-color-map-partial-keys-4.map
+    fixtures/gold-color-map-mixed-0.map
+    fixtures/gold-color-map-names-0.map
+    fixtures/gold-color-map-file-0.map
     fixtures/partial-julibrot-sources.json
     fixtures/julibrot-view-camera-hold.json
     fixtures/gold-julibrot-view-camera-hold.par
@@ -250,6 +280,7 @@ add_executable(test-timeline-paranimator
     camera_skew_test.cpp
     id_3d_test.cpp
     julibrot_test.cpp
+    color_map_test.cpp
     snapshot_test.cpp
 )
 target_link_libraries(test-timeline-paranimator

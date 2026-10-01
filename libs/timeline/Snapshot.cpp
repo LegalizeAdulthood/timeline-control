@@ -51,6 +51,8 @@ std::string_view style_name(StyleRole style)
         return "SELECTED_RANGE";
     case StyleRole::PLAYHEAD:
         return "PLAYHEAD";
+    case StyleRole::PALETTE:
+        return "PALETTE";
     }
     throw std::invalid_argument("unknown snapshot style role");
 }
@@ -123,6 +125,10 @@ std::string render_snapshot(const DisplayList &display_list)
                 {
                     output << "marker";
                 }
+                else if constexpr (std::is_same_v<Value, Swatch>)
+                {
+                    output << "swatch";
+                }
                 else
                 {
                     output << "polyline";
@@ -136,6 +142,11 @@ std::string render_snapshot(const DisplayList &display_list)
                 else if constexpr (std::is_same_v<Value, Rectangle> || std::is_same_v<Value, Marker>)
                 {
                     output << ' ' << value.x << ' ' << value.y << ' ' << value.width << ' ' << value.height;
+                }
+                else if constexpr (std::is_same_v<Value, Swatch>)
+                {
+                    output << ' ' << value.x << ' ' << value.y << ' ' << value.width << ' ' << value.height << ' '
+                           << value.color.red() << ' ' << value.color.green() << ' ' << value.color.blue();
                 }
                 else if constexpr (std::is_same_v<Value, Text>)
                 {

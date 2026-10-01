@@ -29,11 +29,11 @@ TEST(WxPalette, uses_native_theme_colors_for_labels_and_selection)
 
 TEST(WxPalette, adapts_every_style_to_light_and_dark_backgrounds)
 {
-    const std::array<StyleRole, 16> roles{StyleRole::RULER, StyleRole::RULER_LABEL, StyleRole::LANE_BACKGROUND,
+    const std::array<StyleRole, 17> roles{StyleRole::RULER, StyleRole::RULER_LABEL, StyleRole::LANE_BACKGROUND,
         StyleRole::LANE_LABEL, StyleRole::INSTANT_MARKER, StyleRole::INTERVAL_SPAN, StyleRole::ENVELOPE_ATTACK,
         StyleRole::ENVELOPE_SUSTAIN, StyleRole::ENVELOPE_DECAY, StyleRole::CURVE, StyleRole::KEYFRAME_SEGMENT,
         StyleRole::KEYFRAME_MARKER, StyleRole::SELECTED_LANE, StyleRole::SELECTED_ITEM, StyleRole::SELECTED_RANGE,
-        StyleRole::PLAYHEAD};
+        StyleRole::PLAYHEAD, StyleRole::PALETTE};
     for (const StyleRole role : roles)
     {
         const wxColour light = timeline_style_colour(role, LIGHT, true);

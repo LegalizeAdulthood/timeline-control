@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <timeline/Palette.h>
+
 #include <string>
 #include <utility>
 #include <variant>
@@ -28,7 +30,8 @@ enum class StyleRole
     SELECTED_LANE,
     SELECTED_ITEM,
     SELECTED_RANGE,
-    PLAYHEAD
+    PLAYHEAD,
+    PALETTE
 };
 
 /// Stable source identity carried by a display-list primitive.
@@ -96,8 +99,21 @@ struct Polyline
     DisplayId id;
 };
 
+/// RGB swatch displaying source content rather than a theme color.
+///
+struct Swatch
+{
+    int x;
+    int y;
+    int width;
+    int height;
+    RgbColor color;
+    StyleRole style;
+    DisplayId id;
+};
+
 /// One toolkit-neutral drawing operation.
-using Primitive = std::variant<Line, Rectangle, Text, Marker, Polyline>;
+using Primitive = std::variant<Line, Rectangle, Text, Marker, Polyline, Swatch>;
 
 /// Ordered rendering operations produced by timeline layout.
 ///
@@ -126,6 +142,10 @@ public:
     void add(Polyline polyline)
     {
         m_primitives.emplace_back(std::move(polyline));
+    }
+    void add(Swatch swatch)
+    {
+        m_primitives.emplace_back(std::move(swatch));
     }
     const std::vector<Primitive> &primitives() const
     {

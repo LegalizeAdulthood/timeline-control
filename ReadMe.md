@@ -272,6 +272,28 @@ including held mode and fractional eye spacing. Opening
 displayed document, selection, and playhead unchanged. These fixtures are
 under `tests/test-timeline-paranimator/fixtures`.
 
+Color-map tracks support static files, gradients, and two keyed source
+files with linear or hold/step interpolation. Import owns all 256 ordered
+RGB entries; gradients accept RGB, HSV, HSL, and fixed CSS named colors.
+Palette definitions remain the source of truth and are sampled at frame
+boundaries for swatch display. Inspection retains the complete recipe,
+source filenames, authored keys, and sampled RGB values, without inventing
+scalar lanes. Effects receive explicit diagnostics until their next slice.
+
+The gradient fixture and golden map are copied from ParAnimator. Other
+color-map goldens use its unmodified loader and renderer, including all
+148 named colors and partial key ranges. Input map paths resolve relative
+to the imported JSON; evaluation never reopens files or writes output maps.
+
+Open `color-map-keyed.json` for palette and authored-key lanes. At frame 1,
+entry 0 is RGB `0/128/128` and entry 255 is `128/0/128`. Add
+`beat-keys/rms.beat-keys.json` for six comparison lanes and inspect the
+palette's identity and recipe. Open `color-map-mixed.json` to replace the
+comparison with one gradient lane. Opening `invalid-color-map.json`
+reports an out-of-range color without replacing the document, selection,
+or playhead. These fixtures are under
+`tests/test-timeline-paranimator/fixtures`.
+
 File > Add imports another JSON beside the current document. Authored
 animation inherits the current frame rate for comparison. The combined
 document preserves exact item times and uses unique lane IDs; incompatible
@@ -482,7 +504,8 @@ the viewer's metadata or inspector panels.
 display list without toolkit dependencies. Each line records a primitive
 kind, semantic style role, quoted lane and item IDs, and integral geometry.
 Text includes its quoted value; polylines include a point count followed
-by coordinate pairs. Strings escape quotes, backslashes, control bytes,
+by coordinate pairs. Swatches include rectangle bounds and RGB components.
+Strings escape quotes, backslashes, control bytes,
 and non-ASCII bytes. Output uses locale-independent numbers and LF line
 separators.
 

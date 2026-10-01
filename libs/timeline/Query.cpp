@@ -38,6 +38,13 @@ InspectionItem inspect_item(const Item &item, InspectionItemRole role, std::opti
                     sample_time ? std::optional{value.sample(*sample_time)} : std::nullopt;
                 return {value.id(), value.kind(), InspectionItemType::CURVE, role, sample, value.attributes()};
             }
+            else if constexpr (std::is_same_v<Value, PaletteCurve>)
+            {
+                const std::optional<Palette> sample =
+                    sample_time ? std::optional<Palette>{value.sample(*sample_time)} : std::nullopt;
+                return {value.id(), value.kind(), InspectionItemType::PALETTE, role, std::nullopt, value.attributes(),
+                    sample};
+            }
             else
             {
                 return {value.id(), "keyframe", InspectionItemType::KEYFRAME, role,
@@ -72,7 +79,7 @@ bool active_in_frame(const Item &item, Time start, Time end)
             {
                 return value.start() < end && start < value.end();
             }
-            else if constexpr (std::is_same_v<Value, Curve>)
+            else if constexpr (std::is_same_v<Value, Curve> || std::is_same_v<Value, PaletteCurve>)
             {
                 return value.start() <= start && start <= value.end();
             }
@@ -113,7 +120,9 @@ std::optional<FrameInspection> inspect_frame(const Document &document, Ticks fra
             if (!std::holds_alternative<Keyframe>(item) && active_in_frame(item, start, end))
             {
                 const InspectionItemRole role =
-                    std::holds_alternative<Curve>(item) ? InspectionItemRole::SAMPLED : InspectionItemRole::ACTIVE;
+                    std::holds_alternative<Curve>(item) || std::holds_alternative<PaletteCurve>(item)
+                    ? InspectionItemRole::SAMPLED
+                    : InspectionItemRole::ACTIVE;
                 lane_inspection.items.push_back(inspect_item(item, role, start));
             }
         }
