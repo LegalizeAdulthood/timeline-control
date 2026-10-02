@@ -170,7 +170,8 @@ timeline::RgbColor interpolate_color(const timeline::RgbColor &from, const timel
 {
     const auto channel = [fraction](int first, int last)
     {
-        return static_cast<int>(std::lround(first + fraction * (last - first)));
+        const double scaled_delta = fraction * static_cast<double>(last - first);
+        return static_cast<int>(std::lround(first + scaled_delta));
     };
     return timeline::RgbColor(
         channel(from.red(), to.red()), channel(from.green(), to.green()), channel(from.blue(), to.blue()));

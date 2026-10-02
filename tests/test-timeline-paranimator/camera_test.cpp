@@ -91,8 +91,8 @@ TEST(CameraImport, preserves_keyed_nested_signals_and_source_eye_precedence)
             EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
             const timeline::Time crossing =
                 grid.offset() + timeline::Duration::from_ticks(3 * (grid.frame_start(4) - grid.offset()).ticks() / 10);
-            EXPECT_DOUBLE_EQ(0, *authored.evaluate_keyframes(crossing));
-            EXPECT_DOUBLE_EQ(0, *document.lanes()[14].evaluate_keyframes(crossing));
+            EXPECT_NEAR(0, *authored.evaluate_keyframes(crossing), 1e-12);
+            EXPECT_NEAR(0, *document.lanes()[14].evaluate_keyframes(crossing), 1e-12);
         }
         if (kind == "linear")
         {

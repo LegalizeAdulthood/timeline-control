@@ -191,7 +191,8 @@ std::optional<double> Lane::evaluate_keyframes(Time time) const
     }
     // Preserve fraction-first arithmetic at output rounding boundaries.
     const double fraction = elapsed / duration;
-    return before.value() + fraction * (after.value() - before.value());
+    const double scaled_delta = fraction * (after.value() - before.value());
+    return before.value() + scaled_delta;
 }
 
 void Lane::set_keyframe_evaluator(KeyframeEvaluator evaluator)
