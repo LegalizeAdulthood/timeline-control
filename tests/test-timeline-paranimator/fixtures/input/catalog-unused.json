@@ -1,0 +1,26 @@
+{
+  "parameters": {
+    "unused": { "type": "point2", "description": "Unused planar alias", "normalize": false },
+    "choice": { "type": "enum", "description": "Unused choice", "values": [ "a", "b" ] },
+    "function": { "type": "function-list", "description": "Unused functions", "values": "id-functions" }
+  },
+  "fractal-types": {
+    "unused": {
+      "params": {
+        "slots": [ { "index": 0, "name": "slot", "type": "double", "description": "Unused slot" } ],
+        "groups": { "c": { "type": "complex", "description": "Unused complex group", "slots": [ 0, 1 ] } }
+      },
+      "functions": { "fn1": { "type": "enum", "values": "id-functions", "description": "Unused function" } }
+    }
+  },
+  "formula-entries": {
+    "unused": {
+      "params": {
+        "knobs": {
+          "k": { "type": "real", "description": "Unused scalar knob", "variable": "p1.real" },
+          "c": { "type": "complex", "description": "Unused complex knob", "variable": "p2" }
+        }
+      }
+    }
+  }
+}

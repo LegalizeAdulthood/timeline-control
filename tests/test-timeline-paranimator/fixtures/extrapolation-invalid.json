@@ -1,6 +1,6 @@
 {
   "parameter-catalogs": [
-    "input/extrapolation-catalog.json"
+    "input/extrapolation-invalid-catalog.json"
   ],
   "source": {
     "file": "input/source.par",

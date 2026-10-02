@@ -7,6 +7,8 @@ add_library(timeline-paranimator
     ColorMap.h
     ColorMap.cpp
     NamedColors.h
+    ParameterCatalog.h
+    ParameterCatalog.cpp
     TimelineJson.cpp
 )
 

@@ -3,6 +3,10 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/catalog-audit.json
+    fixtures/catalog-loading.json
+    fixtures/catalog-loading-invalid.json
+    fixtures/input/catalog-unused.json
+    fixtures/input/catalog-unused-invalid.json
     fixtures/catalog-audit-invalid.json
     fixtures/gold-catalog-audit.par
     fixtures/input/catalog-audit.json
@@ -50,6 +54,7 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/extrapolation-partial.json
     fixtures/extrapolation-invalid.json
     fixtures/input/extrapolation-catalog.json
+    fixtures/input/extrapolation-invalid-catalog.json
     fixtures/color-map-masked-effects.json
     fixtures/color-map-masked-variants.json
     fixtures/color-map-masked-partial.json

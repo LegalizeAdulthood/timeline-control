@@ -1,0 +1,10 @@
+{
+  "parameters": {
+    "unknown": {
+      "type": "integer",
+      "default-curve": "linear",
+      "extrapolate": "unknown",
+      "description": "Invalid policy"
+    }
+  }
+}

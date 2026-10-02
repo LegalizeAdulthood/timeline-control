@@ -3,6 +3,7 @@
 #include <timelineParAnimator/TimelineJson.h>
 
 #include "ColorMap.h"
+#include "ParameterCatalog.h"
 
 #include <timeline/size_cast.h>
 
@@ -239,7 +240,11 @@ timeline::Ticks source_frame(const Json &record);
 
 Json animation_catalog(const std::filesystem::path &path, const Json &config, std::vector<std::string> &diagnostics)
 {
-    Json result{{"parameters", Json::object()}, {"fractal-types", Json::object()}};
+    if (config.at("parameter-catalogs").empty())
+    {
+        throw std::invalid_argument("Expected at least one parameter catalog");
+    }
+    Json result{{"parameters", Json::object()}, {"fractal-types", Json::object()}, {"formula-entries", Json::object()}};
     for (const Json &location : config.at("parameter-catalogs"))
     {
         Json catalog;
@@ -248,15 +253,7 @@ Json animation_catalog(const std::filesystem::path &path, const Json &config, st
         {
             throw std::invalid_argument("unable to resolve parameter catalog");
         }
-        if (!catalog.at("parameters").is_object())
-        {
-            throw std::invalid_argument("parameter catalog requires a parameters object");
-        }
-        result.at("parameters").update(catalog.at("parameters"));
-        if (catalog.contains("fractal-types"))
-        {
-            result.at("fractal-types").update(catalog.at("fractal-types"));
-        }
+        append_parameter_catalog(result, catalog);
     }
     return result;
 }

@@ -121,7 +121,7 @@ TEST(Extrapolation, keeps_continuous_values_and_exact_periods_before_and_after_k
     EXPECT_TRUE(reflecting.evaluate_keyframes(timeline::Time::from_ticks(std::numeric_limits<timeline::Ticks>::max())));
 }
 
-TEST(Extrapolation, diagnoses_unknown_policies_and_unsupported_forms_without_partial_lanes)
+TEST(Extrapolation, diagnoses_malformed_keys_and_unsupported_forms_without_partial_lanes)
 {
     const JsonImportResult partial = import_timeline_json("fixtures/extrapolation-partial.json");
     ASSERT_TRUE(partial.succeeded());
@@ -132,13 +132,16 @@ TEST(Extrapolation, diagnoses_unknown_policies_and_unsupported_forms_without_par
     {
         EXPECT_NE(std::string::npos, partial.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
     }
-    EXPECT_NE(std::string::npos, partial.diagnostics[0].find("unknown extrapolation"));
+    EXPECT_NE(std::string::npos, partial.diagnostics[0].find("strictly increasing"));
     EXPECT_NE(std::string::npos, partial.diagnostics[1].find("numeric scalar"));
     EXPECT_NE(std::string::npos, partial.diagnostics[2].find("two keys"));
     EXPECT_NE(std::string::npos, partial.diagnostics[3].find("source value"));
     EXPECT_NE(std::string::npos, partial.diagnostics[4].find("integral"));
     EXPECT_NE(std::string::npos, partial.diagnostics[5].find("JSON integer"));
-    EXPECT_FALSE(import_timeline_json("fixtures/extrapolation-invalid.json").succeeded());
+    const JsonImportResult invalid = import_timeline_json("fixtures/extrapolation-invalid.json");
+    EXPECT_FALSE(invalid.succeeded());
+    ASSERT_EQ(1, timeline::size_cast(invalid.diagnostics));
+    EXPECT_NE(std::string::npos, invalid.diagnostics[0].find("unknown extrapolate"));
 }
 
 TEST(Extrapolation, matches_source_double_integer_or_enum_and_hold_evaluation)

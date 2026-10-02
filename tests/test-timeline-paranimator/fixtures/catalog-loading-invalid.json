@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/catalog-audit.json", "input/catalog-unused-invalid.json" ],
+  "source": { "file": "input/catalog-audit-source.par", "name": "Catalog_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "maxiter", "keys": [ { "frame": 0, "value": 100 }, { "frame": 4, "value": 103 } ] }
+  ]
+}

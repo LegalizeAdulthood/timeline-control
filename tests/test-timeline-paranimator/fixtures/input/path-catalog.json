@@ -1,16 +1,14 @@
 {
   "parameters": {
-    "params.c": { "type": "complex" },
-    "position2": { "type": "point2" },
-    "direction2": { "type": "vector2", "arity": 2 },
-    "position3": { "type": "point3" },
-    "direction3": { "type": "vector3", "arity": 3 },
-    "tuple4": { "type": "numeric-tuple", "arity": 4 },
-    "tuple1": { "type": "numeric-tuple", "arity": 1 },
-    "zero-arity": { "type": "numeric-tuple", "arity": 0 },
-    "missing-arity": { "type": "numeric-tuple" },
-    "wrong-alias": { "type": "point2", "arity": 3 },
-    "normalized": { "type": "vector2", "normalize": true },
-    "maxiter": { "type": "integer" }
+    "params.c": { "type": "complex", "description": "Complex path" },
+    "position2": { "type": "point2", "description": "Planar position" },
+    "direction2": { "type": "vector2", "arity": 2, "description": "Planar direction" },
+    "position3": { "type": "point3", "description": "Spatial position" },
+    "direction3": { "type": "vector3", "arity": 3, "description": "Spatial direction" },
+    "tuple4": { "type": "numeric-tuple", "arity": 4, "description": "Four components" },
+    "tuple1": { "type": "numeric-tuple", "arity": 1, "description": "One component" },
+    "missing-arity": { "type": "numeric-tuple", "description": "Missing evaluator arity" },
+    "normalized": { "type": "vector2", "normalize": true, "description": "Unit direction" },
+    "maxiter": { "type": "integer", "description": "Iteration count" }
   }
 }

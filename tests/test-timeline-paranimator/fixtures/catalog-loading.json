@@ -1,0 +1,14 @@
+{
+  "parameter-catalogs": [ "input/catalog-audit.json", "input/catalog-unused.json" ],
+  "source": { "file": "input/catalog-audit-source.par", "name": "Catalog_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "position", "keys": [ { "frame": 0, "value": [1, 2] }, { "frame": 4, "value": [5, 10] } ] },
+    { "parameter": "direction", "keys": [ { "frame": 0, "value": [0, 0, 2] }, { "frame": 4, "value": [4, 8, 6], "curve": "linear" } ] },
+    { "parameter": "tuple", "keys": [ { "frame": 0, "value": [2, 4] }, { "frame": 4, "value": [6, 8] } ] },
+    { "parameter": "scalar", "keys": [ { "frame": 0, "value": "1" }, { "frame": 4, "value": "16" } ] },
+    { "parameter": "maxiter", "keys": [ { "frame": 0, "value": 100 }, { "frame": 4, "value": 103 } ] }
+  ]
+}

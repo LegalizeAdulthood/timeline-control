@@ -2,6 +2,7 @@
   "parameters": {
     "periodicity": {
       "type": "integer-or-enum",
+      "description": "Periodicity policy",
       "values": [ "no", "show", "yes" ],
       "default-curve": "hold",
       "extrapolate": "clamp",

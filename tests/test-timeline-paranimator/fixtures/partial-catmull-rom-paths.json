@@ -7,13 +7,13 @@
   "tracks": [
     { "parameter": "position2", "path": { "kind": "catmull-rom", "control-points": [ "0/0", "1/1", "2/2" ] } },
     { "parameter": "position3", "path": { "kind": "catmull-rom", "control-points": [ "0/0/0", "1/1/1", "2/2/2", "3/3" ] } },
-    { "parameter": "zero-arity", "path": { "kind": "catmull-rom", "control-points": [ "0", "1", "2", "3" ] } },
+    { "parameter": "tuple1", "path": { "kind": "catmull-rom", "control-points": [ "0/0", "1/1", "2/2", "3/3" ] } },
     { "parameter": "missing-arity", "path": { "kind": "catmull-rom", "control-points": [ "0", "1", "2", "3" ] } },
     { "parameter": "position2", "path": { "kind": "catmull-rom", "control-points": [ "0/0", "1/1", "2/2", "nan/3" ] } },
     { "parameter": "position2", "path": { "kind": "catmull-rom", "control-points": [ [0,0], [1,1], [2,2], [3,3] ] } },
     { "parameter": "maxiter", "path": { "kind": "catmull-rom", "control-points": [ "0", "1", "2", "3" ] } },
     { "parameter": "normalized", "path": { "kind": "catmull-rom", "control-points": [ "1/0", "0/1", "-1/0", "0/-1" ] } },
-    { "parameter": "wrong-alias", "path": { "kind": "catmull-rom", "control-points": [ "0/0", "1/1", "2/2", "3/3" ] } },
+    { "parameter": "position2", "path": { "kind": "catmull-rom", "control-points": [ "0/0/0", "1/1/1", "2/2/2", "3/3/3" ] } },
     { "parameter": "position2", "path": { "kind": "catmull-rom" } },
     { "parameter": "position2", "path": { "kind": "catmull-rom", "control-points": "0/0" } },
     { "parameter": "params.c", "path": { "kind": "catmull-rom", "control-points": [ "0/0", "1/2", "3/2", "4/0" ] } }

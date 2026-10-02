@@ -16,14 +16,14 @@
   "num-frames": 5,
   "tracks": [
     {
-      "parameter": "unknown",
+      "parameter": "maxiter",
       "keys": [
         {
-          "frame": 1,
+          "frame": 3,
           "value": "100"
         },
         {
-          "frame": 3,
+          "frame": 1,
           "value": "300"
         }
       ]
