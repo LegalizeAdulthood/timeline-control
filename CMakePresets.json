@@ -43,9 +43,30 @@
       }
     },
     {
+      "name": "imgui-on",
+      "hidden": true,
+      "description": "Build with Dear ImGui",
+      "cacheVariables": {
+        "TIMELINE_CONTROL_WITH_IMGUI": "ON"
+      }
+    },
+    {
+      "name": "imgui-off",
+      "hidden": true,
+      "description": "Build without Dear ImGui targets",
+      "cacheVariables": {
+        "TIMELINE_CONTROL_WITH_IMGUI": "OFF"
+      }
+    },
+    {
       "name": "default",
       "displayName": "Configure with default settings",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on", "imgui-off" ]
+    },
+    {
+      "name": "default-imgui",
+      "displayName": "Configure with Dear ImGui and without wxWidgets",
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-on" ]
     }
   ],
   "buildPresets": [
@@ -53,6 +74,11 @@
       "name": "default",
       "displayName": "Build with default settings",
       "configurePreset": "default"
+    },
+    {
+      "name": "default-imgui",
+      "displayName": "Build with Dear ImGui",
+      "configurePreset": "default-imgui"
     }
   ],
   "testPresets": [
@@ -60,6 +86,14 @@
       "name": "default",
       "displayName": "Test with default settings",
       "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "default-imgui",
+      "displayName": "Test with Dear ImGui",
+      "configurePreset": "default-imgui",
       "output": {
         "outputOnFailure": true
       }
@@ -81,6 +115,24 @@
         {
           "type": "test",
           "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "default-imgui",
+      "displayName": "Dear ImGui workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default-imgui"
+        },
+        {
+          "type": "build",
+          "name": "default-imgui"
+        },
+        {
+          "type": "test",
+          "name": "default-imgui"
         }
       ]
     }

@@ -8,6 +8,15 @@
     "nlohmann-json"
   ],
   "features": {
+    "imgui": {
+      "description": "Build the Dear ImGui timeline control",
+      "dependencies": [
+        {
+          "name": "imgui",
+          "default-features": false
+        }
+      ]
+    },
     "wx": {
       "description": "Build the wxWidgets timeline control",
       "dependencies": [

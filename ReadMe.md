@@ -28,6 +28,24 @@ cmake --workflow --preset default
 Places the build outputs in a sibling directory of the source code directory, e.g. up
 and outside of the source directory.
 
+For Dear ImGui without wxWidgets, use:
+
+```text
+cmake --workflow --preset default-imgui
+```
+
+This workflow builds the core, JSON adapters, and backend-free ImGui
+dependency tests. The ImGui control and viewer are not implemented yet.
+The `default` workflow still builds the wx control and viewer.
+
+`TIMELINE_CONTROL_WITH_WX` defaults to `ON` and
+`TIMELINE_CONTROL_WITH_IMGUI` defaults to `OFF`. Enable either option
+independently; both can be disabled for a headless build. The hidden
+`wx-on`, `wx-off`, `imgui-on`, and `imgui-off` configure presets can be
+composed into additional configurations. CMake requests the matching
+vcpkg features before configuring dependencies. The ImGui feature does
+not select a platform or renderer backend.
+
 # Beat-Keys Mappings
 
 File > Open in `timeline-viewer` accepts `par-beatdown.beat-keys` mapping
