@@ -1,0 +1,32 @@
+{
+  "parameters": {
+    "maxiter": { "type": "integer", "description": "Iterations", "default-curve": "linear" },
+    "label": { "type": "string", "description": "Text", "default-curve": "hold" },
+    "complex": { "type": "point2", "description": "Two-component value", "default-curve": "linear" },
+    "center-mag": { "type": "center-mag", "description": "Center and magnification" },
+    "corners": { "type": "corners", "description": "Corners" },
+    "showorbit": { "type": "yes-no", "description": "Orbits", "default-curve": "hold" },
+    "function": { "type": "function-list", "description": "Functions", "values": "id-functions", "default-curve": "hold" },
+    "functions": { "type": "function-list", "description": "Function list", "values": "id-functions", "default-curve": "hold" }
+  },
+  "fractal-types": {
+    "julia": {
+      "params": {
+        "slots": [ { "index": 2, "name": "amount", "type": "double", "description": "Amount", "default-curve": "linear" } ],
+        "groups": { "c": { "type": "complex", "description": "Julia constant", "slots": [0, 1], "default-curve": "linear" } }
+      },
+      "functions": { "fn2": { "type": "enum", "description": "Second function", "values": "id-functions" } }
+    }
+  },
+  "formula-entries": {
+    "Larry": {
+      "params": {
+        "knobs": {
+          "c": { "type": "complex", "description": "Constant", "variable": "p1", "default-curve": "linear" },
+          "amount": { "type": "real", "description": "Amount", "variable": "p2.real", "default-curve": "linear" }
+        }
+      },
+      "functions": { "fn2": { "type": "enum", "description": "Second function", "values": "id-functions" } }
+    }
+  }
+}

@@ -42,6 +42,13 @@
     }
   },
   "fractal-types": {
+    "julia": {
+      "params": {
+        "groups": {
+          "c": { "type": "complex", "description": "Julia constant", "slots": [0, 1], "default-curve": "linear" }
+        }
+      }
+    },
     "mandelfn": {
       "functions": {
         "fn1": {

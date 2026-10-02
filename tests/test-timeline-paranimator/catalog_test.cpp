@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <sstream>
 
 using namespace timeline_par_animator;
@@ -66,6 +67,257 @@ protected:
 };
 
 } // namespace
+
+TEST_F(CatalogLoading, rejects_unknown_targets_without_discarding_valid_tracks)
+{
+    m_config["tracks"][1]["parameter"] = "undeclared";
+    const JsonImportResult result = import({m_catalog});
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("animation-1"));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("Unknown animated parameter"));
+    EXPECT_EQ(6, result.document->lane_count());
+}
+
+TEST_F(CatalogLoading, resolves_formula_knobs_and_functions_in_both_name_forms)
+{
+    std::ifstream catalog("fixtures/input/target-resolution-catalog.json");
+    catalog >> m_catalog;
+    m_config["source"] = {
+        {"file", std::filesystem::absolute("fixtures/input/source.par").string()}, {"name", "Function_Demo"}};
+    m_config["tracks"] = Json::parse(R"([
+        {"parameter":"Larry.c","keys":[{"frame":0,"value":"1/2"},{"frame":4,"value":"3/4"}]},
+        {"parameter":"Larry[\"amount\"]","keys":[{"frame":0,"value":1},{"frame":4,"value":5}]},
+        {"parameter":"Larry.fn2","keys":[{"frame":0,"value":"cos"},{"frame":4,"value":"sin"}]},
+        {"parameter":"Larry[\"fn2\"]","keys":[{"frame":0,"value":"cos"},{"frame":4,"value":"sin"}]}
+    ])");
+    const JsonImportResult result = import({m_catalog});
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty()) << result.diagnostics.front();
+    ASSERT_EQ(5, result.document->lane_count());
+    const timeline::Document copy = *result.document;
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(copy, 1);
+    EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[0].value);
+    EXPECT_EQ("params", inspection.lanes[0].items[0].attributes.at("output-parameter"));
+    EXPECT_EQ("[0,1]", inspection.lanes[0].items[0].attributes.at("slots"));
+    EXPECT_EQ("double", Json::parse(inspection.lanes[2].items[0].attributes.at("catalog-definition")).at("type"));
+    EXPECT_EQ("sin/cos", inspection.lanes[3].items[0].attributes.at("value"));
+    EXPECT_EQ("real", Json::parse(inspection.lanes[2].items[0].attributes.at("catalog-source-definition")).at("type"));
+    EXPECT_EQ("sin/cos", inspection.lanes[4].items[0].attributes.at("value"));
+}
+
+TEST(TargetResolution, preserves_declared_targets_owned_metadata_and_inspection)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/target-resolution.json");
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty()) << result.diagnostics.front();
+    ASSERT_EQ(17, result.document->lane_count());
+    const timeline::Document copy = *result.document;
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(copy, 1);
+    EXPECT_DOUBLE_EQ(101, *inspection.lanes[0].value);
+    EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[1].value);
+    EXPECT_EQ("sin/sin", inspection.lanes[4].items[0].attributes.at("value"));
+    EXPECT_EQ("1", inspection.lanes[5].items[0].attributes.at("value"));
+    EXPECT_EQ("no", inspection.lanes[15].items[0].attributes.at("value"));
+    EXPECT_EQ("sin/cos", inspection.lanes[16].items[0].attributes.at("value"));
+    EXPECT_EQ("params", inspection.lanes[1].items[0].attributes.at("output-parameter"));
+    EXPECT_EQ("[0,1]", inspection.lanes[1].items[0].attributes.at("slots"));
+    EXPECT_EQ("complex", Json::parse(inspection.lanes[1].items[0].attributes.at("catalog-definition")).at("type"));
+    EXPECT_EQ("params.c", Json::parse(inspection.lanes[1].items[0].attributes.at("track-definition")).at("parameter"));
+}
+
+TEST_F(CatalogLoading, requires_source_values_and_defaults_even_with_explicit_curves)
+{
+    m_catalog["parameters"]["scalar"].erase("default-curve");
+    m_config["tracks"][3]["keys"][1]["curve"] = "linear";
+    m_catalog["parameters"]["absent"] = m_catalog["parameters"]["maxiter"];
+    m_config["tracks"][4]["parameter"] = "absent";
+    const JsonImportResult result = import({m_catalog});
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(2, timeline::size_cast(result.diagnostics));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("default-curve"));
+    EXPECT_NE(std::string::npos, result.diagnostics[1].find("source parameter"));
+    EXPECT_EQ(7, result.document->lane_count());
+}
+
+TEST_F(CatalogLoading, requires_categorical_defaults_and_ordinary_function_sources)
+{
+    for (const std::string type : {"string", "enum", "function-list"})
+    {
+        SCOPED_TRACE(type);
+        m_catalog["parameters"]["scalar"] = {{"type", type}, {"description", "Discrete target"}};
+        if (type == "enum")
+        {
+            m_catalog["parameters"]["scalar"]["values"] = {"a", "b"};
+        }
+        if (type == "function-list")
+        {
+            m_catalog["parameters"]["scalar"]["values"] = "id-functions";
+        }
+        const JsonImportResult result = import({m_catalog});
+        ASSERT_TRUE(result.succeeded());
+        ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+        EXPECT_NE(std::string::npos, result.diagnostics[0].find("default-curve"));
+    }
+    m_catalog["parameters"]["function"] = {
+        {"type", "function-list"}, {"description", "Functions"}, {"values", "id-functions"}, {"default-curve", "hold"}};
+    m_config["tracks"][3]["parameter"] = "function";
+    const JsonImportResult result = import({m_catalog});
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+    EXPECT_NE(std::string::npos, result.diagnostics[0].find("source parameter"));
+}
+
+TEST_F(CatalogLoading, supplies_center_mag_optional_fields_without_changing_authored_values)
+{
+    m_catalog["parameters"]["scalar"] = {{"type", "center-mag"}, {"description", "Center and magnification"}};
+    m_config["tracks"][3]["keys"][0]["value"] = "0/0/1";
+    m_config["tracks"][3]["keys"][1]["value"] = "4/8/16/0/90/45";
+    const JsonImportResult result = import({m_catalog});
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result.diagnostics.empty()) << result.diagnostics.front();
+    ASSERT_EQ(14, result.document->lane_count());
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(*result.document, 1);
+    EXPECT_NEAR(2, *inspection.lanes[9].value, 1e-12);
+    EXPECT_DOUBLE_EQ(1, *inspection.lanes[10].value);
+    EXPECT_DOUBLE_EQ(22.5, *inspection.lanes[11].value);
+    EXPECT_EQ("0/0/1", inspection.lanes[9].items[0].attributes.at("value"));
+}
+
+TEST(TargetResolution, matches_reference_frames_and_retains_comparison_hit_identities)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/target-resolution.json");
+    ASSERT_TRUE(imported.succeeded());
+    const timeline::Document copy = *imported.document;
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document comparison = timeline::combine_documents(copy, *music.document);
+    const std::map<std::string, std::vector<int>> numeric{{"maxiter", {0}}, {"params", {1, 2, 3}}, {"complex", {6, 7}},
+        {"center-mag", {8, 9, 10}}, {"corners", {11, 12, 13, 14}}};
+    const std::map<std::string, int> discrete{{"function", 4}, {"label", 5}, {"showorbit", 15}, {"functions", 16}};
+    std::ifstream golden("fixtures/gold-target-resolution.par");
+    ASSERT_TRUE(golden);
+    std::string line;
+    int frame = -1;
+    int checks = 0;
+    while (std::getline(golden, line))
+    {
+        if (line.substr(0, 6) == "frame-")
+        {
+            ++frame;
+        }
+        const std::size_t equal = line.find('=');
+        const std::size_t start = line.find_first_not_of(' ');
+        if (equal == std::string::npos || start == std::string::npos || frame < 0)
+        {
+            continue;
+        }
+        const std::string name = line.substr(start, equal - start);
+        const std::string value = line.substr(equal + 1);
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(comparison, frame);
+        if (numeric.count(name))
+        {
+            std::string components = value;
+            std::replace(components.begin(), components.end(), '/', ' ');
+            std::istringstream input(components);
+            for (int lane : numeric.at(name))
+            {
+                double expected = 0;
+                ASSERT_TRUE(input >> expected);
+                EXPECT_NEAR(expected, *inspection.lanes[lane].value, 1e-10);
+                ++checks;
+            }
+        }
+        else if (discrete.count(name))
+        {
+            EXPECT_EQ(value, inspection.lanes[discrete.at(name)].items[0].attributes.at("value"));
+            ++checks;
+        }
+    }
+    EXPECT_EQ(85, checks);
+    const timeline::Layout layout(comparison,
+        timeline::Viewport(900, 1100, copy.frame_grid()->offset(), copy.frame_grid()->end_time()),
+        timeline::LayoutMetrics(140, 20, 40, 4));
+    bool found = false;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<timeline::Polyline>(primitive))
+        {
+            const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
+            if (line.id.lane_id == "animation-1[0]")
+            {
+                const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
+                ASSERT_TRUE(hit);
+                EXPECT_EQ(line.id.lane_id, hit->id.lane_id);
+                EXPECT_EQ(line.id.item_id, hit->id.item_id);
+                found = true;
+            }
+        }
+    }
+    EXPECT_TRUE(found);
+    EXPECT_FALSE(import_timeline_json("fixtures/target-resolution-invalid.json").succeeded());
+}
+
+TEST_F(CatalogLoading, enforces_declared_value_types_and_complex_arity)
+{
+    const std::vector<std::pair<Json, Json>> invalid{
+        {{{"type", "double"}, {"default-curve", "linear"}}, Json::array({1})},
+        {{{"type", "integer"}, {"default-curve", "linear"}}, "1.5"},
+        {{{"type", "complex"}, {"default-curve", "linear"}}, "1/2/3"},
+        {{{"type", "complex"}, {"default-curve", "linear"}}, Json::array({1, 2})},
+        {{{"type", "enum"}, {"default-curve", "hold"}, {"values", {"a", "b"}}}, "unknown"},
+        {{{"type", "enum"}, {"default-curve", "hold"}, {"values", {"1", "2"}}}, 1},
+        {{{"type", "yes-no"}, {"default-curve", "hold"}}, "yes"}, {{{"type", "string"}, {"default-curve", "hold"}}, 1},
+        {{{"type", "function-list"}, {"default-curve", "hold"}, {"values", "id-functions"}}, Json::array({"bad"})},
+        {{{"type", "corners"}}, "1/2/3"}, {{{"type", "center-mag"}}, "1/2"}};
+    for (const auto &[metadata, value] : invalid)
+    {
+        SCOPED_TRACE(metadata.dump() + " " + value.dump());
+        m_catalog["parameters"]["scalar"] = metadata;
+        m_catalog["parameters"]["scalar"]["description"] = "Test target";
+        m_config["tracks"][3]["keys"][0]["value"] = value;
+        m_config["tracks"][3]["keys"][1]["value"] = value;
+        const JsonImportResult result = import({m_catalog});
+        ASSERT_TRUE(result.succeeded());
+        ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+        EXPECT_NE(std::string::npos, result.diagnostics[0].find("animation-3"));
+        EXPECT_EQ(8, result.document->lane_count());
+    }
+}
+
+TEST_F(CatalogLoading, diagnoses_recognized_but_unsupported_generic_types)
+{
+    for (const std::string type : {"miim", "potential", "numeric-tuple-or-enum", "color-map"})
+    {
+        SCOPED_TRACE(type);
+        Json metadata{{"type", type}, {"description", "Unsupported target"}, {"default-curve", "hold"}};
+        if (type == "numeric-tuple-or-enum")
+        {
+            metadata["values"] = {"off"};
+        }
+        m_catalog["parameters"]["scalar"] = metadata;
+        const JsonImportResult result = import({m_catalog});
+        ASSERT_TRUE(result.succeeded());
+        ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+        EXPECT_NE(std::string::npos, result.diagnostics[0].find("unsupported"));
+        EXPECT_EQ(8, result.document->lane_count());
+    }
+}
+
+TEST_F(CatalogLoading, rejects_complex_bounds_before_creating_component_lanes)
+{
+    m_catalog["parameters"]["scalar"] = {
+        {"type", "complex"}, {"description", "Complex"}, {"default-curve", "linear"}, {"max", 5}};
+    m_config["tracks"][3]["keys"][0]["value"] = "1/2";
+    m_config["tracks"][3]["keys"][1]["value"] = "3/6";
+    m_catalog["fractal-types"]["mandel"]["params"]["groups"]["c"] = m_catalog["parameters"]["scalar"];
+    m_catalog["fractal-types"]["mandel"]["params"]["groups"]["c"]["slots"] = {0, 1};
+    m_config["tracks"][3]["parameter"] = "params.c";
+    const JsonImportResult result = import({m_catalog});
+    ASSERT_TRUE(result.succeeded());
+    ASSERT_EQ(1, timeline::size_cast(result.diagnostics));
+    EXPECT_EQ(8, result.document->lane_count());
+}
 
 TEST_F(CatalogLoading, rejects_malformed_unused_metadata_before_importing_tracks)
 {

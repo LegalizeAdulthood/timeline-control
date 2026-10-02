@@ -1,0 +1,10 @@
+{
+  "parameter-catalogs": [ "input/target-resolution-catalog.json" ],
+  "source": { "file": "input/target-resolution-source.par", "name": "Targets" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "undeclared", "keys": [ { "frame": 0, "value": 1 }, { "frame": 4, "value": 2 } ] }
+  ]
+}

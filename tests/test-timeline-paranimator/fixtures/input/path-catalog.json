@@ -10,5 +10,14 @@
     "missing-arity": { "type": "numeric-tuple", "description": "Missing evaluator arity" },
     "normalized": { "type": "vector2", "normalize": true, "description": "Unit direction" },
     "maxiter": { "type": "integer", "description": "Iteration count" }
+  },
+  "fractal-types": {
+    "julia": {
+      "params": {
+        "groups": {
+          "c": { "type": "complex", "description": "Julia constant", "slots": [0, 1], "default-curve": "linear" }
+        }
+      }
+    }
   }
 }

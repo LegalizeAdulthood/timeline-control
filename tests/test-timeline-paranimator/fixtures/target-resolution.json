@@ -1,0 +1,19 @@
+{
+  "parameter-catalogs": [ "input/target-resolution-catalog.json" ],
+  "source": { "file": "input/target-resolution-source.par", "name": "Targets" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "maxiter", "keys": [ { "frame": 0, "value": 100 }, { "frame": 4, "value": 104 } ] },
+    { "parameter": "params.c", "keys": [ { "frame": 0, "value": "1/2" }, { "frame": 4, "value": "3/4" } ] },
+    { "parameter": "params[2]", "keys": [ { "frame": 0, "value": 0 }, { "frame": 4, "value": 4 } ] },
+    { "parameter": "function[1]", "keys": [ { "frame": 0, "value": "sin" }, { "frame": 4, "value": "cos" } ] },
+    { "parameter": "label", "keys": [ { "frame": 0, "value": "1" }, { "frame": 4, "value": "2" } ] },
+    { "parameter": "complex", "keys": [ { "frame": 0, "value": [2, 4] }, { "frame": 4, "value": [6, 8] } ] },
+    { "parameter": "center-mag", "keys": [ { "frame": 0, "value": "0/0/1" }, { "frame": 4, "value": "4/8/16" } ] },
+    { "parameter": "corners", "keys": [ { "frame": 0, "value": "-3/-1/-2/2" }, { "frame": 4, "value": "-1/1/0/4" } ] },
+    { "parameter": "showorbit", "keys": [ { "frame": 0, "value": false }, { "frame": 4, "value": true } ] },
+    { "parameter": "functions", "keys": [ { "frame": 0, "value": ["sin", "cos"] }, { "frame": 4, "value": ["cos", "sin"] } ] }
+  ]
+}

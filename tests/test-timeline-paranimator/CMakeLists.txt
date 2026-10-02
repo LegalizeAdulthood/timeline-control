@@ -3,6 +3,11 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
     fixtures/catalog-audit.json
+    fixtures/target-resolution.json
+    fixtures/target-resolution-invalid.json
+    fixtures/gold-target-resolution.par
+    fixtures/input/target-resolution-catalog.json
+    fixtures/input/target-resolution-source.par
     fixtures/catalog-loading.json
     fixtures/catalog-loading-invalid.json
     fixtures/input/catalog-unused.json

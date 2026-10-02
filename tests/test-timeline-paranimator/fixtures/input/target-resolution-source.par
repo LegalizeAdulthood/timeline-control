@@ -1,0 +1,6 @@
+; Copyright (c) 2026 Richard Thomson
+Targets {
+   reset type=julia params=0/1/0 function=sin/cos functions=sin/cos
+   maxiter=100 label=1 complex=2/4 center-mag=0/0/1
+   corners=-3/-1/-2/2 showorbit=n
+}

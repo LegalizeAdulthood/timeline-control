@@ -135,7 +135,7 @@ TEST(Extrapolation, diagnoses_malformed_keys_and_unsupported_forms_without_parti
     EXPECT_NE(std::string::npos, partial.diagnostics[0].find("strictly increasing"));
     EXPECT_NE(std::string::npos, partial.diagnostics[1].find("numeric scalar"));
     EXPECT_NE(std::string::npos, partial.diagnostics[2].find("two keys"));
-    EXPECT_NE(std::string::npos, partial.diagnostics[3].find("source value"));
+    EXPECT_NE(std::string::npos, partial.diagnostics[3].find("source parameter"));
     EXPECT_NE(std::string::npos, partial.diagnostics[4].find("integral"));
     EXPECT_NE(std::string::npos, partial.diagnostics[5].find("JSON integer"));
     const JsonImportResult invalid = import_timeline_json("fixtures/extrapolation-invalid.json");

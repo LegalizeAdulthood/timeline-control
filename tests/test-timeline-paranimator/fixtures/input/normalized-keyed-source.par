@@ -2,4 +2,5 @@
 Vector_Demo {
  reset type=mandel center-mag=-0.5/0/1 params=0/0 inside=0 sound=no
  direction2=1/0 direction3=0/0/1 hull2=1/0 line3=0/0/1 tiny2=0/1 raw3=0/0/2 raw2=1/2
+ base2=1/0 omit2=1/0 cycle2=1/0 ping2=1/0
 }

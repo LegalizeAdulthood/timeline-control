@@ -340,7 +340,7 @@ int function_slot(std::string_view parameter)
     if (parameter.size() <= PREFIX.size() + 1 || parameter.substr(0, PREFIX.size()) != PREFIX ||
         parameter.back() != ']')
     {
-        throw std::invalid_argument("invalid PWM function slot");
+        throw std::invalid_argument("invalid function slot");
     }
     const std::string_view text = parameter.substr(PREFIX.size(), parameter.size() - PREFIX.size() - 1);
     int slot = 0;
@@ -348,9 +348,17 @@ int function_slot(std::string_view parameter)
     if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || slot < 0 ||
         slot == std::numeric_limits<int>::max())
     {
-        throw std::invalid_argument("invalid PWM function slot");
+        throw std::invalid_argument("invalid function slot");
     }
     return slot;
+}
+
+void expand_function_values(Json &metadata)
+{
+    constexpr std::array<std::string_view, 31> ID_FUNCTIONS{"sin", "cos", "tan", "cotan", "sinh", "cosh", "tanh",
+        "cotanh", "exp", "log", "sqr", "recip", "ident", "cosxx", "flip", "conj", "zero", "one", "asin", "asinh",
+        "acos", "acosh", "atan", "atanh", "sqrt", "abs", "cabs", "floor", "ceil", "trunc", "round"};
+    metadata["values"] = ID_FUNCTIONS;
 }
 
 Json function_slot_metadata(const Json &catalog, const std::map<std::string, std::string> &source, int slot)
@@ -385,10 +393,10 @@ Json function_slot_metadata(const Json &catalog, const std::map<std::string, std
     {
         throw std::invalid_argument("PWM function slot requires id-functions values");
     }
-    constexpr std::array<std::string_view, 31> ID_FUNCTIONS{"sin", "cos", "tan", "cotan", "sinh", "cosh", "tanh",
-        "cotanh", "exp", "log", "sqr", "recip", "ident", "cosxx", "flip", "conj", "zero", "one", "asin", "asinh",
-        "acos", "acosh", "atan", "atanh", "sqrt", "abs", "cabs", "floor", "ceil", "trunc", "round"};
-    metadata["values"] = ID_FUNCTIONS;
+    expand_function_values(metadata);
+    metadata["default-curve"] = metadata.value("default-curve", std::string("hold"));
+    metadata["extrapolate"] = metadata.value("extrapolate", std::string("clamp"));
+    metadata["format"] = "raw";
     return metadata;
 }
 
@@ -462,6 +470,182 @@ std::vector<double> animation_value(const Json &value)
     return components;
 }
 
+Json resolve_animation_target(const Json &catalog, const std::string &parameter,
+    const std::map<std::string, std::string> &source, timeline::Attributes &attributes)
+{
+    Json metadata;
+    std::string output = parameter;
+    Json original_metadata;
+    std::vector<int> slots;
+    const std::string type = source.count("type") ? source.at("type") : "";
+    const std::string formula = type == "formula" && source.count("formulaname") ? source.at("formulaname") : "";
+    std::string member;
+    if (!formula.empty() && parameter.substr(0, formula.size() + 1) == formula + ".")
+    {
+        member = parameter.substr(formula.size() + 1);
+    }
+    else if (!formula.empty() && parameter.substr(0, formula.size() + 2) == formula + "[\"" &&
+        parameter.size() > formula.size() + 4 && parameter.substr(parameter.size() - 2) == "\"]")
+    {
+        member = parameter.substr(formula.size() + 2, parameter.size() - formula.size() - 4);
+    }
+    if (parameter.substr(0, 9) == "function[")
+    {
+        const int slot = function_slot(parameter);
+        metadata = function_slot_metadata(catalog, source, slot);
+        original_metadata = type == "formula"
+            ? catalog.at("parameters").at("function")
+            : catalog.at("fractal-types").at(type).at("functions").at("fn" + std::to_string(slot + 1));
+        slots = {slot};
+        output = "function";
+    }
+    else if (!member.empty())
+    {
+        const Json &entries = catalog.at("formula-entries");
+        if (!entries.contains(formula))
+        {
+            throw std::invalid_argument("Unknown formula metadata: " + formula);
+        }
+        const Json &entry = entries.at(formula);
+        if (member.size() == 3 && member.substr(0, 2) == "fn" && member[2] >= '1' && member[2] <= '4')
+        {
+            if (!entry.contains("functions") || !entry.at("functions").contains(member))
+            {
+                throw std::invalid_argument("Unknown formula function: " + parameter);
+            }
+            metadata = entry.at("functions").at(member);
+            original_metadata = metadata;
+            expand_function_values(metadata);
+            metadata["default-curve"] = metadata.value("default-curve", std::string("hold"));
+            metadata["extrapolate"] = metadata.value("extrapolate", std::string("clamp"));
+            metadata["format"] = "raw";
+            slots = {member[2] - '1'};
+            output = "function";
+        }
+        else
+        {
+            if (!entry.contains("params") || !entry.at("params").contains("knobs") ||
+                !entry.at("params").at("knobs").contains(member))
+            {
+                throw std::invalid_argument("Unknown formula knob: " + parameter);
+            }
+            metadata = entry.at("params").at("knobs").at(member);
+            original_metadata = metadata;
+            const std::string variable = metadata.at("variable").get<std::string>();
+            const int slot = 2 * (variable[1] - '1');
+            slots = metadata.at("type") == "complex" ? std::vector<int>{slot, slot + 1}
+                                                     : std::vector<int>{slot + (variable.substr(2) == ".imag")};
+            if (metadata.at("type") == "real")
+            {
+                metadata["type"] = "double";
+            }
+            output = "params";
+        }
+    }
+    else if (parameter.substr(0, 7) == "params[" || parameter.substr(0, 7) == "params.")
+    {
+        const Json &types = catalog.at("fractal-types");
+        if (!types.contains(type) || !types.at(type).contains("params"))
+        {
+            throw std::invalid_argument("Unknown params metadata for source type: " + type);
+        }
+        const Json &params = types.at(type).at("params");
+        if (parameter[6] == '[')
+        {
+            const std::string text = parameter.substr(7, parameter.size() - 8);
+            int slot = -1;
+            const std::from_chars_result parsed = std::from_chars(text.data(), text.data() + text.size(), slot);
+            if (parameter.back() != ']' || parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size())
+            {
+                throw std::invalid_argument("invalid params slot: " + parameter);
+            }
+            if (params.contains("slots"))
+            {
+                for (const Json &entry : params.at("slots"))
+                {
+                    if (entry.at("index") == slot)
+                    {
+                        metadata = entry;
+                        break;
+                    }
+                }
+            }
+            slots = {slot};
+        }
+        else
+        {
+            const std::string group = parameter.substr(7);
+            if (params.contains("groups") && params.at("groups").contains(group))
+            {
+                metadata = params.at("groups").at(group);
+                slots = metadata.at("slots").get<std::vector<int>>();
+            }
+        }
+        if (metadata.is_null())
+        {
+            throw std::invalid_argument("Unknown params target: " + parameter);
+        }
+        output = "params";
+    }
+    else
+    {
+        const Json &parameters = catalog.at("parameters");
+        if (!parameters.contains(parameter))
+        {
+            throw std::invalid_argument("Unknown animated parameter: " + parameter);
+        }
+        metadata = parameters.at(parameter);
+        original_metadata = metadata;
+        if (metadata.at("type") == "function-list")
+        {
+            expand_function_values(metadata);
+        }
+    }
+    if ((output != "function" || slots.empty()) && source.count(output) == 0)
+    {
+        throw std::invalid_argument("missing source parameter: " + output);
+    }
+    const std::string base = source.count(output) ? source.at(output) : "ident";
+    if (output == "params")
+    {
+        const std::vector<double> values = animation_value(Json(base));
+        const std::string target = metadata.at("type").get<std::string>();
+        if (target != "complex" && target != "double" && target != "integer")
+        {
+            throw std::invalid_argument("unsupported params target type: " + target);
+        }
+        const int expected = metadata.at("type") == "complex" ? 2 : 1;
+        if (timeline::size_cast(slots) != expected)
+        {
+            throw std::invalid_argument("unsupported params target type or slot arity: " + parameter);
+        }
+        for (int slot : slots)
+        {
+            if (slot < 0 || slot >= timeline::size_cast(values))
+            {
+                throw std::invalid_argument("params slot exceeds source arity: " + parameter);
+            }
+        }
+    }
+    std::string canonical_base = base;
+    std::transform(canonical_base.begin(), canonical_base.end(), canonical_base.begin(),
+        [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c; });
+    if (metadata.at("type") == "yes-no" && canonical_base != "yes" && canonical_base != "y" &&
+        canonical_base != "true" && canonical_base != "no" && canonical_base != "n" && canonical_base != "false")
+    {
+        throw std::invalid_argument("invalid yes-no source value");
+    }
+    attributes["output-parameter"] = output;
+    attributes["catalog-source-definition"] = original_metadata.is_null() ? metadata.dump() : original_metadata.dump();
+    attributes["source-value"] = base;
+    attributes["slots"] = Json(slots).dump();
+    if (output == "function" && !slots.empty())
+    {
+        attributes["slot"] = std::to_string(slots.front());
+    }
+    return metadata;
+}
+
 timeline::KeyframeInterpolation animation_interpolation(std::string_view curve)
 {
     if (curve == "linear")
@@ -505,7 +689,7 @@ double planar_path_value(
 
 void animation_planar_lanes(const Json &path, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
-    std::vector<timeline::Lane> &lanes)
+    const timeline::Attributes &source_attributes, std::vector<timeline::Lane> &lanes)
 {
     if (grid.frame_count() < 2)
     {
@@ -555,8 +739,9 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
             throw std::invalid_argument("path angle range must be finite");
         }
         const std::string suffix = "[" + std::to_string(component) + "]";
-        const timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
+        timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
             {"path", path.dump()}, {"component", std::to_string(component)}};
+        attributes.insert(source_attributes.begin(), source_attributes.end());
         const auto evaluate = [origin, radius, radius_change, component_phase, frequency, component, start, end](
                                   timeline::Time time)
         {
@@ -569,6 +754,13 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
             clean_path_value(origin - maximum_radius), clean_path_value(origin + maximum_radius), attributes));
         lanes.push_back(std::move(lane));
     }
+}
+
+void animation_planar_lanes(const Json &path, const Json &metadata, const std::string &id, const std::string &label,
+    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    animation_planar_lanes(path, metadata, id, label, parameter, layer, grid, {}, lanes);
 }
 
 int animation_path_arity(const Json &metadata, int inferred_arity)
@@ -805,7 +997,7 @@ void validate_vector_control_path(const std::vector<std::vector<double>> &points
 
 void animation_control_point_lanes(const Json &track, const Json &metadata, const std::string &id,
     const std::string &label, const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
-    std::vector<timeline::Lane> &lanes)
+    const timeline::Attributes &source_attributes, std::vector<timeline::Lane> &lanes)
 {
     if (grid.frame_count() < 2)
     {
@@ -859,6 +1051,7 @@ void animation_control_point_lanes(const Json &track, const Json &metadata, cons
         const std::string suffix = arity == 1 ? "" : "[" + std::to_string(component) + "]";
         timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id},
             {"path", path.dump()}, {"component", std::to_string(component)}};
+        attributes.insert(source_attributes.begin(), source_attributes.end());
         timeline::CurveEvaluator evaluate = [values, start, end, catmull_rom](timeline::Time time)
         {
             const double fraction =
@@ -887,6 +1080,13 @@ void animation_control_point_lanes(const Json &track, const Json &metadata, cons
             clean_path_value(bounds.first), clean_path_value(bounds.second), attributes));
         lanes.push_back(std::move(lane));
     }
+}
+
+void animation_control_point_lanes(const Json &track, const Json &metadata, const std::string &id,
+    const std::string &label, const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    animation_control_point_lanes(track, metadata, id, label, parameter, layer, grid, {}, lanes);
 }
 
 Json animation_path_keys(const Json &path, const timeline::FrameGrid &grid)
@@ -929,6 +1129,10 @@ void integer_output(timeline::Lane &lane, const Json &metadata)
 void validate_catalog_key_target(const Json &track, const Json &metadata)
 {
     const std::string target = metadata.value("type", std::string{});
+    if (target == "miim" || target == "potential" || target == "numeric-tuple-or-enum" || target == "color-map")
+    {
+        throw std::invalid_argument("unsupported generic target type: " + target);
+    }
     const bool tuple = target == "numeric-tuple" || target == "point2" || target == "point3" || target == "vector2" ||
         target == "vector3";
     const bool normalized = (target == "vector2" || target == "vector3") && metadata.value("normalize", false);
@@ -938,13 +1142,12 @@ void validate_catalog_key_target(const Json &track, const Json &metadata)
     {
         throw std::invalid_argument("constant and line tuple paths cannot supply ParAnimator's numeric array keys");
     }
-    if (!track.contains("path") && (tuple || scalar || integer_tuple) && !metadata.contains("default-curve") &&
-        metadata.value("extrapolate", std::string("clamp")) == "clamp")
+    if (!track.contains("path") && target != "center-mag" && target != "corners" && !metadata.contains("default-curve"))
     {
         throw std::invalid_argument(normalized ? "vector normalization requires a catalog default-curve"
                                                : "keyed target requires a catalog default-curve");
     }
-    if (track.contains("path") || normalized || (!tuple && !integer_tuple && target != "double"))
+    if (track.contains("path"))
     {
         return;
     }
@@ -955,8 +1158,76 @@ void validate_catalog_key_target(const Json &track, const Json &metadata)
     }
     for (const Json &key : keys)
     {
-        const std::vector<double> values = animation_value(key.at("value"));
+        const Json &value = key.at("value");
+        const bool named = value.is_string() && metadata.contains("values") &&
+            std::find(metadata.at("values").begin(), metadata.at("values").end(), value) != metadata.at("values").end();
+        if (target == "yes-no" || target == "string" || target == "enum" || target == "inside" || target == "outside" ||
+            target == "function-list" || (target == "integer-or-enum" && named))
+        {
+            bool valid = target == "yes-no" ? value.is_boolean() : target == "string" ? value.is_string() : named;
+            if (target == "function-list")
+            {
+                valid = value.is_array() && !value.empty() &&
+                    std::all_of(value.begin(), value.end(),
+                        [&](const Json &entry)
+                        {
+                            return entry.is_string() &&
+                                std::find(metadata.at("values").begin(), metadata.at("values").end(), entry) !=
+                                metadata.at("values").end();
+                        });
+            }
+            if ((target == "inside" || target == "outside") && value.is_string() && !named)
+            {
+                const std::vector<double> components = animation_value(value);
+                valid = timeline::size_cast(components) == 1 && components[0] == std::trunc(components[0]) &&
+                    components[0] >= std::numeric_limits<int>::min() &&
+                    components[0] <= std::numeric_limits<int>::max() &&
+                    (!metadata.contains("min") || components[0] >= metadata.at("min").get<double>()) &&
+                    (!metadata.contains("max") || components[0] <= metadata.at("max").get<double>());
+            }
+            if (!valid)
+            {
+                throw std::invalid_argument("invalid catalog-declared " + target + " key value");
+            }
+            continue;
+        }
+        if (target == "integer-or-enum" && !value.is_number_integer())
+        {
+            throw std::invalid_argument("integer target requires JSON integer key values");
+        }
+        if (target == "integer" && value.is_string())
+        {
+            const std::string text = value.get<std::string>();
+            std::size_t consumed = 0;
+            try
+            {
+                static_cast<void>(std::stoi(text, &consumed));
+            }
+            catch (const std::exception &)
+            {
+                throw std::invalid_argument("integer output requires integral key values in int range");
+            }
+            if (consumed != text.size())
+            {
+                throw std::invalid_argument("integer output requires integral key values in int range");
+            }
+        }
+        if (target == "double" && !value.is_number() && !value.is_string())
+        {
+            throw std::invalid_argument("double target requires numeric scalar key values");
+        }
+        if ((target == "complex" || target == "center-mag" || target == "corners") && !value.is_string())
+        {
+            throw std::invalid_argument(target + " target requires slash-delimited string key values");
+        }
+        const std::vector<double> values = animation_value(value);
         const int components = timeline::size_cast(values);
+        if ((target == "complex" && components != 2) ||
+            (target == "center-mag" && (components < 3 || components > 6)) ||
+            (target == "corners" && components != 4 && components != 6))
+        {
+            throw std::invalid_argument("keyframe arity does not match its catalog target");
+        }
         if (tuple && components != animation_path_arity(metadata, components))
         {
             throw std::invalid_argument("keyframe arity does not match its catalog target");
@@ -981,8 +1252,9 @@ void validate_catalog_key_target(const Json &track, const Json &metadata)
             }
         }
     }
-    const std::string curve = keys.back().value("curve", metadata.at("default-curve").get<std::string>());
-    if (animation_interpolation(curve) == timeline::KeyframeInterpolation::GEOMETRIC)
+    const std::string curve = keys.back().value("curve", metadata.value("default-curve", std::string("linear")));
+    if ((tuple || scalar || integer_tuple || target == "complex") &&
+        animation_interpolation(curve) == timeline::KeyframeInterpolation::GEOMETRIC)
     {
         throw std::invalid_argument("numeric targets support linear, hold, or step curves");
     }
@@ -990,7 +1262,7 @@ void validate_catalog_key_target(const Json &track, const Json &metadata)
 
 void animation_key_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
     const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
-    std::vector<timeline::Lane> &lanes)
+    const timeline::Attributes &source_attributes, std::vector<timeline::Lane> &lanes)
 {
     const Json keys = track.contains("path") ? animation_path_keys(track.at("path"), grid) : track.at("keys");
     if (!keys.is_array() || keys.empty())
@@ -998,7 +1270,11 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
         throw std::invalid_argument("track keys must be a nonempty array");
     }
     std::vector<std::vector<double>> values;
-    bool categorical = false;
+    const std::string target = metadata.value("type", std::string{});
+    bool categorical = target == "enum" || target == "string" || target == "yes-no" || target == "inside" ||
+        target == "outside" || target == "function-list" ||
+        (target == "integer-or-enum" &&
+            std::any_of(keys.begin(), keys.end(), [](const Json &key) { return key.at("value").is_string(); }));
     timeline::Ticks previous = -1;
     for (const Json &key : keys)
     {
@@ -1008,6 +1284,10 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
             throw std::invalid_argument("key frames must be strictly increasing and within num-frames");
         }
         previous = frame;
+        if (categorical)
+        {
+            continue;
+        }
         try
         {
             values.push_back(animation_value(key.at("value")));
@@ -1043,14 +1323,35 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
             {
                 throw std::invalid_argument("categorical values require hold or step interpolation");
             }
-            const std::string value =
+            std::string value =
                 key.at("value").is_string() ? key.at("value").get<std::string>() : key.at("value").dump();
+            if (target == "yes-no" && key.at("value").is_boolean())
+            {
+                value = key.at("value").get<bool>() ? "yes" : "no";
+            }
+            else if (target == "function-list")
+            {
+                value.clear();
+                for (const Json &entry : key.at("value"))
+                {
+                    value += (value.empty() ? "" : "/") + entry.get<std::string>();
+                }
+            }
+            if (source_attributes.count("slot"))
+            {
+                value = function_pwm_value(
+                    source_attributes.at("source-value"), std::stoi(source_attributes.at("slot")), value);
+            }
             const timeline::Time start = grid.frame_start(source_frame(key));
             const timeline::Time end = index + 1 < timeline::size_cast(keys)
                 ? grid.frame_start(source_frame(keys[index + 1]))
                 : grid.end_time();
             timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"value", value},
                 {"curve", curve}, {"outgoing-curve", outgoing}, {"track", id}};
+            attributes.insert(source_attributes.begin(), source_attributes.end());
+            attributes["source-key"] = key.dump();
+            attributes["catalog-definition"] = metadata.dump();
+            attributes["track-definition"] = track.dump();
             if (track.contains("path"))
             {
                 attributes["path"] = track.at("path").dump();
@@ -1062,6 +1363,23 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
         }
         lanes.push_back(std::move(lane));
         return;
+    }
+    if (target == "center-mag")
+    {
+        int arity = 3;
+        for (const std::vector<double> &value : values)
+        {
+            arity = std::max(arity, timeline::size_cast(value));
+        }
+        for (std::vector<double> &value : values)
+        {
+            const int authored_arity = timeline::size_cast(value);
+            value.resize(arity, 0);
+            if (arity > 3 && (authored_arity <= 3 || value[3] == 0))
+            {
+                value[3] = 1;
+            }
+        }
     }
     for (const std::vector<double> &value : values)
     {
@@ -1112,14 +1430,21 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
                 ? keys[index + 1].value("curve", metadata.value("default-curve", std::string("linear")))
                 : "hold";
             static_cast<void>(animation_interpolation(authored_curve));
-            if (metadata.value("type", std::string{}) == "center-mag" && outgoing_curve == "geometric" &&
-                component != 2 && component != 3)
+            if (target == "center-mag")
+            {
+                outgoing_curve = index + 1 < timeline::size_cast(keys) && (component == 2 || component == 3) &&
+                        values[index][component] > 0 && values[index + 1][component] > 0
+                    ? "geometric"
+                    : "linear";
+            }
+            if (target == "corners")
             {
                 outgoing_curve = "linear";
             }
             timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer},
                 {"value", key.at("value").dump()}, {"curve", authored_curve}, {"outgoing-curve", outgoing_curve},
                 {"track", id}};
+            attributes.insert(source_attributes.begin(), source_attributes.end());
             attributes["component"] = std::to_string(component);
             attributes["arity"] = std::to_string(components);
             attributes["catalog-definition"] = metadata.dump();
@@ -1148,6 +1473,13 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
         integer_output(lane, metadata);
         lanes.push_back(std::move(lane));
     }
+}
+
+void animation_key_lanes(const Json &track, const Json &metadata, const std::string &id, const std::string &label,
+    const std::string &parameter, const std::string &layer, const timeline::FrameGrid &grid,
+    std::vector<timeline::Lane> &lanes)
+{
+    animation_key_lanes(track, metadata, id, label, parameter, layer, grid, {}, lanes);
 }
 
 void validate_keyed_vector_segment(const std::vector<double> &from, const std::vector<double> &to)
@@ -3866,20 +4198,13 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
                 throw std::invalid_argument("track parameter must not be empty");
             }
             const std::string mode = track.value("mode", std::string("keyframes"));
-            const Json &parameters = catalog.at("parameters");
-            Json metadata = parameters.contains(parameter) ? parameters.at(parameter) : Json::object();
-            timeline::Attributes source_attributes;
-            if (mode == "pwm" && parameter.substr(0, 9) == "function[")
-            {
-                const int slot = function_slot(parameter);
-                const std::map<std::string, std::string> source = animation_source(source_path, config);
-                metadata = function_slot_metadata(catalog, source, slot);
-                source_attributes = {{"slot", std::to_string(slot)}, {"output-parameter", "function"},
-                    {"source-value", source.count("function") != 0 ? source.at("function") : ""},
-                    {"source-entry", config.at("source").at("name").get<std::string>()},
-                    {"source-file",
-                        (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()}};
-            }
+            const std::map<std::string, std::string> source = animation_source(source_path, config);
+            timeline::Attributes source_attributes{{"source-entry", config.at("source").at("name").get<std::string>()},
+                {"source-file",
+                    (source_path.parent_path() / config.at("source").at("file").get<std::string>()).string()},
+                {"track-definition", track.dump()}};
+            const Json metadata = resolve_animation_target(catalog, parameter, source, source_attributes);
+            source_attributes["catalog-definition"] = metadata.dump();
             const std::string extrapolation = metadata.value("extrapolate", std::string("clamp"));
             if (extrapolation != "clamp" && extrapolation != "base" && extrapolation != "omit" &&
                 extrapolation != "cycle" && extrapolation != "ping-pong")
@@ -3914,16 +4239,29 @@ void animation_tracks(const Json &tracks, const Json &catalog, const std::string
             else if (path_kind == "circle" || path_kind == "ellipse" || path_kind == "lissajous" ||
                 path_kind == "spiral")
             {
-                animation_planar_lanes(track.at("path"), metadata, id, label, parameter, layer, grid, track_lanes);
+                animation_planar_lanes(
+                    track.at("path"), metadata, id, label, parameter, layer, grid, source_attributes, track_lanes);
             }
             else if (path_kind == "bezier" || path_kind == "catmull-rom")
             {
-                animation_control_point_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+                animation_control_point_lanes(
+                    track, metadata, id, label, parameter, layer, grid, source_attributes, track_lanes);
             }
             else
             {
                 validate_catalog_key_target(track, metadata);
-                animation_key_lanes(track, metadata, id, label, parameter, layer, grid, track_lanes);
+                if (track.contains("path") && metadata.at("type") != "center-mag" && metadata.at("type") != "corners" &&
+                    !metadata.contains("default-curve"))
+                {
+                    throw std::invalid_argument(metadata.value("normalize", false)
+                            ? "vector normalization requires a catalog default-curve"
+                            : "keyed target requires a catalog default-curve");
+                }
+                if (metadata.at("type") == "complex" && source_attributes.at("output-parameter") != "params")
+                {
+                    throw std::invalid_argument("unsupported keyed complex target without params slots");
+                }
+                animation_key_lanes(track, metadata, id, label, parameter, layer, grid, source_attributes, track_lanes);
                 const std::string type = metadata.value("type", std::string{});
                 if ((type == "vector2" || type == "vector3") && metadata.value("normalize", false))
                 {
