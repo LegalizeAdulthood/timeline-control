@@ -34,8 +34,8 @@ For Dear ImGui without wxWidgets, use:
 cmake --workflow --preset default-imgui
 ```
 
-This workflow builds the core, JSON adapters, and backend-free ImGui
-dependency tests. The ImGui control and viewer are not implemented yet.
+This workflow builds the core, JSON adapters, `timeline-imgui`, and
+backend-free adapter tests. The ImGui viewer is not implemented yet.
 The `default` workflow still builds the wx control and viewer.
 
 `TIMELINE_CONTROL_WITH_WX` defaults to `ON` and
@@ -45,6 +45,25 @@ independently; both can be disabled for a headless build. The hidden
 composed into additional configurations. CMake requests the matching
 vcpkg features before configuring dependencies. The ImGui feature does
 not select a platform or renderer backend.
+
+# ImGui Timeline Adapter
+
+Link a host to `timeline-imgui` and include
+`imguiTimeline/TimelineControl.h`. Keep a `timeline_imgui::Control` alive
+between frames. The control owns its document; `set_document` replaces
+it and resets navigation, selection, dragging, hover, and inspection.
+
+Call `timeline_imgui::draw_timeline` inside an ImGui window with a stable,
+unique ID. The two-argument overload uses the remaining content region;
+the three-argument overload accepts an explicit `ImVec2` size. The host
+provides its own ImGui context, fonts, and platform/renderer backends.
+
+The adapter delegates display-list primitives to `ImDrawList` and uses
+the current ImGui theme and font metrics. It forwards hit testing,
+selection, range dragging, frame navigation, zooming, and scrolling to
+the core. Optional-reference accessors expose the document, interaction,
+hovered hit, inspection, and most recently computed layout and viewport.
+Zoom, fit, and clear-selection commands are available to host menus.
 
 # Beat-Keys Mappings
 
