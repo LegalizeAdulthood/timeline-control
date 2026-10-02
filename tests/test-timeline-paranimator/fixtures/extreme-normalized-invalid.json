@@ -1,0 +1,16 @@
+{
+  "parameter-catalogs": [ "input/extreme-vector-catalog.json" ],
+  "source": { "file": "input/extreme-vector-source.par", "name": "Vector_Demo" },
+  "output": {},
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "overflow2", "keys": [ { "frame": 0, "value": [0, 0] }, { "frame": 4, "value": [0, 0] } ] },
+    { "parameter": "overflow2", "keys": [ { "frame": 0, "value": [1e-200, 0] }, { "frame": 4, "value": [1e-200, 0] } ] },
+    { "parameter": "overflow2", "keys": [ { "frame": 0, "value": [3.7e199, 0] }, { "frame": 4, "value": [-6.3e199, 0] } ] },
+    { "parameter": "bezier2", "path": { "kind": "bezier", "control-points": [ "3.7e199/0", "-6.3e199/0" ] } },
+    { "parameter": "catmull2", "path": { "kind": "catmull-rom", "control-points": [ "1e200/0", "2e200/0", "-3e200/0", "4e200/0" ] } },
+    { "parameter": "overflow2", "keys": [ { "frame": 0, "value": [1e200, 1] }, { "frame": 4, "value": [-1e200, 1] } ] },
+    { "parameter": "bezier2", "path": { "kind": "bezier", "control-points": [ "5e-13/0", "5e-13/0" ] } }
+  ]
+}

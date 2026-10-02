@@ -1,0 +1,7 @@
+; Copyright (c) 2026 Richard Thomson
+Vector_Demo {
+ reset type=mandel center-mag=-0.5/0/1 params=0/0 inside=0 sound=no
+ overflow2=1/0 edge2=1/0 finite3=0/0/1 hold2=1/0 step2=1/0
+ bezier2=1/0 bezieredge2=1/0 bezier3=0/0/1
+ catmull2=1/0 catmulledge2=1/0 catmull3=0/0/1
+}

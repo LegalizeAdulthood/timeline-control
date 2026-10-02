@@ -42,6 +42,142 @@ double vector_golden_component(const std::string &entry, const std::string &para
 
 } // namespace
 
+TEST(NormalizedVector, matches_extreme_source_output_at_frames_and_between_frames)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/extreme-normalized-vectors.json");
+    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(imported.diagnostics.empty());
+    ASSERT_EQ(25, imported.document->lane_count());
+    std::ifstream input("fixtures/gold-extreme-normalized-vectors.par");
+    ASSERT_TRUE(input);
+    const std::string golden{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+    const timeline::FrameGrid &grid = *imported.document->frame_grid();
+    for (int sample = 0; sample < 9; ++sample)
+    {
+        SCOPED_TRACE(sample);
+        const timeline::Time time =
+            grid.offset() + timeline::Duration::from_ticks(sample * grid.frame_duration().ticks() / 2);
+        const std::string entry = vector_golden_entry(golden, sample);
+        ASSERT_FALSE(entry.empty());
+        for (int index = 0; index < imported.document->lane_count(); ++index)
+        {
+            SCOPED_TRACE(index);
+            const timeline::Lane &lane = imported.document->lanes()[index];
+            const bool keyed = std::holds_alternative<timeline::Keyframe>(lane.items()[0]);
+            const timeline::Attributes &attributes = keyed ? std::get<timeline::Keyframe>(lane.items()[0]).attributes()
+                                                           : std::get<timeline::Curve>(lane.items()[0]).attributes();
+            const double expected =
+                vector_golden_component(entry, attributes.at("parameter"), std::stoi(attributes.at("component")));
+            const double actual =
+                keyed ? *lane.evaluate_keyframe_output(time) : std::get<timeline::Curve>(lane.items()[0]).sample(time);
+            EXPECT_NEAR(expected, actual, std::abs(expected) * 1e-11);
+            if (expected == 0)
+            {
+                EXPECT_EQ(std::signbit(expected), std::signbit(actual));
+            }
+            if (sample % 2 == 0)
+            {
+                const timeline::FrameInspection inspection = *timeline::inspect_frame(*imported.document, sample / 2);
+                EXPECT_DOUBLE_EQ(
+                    actual, keyed ? *inspection.lanes[index].output_value : *inspection.lanes[index].items[0].value);
+            }
+        }
+    }
+}
+
+TEST(NormalizedVector, retains_extreme_authored_values_recipes_bounds_and_hit_identities)
+{
+    JsonImportResult imported = import_timeline_json("fixtures/extreme-normalized-vectors.json");
+    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(imported.diagnostics.empty());
+    ASSERT_EQ(25, imported.document->lane_count());
+    const timeline::Document document = *imported.document;
+    imported.document.reset();
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Time middle = grid.frame_start(2);
+    const timeline::Keyframe &key = std::get<timeline::Keyframe>(document.lanes()[0].items()[0]);
+    EXPECT_DOUBLE_EQ(1e200, key.value());
+    EXPECT_DOUBLE_EQ(1.5e200, *document.lanes()[0].evaluate_keyframes(middle));
+    EXPECT_DOUBLE_EQ(0, *document.lanes()[0].evaluate_keyframe_output(middle));
+    EXPECT_DOUBLE_EQ(5e-13, *document.lanes()[6].evaluate_keyframes(middle));
+    EXPECT_GT(*document.lanes()[6].evaluate_keyframe_output(middle), 0);
+    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
+    ASSERT_TRUE(music.succeeded());
+    const timeline::Document combined = timeline::combine_documents(document, *music.document);
+    ASSERT_EQ(29, combined.lane_count());
+    for (int index = 0; index < document.lane_count(); ++index)
+    {
+        const timeline::Lane &lane = combined.lanes()[index];
+        EXPECT_EQ(document.lanes()[index].id(), lane.id());
+        if (index < 11)
+        {
+            const timeline::Keyframe &copy = std::get<timeline::Keyframe>(lane.items()[0]);
+            EXPECT_EQ(std::get<timeline::Keyframe>(document.lanes()[index].items()[0]).attributes(), copy.attributes());
+            EXPECT_DOUBLE_EQ(
+                *document.lanes()[index].evaluate_keyframe_output(middle), *lane.evaluate_keyframe_output(middle));
+            EXPECT_NE(std::string::npos, copy.attributes().at("track-definition").find("value"));
+        }
+        else
+        {
+            const timeline::Curve &curve = std::get<timeline::Curve>(lane.items()[0]);
+            EXPECT_EQ(std::get<timeline::Curve>(document.lanes()[index].items()[0]).attributes(), curve.attributes());
+            EXPECT_DOUBLE_EQ(-1, *curve.minimum());
+            EXPECT_DOUBLE_EQ(1, *curve.maximum());
+            EXPECT_NE(std::string::npos, curve.attributes().at("track-definition").find("control-points"));
+            EXPECT_DOUBLE_EQ(
+                std::get<timeline::Curve>(document.lanes()[index].items()[0]).sample(middle), curve.sample(middle));
+        }
+    }
+    const timeline::Curve &bezier = std::get<timeline::Curve>(combined.lanes()[11].items()[0]);
+    EXPECT_NE(std::string::npos, bezier.attributes().at("path").find("1e200/1"));
+    EXPECT_NE(std::string::npos, bezier.attributes().at("catalog-definition").find("vector2"));
+    const timeline::Layout layout(combined, timeline::Viewport(600, 1300, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 40, 4));
+    int found = 0;
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (!std::holds_alternative<timeline::Polyline>(primitive))
+        {
+            continue;
+        }
+        const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
+        if (line.id.lane_id.substr(0, 10) != "animation-")
+        {
+            continue;
+        }
+        for (const timeline::Point &point : line.points)
+        {
+            EXPECT_TRUE(std::isfinite(point.x));
+            EXPECT_TRUE(std::isfinite(point.y));
+        }
+        const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
+        ASSERT_TRUE(hit);
+        EXPECT_EQ(line.id.lane_id, hit->id.lane_id);
+        EXPECT_FALSE(hit->id.item_id.empty());
+        ++found;
+    }
+    EXPECT_EQ(25, found);
+}
+
+TEST(NormalizedVector, rejects_extreme_singular_and_unresolved_intervals_not_overflow_alone)
+{
+    const JsonImportResult imported = import_timeline_json("fixtures/extreme-normalized-invalid.json");
+    EXPECT_FALSE(imported.succeeded());
+    ASSERT_EQ(8, timeline::size_cast(imported.diagnostics));
+    for (int index = 0; index < 7; ++index)
+    {
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("normalization"));
+    }
+    EXPECT_NE(std::string::npos, imported.diagnostics[0].find("nonzero"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[1].find("nonzero"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[2].find("singular"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[3].find("singular"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[4].find("singular"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[5].find("unresolved"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[6].find("nonzero"));
+}
+
 TEST(NormalizedVector, matches_source_keyed_output_without_cleaning_authored_components)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/normalized-keyed-vectors.json");
@@ -125,29 +261,32 @@ TEST(NormalizedVector, diagnoses_invalid_keyed_inputs_without_partial_components
 {
     const JsonImportResult imported = import_timeline_json("fixtures/normalized-keyed-partial.json");
     ASSERT_TRUE(imported.succeeded());
-    ASSERT_EQ(14, timeline::size_cast(imported.diagnostics));
-    ASSERT_EQ(2, imported.document->lane_count());
-    EXPECT_EQ("animation-14[0]", imported.document->lanes()[0].id());
-    for (int index = 0; index < 14; ++index)
+    ASSERT_EQ(13, timeline::size_cast(imported.diagnostics));
+    ASSERT_EQ(4, imported.document->lane_count());
+    EXPECT_EQ("animation-3[0]", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-14[0]", imported.document->lanes()[2].id());
+    const std::array<int, 13> rejected{0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+    for (int index = 0; index < 13; ++index)
     {
-        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
+        EXPECT_NE(
+            std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(rejected[index]) + ":"));
     }
     EXPECT_NE(std::string::npos, imported.diagnostics[0].find("normalization"));
     EXPECT_NE(std::string::npos, imported.diagnostics[1].find("numeric array"));
     EXPECT_NE(std::string::npos, imported.diagnostics[2].find("numeric array"));
     EXPECT_NE(std::string::npos, imported.diagnostics[3].find("normalization"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[4].find("normalization"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[5].find("arity"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[6].find("curves"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[7].find("full frame range"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[8].find("numeric array"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[9].find("bounds"));
-    for (int index = 10; index < 14; ++index)
+    EXPECT_NE(std::string::npos, imported.diagnostics[4].find("arity"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[5].find("curves"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[6].find("full frame range"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[7].find("numeric array"));
+    EXPECT_NE(std::string::npos, imported.diagnostics[8].find("bounds"));
+    for (int index = 9; index < 13; ++index)
     {
         EXPECT_NE(std::string::npos, imported.diagnostics[index].find("extrapolation"));
     }
-    EXPECT_DOUBLE_EQ(1, *timeline::inspect_frame(*imported.document, 3)->lanes[0].output_value);
-    EXPECT_DOUBLE_EQ(-1, *timeline::inspect_frame(*imported.document, 4)->lanes[0].output_value);
+    EXPECT_DOUBLE_EQ(0, *timeline::inspect_frame(*imported.document, 3)->lanes[0].output_value);
+    EXPECT_DOUBLE_EQ(1, *timeline::inspect_frame(*imported.document, 3)->lanes[2].output_value);
+    EXPECT_DOUBLE_EQ(-1, *timeline::inspect_frame(*imported.document, 4)->lanes[2].output_value);
     EXPECT_FALSE(import_timeline_json("fixtures/normalized-keyed-invalid.json").succeeded());
 }
 
@@ -261,13 +400,17 @@ TEST(NormalizedVector, rejects_singular_intervals_and_malformed_targets_without_
 {
     const JsonImportResult imported = import_timeline_json("fixtures/normalized-vector-partial.json");
     ASSERT_TRUE(imported.succeeded());
-    ASSERT_EQ(10, timeline::size_cast(imported.diagnostics));
-    ASSERT_EQ(2, imported.document->lane_count());
-    EXPECT_EQ("animation-10[0]", imported.document->lanes()[0].id());
-    for (int index = 0; index < 10; ++index)
+    ASSERT_EQ(9, timeline::size_cast(imported.diagnostics));
+    ASSERT_EQ(4, imported.document->lane_count());
+    EXPECT_EQ("animation-4[0]", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-10[0]", imported.document->lanes()[2].id());
+    const std::array<int, 9> rejected{0, 1, 2, 3, 5, 6, 7, 8, 9};
+    for (int index = 0; index < 9; ++index)
     {
-        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
-        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(index == 5 ? "arity" : "normalization"));
+        EXPECT_NE(
+            std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(rejected[index]) + ":"));
+        EXPECT_NE(std::string::npos, imported.diagnostics[index].find(index == 4 ? "arity" : "normalization"));
     }
+    EXPECT_DOUBLE_EQ(0, *timeline::inspect_frame(*imported.document, 2)->lanes[0].items[0].value);
     EXPECT_FALSE(import_timeline_json("fixtures/normalized-vector-invalid.json").succeeded());
 }

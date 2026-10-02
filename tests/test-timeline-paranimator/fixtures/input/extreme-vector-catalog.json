@@ -1,0 +1,15 @@
+{
+  "parameters": {
+    "overflow2": { "description": "Overflowing keyed vector", "type": "vector2", "normalize": true, "default-curve": "linear", "min": -4e200, "max": 4e200 },
+    "edge2": { "description": "Squared-length overflow boundary", "type": "vector2", "normalize": true, "default-curve": "linear", "min": -4e200, "max": 4e200 },
+    "finite3": { "description": "Finite keyed vector retains tiny output", "type": "vector3", "normalize": true, "default-curve": "linear", "min": -4e200, "max": 4e200 },
+    "hold2": { "description": "Held extreme vector", "type": "vector2", "normalize": true, "default-curve": "hold", "min": -4e200, "max": 4e200 },
+    "step2": { "description": "Stepped extreme vector", "type": "vector2", "normalize": true, "default-curve": "step", "min": -4e200, "max": 4e200 },
+    "bezier2": { "description": "Overflowing Bezier vector", "type": "vector2", "normalize": true },
+    "bezieredge2": { "description": "Bezier overflow boundary", "type": "vector2", "normalize": true },
+    "bezier3": { "description": "Finite Bezier vector cleans tiny output", "type": "vector3", "normalize": true },
+    "catmull2": { "description": "Overflowing Catmull-Rom vector", "type": "vector2", "normalize": true },
+    "catmulledge2": { "description": "Catmull-Rom overflow boundary", "type": "vector2", "normalize": true },
+    "catmull3": { "description": "Finite Catmull-Rom vector cleans tiny output", "type": "vector3", "normalize": true }
+  }
+}

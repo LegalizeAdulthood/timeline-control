@@ -1,0 +1,182 @@
+; Copyright (c) 2026 Richard Thomson
+; Reference output with nine frames and doubled keyed frame indices.
+; Odd numbered entries match the five-frame fixture; others are half frames.
+frame-0001 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=1/1e-154
+    finite3=0.6/0.8/1e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=1/0
+    bezier3=0.6/0.8/0
+    catmull2=0/0
+    catmulledge2=1/0
+    catmull3=0.6/0.8/0
+}
+
+frame-0002 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=1/8.88888888889e-155
+    finite3=0.62775245119/0.778413039475/1.0044039219e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=1/0
+    bezier3=0.62775245119/0.778413039475/0
+    catmull2=0/0
+    catmulledge2=1/0
+    catmull3=0.620863563547/0.783918640842/0
+}
+
+frame-0003 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=1/8e-155
+    finite3=0.654930538418/0.75568908279/1.00758544372e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=1/0
+    bezier3=0.654930538418/0.75568908279/0
+    catmull2=0/0
+    catmulledge2=1/0
+    catmull3=0.64142063934/0.767189392151/0
+}
+
+frame-0004 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=0/0
+    finite3=0.681418527919/0.731893974431/1.00950893025e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=0/0
+    bezier3=0.681418527919/0.731893974431/0
+    catmull2=0/0
+    catmulledge2=1/0
+    catmull3=0.661256862834/0.750159557264/0
+}
+
+frame-0005 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=0/0
+    finite3=0.707106781187/0.707106781187/1.01015254455e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=0/0
+    bezier3=0.707106781187/0.707106781187/0
+    catmull2=0/0
+    catmulledge2=0/0
+    catmull3=0.678149087597/0.734924360047/0
+}
+
+frame-0006 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=0/0
+    finite3=0.731893974431/0.681418527919/1.00950893025e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=0/0
+    bezier3=0.731893974431/0.681418527919/0
+    catmull2=0/0
+    catmulledge2=0/0
+    catmull3=0.698323235762/0.715782549658/0
+}
+
+frame-0007 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=0/0
+    finite3=0.75568908279/0.654930538418/1.00758544372e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=0/0
+    bezier3=0.75568908279/0.654930538418/0
+    catmull2=0/0
+    catmulledge2=0/0
+    catmull3=0.728466251632/0.68508168873/0
+}
+
+frame-0008 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=0/0
+    finite3=0.778413039475/0.62775245119/1.0044039219e-166
+    hold2=0/0
+    step2=0/0
+    bezier2=0/0
+    bezieredge2=0/0
+    bezier3=0.778413039475/0.62775245119/0
+    catmull2=0/0
+    catmulledge2=0/0
+    catmull3=0.765187660017/0.643807304212/0
+}
+
+frame-0009 {
+    reset
+    type=mandel
+    center-mag=-0.5/0/1
+    params=0/0
+    inside=0
+    sound=no
+    overflow2=0/0
+    edge2=0/0
+    finite3=0.8/0.6/1e-166
+    hold2=-0/0
+    step2=-0/0
+    bezier2=0/0
+    bezieredge2=0/0
+    bezier3=0.8/0.6/0
+    catmull2=0/0
+    catmulledge2=0/0
+    catmull3=0.8/0.6/0
+}

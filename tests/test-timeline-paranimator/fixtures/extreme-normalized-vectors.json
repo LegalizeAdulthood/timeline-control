@@ -1,0 +1,20 @@
+{
+  "parameter-catalogs": [ "input/extreme-vector-catalog.json" ],
+  "source": { "file": "input/extreme-vector-source.par", "name": "Vector_Demo" },
+  "output": { "directory": "output", "par": "frames.par", "entry": "frame-%04d", "script": "frames.bat" },
+  "video": "F6",
+  "num-frames": 5,
+  "tracks": [
+    { "parameter": "overflow2", "keys": [ { "frame": 0, "value": [1e200, 1] }, { "frame": 4, "value": [2e200, 2] } ] },
+    { "parameter": "edge2", "keys": [ { "frame": 0, "value": [1e154, 1] }, { "frame": 4, "value": [2e154, 1] } ] },
+    { "parameter": "finite3", "keys": [ { "frame": 0, "value": [3e153, 4e153, 5e-13] }, { "frame": 4, "value": [4e153, 3e153, 5e-13] } ] },
+    { "parameter": "hold2", "keys": [ { "frame": 0, "value": [1e200, 1] }, { "frame": 4, "value": [-1e200, 1] } ] },
+    { "parameter": "step2", "keys": [ { "frame": 0, "value": [1e200, 1] }, { "frame": 4, "value": [-1e200, 1] } ] },
+    { "parameter": "bezier2", "path": { "kind": "bezier", "control-points": [ "1e200/1", "1e200/1" ] } },
+    { "parameter": "bezieredge2", "path": { "kind": "bezier", "control-points": [ "1e154/1", "2e154/1" ] } },
+    { "parameter": "bezier3", "path": { "kind": "bezier", "control-points": [ "3e153/4e153/5e-13", "4e153/3e153/5e-13" ] } },
+    { "parameter": "catmull2", "path": { "kind": "catmull-rom", "control-points": [ "1e200/1", "2e200/1", "3e200/1", "4e200/1" ] } },
+    { "parameter": "catmulledge2", "path": { "kind": "catmull-rom", "control-points": [ "1e154/1", "1.25e154/1", "1.5e154/1", "1.75e154/1" ] } },
+    { "parameter": "catmull3", "path": { "kind": "catmull-rom", "control-points": [ "3e153/4e153/5e-13", "3.25e153/3.75e153/5e-13", "3.5e153/3.5e153/5e-13", "4e153/3e153/5e-13" ] } }
+  ]
+}

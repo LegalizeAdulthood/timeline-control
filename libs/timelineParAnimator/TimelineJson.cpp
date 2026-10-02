@@ -879,12 +879,17 @@ std::vector<double> normalize_vector(std::vector<double> values)
     double squared_length = 0;
     for (double value : values)
     {
+        if (!std::isfinite(value))
+        {
+            throw std::invalid_argument("vector normalization requires finite components");
+        }
         squared_length += value * value;
     }
-    if (squared_length == 0 || !std::isfinite(squared_length))
+    if (squared_length == 0)
     {
-        throw std::invalid_argument("vector normalization requires a nonzero finite squared length");
+        throw std::invalid_argument("vector normalization requires a nonzero squared length");
     }
+    // Match ParAnimator: finite components divided by an overflowing length yield zeros.
     const double length = std::sqrt(squared_length);
     for (double &value : values)
     {
@@ -916,7 +921,6 @@ void validate_vector_hull(const std::vector<std::vector<double>> &points, int de
     static_cast<void>(normalize_path_vector(points.front()));
     static_cast<void>(normalize_path_vector(points.back()));
     bool safe = false;
-    double squared_bound = 0;
     const int arity = timeline::size_cast(points.front());
     for (int component = 0; component < arity; ++component)
     {
@@ -932,14 +936,9 @@ void validate_vector_hull(const std::vector<std::vector<double>> &points, int de
             maximum = std::max(maximum, point[component]);
         }
         const double magnitude = std::max(std::abs(minimum), std::abs(maximum));
-        squared_bound += magnitude * magnitude;
         const double margin =
             1e-12 + 64 * std::numeric_limits<double>::epsilon() * magnitude * timeline::size_cast(points);
         safe = safe || minimum > margin || maximum < -margin;
-    }
-    if (!std::isfinite(squared_bound))
-    {
-        throw std::invalid_argument("vector normalization requires a finite squared-length bound");
     }
     if (safe)
     {

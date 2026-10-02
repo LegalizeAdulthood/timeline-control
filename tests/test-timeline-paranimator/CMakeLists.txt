@@ -2,6 +2,11 @@ find_package(GTest CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(TIMELINE_PARANIMATOR_TEST_FIXTURES
+    fixtures/extreme-normalized-vectors.json
+    fixtures/extreme-normalized-invalid.json
+    fixtures/gold-extreme-normalized-vectors.par
+    fixtures/input/extreme-vector-catalog.json
+    fixtures/input/extreme-vector-source.par
     fixtures/catalog-audit.json
     fixtures/target-resolution.json
     fixtures/target-resolution-invalid.json
