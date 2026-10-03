@@ -49,7 +49,7 @@ This workflow builds the core, JSON adapters, `timeline-qt`, and
 The Qt and ImGui build and test presets explicitly select Debug for
 multi-configuration generators.
 
-For Cairo curve rendering in the wx viewer, use:
+For Cairo rendering in the wx viewer, use:
 
 ```text
 cmake --workflow --preset default-cairo
@@ -895,21 +895,24 @@ need manual verification on the target platforms.
 # Cairo wx Timeline Control
 
 With Cairo enabled, `timeline-viewer` uses `wxCairoTimeline`. View >
-Renderer selects Native wx or Cairo curves on the same control, preserving
+Renderer selects Native wx or Cairo on the same control, preserving
 the document, viewport, selection, playhead, inspection, and mapping
 recipes. File > Open, Add comparison, and Export Snapshot remain unchanged.
 
-Numeric curve and keyframe polylines use antialiased Cairo drawing.
-Other primitives delegate to the existing wx renderer in display-list
-order, preserving native text, markers, spans, overlays, and source RGB.
+Cairo renders all six display-list primitive types in order: lines,
+rectangles, text, markers, polylines, and source RGB swatches. This covers
+curves, keyframes, events, intervals, envelopes, palettes, rulers, and
+selection/playhead overlays without interpreting source-track semantics.
+Labels use native wx font shaping and coverage masks composited by Cairo,
+preserving font metrics without adding a second font backend.
 The control reuses all core layout, hit testing, and interaction behavior;
 renderer choice does not change frame samples or exported geometry.
 
-The renderer owns its Cairo image surfaces and contexts for each draw,
+The renderer owns one clipped Cairo image surface and context per draw,
 converts premultiplied pixel data to wx images, and presents at the native
 content scale. See the [Cairo image-surface API][cairo-image-surfaces].
-Rendering failures fall back to native drawing. Complete Cairo primitive
-coverage and additional scaling/lifecycle checks remain subsequent work.
+Rendering failures fall back to the complete native display list.
+Additional scaling/lifecycle checks remain subsequent work.
 
 CI runs all four public workflows. Linux installs Xvfb and xauth for the
 Cairo workflow's native control tests; image checks require no GPU.

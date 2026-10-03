@@ -4,7 +4,7 @@
 
 #include <wxTimeline/wxTimelineControl.h>
 
-/// Native wx timeline with optional antialiased Cairo curve rendering.
+/// Native wx timeline with optional antialiased Cairo display-list rendering.
 ///
 /// Changing renderer preserves the base control's owned document and all
 /// navigation, interaction, and inspection state.

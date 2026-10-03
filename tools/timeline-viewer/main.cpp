@@ -232,7 +232,7 @@ TimelineViewerFrame::TimelineViewerFrame() :
     const int native_renderer = wxWindow::NewControlId();
     const int cairo_renderer = wxWindow::NewControlId();
     renderer_menu.AppendRadioItem(native_renderer, "&Native wx");
-    renderer_menu.AppendRadioItem(cairo_renderer, "&Cairo curves");
+    renderer_menu.AppendRadioItem(cairo_renderer, "&Cairo");
     renderer_menu.Check(cairo_renderer, true);
     view_menu->AppendSubMenu(&renderer_menu, "&Renderer");
     Bind(

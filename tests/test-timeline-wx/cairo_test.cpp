@@ -141,7 +141,7 @@ TEST(CairoRenderer, handles_empty_and_single_point_curves_without_stray_pixels)
     }
 }
 
-TEST(CairoRenderer, preserves_native_fallback_rgb_and_primitive_order)
+TEST(CairoRenderer, preserves_source_rgb_and_primitive_order_when_presenting)
 {
     timeline::DisplayList list;
     list.add(timeline::Rectangle{0, 0, 32, 28, timeline::StyleRole::LANE_BACKGROUND, {}});
@@ -169,6 +169,125 @@ TEST(CairoRenderer, preserves_native_fallback_rgb_and_primitive_order)
         }
     }
     EXPECT_TRUE(antialiased);
+}
+
+TEST(CairoRenderer, draws_all_filled_roles_and_source_rgb_in_order)
+{
+    for (const wxTimelinePalette &palette : {LIGHT, DARK})
+    {
+        timeline::DisplayList list;
+        int x = 2;
+        for (timeline::StyleRole role : {timeline::StyleRole::LANE_BACKGROUND, timeline::StyleRole::INTERVAL_SPAN,
+                 timeline::StyleRole::ENVELOPE_ATTACK, timeline::StyleRole::ENVELOPE_SUSTAIN,
+                 timeline::StyleRole::ENVELOPE_DECAY, timeline::StyleRole::SELECTED_LANE,
+                 timeline::StyleRole::SELECTED_RANGE})
+        {
+            list.add(timeline::Rectangle{x, 2, 6, 12, role, {}});
+            x += 8;
+        }
+        list.add(timeline::Marker{2, 18, 6, 8, timeline::StyleRole::INSTANT_MARKER, {}});
+        list.add(timeline::Marker{10, 18, 6, 8, timeline::StyleRole::KEYFRAME_MARKER, {}});
+        list.add(timeline::Marker{18, 18, 6, 8, timeline::StyleRole::SELECTED_ITEM, {}});
+        list.add(
+            timeline::Swatch{26, 18, 6, 8, timeline::RgbColor(12, 34, 56), timeline::StyleRole::SELECTED_ITEM, {}});
+        list.add(timeline::Rectangle{40, 18, 12, 8, timeline::StyleRole::SELECTED_RANGE, {}});
+        list.add(timeline::Marker{44, 20, 4, 4, timeline::StyleRole::INSTANT_MARKER, {}});
+        const wxImage image = render_cairo_display_list(
+            list, wxSize(64, 32), wxPoint(0, 0), wxRect(0, 0, 64, 32), palette, 1, true, *wxNORMAL_FONT, 1.0);
+        ASSERT_TRUE(image.IsOk());
+        x = 2;
+        for (int index = 0; index < 7; ++index)
+        {
+            const timeline::Rectangle &rectangle = std::get<timeline::Rectangle>(list.primitives()[index]);
+            EXPECT_EQ(timeline_style_colour(rectangle.style, palette, true), pixel(image, x + 2, 6));
+            EXPECT_EQ(255, image.GetAlpha(x + 2, 6));
+            x += 8;
+        }
+        EXPECT_EQ(timeline_style_colour(timeline::StyleRole::INSTANT_MARKER, palette, true), pixel(image, 4, 22));
+        EXPECT_EQ(timeline_style_colour(timeline::StyleRole::KEYFRAME_MARKER, palette, true), pixel(image, 12, 22));
+        EXPECT_EQ(timeline_style_colour(timeline::StyleRole::SELECTED_ITEM, palette, true), pixel(image, 20, 22));
+        EXPECT_EQ(wxColour(12, 34, 56), pixel(image, 28, 22));
+        EXPECT_EQ(timeline_style_colour(timeline::StyleRole::INSTANT_MARKER, palette, true), pixel(image, 45, 21));
+        EXPECT_EQ(0, image.GetAlpha(0, 0));
+    }
+}
+
+TEST(CairoRenderer, clips_and_antialiases_rulers_playheads_and_keyframe_segments)
+{
+    timeline::DisplayList list;
+    list.add(timeline::Line{0, 0, 31, 27, timeline::StyleRole::RULER, {}});
+    list.add(timeline::Line{20, 0, 20, 27, timeline::StyleRole::PLAYHEAD, {}});
+    list.add(timeline::Polyline{{{0, 24}, {31, 8}}, timeline::StyleRole::KEYFRAME_SEGMENT, {}});
+    const wxRect clip(5, 4, 24, 20);
+    const wxImage image =
+        render_cairo_display_list(list, wxSize(36, 32), wxPoint(2, 1), clip, LIGHT, 1, true, *wxNORMAL_FONT, 2.0);
+    ASSERT_TRUE(image.IsOk());
+    EXPECT_EQ(72, image.GetWidth());
+    EXPECT_EQ(64, image.GetHeight());
+    int partial = 0;
+    int covered = 0;
+    for (int y = 0; y < image.GetHeight(); ++y)
+    {
+        for (int x = 0; x < image.GetWidth(); ++x)
+        {
+            const int alpha = image.GetAlpha(x, y);
+            if (alpha > 0)
+            {
+                ++covered;
+                EXPECT_TRUE(clip.Contains(x / 2, y / 2));
+                partial += alpha < 255;
+            }
+        }
+    }
+    EXPECT_GT(covered, 0);
+    EXPECT_GT(partial, 0);
+    EXPECT_EQ(timeline_style_colour(timeline::StyleRole::PLAYHEAD, LIGHT, true), pixel(image, 44, 12));
+}
+
+TEST(CairoRenderer, composites_native_font_coverage_with_clipping_and_draw_order)
+{
+    wxBitmap bitmap(96, 40, 24);
+    wxMemoryDC dc(bitmap);
+    dc.SetFont(*wxNORMAL_FONT);
+    dc.SetBackground(*wxBLACK_BRUSH);
+    dc.Clear();
+    dc.SetTextForeground(*wxWHITE);
+    dc.SetBackgroundMode(wxTRANSPARENT);
+    dc.DrawText("Timeline", 3, 2);
+    dc.SelectObject(wxNullBitmap);
+    const wxImage native = bitmap.ConvertToImage();
+    timeline::DisplayList list;
+    list.add(timeline::Text{3, 2, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    list.add(timeline::Text{3, 24, "Time", timeline::StyleRole::RULER_LABEL, {}});
+    list.add(timeline::Marker{20, 0, 5, 40, timeline::StyleRole::SELECTED_ITEM, {}});
+    const wxRect clip(0, 0, 80, 40);
+    const wxImage image =
+        render_cairo_display_list(list, wxSize(96, 40), wxPoint(0, 0), clip, DARK, 1, false, *wxNORMAL_FONT, 1.0);
+    ASSERT_TRUE(image.IsOk());
+    int covered = 0;
+    for (int y = 0; y < 20; ++y)
+    {
+        for (int x = 0; x < 96; ++x)
+        {
+            if (x >= 20 && x < 25)
+            {
+                EXPECT_EQ(timeline_style_colour(timeline::StyleRole::SELECTED_ITEM, DARK, false), pixel(image, x, y));
+            }
+            else if (x < 80)
+            {
+                const bool native_covered = native.GetRed(x, y) || native.GetGreen(x, y) || native.GetBlue(x, y);
+                EXPECT_EQ(native_covered, image.GetAlpha(x, y) > 0);
+                const int coverage = (native.GetRed(x, y) + native.GetGreen(x, y) + native.GetBlue(x, y) + 2) / 3;
+                EXPECT_EQ(coverage, image.GetAlpha(x, y));
+                covered += image.GetAlpha(x, y) > 0;
+            }
+            else
+            {
+                EXPECT_EQ(0, image.GetAlpha(x, y));
+            }
+        }
+    }
+    EXPECT_GT(covered, 0);
 }
 
 TEST(CairoControl, switches_renderer_without_replacing_document_or_inspection_state)
