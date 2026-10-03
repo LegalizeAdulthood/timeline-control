@@ -7,6 +7,7 @@
 #include <QPlainTextEdit>
 #include <qtTimeline/QTimelineWidget.h>
 #include <string>
+#include <timelineParAnimator/TimelineJson.h>
 #include <vector>
 
 namespace timeline_qt_viewer
@@ -19,7 +20,17 @@ class Viewer : public QMainWindow
 {
 public:
     Viewer();
-    bool load_file(const std::filesystem::path &path);
+    explicit Viewer(const std::filesystem::path &startup_path);
+    bool load_file(const std::filesystem::path &path)
+    {
+        return load_file(path, false);
+    }
+    bool load_file(const std::filesystem::path &path, bool append);
+    bool export_snapshot(const std::filesystem::path &path);
+    const std::vector<timeline_par_animator::BeatKeysMapping> &mappings() const
+    {
+        return m_mappings;
+    }
     std::string inspector_text() const;
     QTimelineWidget &control()
     {
@@ -35,11 +46,17 @@ public:
     }
 
 private:
-    void choose_file();
+    void choose_file(bool append);
+    void choose_export();
+    void show_diagnostics(const QString &title);
     void update_inspector();
     QTimelineWidget &m_control;
     QPlainTextEdit &m_inspector;
+    QAction &m_add;
+    QAction &m_export;
+    QMenu &m_view;
     std::vector<std::string> m_diagnostics;
+    std::vector<timeline_par_animator::BeatKeysMapping> m_mappings;
 };
 
 } // namespace timeline_qt_viewer

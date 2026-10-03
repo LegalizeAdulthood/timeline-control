@@ -102,20 +102,27 @@ check, requiring no desktop or GPU. CI runs all three public workflows.
 # Qt Viewer
 
 Run `qt-timeline-viewer` from the build's `tools/qt-timeline-viewer`
-directory, with the configuration subdirectory on Windows.
+directory, with the configuration subdirectory on Windows. An optional
+JSON path opens a document at startup.
 File > Open loads supported ParAnimator and ParBeatdown JSON through
 the existing adapters, including discovered beat-keys companion mappings.
-Import diagnostics belong to the viewer; failed imports retain the
-displayed document and interaction state.
+File > Add comparison loads animation, source music, or generated
+beat-keys output using the displayed document's timebase and frame rate.
+Companion mapping configurations retain their source timing semantics;
+incompatible documents are rejected by core composition. File > Export
+Snapshot writes the current core display list. Import and write diagnostics
+belong to the viewer; failed operations retain the displayed document and
+interaction state. Opening a replacement clears prior mapping recipes.
 
 `QTimelineWidget` owns its document and delegates layout, hit testing,
 selection, frame stepping, range dragging, zoom, and scrolling to the
-core. The frame inspector shows source identities and samples. Wheel
+core. The inspector shows document/source metadata, generation summaries,
+mapping recipes, hovered identities, selection, frame samples, parameter
+outputs, attributes, and palettes. View-menu commands delegate zoom, fit,
+and clear-selection operations to the control. Wheel
 scrolls lanes, Ctrl+wheel zooms, Shift+wheel scrolls time, Left/Right step
 frames, Shift+Left/Right extend ranges, and Escape clears selection.
 Qt fonts and theme colors remain native; source RGB swatches are retained.
-Comparison, full inspection metadata, and snapshot export are not yet
-provided by this minimal viewer.
 
 The optional `qt` vcpkg feature selects Qt Widgets and its test library,
 plus fontconfig and XCB support on Linux. Qt discovery, the control,
