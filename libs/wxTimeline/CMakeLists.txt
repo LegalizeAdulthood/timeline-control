@@ -14,3 +14,17 @@ target_link_libraries(timeline-wx
         wx::core
 )
 target_folder(timeline-wx "Libraries")
+
+if(TIMELINE_CONTROL_WITH_CAIRO)
+    find_program(PKG_CONFIG_EXECUTABLE NAMES pkgconf pkg-config
+        HINTS "${VCPKG_INSTALLED_DIR}/${VCPKG_HOST_TRIPLET}/tools/pkgconf")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(CAIRO REQUIRED IMPORTED_TARGET cairo)
+    target_sources(timeline-wx PRIVATE
+        include/wxTimeline/wxCairoTimeline.h
+        include/wxTimeline/wxCairoTimelineRenderer.h
+        wxCairoTimeline.cpp
+        wxCairoTimelineRenderer.cpp
+    )
+    target_link_libraries(timeline-wx PRIVATE PkgConfig::CAIRO)
+endif()

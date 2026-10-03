@@ -499,7 +499,7 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     const wxTimelinePalette palette{
         GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
     const wxDCClipper clip(dc, GetClientRect());
-    draw_timeline_display_list(dc, m_layout->display_list(), wxPoint(0, 0), palette, FromDIP(1), HasFocus());
+    draw_display_list(dc, m_layout->display_list(), palette, FromDIP(1), HasFocus());
     if (HasFocus())
     {
         wxRendererNative::Get().DrawFocusRect(this, dc, GetClientRect(), wxCONTROL_FOCUSED);

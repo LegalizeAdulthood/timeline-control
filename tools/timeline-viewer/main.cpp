@@ -2,6 +2,9 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 #include <wxTimeline/wxTimelineControl.h>
+#ifdef TIMELINE_CONTROL_WITH_CAIRO
+#include <wxTimeline/wxCairoTimeline.h>
+#endif
 
 #include <wx/filedlg.h>
 #include <wx/sizer.h>
@@ -203,7 +206,11 @@ public:
 TimelineViewerFrame::TimelineViewerFrame() :
     wxFrame(nullptr, wxID_ANY, "Timeline Viewer", wxDefaultPosition, wxSize(800, 500)),
     m_content(new wxPanel(this)),
+#ifdef TIMELINE_CONTROL_WITH_CAIRO
+    m_timeline_control(new wxCairoTimeline(m_content)),
+#else
     m_timeline_control(new wxTimelineControl(m_content)),
+#endif
     m_inspector(new wxTextCtrl(m_content, wxID_ANY, "No frame inspection.", wxDefaultPosition, wxSize(280, -1),
         wxTE_MULTILINE | wxTE_READONLY))
 {
@@ -220,6 +227,21 @@ TimelineViewerFrame::TimelineViewerFrame() :
     view_menu->Append(wxID_ZOOM_100, "&Fit\tCtrl+0");
     view_menu->AppendSeparator();
     view_menu->Append(wxID_CLEAR, "&Clear Selection\tEsc");
+#ifdef TIMELINE_CONTROL_WITH_CAIRO
+    wxMenu &renderer_menu = *new wxMenu;
+    const int native_renderer = wxWindow::NewControlId();
+    const int cairo_renderer = wxWindow::NewControlId();
+    renderer_menu.AppendRadioItem(native_renderer, "&Native wx");
+    renderer_menu.AppendRadioItem(cairo_renderer, "&Cairo curves");
+    renderer_menu.Check(cairo_renderer, true);
+    view_menu->AppendSubMenu(&renderer_menu, "&Renderer");
+    Bind(
+        wxEVT_MENU, [this](wxCommandEvent &)
+        { static_cast<wxCairoTimeline &>(*m_timeline_control).set_cairo_enabled(false); }, native_renderer);
+    Bind(
+        wxEVT_MENU, [this](wxCommandEvent &)
+        { static_cast<wxCairoTimeline &>(*m_timeline_control).set_cairo_enabled(true); }, cairo_renderer);
+#endif
 
     auto *menu_bar = new wxMenuBar;
     menu_bar->Append(file_menu, "&File");

@@ -90,6 +90,24 @@ jobs:
           exit $LASTEXITCODE
         }
 
+    - name: CMake Cairo workflow Linux
+      if: ${{matrix.os == 'ubuntu-latest'}}
+      shell: bash
+      run: |
+        set -o pipefail
+        xvfb-run -a cmake --workflow --preset default-cairo 2>&1 |
+          tee -a build.log
+
+    - name: CMake Cairo workflow desktop
+      if: ${{matrix.os != 'ubuntu-latest'}}
+      shell: pwsh
+      run: |
+        cmake --workflow --preset default-cairo 2>&1 |
+          Tee-Object -FilePath build.log -Append
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
     - name: Analyze vcpkg package cache
       if: always()
       uses: LegalizeAdulthood/vcpkg-github-cache/analyze@40cd86389171f069d4524dc5c2c2588c89a93cd8 # v1.5.0

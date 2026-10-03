@@ -21,3 +21,7 @@ wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalett
 void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin);
 void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,
     const wxTimelinePalette &palette, int stroke_width, bool focused);
+
+/// Draws one native primitive, preserving the display list's original ordering.
+void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
+    const wxTimelinePalette &palette, int stroke_width, bool focused);

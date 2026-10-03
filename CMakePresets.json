@@ -77,20 +77,43 @@
     {
       "name": "default",
       "displayName": "Configure with default settings",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on", "imgui-off", "qt-off" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on", "imgui-off", "qt-off", "cairo-off" ]
     },
     {
       "name": "default-imgui",
       "displayName": "Configure with Dear ImGui and without wxWidgets",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-on", "qt-off" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-on", "qt-off", "cairo-off" ]
     },
     {
       "name": "default-qt",
       "displayName": "Configure with Qt and without wxWidgets or Dear ImGui",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-off", "qt-on" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-off", "qt-on", "cairo-off" ]
+    },
+    {
+      "name": "cairo-on",
+      "hidden": true,
+      "description": "Build the Cairo renderer for wxWidgets",
+      "cacheVariables": { "TIMELINE_CONTROL_WITH_CAIRO": "ON" }
+    },
+    {
+      "name": "cairo-off",
+      "hidden": true,
+      "description": "Build without Cairo sources or dependencies",
+      "cacheVariables": { "TIMELINE_CONTROL_WITH_CAIRO": "OFF" }
+    },
+    {
+      "name": "default-cairo",
+      "displayName": "Configure Cairo and wxWidgets",
+      "inherits": [ "cairo-on", "default" ],
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     }
   ],
   "buildPresets": [
+    {
+      "name": "default-cairo",
+      "configurePreset": "default-cairo",
+      "configuration": "Debug"
+    },
     {
       "name": "default-qt",
       "displayName": "Build with Qt",
@@ -110,6 +133,12 @@
     }
   ],
   "testPresets": [
+    {
+      "name": "default-cairo",
+      "configurePreset": "default-cairo",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true }
+    },
     {
       "name": "default-qt",
       "displayName": "Test with Qt",
@@ -138,6 +167,15 @@
     }
   ],
   "workflowPresets": [
+    {
+      "name": "default-cairo",
+      "displayName": "Cairo wx workflow: configure, build and test",
+      "steps": [
+        { "type": "configure", "name": "default-cairo" },
+        { "type": "build", "name": "default-cairo" },
+        { "type": "test", "name": "default-cairo" }
+      ]
+    },
     {
       "name": "default-qt",
       "displayName": "Qt workflow: configure, build and test",

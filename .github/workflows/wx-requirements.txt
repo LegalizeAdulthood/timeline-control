@@ -35,3 +35,6 @@ ninja-build
 pkg-config
 # OpenSSH
 linux-libc-dev
+# Cairo native-control tests under a virtual X display
+xauth
+xvfb

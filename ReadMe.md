@@ -49,12 +49,27 @@ This workflow builds the core, JSON adapters, `timeline-qt`, and
 The Qt and ImGui build and test presets explicitly select Debug for
 multi-configuration generators.
 
+For Cairo curve rendering in the wx viewer, use:
+
+```text
+cmake --workflow --preset default-cairo
+```
+
+This workflow also selects Debug for multi-configuration generators.
+On Linux, native Cairo control tests need a display; use
+`xvfb-run -a cmake --workflow --preset default-cairo` without a desktop.
+
 `TIMELINE_CONTROL_WITH_WX` defaults to `ON`;
 `TIMELINE_CONTROL_WITH_IMGUI` and `TIMELINE_CONTROL_WITH_QT` default to
 `OFF`. Enable the options independently or disable all three for a
 headless build. Hidden `wx-on`, `wx-off`, `imgui-on`, `imgui-off`, `qt-on`,
 and `qt-off` configure presets compose additional configurations.
 CMake requests the matching vcpkg features before configuring dependencies.
+`TIMELINE_CONTROL_WITH_CAIRO` defaults to `OFF` and requires wx support.
+Hidden `cairo-on` and `cairo-off` presets compose with the other options.
+The `cairo` feature uses the image backend without optional font or X11
+backends; vcpkg supplies its transitive dependencies. Disabled builds do
+not discover Cairo or compile its control, renderer, or tests.
 The ImGui feature includes
 SDL3 platform and renderer backends for the standalone viewer. The control
 itself has no backend-specific code.
@@ -97,7 +112,7 @@ core display list as text. Both viewers use the same adapters and core;
 font metrics and theme colors remain toolkit-specific.
 
 Viewer tests include a bounded SDL dummy-video/software-renderer smoke
-check, requiring no desktop or GPU. CI runs all three public workflows.
+check, requiring no desktop or GPU. CI runs all four public workflows.
 
 # Qt Viewer
 
@@ -876,6 +891,31 @@ renderer. Resize, DPI, and system-color changes invalidate cached layout;
 buffered painting keeps navigation repainting stable. Theme mapping has
 headless adapter tests, while actual DPI and OS-theme transitions still
 need manual verification on the target platforms.
+
+# Cairo wx Timeline Control
+
+With Cairo enabled, `timeline-viewer` uses `wxCairoTimeline`. View >
+Renderer selects Native wx or Cairo curves on the same control, preserving
+the document, viewport, selection, playhead, inspection, and mapping
+recipes. File > Open, Add comparison, and Export Snapshot remain unchanged.
+
+Numeric curve and keyframe polylines use antialiased Cairo drawing.
+Other primitives delegate to the existing wx renderer in display-list
+order, preserving native text, markers, spans, overlays, and source RGB.
+The control reuses all core layout, hit testing, and interaction behavior;
+renderer choice does not change frame samples or exported geometry.
+
+The renderer owns its Cairo image surfaces and contexts for each draw,
+converts premultiplied pixel data to wx images, and presents at the native
+content scale. See the [Cairo image-surface API][cairo-image-surfaces].
+Rendering failures fall back to native drawing. Complete Cairo primitive
+coverage and additional scaling/lifecycle checks remain subsequent work.
+
+CI runs all four public workflows. Linux installs Xvfb and xauth for the
+Cairo workflow's native control tests; image checks require no GPU.
+
+[cairo-image-surfaces]:
+  https://www.cairographics.org/manual/cairo-Image-Surfaces.html
 
 # Display Snapshots
 

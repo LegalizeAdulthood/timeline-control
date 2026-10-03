@@ -5,6 +5,7 @@
 #include <timeline/Interaction.h>
 #include <timeline/Layout.h>
 #include <timeline/Query.h>
+#include <wxTimeline/wxTimelineRenderer.h>
 
 #include <wx/panel.h>
 
@@ -57,6 +58,14 @@ public:
     const std::optional<timeline::Interaction> &interaction() const
     {
         return m_interaction;
+    }
+
+protected:
+    /// Presentation hook; layout and interaction remain owned by this control.
+    virtual void draw_display_list(wxDC &dc, const timeline::DisplayList &display_list,
+        const wxTimelinePalette &palette, int stroke_width, bool focused)
+    {
+        draw_timeline_display_list(dc, display_list, wxPoint(0, 0), palette, stroke_width, focused);
     }
 
 private:

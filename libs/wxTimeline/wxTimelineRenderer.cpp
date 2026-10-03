@@ -81,51 +81,56 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
     stroke_width = std::max(1, stroke_width);
     for (const timeline::Primitive &primitive : display_list.primitives())
     {
-        std::visit(
-            [&](const auto &value)
-            {
-                using Value = std::decay_t<decltype(value)>;
-                const wxColour colour = timeline_style_colour(value.style, palette, focused);
-                if constexpr (std::is_same_v<Value, timeline::Line>)
-                {
-                    dc.SetPen(wxPen(colour, stroke_width));
-                    dc.DrawLine(origin.x + value.x1, origin.y + value.y1, origin.x + value.x2, origin.y + value.y2);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Rectangle> ||
-                    std::is_same_v<Value, timeline::Marker>)
-                {
-                    dc.SetPen(*wxTRANSPARENT_PEN);
-                    dc.SetBrush(wxBrush(colour));
-                    dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Swatch>)
-                {
-                    dc.SetPen(*wxTRANSPARENT_PEN);
-                    dc.SetBrush(wxBrush(wxColour(static_cast<unsigned char>(value.color.red()),
-                        static_cast<unsigned char>(value.color.green()),
-                        static_cast<unsigned char>(value.color.blue()))));
-                    dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Polyline>)
-                {
-                    std::vector<wxPoint> points{};
-                    points.reserve(value.points.size());
-                    for (const timeline::Point &point : value.points)
-                    {
-                        points.emplace_back(origin.x + point.x, origin.y + point.y);
-                    }
-                    if (timeline::size_cast(points) >= 2)
-                    {
-                        dc.SetPen(wxPen(colour, 2 * stroke_width));
-                        dc.DrawLines(timeline::size_cast(points), points.data());
-                    }
-                }
-                else
-                {
-                    dc.SetTextForeground(colour);
-                    dc.DrawText(wxString::FromUTF8(value.value.c_str()), origin.x + value.x, origin.y + value.y);
-                }
-            },
-            primitive);
+        draw_timeline_primitive(dc, primitive, origin, palette, stroke_width, focused);
     }
+}
+
+void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
+    const wxTimelinePalette &palette, int stroke_width, bool focused)
+{
+    stroke_width = std::max(1, stroke_width);
+    std::visit(
+        [&](const auto &value)
+        {
+            using Value = std::decay_t<decltype(value)>;
+            const wxColour colour = timeline_style_colour(value.style, palette, focused);
+            if constexpr (std::is_same_v<Value, timeline::Line>)
+            {
+                dc.SetPen(wxPen(colour, stroke_width));
+                dc.DrawLine(origin.x + value.x1, origin.y + value.y1, origin.x + value.x2, origin.y + value.y2);
+            }
+            else if constexpr (std::is_same_v<Value, timeline::Rectangle> || std::is_same_v<Value, timeline::Marker>)
+            {
+                dc.SetPen(*wxTRANSPARENT_PEN);
+                dc.SetBrush(wxBrush(colour));
+                dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
+            }
+            else if constexpr (std::is_same_v<Value, timeline::Swatch>)
+            {
+                dc.SetPen(*wxTRANSPARENT_PEN);
+                dc.SetBrush(wxBrush(wxColour(static_cast<unsigned char>(value.color.red()),
+                    static_cast<unsigned char>(value.color.green()), static_cast<unsigned char>(value.color.blue()))));
+                dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
+            }
+            else if constexpr (std::is_same_v<Value, timeline::Polyline>)
+            {
+                std::vector<wxPoint> points{};
+                points.reserve(value.points.size());
+                for (const timeline::Point &point : value.points)
+                {
+                    points.emplace_back(origin.x + point.x, origin.y + point.y);
+                }
+                if (timeline::size_cast(points) >= 2)
+                {
+                    dc.SetPen(wxPen(colour, 2 * stroke_width));
+                    dc.DrawLines(timeline::size_cast(points), points.data());
+                }
+            }
+            else
+            {
+                dc.SetTextForeground(colour);
+                dc.DrawText(wxString::FromUTF8(value.value.c_str()), origin.x + value.x, origin.y + value.y);
+            }
+        },
+        primitive);
 }

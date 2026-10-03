@@ -8,6 +8,13 @@
     "nlohmann-json"
   ],
   "features": {
+    "cairo": {
+      "description": "Build the Cairo-rendered wxWidgets timeline control",
+      "dependencies": [
+        { "name": "cairo", "default-features": false },
+        { "name": "pkgconf", "host": true }
+      ]
+    },
     "qt": {
       "description": "Build the Qt timeline control and viewer",
       "dependencies": [
