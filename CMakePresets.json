@@ -59,17 +59,44 @@
       }
     },
     {
+      "name": "qt-on",
+      "hidden": true,
+      "description": "Build the Qt control and viewer",
+      "cacheVariables": {
+        "TIMELINE_CONTROL_WITH_QT": "ON"
+      }
+    },
+    {
+      "name": "qt-off",
+      "hidden": true,
+      "description": "Build without Qt targets",
+      "cacheVariables": {
+        "TIMELINE_CONTROL_WITH_QT": "OFF"
+      }
+    },
+    {
       "name": "default",
       "displayName": "Configure with default settings",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on", "imgui-off" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-on", "imgui-off", "qt-off" ]
     },
     {
       "name": "default-imgui",
       "displayName": "Configure with Dear ImGui and without wxWidgets",
-      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-on" ]
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-on", "qt-off" ]
+    },
+    {
+      "name": "default-qt",
+      "displayName": "Configure with Qt and without wxWidgets or Dear ImGui",
+      "inherits": [ "sibling-build-preset", "vcpkg", "project-name", "wx-off", "imgui-off", "qt-on" ]
     }
   ],
   "buildPresets": [
+    {
+      "name": "default-qt",
+      "displayName": "Build with Qt",
+      "configurePreset": "default-qt",
+      "configuration": "Debug"
+    },
     {
       "name": "default",
       "displayName": "Build with default settings",
@@ -83,6 +110,15 @@
     }
   ],
   "testPresets": [
+    {
+      "name": "default-qt",
+      "displayName": "Test with Qt",
+      "configurePreset": "default-qt",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
     {
       "name": "default",
       "displayName": "Test with default settings",
@@ -102,6 +138,15 @@
     }
   ],
   "workflowPresets": [
+    {
+      "name": "default-qt",
+      "displayName": "Qt workflow: configure, build and test",
+      "steps": [
+        { "type": "configure", "name": "default-qt" },
+        { "type": "build", "name": "default-qt" },
+        { "type": "test", "name": "default-qt" }
+      ]
+    },
     {
       "name": "default",
       "displayName": "Workflow with default settings: configure, build and test",

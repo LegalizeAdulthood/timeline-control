@@ -8,6 +8,22 @@
     "nlohmann-json"
   ],
   "features": {
+    "qt": {
+      "description": "Build the Qt timeline control and viewer",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "default-features": false,
+          "features": [ "widgets", "testlib" ]
+        },
+        {
+          "name": "qtbase",
+          "default-features": false,
+          "features": [ "fontconfig", "xcb" ],
+          "platform": "linux"
+        }
+      ]
+    },
     "imgui": {
       "description": "Build the Dear ImGui timeline control",
       "dependencies": [

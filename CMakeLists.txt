@@ -11,6 +11,7 @@ set_cxx_standard(17)
 set(TIMELINE_CONTROL_PROJECT_NAME "Timeline Control" CACHE "STRING" "Default project name for IDEs")
 option(TIMELINE_CONTROL_WITH_WX "Build the wxWidgets timeline control" ON)
 option(TIMELINE_CONTROL_WITH_IMGUI "Build the Dear ImGui timeline control" OFF)
+option(TIMELINE_CONTROL_WITH_QT "Build the Qt timeline control" OFF)
 
 if(TIMELINE_CONTROL_WITH_WX)
     list(APPEND VCPKG_MANIFEST_FEATURES "wx")
@@ -18,12 +19,19 @@ endif()
 if(TIMELINE_CONTROL_WITH_IMGUI)
     list(APPEND VCPKG_MANIFEST_FEATURES "imgui")
 endif()
+if(TIMELINE_CONTROL_WITH_QT)
+    list(APPEND VCPKG_MANIFEST_FEATURES "qt")
+endif()
 list(REMOVE_DUPLICATES VCPKG_MANIFEST_FEATURES)
 
 project("${TIMELINE_CONTROL_PROJECT_NAME}" CXX)
 
 if(TIMELINE_CONTROL_WITH_IMGUI)
     find_package(imgui CONFIG REQUIRED)
+endif()
+if(TIMELINE_CONTROL_WITH_QT)
+    find_package(Qt6 CONFIG REQUIRED COMPONENTS Widgets)
+    include(deploy_qt_plugins)
 endif()
 
 include(CTest)
@@ -47,7 +55,8 @@ misc_group_sources("CMake Scripts" FILES
     "cmake/misc_target.cmake"
     "cmake/set_cxx_standard.cmake"
     "cmake/target_folder.cmake"
-    "cmake/vs_startup_project.cmake")
+    "cmake/vs_startup_project.cmake"
+    "cmake/deploy_qt_plugins.cmake")
 misc_group_sources("Editing" FILES
     ".clang-format"
     ".editorconfig")

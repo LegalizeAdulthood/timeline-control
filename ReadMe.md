@@ -38,12 +38,24 @@ This workflow builds the core, JSON adapters, `timeline-imgui`, and
 `imgui-timeline-viewer`, plus adapter and viewer tests.
 The `default` workflow still builds the wx control and viewer.
 
-`TIMELINE_CONTROL_WITH_WX` defaults to `ON` and
-`TIMELINE_CONTROL_WITH_IMGUI` defaults to `OFF`. Enable either option
-independently; both can be disabled for a headless build. The hidden
-`wx-on`, `wx-off`, `imgui-on`, and `imgui-off` configure presets can be
-composed into additional configurations. CMake requests the matching
-vcpkg features before configuring dependencies. The ImGui feature includes
+For Qt without wxWidgets or Dear ImGui, use:
+
+```text
+cmake --workflow --preset default-qt
+```
+
+This workflow builds the core and JSON adapters with Qt Widgets available
+and a headless Qt initialization/rendering smoke check. The Qt timeline
+control and viewer are not implemented yet. The Qt and ImGui build and
+test presets explicitly select Debug for multi-configuration generators.
+
+`TIMELINE_CONTROL_WITH_WX` defaults to `ON`;
+`TIMELINE_CONTROL_WITH_IMGUI` and `TIMELINE_CONTROL_WITH_QT` default to
+`OFF`. Enable the options independently or disable all three for a
+headless build. Hidden `wx-on`, `wx-off`, `imgui-on`, `imgui-off`, `qt-on`,
+and `qt-off` configure presets compose additional configurations.
+CMake requests the matching vcpkg features before configuring dependencies.
+The ImGui feature includes
 SDL3 platform and renderer backends for the standalone viewer. The control
 itself has no backend-specific code.
 
@@ -85,7 +97,24 @@ core display list as text. Both viewers use the same adapters and core;
 font metrics and theme colors remain toolkit-specific.
 
 Viewer tests include a bounded SDL dummy-video/software-renderer smoke
-check, requiring no desktop or GPU. CI runs both public workflows.
+check, requiring no desktop or GPU. CI runs all three public workflows.
+
+# Qt Dependencies
+
+The optional `qt` vcpkg feature selects Qt Widgets and its test library,
+plus fontconfig and XCB support on Linux. Qt discovery and the dependency
+smoke check are gated on `TIMELINE_CONTROL_WITH_QT`; disabled builds do
+not require Qt packages or add Qt-specific targets.
+
+The smoke check initializes and destroys a Qt Widgets application and
+renders a widget into an image using the headless `minimal` platform.
+The build deploys that platform plugin beside the test executable.
+It does not implement timeline rendering or a Qt viewer.
+
+Linux CI installs the XCB prerequisites listed in
+`.github/workflows/qt-requirements.txt` as well as the shared wx/SDL3
+prerequisites. The existing wx and ImGui controls and viewers remain
+unchanged.
 
 # Beat-Keys Mappings
 

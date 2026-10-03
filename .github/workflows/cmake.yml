@@ -35,6 +35,7 @@ jobs:
         sudo dpkg-reconfigure man-db
         sudo apt-get update
         sed 's/#.*//' ${{github.workspace}}/.github/workflows/wx-requirements.txt | xargs sudo apt-get install
+        sed 's/#.*//' ${{github.workspace}}/.github/workflows/qt-requirements.txt | xargs sudo apt-get install
 
     - name: Install Prerequisites macOS
       if: ${{startsWith(matrix.os, 'macos-')}}
@@ -75,6 +76,15 @@ jobs:
       shell: pwsh
       run: |
         cmake --workflow --preset default-imgui 2>&1 |
+          Tee-Object -FilePath build.log -Append
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+    - name: CMake Qt workflow
+      shell: pwsh
+      run: |
+        cmake --workflow --preset default-qt 2>&1 |
           Tee-Object -FilePath build.log -Append
         if ($LASTEXITCODE -ne 0) {
           exit $LASTEXITCODE
