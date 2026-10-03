@@ -42,6 +42,8 @@ if(TIMELINE_CONTROL_WITH_WX)
     vs_startup_project(timeline-viewer)
 elseif(TIMELINE_CONTROL_WITH_IMGUI)
     vs_startup_project(imgui-timeline-viewer)
+elseif(TIMELINE_CONTROL_WITH_QT)
+    vs_startup_project(qt-timeline-viewer)
 endif()
 
 if(BUILD_TESTING)

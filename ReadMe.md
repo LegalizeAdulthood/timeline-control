@@ -44,10 +44,10 @@ For Qt without wxWidgets or Dear ImGui, use:
 cmake --workflow --preset default-qt
 ```
 
-This workflow builds the core and JSON adapters with Qt Widgets available
-and a headless Qt initialization/rendering smoke check. The Qt timeline
-control and viewer are not implemented yet. The Qt and ImGui build and
-test presets explicitly select Debug for multi-configuration generators.
+This workflow builds the core, JSON adapters, `timeline-qt`, and
+`qt-timeline-viewer`, plus headless native-widget and viewer tests.
+The Qt and ImGui build and test presets explicitly select Debug for
+multi-configuration generators.
 
 `TIMELINE_CONTROL_WITH_WX` defaults to `ON`;
 `TIMELINE_CONTROL_WITH_IMGUI` and `TIMELINE_CONTROL_WITH_QT` default to
@@ -99,17 +99,34 @@ font metrics and theme colors remain toolkit-specific.
 Viewer tests include a bounded SDL dummy-video/software-renderer smoke
 check, requiring no desktop or GPU. CI runs all three public workflows.
 
-# Qt Dependencies
+# Qt Viewer
+
+Run `qt-timeline-viewer` from the build's `tools/qt-timeline-viewer`
+directory, with the configuration subdirectory on Windows.
+File > Open loads supported ParAnimator and ParBeatdown JSON through
+the existing adapters, including discovered beat-keys companion mappings.
+Import diagnostics belong to the viewer; failed imports retain the
+displayed document and interaction state.
+
+`QTimelineWidget` owns its document and delegates layout, hit testing,
+selection, frame stepping, range dragging, zoom, and scrolling to the
+core. The frame inspector shows source identities and samples. Wheel
+scrolls lanes, Ctrl+wheel zooms, Shift+wheel scrolls time, Left/Right step
+frames, Shift+Left/Right extend ranges, and Escape clears selection.
+Qt fonts and theme colors remain native; source RGB swatches are retained.
+Comparison, full inspection metadata, and snapshot export are not yet
+provided by this minimal viewer.
 
 The optional `qt` vcpkg feature selects Qt Widgets and its test library,
-plus fontconfig and XCB support on Linux. Qt discovery and the dependency
-smoke check are gated on `TIMELINE_CONTROL_WITH_QT`; disabled builds do
-not require Qt packages or add Qt-specific targets.
+plus fontconfig and XCB support on Linux. Qt discovery, the control,
+viewer, and tests are gated on `TIMELINE_CONTROL_WITH_QT`. Disabled builds
+do not require Qt packages or add Qt-specific targets.
 
 The smoke check initializes and destroys a Qt Widgets application and
 renders a widget into an image using the headless `minimal` platform.
-The build deploys that platform plugin beside the test executable.
-It does not implement timeline rendering or a Qt viewer.
+The build deploys that platform plugin beside the test executables and
+the native platform plugin beside the viewer. Widget tests exercise
+painting, native input, ownership, replacement, and shared core output.
 
 Linux CI installs the XCB prerequisites listed in
 `.github/workflows/qt-requirements.txt` as well as the shared wx/SDL3

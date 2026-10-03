@@ -8,3 +8,7 @@ endif()
 if(TIMELINE_CONTROL_WITH_IMGUI)
     add_subdirectory(imguiTimeline)
 endif()
+
+if(TIMELINE_CONTROL_WITH_QT)
+    add_subdirectory(qtTimeline)
+endif()
