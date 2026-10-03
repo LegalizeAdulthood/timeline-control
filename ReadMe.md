@@ -35,7 +35,7 @@ cmake --workflow --preset default-imgui
 ```
 
 This workflow builds the core, JSON adapters, `timeline-imgui`, and
-backend-free adapter tests. The ImGui viewer is not implemented yet.
+`imgui-timeline-viewer`, plus adapter and viewer tests.
 The `default` workflow still builds the wx control and viewer.
 
 `TIMELINE_CONTROL_WITH_WX` defaults to `ON` and
@@ -43,8 +43,9 @@ The `default` workflow still builds the wx control and viewer.
 independently; both can be disabled for a headless build. The hidden
 `wx-on`, `wx-off`, `imgui-on`, and `imgui-off` configure presets can be
 composed into additional configurations. CMake requests the matching
-vcpkg features before configuring dependencies. The ImGui feature does
-not select a platform or renderer backend.
+vcpkg features before configuring dependencies. The ImGui feature includes
+SDL3 platform and renderer backends for the standalone viewer. The control
+itself has no backend-specific code.
 
 # ImGui Timeline Adapter
 
@@ -64,6 +65,27 @@ selection, range dragging, frame navigation, zooming, and scrolling to
 the core. Optional-reference accessors expose the document, interaction,
 hovered hit, inspection, and most recently computed layout and viewport.
 Zoom, fit, and clear-selection commands are available to host menus.
+
+# ImGui Timeline Viewer
+
+Run `imgui-timeline-viewer` from the build's `tools/imgui-timeline-viewer`
+directory, under `Debug` or `Release` for multi-configuration generators.
+An optional JSON path opens a document at startup.
+
+File > Open uses a native JSON file dialog. File > Add comparison loads
+music, beat-keys mappings, or animation using the current document's frame
+rate. Companion `adapter.beat-keys.json` files are discovered beside the
+selected input. Failed imports retain the displayed document and state;
+diagnostics are shown by the viewer, never by the control.
+
+The inspector shows metadata, mapping recipes, hover identities,
+selection, playhead, ranges, and frame samples. View commands provide
+zoom, fit, and clear selection. File > Export Snapshot writes the current
+core display list as text. Both viewers use the same adapters and core;
+font metrics and theme colors remain toolkit-specific.
+
+Viewer tests include a bounded SDL dummy-video/software-renderer smoke
+check, requiring no desktop or GPU. CI runs both public workflows.
 
 # Beat-Keys Mappings
 

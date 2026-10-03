@@ -13,7 +13,8 @@
       "dependencies": [
         {
           "name": "imgui",
-          "default-features": false
+          "default-features": false,
+          "features": [ "sdl3-binding", "sdl3-renderer-binding" ]
         }
       ]
     },

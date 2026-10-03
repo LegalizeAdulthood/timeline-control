@@ -78,7 +78,8 @@
     {
       "name": "default-imgui",
       "displayName": "Build with Dear ImGui",
-      "configurePreset": "default-imgui"
+      "configurePreset": "default-imgui",
+      "configuration": "Debug"
     }
   ],
   "testPresets": [
@@ -94,6 +95,7 @@
       "name": "default-imgui",
       "displayName": "Test with Dear ImGui",
       "configurePreset": "default-imgui",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       }

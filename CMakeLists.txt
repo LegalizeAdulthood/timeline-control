@@ -29,9 +29,11 @@ endif()
 include(CTest)
 
 add_subdirectory(libs)
+add_subdirectory(tools)
 if(TIMELINE_CONTROL_WITH_WX)
-    add_subdirectory(tools)
     vs_startup_project(timeline-viewer)
+elseif(TIMELINE_CONTROL_WITH_IMGUI)
+    vs_startup_project(imgui-timeline-viewer)
 endif()
 
 if(BUILD_TESTING)
