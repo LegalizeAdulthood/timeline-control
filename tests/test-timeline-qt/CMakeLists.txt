@@ -2,7 +2,10 @@
 
 find_package(GTest CONFIG REQUIRED)
 
-if(UNIX AND NOT APPLE)
+if(APPLE)
+    set(TIMELINE_QT_TEST_PLATFORM cocoa)
+    set(TIMELINE_QT_TEST_PLUGIN QCocoaIntegrationPlugin)
+elseif(UNIX)
     set(TIMELINE_QT_TEST_PLATFORM xcb)
     set(TIMELINE_QT_TEST_PLUGIN QXcbIntegrationPlugin)
 else()
