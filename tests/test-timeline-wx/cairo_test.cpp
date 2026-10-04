@@ -26,6 +26,7 @@ void settle(wxTimelineControl &control)
 {
     for (int pass = 0; pass < 3; ++pass)
     {
+        control.Refresh(false);
         wxTheApp->Yield();
         control.Update();
     }
@@ -307,6 +308,8 @@ TEST(CairoControl, switches_renderer_without_replacing_document_or_inspection_st
     control.set_document(timeline::combine_documents(*animation.document, *mapping.document));
     frame.Show();
     settle(control);
+    control.SetFocus();
+    settle(control);
     control.zoom_in();
     settle(control);
     wxKeyEvent key(wxEVT_CHAR_HOOK);
@@ -468,6 +471,8 @@ TEST(CairoControl, preserves_interaction_through_presentation_changes_and_destru
         control.SetSize(600, 400);
         control.set_document(timeline::combine_documents(*animation.document, *mapping.document));
         frame.Show();
+        settle(control);
+        control.SetFocus();
         settle(control);
         control.zoom_in();
         settle(control);

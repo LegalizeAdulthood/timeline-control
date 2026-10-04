@@ -16,4 +16,4 @@ add_executable(test-timeline-core
 target_link_libraries(test-timeline-core PUBLIC timeline-core GTest::gtest_main)
 target_folder(test-timeline-core "Tests")
 
-gtest_discover_tests(test-timeline-core)
+gtest_discover_tests(test-timeline-core DISCOVERY_TIMEOUT 30)
