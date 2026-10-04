@@ -31,6 +31,7 @@ struct JsonImportOptions
 /// A successful result owns a timeline document. Diagnostics remain adapter
 /// concerns and are never stored in the core document. Mapping imports also
 /// retain recipes and measured inputs; their document is a disposable cache.
+///
 struct JsonImportResult
 {
     std::optional<timeline::Document> document;
@@ -48,7 +49,9 @@ struct JsonImportResult
 /// ParBeatdown imports retain valid records when individual records or
 /// optional metadata are malformed. Diagnostics identify rejected records;
 /// schema and timing failures prevent construction of a document.
+///
 JsonImportResult import_timeline_json(const std::filesystem::path &source_path, const JsonImportOptions &options);
+
 inline JsonImportResult import_timeline_json(const std::filesystem::path &source_path)
 {
     return import_timeline_json(source_path, JsonImportOptions{});

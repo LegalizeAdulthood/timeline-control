@@ -12,6 +12,7 @@ namespace timeline
 {
 
 /// String-valued metadata attached to generic timeline content.
+///
 using Attributes = std::map<std::string, std::string>;
 
 /// An event occurring at one exact timeline time.

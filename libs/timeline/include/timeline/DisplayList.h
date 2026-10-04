@@ -13,6 +13,7 @@ namespace timeline
 {
 
 /// Semantic rendering role interpreted by a GUI toolkit adapter.
+///
 enum class StyleRole
 {
     RULER,
@@ -35,6 +36,7 @@ enum class StyleRole
 };
 
 /// Stable source identity carried by a display-list primitive.
+///
 struct DisplayId
 {
     std::string lane_id;
@@ -42,6 +44,7 @@ struct DisplayId
 };
 
 /// Toolkit-neutral line drawing primitive.
+///
 struct Line
 {
     int x1;
@@ -53,6 +56,7 @@ struct Line
 };
 
 /// Toolkit-neutral filled rectangle drawing primitive.
+///
 struct Rectangle
 {
     int x;
@@ -64,6 +68,7 @@ struct Rectangle
 };
 
 /// Toolkit-neutral text drawing primitive.
+///
 struct Text
 {
     int x;
@@ -74,6 +79,7 @@ struct Text
 };
 
 /// Toolkit-neutral marker with rectangular hit-test bounds.
+///
 struct Marker
 {
     int x;
@@ -85,6 +91,7 @@ struct Marker
 };
 
 /// Toolkit-neutral integral point.
+///
 struct Point
 {
     int x;
@@ -92,6 +99,7 @@ struct Point
 };
 
 /// Toolkit-neutral connected line segments.
+///
 struct Polyline
 {
     std::vector<Point> points;
@@ -113,6 +121,7 @@ struct Swatch
 };
 
 /// One toolkit-neutral drawing operation.
+///
 using Primitive = std::variant<Line, Rectangle, Text, Marker, Polyline, Swatch>;
 
 /// Ordered rendering operations produced by timeline layout.

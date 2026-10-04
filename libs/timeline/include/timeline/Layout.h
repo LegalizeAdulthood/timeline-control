@@ -159,6 +159,7 @@ inline bool operator!=(const HitResult &lhs, const HitResult &rhs)
 }
 
 /// Toolkit-neutral hit geometry in display-list paint order.
+///
 using HitRegion = std::variant<Rectangle, Marker, Polyline>;
 
 /// Computed toolkit-neutral rendering and hit geometry for a viewport.

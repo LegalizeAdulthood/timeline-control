@@ -16,6 +16,7 @@ namespace timeline_par_animator
 /// Source-truth transformation of a measured feature or counted event pulse.
 /// Operation describes how the output is applied to an animation parameter;
 /// it does not alter the standalone signal displayed by the timeline.
+///
 struct MappingRecipe
 {
     std::string source;
@@ -29,6 +30,7 @@ struct MappingRecipe
 
 /// Original frame-addressed measurement or one occurrence of a music event.
 /// Event inputs have value one; simultaneous inputs are counted, not merged.
+///
 struct MappingInput
 {
     std::string source;
@@ -37,6 +39,7 @@ struct MappingInput
 };
 
 /// Source output policy retained without merging into authored animation.
+///
 struct MappingOutput
 {
     std::string mode;

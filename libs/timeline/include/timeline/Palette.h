@@ -45,6 +45,7 @@ inline bool operator!=(const RgbColor &left, const RgbColor &right)
 }
 
 /// Ordered colors whose indexes retain their meaning during sampling.
+///
 using Palette = std::vector<RgbColor>;
 
 /// Owned time-dependent palette definition, independent of files and toolkits.

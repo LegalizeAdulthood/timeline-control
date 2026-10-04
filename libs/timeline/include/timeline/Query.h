@@ -12,6 +12,7 @@ namespace timeline
 {
 
 /// Generic timeline item category returned by read-only queries.
+///
 enum class InspectionItemType
 {
     INSTANT,
@@ -23,6 +24,7 @@ enum class InspectionItemType
 };
 
 /// Relationship between a returned item and the inspected time or range.
+///
 enum class InspectionItemRole
 {
     ACTIVE,

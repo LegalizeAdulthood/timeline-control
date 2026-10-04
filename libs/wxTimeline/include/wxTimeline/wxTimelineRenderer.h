@@ -8,6 +8,7 @@
 #include <wx/gdicmn.h>
 
 /// Native theme colors used to interpret toolkit-neutral semantic roles.
+///
 struct wxTimelinePalette
 {
     wxColour background;

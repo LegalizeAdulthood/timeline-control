@@ -19,14 +19,17 @@ namespace timeline
 {
 
 /// One generic piece of timeline content.
+///
 using Item = std::variant<Instant, Interval, Envelope, Curve, Keyframe, PaletteCurve>;
 
 /// Owned, pure keyframe recipe evaluator; an absent value represents a gap.
 /// Captures must own their data independently of the containing lane.
+///
 using KeyframeEvaluator = std::function<std::optional<double>(Time)>;
 
 /// Owned, pure conversion from an authored keyframe sample to application output.
 /// The time permits source-specific boundary rules without changing the curve.
+///
 using KeyframeOutputEvaluator = std::function<double(Time, double)>;
 
 /// Ordered collection of timeline content within a finite range.

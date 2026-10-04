@@ -12,6 +12,7 @@ namespace timeline
 {
 
 /// Policy for evaluating the segment after a keyframe.
+///
 enum class KeyframeInterpolation
 {
     HOLD,

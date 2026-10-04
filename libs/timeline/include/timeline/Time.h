@@ -7,9 +7,11 @@ namespace timeline
 {
 
 /// Exact integer storage unit for timeline coordinates and durations.
+///
 using Ticks = std::int64_t;
 
 /// Rounding policy for converting fractional time values to integral ticks.
+///
 enum class TimeRounding
 {
     /// Round toward negative infinity.

@@ -14,6 +14,7 @@ namespace timeline
 {
 
 /// Policy for evaluating a curve from samples or an analytic definition.
+///
 enum class CurveInterpolation
 {
     LINEAR,
@@ -23,6 +24,7 @@ enum class CurveInterpolation
 
 /// Owned callable that evaluates a numeric curve at an exact timeline time.
 /// Captured recipe data must be owned by value and evaluation must be pure.
+///
 using CurveEvaluator = std::function<double(Time)>;
 
 /// One numeric curve value stored at an exact timeline time.
