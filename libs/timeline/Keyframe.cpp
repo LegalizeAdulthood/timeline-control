@@ -49,4 +49,15 @@ Keyframe::Keyframe(StringId id, Time time, double value, KeyframeInterpolation i
     }
 }
 
+Keyframe Keyframe::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline keyframe identity cannot be empty");
+    }
+    Keyframe result(*this);
+    result.m_id = id;
+    return result;
+}
+
 } // namespace timeline

@@ -302,15 +302,13 @@ public:
         return m_strings.lookup(id);
     }
     void add_lane(Lane lane);
+    /// Append a lane while translating its item identities from another table.
+    void append(const Lane &lane, const StringTable &strings, StringId id);
     Document build() &&;
 
 private:
-    void add_lane(Lane lane, const StringTable &item_strings);
-
     Document m_document;
     StringTableBuilder m_strings;
-
-    friend Document combine_documents(const Document &document, const Document &addition);
 };
 
 /// Combines compatible framed documents without changing source item times.

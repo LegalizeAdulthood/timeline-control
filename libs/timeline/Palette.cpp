@@ -47,6 +47,17 @@ PaletteCurve::PaletteCurve(
     }
 }
 
+PaletteCurve PaletteCurve::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline palette curve identity cannot be empty");
+    }
+    PaletteCurve result(*this);
+    result.m_id = id;
+    return result;
+}
+
 Palette PaletteCurve::sample(Time time) const
 {
     Palette result = m_evaluate(std::clamp(time, m_start, m_end));

@@ -38,4 +38,15 @@ Interval::Interval(StringId id, std::string kind, Time start, Time end, std::str
     }
 }
 
+Interval Interval::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline interval identity cannot be empty");
+    }
+    Interval result(*this);
+    result.m_id = id;
+    return result;
+}
+
 } // namespace timeline

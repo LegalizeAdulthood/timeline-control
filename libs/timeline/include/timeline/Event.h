@@ -28,6 +28,8 @@ public:
     Instant(StringId id, std::string kind, Time time, std::string label, std::optional<double> strength,
         Attributes attributes);
 
+    /// Return a copy with the supplied identity.
+    Instant with_id(StringId id) const;
     StringId id() const
     {
         return m_id;
@@ -60,8 +62,6 @@ private:
     std::string m_label;
     std::optional<double> m_strength;
     Attributes m_attributes;
-
-    friend class DocumentBuilder;
 };
 
 } // namespace timeline

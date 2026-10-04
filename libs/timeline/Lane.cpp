@@ -63,6 +63,33 @@ Lane::Lane(StringId id, std::string label, std::string kind, Time start, Time en
     }
 }
 
+Lane Lane::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline lane identity cannot be empty");
+    }
+    Lane result(*this);
+    result.m_id = id;
+    return result;
+}
+
+Lane Lane::with_ids(StringId id, const std::vector<StringId> &item_ids) const
+{
+    if (size_cast(item_ids) != item_count())
+    {
+        throw std::invalid_argument("timeline lane identity count must match its item count");
+    }
+    Lane result = with_id(id);
+    for (int index = 0; index < result.item_count(); ++index)
+    {
+        const StringId item_id = item_ids[index];
+        result.m_items[index] =
+            std::visit([item_id](const auto &value) -> Item { return value.with_id(item_id); }, result.m_items[index]);
+    }
+    return result;
+}
+
 void Lane::add(Instant instant)
 {
     add_item(std::move(instant));

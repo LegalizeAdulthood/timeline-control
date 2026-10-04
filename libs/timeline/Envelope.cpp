@@ -54,6 +54,17 @@ Envelope::Envelope(StringId id, std::string kind, Time start, std::optional<Dura
     }
 }
 
+Envelope Envelope::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline envelope identity cannot be empty");
+    }
+    Envelope result(*this);
+    result.m_id = id;
+    return result;
+}
+
 Time Envelope::end() const
 {
     return m_start + Duration::from_ticks(phase_ticks(m_attack) + phase_ticks(m_sustain) + phase_ticks(m_decay));

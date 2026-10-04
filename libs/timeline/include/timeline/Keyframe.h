@@ -37,6 +37,8 @@ public:
     Keyframe(StringId id, Time time, double value);
     Keyframe(StringId id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes);
 
+    /// Return a copy with the supplied identity.
+    Keyframe with_id(StringId id) const;
     StringId id() const
     {
         return m_id;
@@ -64,8 +66,6 @@ private:
     double m_value;
     KeyframeInterpolation m_interpolation;
     Attributes m_attributes;
-
-    friend class DocumentBuilder;
 };
 
 /// Keyframes immediately surrounding a timeline time.

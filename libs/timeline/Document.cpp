@@ -290,13 +290,15 @@ void DocumentBuilder::add_lane(Lane lane)
     m_document.add_lane(std::move(lane));
 }
 
-void DocumentBuilder::add_lane(Lane lane, const StringTable &item_strings)
+void DocumentBuilder::append(const Lane &lane, const StringTable &strings, StringId id)
 {
-    for (Item &item : lane.m_items)
+    std::vector<StringId> item_ids;
+    for (const Item &item : lane.items())
     {
-        std::visit([this, &item_strings](auto &value) { value.m_id = intern(item_strings.lookup(value.id())); }, item);
+        item_ids.push_back(
+            std::visit([this, &strings](const auto &value) { return intern(strings.lookup(value.id())); }, item));
     }
-    add_lane(std::move(lane));
+    add_lane(lane.with_ids(id, item_ids));
 }
 
 Document DocumentBuilder::build() &&
@@ -348,19 +350,7 @@ Document combine_documents(const Document &document, const Document &addition)
         {
             id = "added-" + std::to_string(index++) + "-" + std::string(addition.strings().lookup(lane.id()));
         } while (!lane_ids.emplace(id).second);
-        Lane copy(builder.intern(id), lane.label(), lane.kind(), lane.start(), lane.end());
-        for (const Item &item : lane.items())
-        {
-            std::visit([&copy](const auto &value) { copy.add(value); }, item);
-        }
-        if (document.strings().shares_storage_with(addition.strings()))
-        {
-            builder.add_lane(std::move(copy));
-        }
-        else
-        {
-            builder.add_lane(std::move(copy), addition.strings());
-        }
+        builder.append(lane, addition.strings(), builder.intern(id));
     }
     return std::move(builder).build();
 }

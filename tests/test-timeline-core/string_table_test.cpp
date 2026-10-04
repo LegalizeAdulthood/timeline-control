@@ -138,3 +138,23 @@ TEST(StringTable, combinesDocumentsThatShareATableWithoutRemappingOriginalIds)
     EXPECT_EQ(first_item, first_item_id(combined, 0));
     EXPECT_EQ(second_item, first_item_id(combined, 1));
 }
+
+TEST(StringTable, combiningDocumentsPreservesLaneEvaluators)
+{
+    const FrameGrid grid(Timebase(30), 2, 30, 1);
+    const Document first = document_with_lane("first");
+    DocumentBuilder builder(Document(grid, 0, 2));
+    Lane lane(builder.intern("keys"), "Keys", "keyframes", grid.offset(), grid.end_time());
+    lane.add(Keyframe(builder.intern("first-key"), grid.offset(), 1.0));
+    lane.add(Keyframe(builder.intern("last-key"), grid.frame_start(1), 2.0));
+    lane.set_keyframe_evaluator([](Time) { return 3.0; });
+    lane.set_keyframe_output_evaluator([](Time, double value) { return value * 2.0; });
+    builder.add_lane(std::move(lane));
+    const Document second = std::move(builder).build();
+
+    const Document combined = combine_documents(first, second);
+
+    ASSERT_EQ(2, combined.lane_count());
+    EXPECT_DOUBLE_EQ(3.0, *combined.lanes()[1].evaluate_keyframes(grid.offset()));
+    EXPECT_DOUBLE_EQ(6.0, *combined.lanes()[1].evaluate_keyframe_output(grid.offset()));
+}

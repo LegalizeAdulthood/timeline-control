@@ -62,6 +62,8 @@ public:
     PaletteCurve(StringId id, Time start, Time end, Evaluator evaluator);
     PaletteCurve(StringId id, std::string kind, Time start, Time end, Evaluator evaluator, Attributes attributes);
 
+    /// Return a copy with the supplied identity.
+    PaletteCurve with_id(StringId id) const;
     StringId id() const
     {
         return m_id;
@@ -96,8 +98,6 @@ private:
     Evaluator m_evaluate;
     Attributes m_attributes;
     int m_color_count;
-
-    friend class DocumentBuilder;
 };
 
 } // namespace timeline

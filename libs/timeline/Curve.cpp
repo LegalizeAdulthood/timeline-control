@@ -131,6 +131,17 @@ Curve::Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator
     static_cast<void>(sample(end));
 }
 
+Curve Curve::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline curve identity cannot be empty");
+    }
+    Curve result(*this);
+    result.m_id = id;
+    return result;
+}
+
 double Curve::sample(Time time) const
 {
     if (m_evaluator)

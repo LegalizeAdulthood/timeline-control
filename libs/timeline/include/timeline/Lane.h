@@ -45,6 +45,10 @@ class Lane
 public:
     Lane(StringId id, std::string label, std::string kind, Time start, Time end);
 
+    /// Return a copy with the supplied lane identity.
+    Lane with_id(StringId id) const;
+    /// Return a copy with the supplied lane and item identities.
+    Lane with_ids(StringId id, const std::vector<StringId> &item_ids) const;
     StringId id() const
     {
         return m_id;
@@ -105,8 +109,6 @@ private:
     std::vector<Item> m_items;
     KeyframeEvaluator m_keyframe_evaluator;
     KeyframeOutputEvaluator m_keyframe_output_evaluator;
-
-    friend class DocumentBuilder;
 };
 
 Time item_start(const Item &item);

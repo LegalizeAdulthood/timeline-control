@@ -73,6 +73,8 @@ public:
     Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
         std::optional<double> minimum, std::optional<double> maximum, Attributes attributes);
 
+    /// Return a copy with the supplied identity.
+    Curve with_id(StringId id) const;
     StringId id() const
     {
         return m_id;
@@ -133,8 +135,6 @@ private:
     Time m_start;
     Time m_end;
     CurveEvaluator m_evaluator;
-
-    friend class DocumentBuilder;
 };
 
 } // namespace timeline

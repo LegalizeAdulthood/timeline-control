@@ -33,4 +33,15 @@ Instant::Instant(StringId id, std::string kind, Time time, std::string label, st
     }
 }
 
+Instant Instant::with_id(StringId id) const
+{
+    if (id.empty())
+    {
+        throw std::invalid_argument("timeline instant identity cannot be empty");
+    }
+    Instant result(*this);
+    result.m_id = id;
+    return result;
+}
+
 } // namespace timeline
