@@ -1,0 +1,5 @@
+// Copyright (c) 2026 Richard Thomson
+
+#pragma once
+
+#cmakedefine TIMELINE_CONTROL_WITH_CAIRO

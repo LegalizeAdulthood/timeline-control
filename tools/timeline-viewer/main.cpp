@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <wxTimeline/config.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 #include <wxTimeline/wxTimelineControl.h>
 #ifdef TIMELINE_CONTROL_WITH_CAIRO

@@ -1,9 +1,18 @@
+function(configure_timeline_viewer target with_cairo)
+    set(TIMELINE_CONTROL_WITH_CAIRO ${with_cairo})
+    set(config_directory "${CMAKE_CURRENT_BINARY_DIR}/${target}")
+    configure_file(config.h.in "${config_directory}/wxTimeline/config.h")
+    target_sources(${target} PRIVATE "${config_directory}/wxTimeline/config.h")
+    target_include_directories(${target} PRIVATE "${config_directory}")
+endfunction()
+
 add_executable(wx-timeline-viewer WIN32 main.cpp)
 target_link_libraries(wx-timeline-viewer
     PRIVATE
         timeline-paranimator
         timeline-wx
 )
+configure_timeline_viewer(wx-timeline-viewer OFF)
 target_folder(wx-timeline-viewer "Tools")
 
 if(TIMELINE_CONTROL_WITH_CAIRO)
@@ -13,6 +22,6 @@ if(TIMELINE_CONTROL_WITH_CAIRO)
             timeline-paranimator
             timeline-wx
     )
-    target_compile_definitions(cairo-timeline-viewer PRIVATE TIMELINE_CONTROL_WITH_CAIRO)
+    configure_timeline_viewer(cairo-timeline-viewer ON)
     target_folder(cairo-timeline-viewer "Tools")
 endif()
