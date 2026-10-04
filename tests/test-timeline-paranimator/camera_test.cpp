@@ -140,7 +140,8 @@ TEST(CameraImport, diagnosesNestedSignalFormatAndActiveSingularities)
     EXPECT_NE(std::string::npos, imported.diagnostics[7].find("zero vector between keys"));
     EXPECT_NE(std::string::npos, imported.diagnostics[8].find("positive height"));
     EXPECT_NE(std::string::npos, imported.diagnostics[9].find("positive height"));
-    EXPECT_EQ("animation-10-center-mag[0]", imported.document->lanes().front().id());
+    EXPECT_EQ(
+        "animation-10-center-mag[0]", imported.document->strings().lookup(imported.document->lanes().front().id()));
     const JsonImportResult rejected = import_timeline_json("fixtures/invalid-camera2d-nested.json");
     EXPECT_FALSE(rejected.succeeded());
     ASSERT_FALSE(rejected.diagnostics.empty());
@@ -270,7 +271,8 @@ TEST(CameraImport, diagnosesWholeDomainMovingLookCollisions)
         EXPECT_NE(std::string::npos, imported.diagnostics[index].find("singular"));
     }
     EXPECT_NE(std::string::npos, imported.diagnostics[6].find("validation limit"));
-    EXPECT_EQ("animation-7-center-mag[0]", imported.document->lanes().front().id());
+    EXPECT_EQ(
+        "animation-7-center-mag[0]", imported.document->strings().lookup(imported.document->lanes().front().id()));
 }
 
 TEST(CameraImport, samplesOwnedRemainingEyePathsLikeParanimator)
@@ -383,8 +385,8 @@ TEST(CameraImport, diagnosesRemainingEyePathCollisionsAndValidationLimits)
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("singular"));
     }
     EXPECT_NE(std::string::npos, result.diagnostics[10].find("validation limit"));
-    EXPECT_EQ("animation-10-center-mag[0]", result.document->lanes().front().id());
-    EXPECT_EQ("animation-12-center-mag[0]", result.document->lanes()[15].id());
+    EXPECT_EQ("animation-10-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
+    EXPECT_EQ("animation-12-center-mag[0]", result.document->strings().lookup(result.document->lanes()[15].id()));
 }
 
 TEST(CameraImport, samplesOwnedEqualFrequencyLissajousEyesLikeParanimator)
@@ -490,8 +492,8 @@ TEST(CameraImport, diagnosesLissajousEyeCollisionsAndInvalidOrPendingInputs)
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("singular"));
     EXPECT_NE(std::string::npos, result.diagnostics[1].find("singular"));
     EXPECT_NE(std::string::npos, result.diagnostics[5].find("singular"));
-    EXPECT_EQ("animation-6-center-mag[0]", result.document->lanes().front().id());
-    EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes()[15].id());
+    EXPECT_EQ("animation-6-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
+    EXPECT_EQ("animation-8-center-mag[0]", result.document->strings().lookup(result.document->lanes()[15].id()));
 }
 
 TEST(CameraImport, samplesOwnedSpiralEyesLikeParanimator)
@@ -592,8 +594,8 @@ TEST(CameraImport, diagnosesSpiralEyeCollisionsAndInvalidOrPendingInputs)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("singular"));
     }
-    EXPECT_EQ("animation-7-center-mag[0]", result.document->lanes().front().id());
-    EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes()[15].id());
+    EXPECT_EQ("animation-7-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
+    EXPECT_EQ("animation-8-center-mag[0]", result.document->strings().lookup(result.document->lanes()[15].id()));
 }
 
 TEST(CameraImport, evaluatesOwnedOffsetEyeOrbitsLikeParanimator)
@@ -688,8 +690,8 @@ TEST(CameraImport, diagnosesOffsetOrbitCollisionsBetweenFramesAndPendingMotion)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("singular"));
     }
-    EXPECT_EQ("animation-4-center-mag[0]", result.document->lanes().front().id());
-    EXPECT_EQ("animation-7-center-mag[0]", result.document->lanes()[15].id());
+    EXPECT_EQ("animation-4-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
+    EXPECT_EQ("animation-7-center-mag[0]", result.document->strings().lookup(result.document->lanes()[15].id()));
 }
 
 TEST(CameraImport, samplesOwnedCurvedLookAtLikeParanimatorWithFullPathBounds)
@@ -782,8 +784,8 @@ TEST(CameraImport, diagnosesInvalidCurvedLookAtAndRetainsEyeCompositions)
         EXPECT_NE(std::string::npos,
             result.diagnostics[index].find("animation-" + std::to_string(index == 6 ? 7 : index) + ":"));
     }
-    EXPECT_EQ("animation-6-center-mag[0]", result.document->lanes().front().id());
-    EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes()[15].id());
+    EXPECT_EQ("animation-6-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
+    EXPECT_EQ("animation-8-center-mag[0]", result.document->strings().lookup(result.document->lanes()[15].id()));
 }
 
 TEST(CameraImport, composesStraightPathsLikeParanimatorAndOwnsTheirRecipes)
@@ -868,7 +870,7 @@ TEST(CameraImport, diagnosesInvalidStraightCompositionsWithoutPartialCameraLanes
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
     }
-    EXPECT_EQ("animation-7-center-mag[0]", result.document->lanes().front().id());
+    EXPECT_EQ("animation-7-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
 }
 
 TEST(CameraImport, normalizesTinyAuthoredViewUpBeforeCleaningComponents)
@@ -924,7 +926,7 @@ TEST(CameraImport, derivesDirectionFromAnalyticEyeLikeParanimator)
     EXPECT_EQ(5, frame);
     const timeline::Curve &eye = std::get<timeline::Curve>(result.document->lanes()[8].items().front());
     EXPECT_TRUE(eye.samples().empty());
-    EXPECT_EQ("animation-0-eye[0]", result.document->lanes()[8].id());
+    EXPECT_EQ("animation-0-eye[0]", result.document->strings().lookup(result.document->lanes()[8].id()));
     EXPECT_NE(std::string::npos, eye.attributes().at("path").find("circle"));
     const timeline::Curve &up = std::get<timeline::Curve>(result.document->lanes()[11].items().front());
     EXPECT_EQ("eye-look-at", up.attributes().at("derived-from"));
@@ -986,7 +988,7 @@ TEST(CameraImport, diagnosesSingularEyeDirectionsAndPendingCompositions)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
     }
-    EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes().front().id());
+    EXPECT_EQ("animation-8-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
 }
 
 TEST(CameraImport, evaluatesCenterMagAndNestedKeysLikeParanimator)
@@ -1034,7 +1036,7 @@ TEST(CameraImport, evaluatesCenterMagAndNestedKeysLikeParanimator)
     EXPECT_EQ("magnification", magnification.attributes().at("component"));
     EXPECT_EQ("Mandel_Demo", magnification.attributes().at("source-entry"));
     EXPECT_NE(std::string::npos, magnification.attributes().at("camera2d").find("geometric"));
-    EXPECT_EQ("animation-0-look-at[0]", result.document->lanes()[6].id());
+    EXPECT_EQ("animation-0-look-at[0]", result.document->strings().lookup(result.document->lanes()[6].id()));
     const timeline::Layout layout(*result.document, timeline::Viewport(500, 380, grid.offset(), grid.end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::optional<timeline::HitResult> hit = layout.hit_test({233, 35}, 2);
@@ -1095,7 +1097,7 @@ TEST(CameraImport, diagnosesInvalidAndPendingFormsWithoutPartialCameraLanes)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
     }
-    EXPECT_EQ("animation-14-center-mag[0]", result.document->lanes().front().id());
+    EXPECT_EQ("animation-14-center-mag[0]", result.document->strings().lookup(result.document->lanes().front().id()));
 }
 
 TEST(CameraImport, resolvesLayerViewsAndDiagnosesUnusableSourceEntries)

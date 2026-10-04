@@ -78,9 +78,10 @@ TEST(CameraCorners, samplesOwnedAffineComponentsLikeParanimator)
                 ASSERT_TRUE(inspection->lanes[component].items.front().value);
                 EXPECT_NEAR(expected[component], *inspection->lanes[component].items.front().value, 1e-9);
                 const timeline::Lane &lane = document.lanes()[component];
-                EXPECT_EQ("animation-0-corners[" + std::to_string(component) + "]", lane.id());
+                const std::string lane_name = "animation-0-corners[" + std::to_string(component) + "]";
+                EXPECT_EQ(lane_name, document.strings().lookup(lane.id()));
                 const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
-                EXPECT_EQ(lane.id() + "-camera", curve.id());
+                EXPECT_EQ(lane_name + "-camera", curve.id());
                 EXPECT_EQ("corners", curve.attributes().at("parameter"));
                 EXPECT_EQ(components[component], curve.attributes().at("component"));
                 EXPECT_FALSE(curve.attributes().at("camera2d").empty());

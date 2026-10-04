@@ -27,14 +27,15 @@ Time at(Ticks ticks)
 
 Document framed_document()
 {
-    Document document(FrameGrid(Timebase(100), 10, 10, 1), 0, 0);
+    DocumentBuilder builder(Document(FrameGrid(Timebase(100), 10, 10, 1), 0, 0));
     for (int lane_index = 0; lane_index < 12; ++lane_index)
     {
-        Lane lane("lane-" + std::to_string(lane_index), "Lane " + std::to_string(lane_index), "events", at(0), at(100));
+        Lane lane(builder.intern("lane-" + std::to_string(lane_index)), "Lane " + std::to_string(lane_index), "events",
+            at(0), at(100));
         lane.add(Instant("pulse", "beat", at(lane_index == 1 ? 50 : 30)));
-        document.add_lane(std::move(lane));
+        builder.add_lane(std::move(lane));
     }
-    return document;
+    return std::move(builder).build();
 }
 
 /// Backend-free ImGui frame host that drives the adapter through real IO.
@@ -147,9 +148,9 @@ TEST_F(ImGuiControl, handlesMissingEmptyFramelessAndTinyDocuments)
     control.set_document(framed_document());
     frame(control, ImVec2(1.0F, 1.0F));
     EXPECT_FALSE(control.layout());
-    Document continuous(100);
-    continuous.add_lane(Lane("continuous", "Continuous", "signal", at(0), at(100)));
-    control.set_document(std::move(continuous));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("continuous"), "Continuous", "signal", at(0), at(100)));
+    control.set_document(std::move(builder).build());
     prime(control);
     ASSERT_TRUE(control.layout());
     move_mouse(control, ImVec2(m_origin.x + 250.0F, m_origin.y + 10.0F));
@@ -170,7 +171,7 @@ TEST_F(ImGuiControl, delegatesLayoutAndHoverToCoreGeometry)
     EXPECT_GT(ImGui::GetDrawData()->TotalVtxCount, 0);
     move_mouse(control, frame_point(control, 3, 0));
     ASSERT_TRUE(control.hit_result());
-    EXPECT_EQ("lane-0", control.hit_result()->id.lane_id);
+    EXPECT_EQ("lane-0", control.document()->strings().lookup(control.hit_result()->id.lane_id));
     EXPECT_EQ("pulse", control.hit_result()->id.item_id);
     ASSERT_TRUE(control.inspection());
     EXPECT_EQ(3, control.inspection()->frame);
@@ -188,7 +189,7 @@ TEST_F(ImGuiControl, selectsLaneQualifiedItemsAndSnapsDraggedRanges)
     mouse_button(control, false);
     ASSERT_TRUE(control.interaction());
     EXPECT_EQ(3, *control.interaction()->playhead_frame());
-    EXPECT_TRUE(control.interaction()->is_selected(DisplayId{"lane-0", "pulse"}));
+    EXPECT_TRUE(control.interaction()->is_selected(DisplayId{StringId{1}, "pulse"}));
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
     move_mouse(control, frame_point(control, 5, 1));
     mouse_button(control, true);
@@ -318,7 +319,9 @@ TEST_F(ImGuiControl, ownsDocumentsAndResetsAllStateOnReplacement)
 {
     Document source = framed_document();
     Control control(source);
-    source.add_lane(Lane("extra", "Extra", "events", at(0), at(100)));
+    DocumentBuilder builder(std::move(source));
+    builder.add_lane(Lane(builder.intern("extra"), "Extra", "events", at(0), at(100)));
+    source = std::move(builder).build();
     EXPECT_EQ(12, control.document()->lane_count());
     prime(control);
     move_mouse(control, frame_point(control, 3, 0));

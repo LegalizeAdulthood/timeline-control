@@ -109,12 +109,12 @@ TEST(Id3DView, matchesSourceGoldenAndPreservesOwnedRecipes)
                 {
                     const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
                     EXPECT_TRUE(curve.samples().empty());
-                    EXPECT_EQ(lane.id() + "-view", curve.id());
+                    EXPECT_EQ(std::string(document.strings().lookup(lane.id())) + "-view", curve.id());
                 }
             }
         }
-        EXPECT_EQ("animation-0-rotation[0]", document.lanes()[0].id());
-        EXPECT_EQ("animation-0-perspective", document.lanes()[3].id());
+        EXPECT_EQ("animation-0-rotation[0]", document.strings().lookup(document.lanes()[0].id()));
+        EXPECT_EQ("animation-0-perspective", document.strings().lookup(document.lanes()[3].id()));
         const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
         ASSERT_TRUE(music.succeeded());
         const JsonImportResult comparison = import_timeline_json("fixtures/id-3d-view-" + fixture + ".json");
@@ -211,7 +211,7 @@ TEST(Id3DView, rejectsInvalidTracksTransactionallyWithIndexedDiagnostics)
         "bounds", "output", "catalog", "field", "field", "integer range", "integer range", "interpolation"};
     ASSERT_EQ(diagnostics.size(), imported.diagnostics.size());
     ASSERT_EQ(15, imported.document->lane_count());
-    EXPECT_EQ("animation-19-rotation[0]", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-19-rotation[0]", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(diagnostics); ++index)
     {
         SCOPED_TRACE(index);
@@ -538,7 +538,7 @@ TEST(Id3DView, preservesLayerSourcesAliasesAndUnusedCameraInputs)
     const timeline::Document document = *imported.document;
     const timeline::FrameGrid &grid = *document.frame_grid();
     const timeline::Curve &pitch = std::get<timeline::Curve>(document.lanes()[0].items().front());
-    EXPECT_EQ("animation-layer-0-0-rotation[0]", document.lanes()[0].id());
+    EXPECT_EQ("animation-layer-0-0-rotation[0]", document.strings().lookup(document.lanes()[0].id()));
     EXPECT_EQ("view-rotation", pitch.attributes().at("parameter"));
     EXPECT_EQ("pitched", pitch.attributes().at("layer"));
     EXPECT_EQ("Mandel_Demo", pitch.attributes().at("source-entry"));

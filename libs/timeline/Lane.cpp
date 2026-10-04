@@ -46,8 +46,8 @@ Time item_end(const Item &item)
         item);
 }
 
-Lane::Lane(std::string id, std::string label, std::string kind, Time start, Time end) :
-    m_id(std::move(id)),
+Lane::Lane(StringId id, std::string label, std::string kind, Time start, Time end) :
+    m_id(id),
     m_label(std::move(label)),
     m_kind(std::move(kind)),
     m_start(start),

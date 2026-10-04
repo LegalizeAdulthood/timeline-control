@@ -128,7 +128,7 @@ TEST(Extrapolation, diagnosesMalformedKeysAndUnsupportedFormsWithoutPartialLanes
     ASSERT_TRUE(partial.succeeded());
     ASSERT_EQ(6, partial.diagnostics.size());
     ASSERT_EQ(1, partial.document->lane_count());
-    EXPECT_EQ("animation-6", partial.document->lanes()[0].id());
+    EXPECT_EQ("animation-6", partial.document->strings().lookup(partial.document->lanes()[0].id()));
     for (int index = 0; index < 6; ++index)
     {
         EXPECT_NE(std::string::npos, partial.diagnostics[index].find("animation-" + std::to_string(index) + ":"));

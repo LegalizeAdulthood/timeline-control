@@ -154,7 +154,7 @@ TEST(CameraSkew, evaluatesInterpolationAndComposesWithAnalyticEye)
             }
         }
         const timeline::Lane &input = copy.lanes()[11];
-        EXPECT_EQ("animation-0-skew", input.id());
+        EXPECT_EQ("animation-0-skew", copy.strings().lookup(input.id()));
         std::visit(
             [](const auto &item) { EXPECT_FALSE(item.attributes().at("signal").empty()); }, input.items().front());
         if (variant == "hold" || variant == "step")

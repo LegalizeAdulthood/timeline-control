@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <set>
 #include <stdexcept>
 #include <utility>
 
@@ -257,6 +258,32 @@ void Document::add_lane(Lane lane)
     m_lanes.push_back(std::move(lane));
 }
 
+DocumentBuilder::DocumentBuilder(Document document) :
+    DocumentBuilder(document, document.strings())
+{
+}
+
+DocumentBuilder::DocumentBuilder(Document document, const StringTable &strings) :
+    m_document(std::move(document)),
+    m_strings(strings)
+{
+}
+
+void DocumentBuilder::add_lane(Lane lane)
+{
+    if (!m_strings.contains(lane.id()))
+    {
+        throw std::invalid_argument("timeline lane ID is not present in the document string table");
+    }
+    m_document.add_lane(std::move(lane));
+}
+
+Document DocumentBuilder::build() &&
+{
+    m_document.m_strings = std::move(m_strings).build();
+    return std::move(m_document);
+}
+
 Document combine_documents(const Document &document, const Document &addition)
 {
     if (!document.frame_grid() || !addition.frame_grid() ||
@@ -285,9 +312,12 @@ Document combine_documents(const Document &document, const Document &addition)
     Document combined = document.source_summary()
         ? Document(grid, *document.source_summary(), track_count, keyframe_count, metadata)
         : Document(grid, track_count, keyframe_count, metadata);
+    DocumentBuilder builder(std::move(combined), document.strings());
+    std::set<std::string> lane_ids;
     for (const Lane &lane : document.lanes())
     {
-        combined.add_lane(lane);
+        lane_ids.emplace(document.strings().lookup(lane.id()));
+        builder.add_lane(lane);
     }
     int index = document.lane_count();
     for (const Lane &lane : addition.lanes())
@@ -295,17 +325,16 @@ Document combine_documents(const Document &document, const Document &addition)
         std::string id;
         do
         {
-            id = "added-" + std::to_string(index++) + "-" + lane.id();
-        } while (std::any_of(combined.lanes().begin(), combined.lanes().end(),
-            [&id](const Lane &existing) { return existing.id() == id; }));
-        Lane copy(id, lane.label(), lane.kind(), lane.start(), lane.end());
+            id = "added-" + std::to_string(index++) + "-" + std::string(addition.strings().lookup(lane.id()));
+        } while (!lane_ids.emplace(id).second);
+        Lane copy(builder.intern(id), lane.label(), lane.kind(), lane.start(), lane.end());
         for (const Item &item : lane.items())
         {
             std::visit([&copy](const auto &value) { copy.add(value); }, item);
         }
-        combined.add_lane(std::move(copy));
+        builder.add_lane(std::move(copy));
     }
-    return combined;
+    return std::move(builder).build();
 }
 
 } // namespace timeline

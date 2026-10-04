@@ -106,11 +106,11 @@ TEST(JulibrotView, matchesSourceGoldenAndPreservesOwnedRecipes)
                 {
                     const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
                     EXPECT_TRUE(curve.samples().empty());
-                    EXPECT_EQ(lane.id() + "-view", curve.id());
+                    EXPECT_EQ(std::string(document.strings().lookup(lane.id())) + "-view", curve.id());
                 }
             }
         }
-        EXPECT_EQ("animation-0-geometry[0]", document.lanes()[outputs == 12 ? 1 : 0].id());
+        EXPECT_EQ("animation-0-geometry[0]", document.strings().lookup(document.lanes()[outputs == 12 ? 1 : 0].id()));
         const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
         const JsonImportResult animation = import_timeline_json("fixtures/julibrot-view-" + fixture + ".json");
         ASSERT_TRUE(music.succeeded());
@@ -225,8 +225,8 @@ TEST(JulibrotView, rejectsNearAxisBoundariesAndOffGridDepartures)
     ASSERT_TRUE(partial.succeeded());
     ASSERT_EQ(7, timeline::size_cast(partial.diagnostics));
     ASSERT_EQ(30, partial.document->lane_count());
-    EXPECT_EQ("animation-7-geometry[0]", partial.document->lanes()[0].id());
-    EXPECT_EQ("animation-8-geometry[0]", partial.document->lanes()[15].id());
+    EXPECT_EQ("animation-7-geometry[0]", partial.document->strings().lookup(partial.document->lanes()[0].id()));
+    EXPECT_EQ("animation-8-geometry[0]", partial.document->strings().lookup(partial.document->lanes()[15].id()));
     const timeline::Time middle = partial.document->frame_grid()->frame_start(1);
     EXPECT_DOUBLE_EQ(18.5, *partial.document->lanes()[20].evaluate_keyframes(middle));
     const timeline::Keyframe &raw_eye = std::get<timeline::Keyframe>(partial.document->lanes()[21].items().front());
@@ -252,7 +252,7 @@ TEST(JulibrotView, preservesLayerBaseGeometryAliasesAndUnusedCamera)
     EXPECT_EQ("Aliased", width.attributes().at("source-entry"));
     EXPECT_EQ("aliased", width.attributes().at("layer"));
     EXPECT_EQ("64/3/4/5/6/99", width.attributes().at("source-value"));
-    EXPECT_EQ("animation-layer-0-0-geometry[4]", document.lanes()[4].id());
+    EXPECT_EQ("animation-layer-0-0-geometry[4]", document.strings().lookup(document.lanes()[4].id()));
     const timeline::Lane &overridden = document.lanes()[20];
     EXPECT_DOUBLE_EQ(18.5, *overridden.evaluate_keyframes(document.frame_grid()->frame_start(1)));
     const timeline::Keyframe &up = std::get<timeline::Keyframe>(document.lanes()[28].items().front());
@@ -270,7 +270,7 @@ TEST(JulibrotView, rejectsInvalidTracksTransactionallyWithIndexedDiagnostics)
         "catalog", "field", "view-up", "finite difference", "interpolation", "straight-on"};
     ASSERT_EQ(diagnostics.size(), imported.diagnostics.size());
     ASSERT_EQ(15, imported.document->lane_count());
-    EXPECT_EQ("animation-19-geometry[0]", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-19-geometry[0]", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(diagnostics); ++index)
     {
         SCOPED_TRACE(index);
@@ -289,7 +289,8 @@ TEST(JulibrotView, diagnosesSourceGeometryCatalogPoliciesAndOffGridNormalization
     const std::array<std::string, 5> diagnostics{"source geometry", "six values", "numeric", "view-up", "bounds"};
     ASSERT_EQ(diagnostics.size(), imported.diagnostics.size());
     ASSERT_EQ(15, imported.document->lane_count());
-    EXPECT_EQ("animation-layer-5-0-geometry[0]", imported.document->lanes()[0].id());
+    EXPECT_EQ(
+        "animation-layer-5-0-geometry[0]", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(diagnostics); ++index)
     {
         SCOPED_TRACE(index);

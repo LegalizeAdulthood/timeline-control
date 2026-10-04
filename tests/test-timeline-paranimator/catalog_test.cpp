@@ -245,7 +245,7 @@ TEST(TargetResolution, matchesReferenceFramesAndRetainsComparisonHitIdentities)
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (line.id.lane_id == "animation-1[0]")
+            if (layout.display_list().strings().lookup(line.id.lane_id) == "animation-1[0]")
             {
                 const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(hit);
@@ -518,7 +518,7 @@ TEST(CatalogCompatibility, retainsComponentMetadataAndOwnedDefinitions)
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (line.id.lane_id == "animation-0[0]")
+            if (layout.display_list().strings().lookup(line.id.lane_id) == "animation-0[0]")
             {
                 const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(result);

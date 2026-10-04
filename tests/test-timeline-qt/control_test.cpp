@@ -74,7 +74,7 @@ TEST_F(QtTimeline, selectsSourceItemsAndStepsFramesWithNativeKeys)
     QTest::mouseClick(m_widget.viewport(), Qt::LeftButton, Qt::NoModifier, point);
     ASSERT_TRUE(m_widget.interaction());
     EXPECT_EQ(1, *m_widget.interaction()->playhead_frame());
-    EXPECT_EQ("animation-0[0]", *m_widget.interaction()->selected_lane());
+    EXPECT_EQ("animation-0[0]", m_widget.document()->strings().lookup(*m_widget.interaction()->selected_lane()));
     QTest::keyClick(&m_widget, Qt::Key_Right);
     EXPECT_EQ(2, *m_widget.interaction()->playhead_frame());
     QTest::keyClick(&m_widget, Qt::Key_Right, Qt::ShiftModifier);
@@ -167,7 +167,7 @@ TEST_F(QtTimeline, preservesSourceItemIdentityAndOwnsACopyOfTheDocument)
     for (const timeline::Primitive &primitive : list.primitives())
     {
         if (const timeline::Polyline *line = std::get_if<timeline::Polyline>(&primitive);
-            line && line->id.lane_id == "animation-0[0]")
+            line && list.strings().lookup(line->id.lane_id) == "animation-0[0]")
         {
             const timeline::Point point = line->points[line->points.size() / 4];
             QTest::mouseClick(m_widget.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(point.x, point.y));

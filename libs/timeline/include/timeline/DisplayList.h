@@ -3,6 +3,7 @@
 #pragma once
 
 #include <timeline/Palette.h>
+#include <timeline/StringTable.h>
 
 #include <string>
 #include <string_view>
@@ -43,7 +44,7 @@ std::string_view to_string(StyleRole value);
 ///
 struct DisplayId
 {
-    std::string lane_id;
+    StringId lane_id;
     std::string item_id;
 };
 
@@ -136,6 +137,12 @@ using Primitive = std::variant<Line, Rectangle, Text, Marker, Polyline, Swatch>;
 class DisplayList
 {
 public:
+    DisplayList() = default;
+    explicit DisplayList(StringTable strings) :
+        m_strings(std::move(strings))
+    {
+    }
+
     void add(Line line)
     {
         m_primitives.emplace_back(line);
@@ -164,8 +171,13 @@ public:
     {
         return m_primitives;
     }
+    const StringTable &strings() const
+    {
+        return m_strings;
+    }
 
 private:
+    StringTable m_strings;
     std::vector<Primitive> m_primitives;
 };
 

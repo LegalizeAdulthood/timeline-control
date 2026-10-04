@@ -13,6 +13,7 @@ add_library(timeline-core
     include/timeline/Palette.h
     include/timeline/Snapshot.h
     include/timeline/size_cast.h
+    include/timeline/StringTable.h
     include/timeline/Time.h
     Curve.cpp
     DisplayList.cpp
@@ -27,6 +28,7 @@ add_library(timeline-core
     Query.cpp
     Palette.cpp
     Snapshot.cpp
+    StringTable.cpp
     Time.cpp
 )
 

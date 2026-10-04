@@ -106,7 +106,7 @@ std::string render_snapshot(const DisplayList &display_list)
     for (const Primitive &primitive : display_list.primitives())
     {
         std::visit(
-            [&output](const auto &value)
+            [&display_list, &output](const auto &value)
             {
                 using Value = std::decay_t<decltype(value)>;
                 if constexpr (std::is_same_v<Value, Line>)
@@ -133,8 +133,8 @@ std::string render_snapshot(const DisplayList &display_list)
                 {
                     output << "polyline";
                 }
-                output << ' ' << style_name(value.style) << ' ' << quoted(value.id.lane_id) << ' '
-                       << quoted(value.id.item_id);
+                output << ' ' << style_name(value.style) << ' '
+                       << quoted(display_list.strings().lookup(value.id.lane_id)) << ' ' << quoted(value.id.item_id);
                 if constexpr (std::is_same_v<Value, Line>)
                 {
                     output << ' ' << value.x1 << ' ' << value.y1 << ' ' << value.x2 << ' ' << value.y2;

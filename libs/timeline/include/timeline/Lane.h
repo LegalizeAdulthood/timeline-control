@@ -8,6 +8,7 @@
 #include <timeline/Keyframe.h>
 #include <timeline/Palette.h>
 #include <timeline/size_cast.h>
+#include <timeline/StringTable.h>
 
 #include <functional>
 #include <optional>
@@ -42,9 +43,9 @@ using KeyframeOutputEvaluator = std::function<double(Time, double)>;
 class Lane
 {
 public:
-    Lane(std::string id, std::string label, std::string kind, Time start, Time end);
+    Lane(StringId id, std::string label, std::string kind, Time start, Time end);
 
-    const std::string &id() const
+    StringId id() const
     {
         return m_id;
     }
@@ -96,7 +97,7 @@ public:
 private:
     void add_item(Item item);
 
-    std::string m_id;
+    StringId m_id;
     std::string m_label;
     std::string m_kind;
     Time m_start;

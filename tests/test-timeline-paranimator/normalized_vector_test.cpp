@@ -142,7 +142,7 @@ TEST(NormalizedVector, retainsExtremeAuthoredValuesRecipesBoundsAndHitIdentities
             continue;
         }
         const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-        if (line.id.lane_id.substr(0, 10) != "animation-")
+        if (layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) != "animation-")
         {
             continue;
         }
@@ -244,12 +244,12 @@ TEST(NormalizedVector, retainsKeyedOutputAfterCopyingComparisonAndLayout)
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (line.id.lane_id == "animation-0[0]")
+            if (layout.display_list().strings().lookup(line.id.lane_id) == "animation-0[0]")
             {
                 ASSERT_EQ(2, timeline::size_cast(line.points));
                 const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(hit);
-                EXPECT_EQ("animation-0[0]", hit->id.lane_id);
+                EXPECT_EQ("animation-0[0]", layout.display_list().strings().lookup(hit->id.lane_id));
                 EXPECT_EQ("animation-0-key-0", hit->id.item_id);
                 found = true;
             }
@@ -264,8 +264,8 @@ TEST(NormalizedVector, diagnosesInvalidKeyedInputsWithoutPartialComponents)
     ASSERT_TRUE(imported.succeeded());
     ASSERT_EQ(13, timeline::size_cast(imported.diagnostics));
     ASSERT_EQ(4, imported.document->lane_count());
-    EXPECT_EQ("animation-3[0]", imported.document->lanes()[0].id());
-    EXPECT_EQ("animation-14[0]", imported.document->lanes()[2].id());
+    EXPECT_EQ("animation-3[0]", imported.document->strings().lookup(imported.document->lanes()[0].id()));
+    EXPECT_EQ("animation-14[0]", imported.document->strings().lookup(imported.document->lanes()[2].id()));
     const std::array<int, 13> rejected{0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
     for (int index = 0; index < 13; ++index)
     {
@@ -359,12 +359,12 @@ TEST(NormalizedVector, ownsRecipesBoundsAndHitIdentityAcrossCopyingAndComparison
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (line.id.lane_id == "animation-0[0]")
+            if (layout.display_list().strings().lookup(line.id.lane_id) == "animation-0[0]")
             {
                 ASSERT_EQ(5, timeline::size_cast(line.points));
                 const std::optional<timeline::HitResult> hit = layout.hit_test(line.points[2], 0);
                 ASSERT_TRUE(hit);
-                EXPECT_EQ("animation-0[0]", hit->id.lane_id);
+                EXPECT_EQ("animation-0[0]", layout.display_list().strings().lookup(hit->id.lane_id));
                 EXPECT_EQ("animation-0[0]-path", hit->id.item_id);
                 found = true;
             }
@@ -403,8 +403,8 @@ TEST(NormalizedVector, rejectsSingularIntervalsAndMalformedTargetsWithoutPartial
     ASSERT_TRUE(imported.succeeded());
     ASSERT_EQ(9, timeline::size_cast(imported.diagnostics));
     ASSERT_EQ(4, imported.document->lane_count());
-    EXPECT_EQ("animation-4[0]", imported.document->lanes()[0].id());
-    EXPECT_EQ("animation-10[0]", imported.document->lanes()[2].id());
+    EXPECT_EQ("animation-4[0]", imported.document->strings().lookup(imported.document->lanes()[0].id()));
+    EXPECT_EQ("animation-10[0]", imported.document->strings().lookup(imported.document->lanes()[2].id()));
     const std::array<int, 9> rejected{0, 1, 2, 3, 5, 6, 7, 8, 9};
     for (int index = 0; index < 9; ++index)
     {

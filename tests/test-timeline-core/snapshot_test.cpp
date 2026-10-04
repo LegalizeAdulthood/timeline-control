@@ -55,10 +55,11 @@ TEST(Snapshot, rendersEmptyTimeline)
 
 TEST(Snapshot, rendersEventLane)
 {
-    Document document(100);
-    Lane lane("events", "Events", "events", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("events"), "Events", "events", at(0), at(100));
     lane.add(Instant("beat", "beat", at(25)));
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
 
     EXPECT_EQ(RULER +
             "rectangle LANE_BACKGROUND \"events\" \"\" 100 20 300 30\n"
@@ -69,10 +70,11 @@ TEST(Snapshot, rendersEventLane)
 
 TEST(Snapshot, rendersCurveLane)
 {
-    Document document(100);
-    Lane lane("curve", "Curve", "curve", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("curve"), "Curve", "curve", at(0), at(100));
     lane.add(Curve("signal", "signal", {{at(0), 0.0}, {at(40), 1.0}, {at(80), 0.0}}));
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
 
     EXPECT_EQ(RULER +
             "rectangle LANE_BACKGROUND \"curve\" \"\" 100 20 300 30\n"
@@ -83,11 +85,12 @@ TEST(Snapshot, rendersCurveLane)
 
 TEST(Snapshot, rendersKeyframeLane)
 {
-    Document document(100);
-    Lane lane("keys", "Keys", "keyframes", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("keys"), "Keys", "keyframes", at(0), at(100));
     lane.add(Keyframe("first", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
     lane.add(Keyframe("last", at(50), 1.0));
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
 
     EXPECT_EQ(RULER +
             "rectangle LANE_BACKGROUND \"keys\" \"\" 100 20 300 30\n"
@@ -100,11 +103,14 @@ TEST(Snapshot, rendersKeyframeLane)
 
 TEST(Snapshot, preservesOrderGeometryAndEscapedStrings)
 {
-    DisplayList list;
+    StringTableBuilder strings;
+    const StringId escaped = strings.intern("lane\n");
+    const StringId lane = strings.intern("lane");
+    DisplayList list(std::move(strings).build());
     list.add(Text{-10, 20, "quotes\" slash\\ newline\n tab\t return\r", StyleRole::LANE_LABEL,
-        DisplayId{"lane\n", std::string(1, '\x01') + std::string(1, '\xFF')}});
+        DisplayId{escaped, std::string(1, '\x01') + std::string(1, '\xFF')}});
     list.add(Polyline{{}, StyleRole::CURVE, {}});
-    list.add(Line{-1, -2, 3, 4, StyleRole::PLAYHEAD, {"lane", "item"}});
+    list.add(Line{-1, -2, 3, 4, StyleRole::PLAYHEAD, {lane, "item"}});
     list.add(Rectangle{1, 2, 3, 4, StyleRole::INTERVAL_SPAN, {}});
     list.add(Marker{5, 6, 7, 8, StyleRole::SELECTED_ITEM, {}});
 

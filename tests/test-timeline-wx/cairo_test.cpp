@@ -18,7 +18,7 @@ namespace
 
 const wxTimelinePalette LIGHT{wxColour(255, 255, 255), wxColour(0, 0, 0), wxColour(0, 100, 200)};
 const wxTimelinePalette DARK{wxColour(24, 24, 24), wxColour(235, 235, 235), wxColour(70, 160, 230)};
-const timeline::Polyline DIAGONAL{{{3, 4}, {27, 22}}, timeline::StyleRole::CURVE, {"lane", "curve"}};
+const timeline::Polyline DIAGONAL{{{3, 4}, {27, 22}}, timeline::StyleRole::CURVE, {timeline::StringId{1}, "curve"}};
 
 wxColour pixel(const wxImage &image, int x, int y)
 {
@@ -517,7 +517,7 @@ TEST(CairoControl, preservesInteractionThroughPresentationChangesAndDestruction)
             motion.SetPosition(wxPoint(4, control.FromDIP(40)));
             control.ProcessWindowEvent(motion);
             ASSERT_TRUE(control.hit_result());
-            EXPECT_EQ("animation-0[0]", control.hit_result()->id.lane_id);
+            EXPECT_EQ("animation-0[0]", control.document()->strings().lookup(control.hit_result()->id.lane_id));
         }
         control.set_document(*palette.document);
         refresh_layout(control);

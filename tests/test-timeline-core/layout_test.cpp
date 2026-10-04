@@ -14,11 +14,12 @@ using namespace timeline;
 TEST(Layout, samplesGeometricKeyframeSegmentsAtGridBoundaries)
 {
     const FrameGrid grid(Timebase(100), 3, 10, 1);
-    Document document(grid, 1, 2);
-    Lane lane("zoom", "Zoom", "keyframes", grid.offset(), grid.end_time());
+    DocumentBuilder builder(Document(grid, 1, 2));
+    Lane lane(builder.intern("zoom"), "Zoom", "keyframes", grid.offset(), grid.end_time());
     lane.add(Keyframe("first", grid.frame_start(0), 1.0, KeyframeInterpolation::GEOMETRIC, {}));
     lane.add(Keyframe("last", grid.frame_start(2), 9.0));
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, grid.offset(), grid.end_time()), LayoutMetrics(100, 20, 30, 4));
     bool found = false;
     for (const Primitive &primitive : layout.display_list().primitives())
@@ -102,8 +103,9 @@ void expect_same_geometry(const Primitive &lhs, const Primitive &rhs)
 
 TEST(Layout, emitsRulerAndEmptyLaneScaffolding)
 {
-    Document document(100);
-    document.add_lane(Lane("empty", "Empty lane", "events", at(0), at(100)));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("empty"), "Empty lane", "events", at(0), at(100)));
+    const Document document = std::move(builder).build();
 
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
     const std::vector<Primitive> &primitives = layout.display_list().primitives();
@@ -111,19 +113,20 @@ TEST(Layout, emitsRulerAndEmptyLaneScaffolding)
     ASSERT_EQ(4U, primitives.size());
     EXPECT_EQ("ruler", std::get<Line>(primitives[0]).id.item_id);
     EXPECT_EQ("ruler", std::get<Text>(primitives[1]).id.item_id);
-    EXPECT_EQ("empty", std::get<Rectangle>(primitives[2]).id.lane_id);
+    EXPECT_EQ(StringId{1}, std::get<Rectangle>(primitives[2]).id.lane_id);
     EXPECT_TRUE(std::get<Rectangle>(primitives[2]).id.item_id.empty());
-    EXPECT_EQ("empty", std::get<Text>(primitives[3]).id.lane_id);
+    EXPECT_EQ(StringId{1}, std::get<Text>(primitives[3]).id.lane_id);
     EXPECT_TRUE(std::get<Text>(primitives[3]).id.item_id.empty());
 }
 
 TEST(Layout, samplesAnalyticCurvesWithoutAFrameGrid)
 {
-    Document document(100);
-    Lane lane("signal", "Signal", "curve", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("signal"), "Signal", "curve", at(0), at(100));
     lane.add(Curve("analytic", "signal", at(0), at(100),
         [](Time time) { return static_cast<double>(time.ticks() * time.ticks()); }));
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(200, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
     bool found = false;
     for (const Primitive &primitive : layout.display_list().primitives())
@@ -146,13 +149,14 @@ TEST(Layout, samplesAnalyticCurvesWithoutAFrameGrid)
 
 TEST(Layout, emitsEventAndIntervalPrimitives)
 {
-    Lane lane("music", "Music events", "events", at(0), at(100));
+    DocumentBuilder builder(Document(1000));
+    Lane lane(builder.intern("music-events"), "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(25)));
     lane.add(Interval("phrase-1", "phrase", at(40), at(60)));
     lane.add(Envelope("pulse-1", "pulse", at(70), lasting(10), lasting(10), lasting(10), {}, std::nullopt, {}));
 
-    Document document(1000);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
 
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
     const std::vector<Primitive> &primitives = layout.display_list().primitives();
@@ -173,14 +177,14 @@ TEST(Layout, emitsEventAndIntervalPrimitives)
     EXPECT_EQ(174, instant.x);
     EXPECT_EQ(2, instant.width);
     EXPECT_EQ(StyleRole::INSTANT_MARKER, instant.style);
-    EXPECT_EQ("music", instant.id.lane_id);
+    EXPECT_EQ(StringId{1}, instant.id.lane_id);
     EXPECT_EQ("beat-1", instant.id.item_id);
 
     const auto &interval = std::get<Rectangle>(primitives[5]);
     EXPECT_EQ(220, interval.x);
     EXPECT_EQ(60, interval.width);
     EXPECT_EQ(StyleRole::INTERVAL_SPAN, interval.style);
-    EXPECT_EQ("music", interval.id.lane_id);
+    EXPECT_EQ(StringId{1}, interval.id.lane_id);
     EXPECT_EQ("phrase-1", interval.id.item_id);
 
     EXPECT_EQ(StyleRole::ENVELOPE_ATTACK, std::get<Rectangle>(primitives[6]).style);
@@ -193,12 +197,13 @@ TEST(Layout, emitsEventAndIntervalPrimitives)
 
 TEST(Layout, emitsCurvePolylineSampledAtFrameBoundaries)
 {
-    Lane lane("rms", "RMS", "curve", at(0), at(40));
+    DocumentBuilder builder(Document(FrameGrid(Timebase(10), 4, 1, 1), 0, 0));
+    Lane lane(builder.intern("rms"), "RMS", "curve", at(0), at(40));
     lane.add(Curve(
         "rms", "rms", {{at(0), 0.0}, {at(20), 1.0}, {at(40), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}));
 
-    Document document(FrameGrid(Timebase(10), 4, 1, 1), 0, 0);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
 
     const Layout layout(document, Viewport(500, 100, at(0), at(40)), LayoutMetrics(100, 20, 30, 4));
     const std::vector<Primitive> &primitives = layout.display_list().primitives();
@@ -215,19 +220,20 @@ TEST(Layout, emitsCurvePolylineSampledAtFrameBoundaries)
     EXPECT_EQ(400, polyline.points[3].x);
     EXPECT_EQ(34, polyline.points[3].y);
     EXPECT_EQ(StyleRole::CURVE, polyline.style);
-    EXPECT_EQ("rms", polyline.id.lane_id);
+    EXPECT_EQ(StringId{1}, polyline.id.lane_id);
     EXPECT_EQ("rms", polyline.id.item_id);
 }
 
 TEST(Layout, emitsKeyframeMarkersAndInterpolationSegments)
 {
-    Lane lane("zoom", "camera.zoom", "keyframes", at(0), at(50));
+    DocumentBuilder builder(Document(FrameGrid(Timebase(10), 5, 1, 1), 1, 3));
+    Lane lane(builder.intern("camera.zoom"), "camera.zoom", "keyframes", at(0), at(50));
     lane.add(Keyframe("zoom-0", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
     lane.add(Keyframe("zoom-20", at(20), 1.0, KeyframeInterpolation::HOLD, {}));
     lane.add(Keyframe("zoom-40", at(40), 0.0));
 
-    Document document(FrameGrid(Timebase(10), 5, 1, 1), 1, 3);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
 
     const Layout layout(document, Viewport(500, 100, at(0), at(50)), LayoutMetrics(100, 20, 30, 4));
     const std::vector<Primitive> &primitives = layout.display_list().primitives();
@@ -250,9 +256,9 @@ TEST(Layout, emitsKeyframeMarkersAndInterpolationSegments)
     EXPECT_EQ(420, hold.points[2].x);
     EXPECT_EQ(45, hold.points[2].y);
     EXPECT_EQ(StyleRole::KEYFRAME_SEGMENT, hold.style);
-    EXPECT_EQ("zoom", linear.id.lane_id);
+    EXPECT_EQ(StringId{1}, linear.id.lane_id);
     EXPECT_EQ("zoom-0", linear.id.item_id);
-    EXPECT_EQ("zoom", hold.id.lane_id);
+    EXPECT_EQ(StringId{1}, hold.id.lane_id);
     EXPECT_EQ("zoom-20", hold.id.item_id);
 
     EXPECT_EQ(StyleRole::KEYFRAME_MARKER, std::get<Marker>(primitives[6]).style);
@@ -300,11 +306,12 @@ TEST(Layout, mapsFramesToPixelsAndBack)
 
 TEST(Layout, keepsLaneHeightsStableWhileScrolling)
 {
-    Document document(100);
-    document.add_lane(Lane("a", "Lane A", "events", at(0), at(100)));
-    document.add_lane(Lane("b", "Lane B", "events", at(0), at(100)));
-    document.add_lane(Lane("c", "Lane C", "events", at(0), at(100)));
-    document.add_lane(Lane("d", "Lane D", "events", at(0), at(100)));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("lane-a"), "Lane A", "events", at(0), at(100)));
+    builder.add_lane(Lane(builder.intern("lane-b"), "Lane B", "events", at(0), at(100)));
+    builder.add_lane(Lane(builder.intern("lane-c"), "Lane C", "events", at(0), at(100)));
+    builder.add_lane(Lane(builder.intern("lane-d"), "Lane D", "events", at(0), at(100)));
+    const Document document = std::move(builder).build();
     const Viewport viewport(300, 75, at(0), at(100), 1);
     const LayoutMetrics metrics(100, 20, 20, 4);
     const Layout layout(document, viewport, metrics);
@@ -327,8 +334,9 @@ TEST(Layout, keepsLaneHeightsStableWhileScrolling)
 
 TEST(Layout, navigatesExactRangesWithoutChangingDocumentData)
 {
-    Document document(100);
-    document.add_lane(Lane("lane", "Lane", "events", at(0), at(100)));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("lane"), "Lane", "events", at(0), at(100)));
+    const Document document = std::move(builder).build();
     Navigation navigation(at(0), at(100), 5);
 
     navigation.zoom_by(2.0, at(50));
@@ -349,7 +357,7 @@ TEST(Layout, navigatesExactRangesWithoutChangingDocumentData)
     EXPECT_EQ(0, viewport.start().ticks());
     EXPECT_EQ(3, viewport.first_lane());
     EXPECT_EQ(1, document.lane_count());
-    EXPECT_EQ("lane", document.lanes()[0].id());
+    EXPECT_EQ(StringId{1}, document.lanes()[0].id());
 }
 
 TEST(Navigation, revealsPositionsWithoutChangingZoomOrLane)
@@ -378,10 +386,11 @@ TEST(Navigation, revealsPositionsWithoutChangingZoomOrLane)
 
 TEST(Layout, producesIdenticalGeometryForIdenticalMetrics)
 {
-    Lane lane("music", "Music", "events", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("music"), "Music", "events", at(0), at(100));
     lane.add(Instant("beat", "beat", at(50)));
-    Document document(100);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Viewport viewport(320, 80, at(0), at(100));
     const LayoutMetrics metrics(100, 20, 30, 4);
     const Layout first(document, viewport, metrics);
@@ -398,8 +407,9 @@ TEST(Layout, producesIdenticalGeometryForIdenticalMetrics)
 
 TEST(Layout, hitsRulerHeadersAndEmptyLaneBody)
 {
-    Document document(100);
-    document.add_lane(Lane("music", "Music", "events", at(0), at(100)));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("music"), "Music", "events", at(0), at(100)));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
 
     const std::optional<HitResult> ruler = layout.hit_test(Point{150, 10}, 3);
@@ -409,22 +419,23 @@ TEST(Layout, hitsRulerHeadersAndEmptyLaneBody)
     const std::optional<HitResult> header = layout.hit_test(Point{10, 25}, 3);
     ASSERT_TRUE(header);
     EXPECT_EQ(StyleRole::LANE_LABEL, header->style);
-    EXPECT_EQ("music", header->id.lane_id);
+    EXPECT_EQ(StringId{1}, header->id.lane_id);
     EXPECT_TRUE(header->id.item_id.empty());
     const std::optional<HitResult> body = layout.hit_test(Point{150, 25}, 3);
     ASSERT_TRUE(body);
     EXPECT_EQ(StyleRole::LANE_BACKGROUND, body->style);
-    EXPECT_EQ("music", body->id.lane_id);
+    EXPECT_EQ(StringId{1}, body->id.lane_id);
 }
 
 TEST(Layout, hitsItemGeometryAndPreservesDisplayIds)
 {
-    Lane lane("music", "Music", "events", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("music"), "Music", "events", at(0), at(100));
     lane.add(Instant("beat", "beat", at(25)));
     lane.add(Interval("phrase", "phrase", at(40), at(60)));
     lane.add(Envelope("pulse", "pulse", at(70), lasting(10), lasting(10), lasting(10), {}, std::nullopt, {}));
-    Document document(100);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
 
     for (const Primitive &primitive : layout.display_list().primitives())
@@ -456,11 +467,12 @@ TEST(Layout, hitsItemGeometryAndPreservesDisplayIds)
 
 TEST(Layout, prefersLastPaintedItemWhenMarkersOverlap)
 {
-    Lane lane("music", "Music", "events", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("music"), "Music", "events", at(0), at(100));
     lane.add(Instant("first", "note", at(25)));
     lane.add(Instant("second", "effect", at(25)));
-    Document document(100);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
 
     const std::optional<HitResult> hit = layout.hit_test(Point{175, 30}, 3);
@@ -470,16 +482,17 @@ TEST(Layout, prefersLastPaintedItemWhenMarkersOverlap)
 
 TEST(Layout, hitsCurveSegmentsUsingHostTolerance)
 {
-    Lane lane("rms", "RMS", "curve", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("rms"), "RMS", "curve", at(0), at(100));
     lane.add(Curve("signal", "rms", {{at(0), 0.0}, {at(100), 1.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}));
-    Document document(100);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
 
     const std::optional<HitResult> hit = layout.hit_test(Point{250, 36}, 3);
     ASSERT_TRUE(hit);
     EXPECT_EQ(StyleRole::CURVE, hit->style);
-    EXPECT_EQ("rms", hit->id.lane_id);
+    EXPECT_EQ(StringId{1}, hit->id.lane_id);
     EXPECT_EQ("signal", hit->id.item_id);
     EXPECT_EQ(StyleRole::LANE_BACKGROUND, layout.hit_test(Point{250, 40}, 3)->style);
     EXPECT_THROW(layout.hit_test(Point{250, 36}, -1), std::invalid_argument);
@@ -487,11 +500,12 @@ TEST(Layout, hitsCurveSegmentsUsingHostTolerance)
 
 TEST(Layout, keyframeMarkersTakePriorityOverInterpolationSegments)
 {
-    Lane lane("zoom", "Zoom", "keyframes", at(0), at(100));
+    DocumentBuilder builder(Document(100));
+    Lane lane(builder.intern("zoom"), "Zoom", "keyframes", at(0), at(100));
     lane.add(Keyframe("start", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
     lane.add(Keyframe("end", at(50), 1.0));
-    Document document(100);
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, at(0), at(100)), LayoutMetrics(100, 20, 30, 4));
 
     const std::optional<HitResult> marker = layout.hit_test(Point{250, 24}, 3);
@@ -506,9 +520,10 @@ TEST(Layout, keyframeMarkersTakePriorityOverInterpolationSegments)
 
 TEST(Layout, doesNotHitOutsideViewportOrInUnusedRows)
 {
-    Document document(100);
-    document.add_lane(Lane("hidden", "Hidden", "events", at(0), at(100)));
-    document.add_lane(Lane("visible", "Visible", "events", at(0), at(100)));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("hidden"), "Hidden", "events", at(0), at(100)));
+    builder.add_lane(Lane(builder.intern("visible"), "Visible", "events", at(0), at(100)));
+    const Document document = std::move(builder).build();
     const Layout layout(document, Viewport(400, 100, at(0), at(100), 1), LayoutMetrics(100, 20, 30, 4));
 
     EXPECT_FALSE(layout.hit_test(Point{-1, 10}, 3));
@@ -516,5 +531,5 @@ TEST(Layout, doesNotHitOutsideViewportOrInUnusedRows)
     EXPECT_FALSE(layout.hit_test(Point{400, 25}, 3));
     EXPECT_FALSE(layout.hit_test(Point{150, 100}, 3));
     EXPECT_FALSE(layout.hit_test(Point{150, 50}, 3));
-    EXPECT_EQ("visible", layout.hit_test(Point{10, 25}, 3)->id.lane_id);
+    EXPECT_EQ(StringId{2}, layout.hit_test(Point{10, 25}, 3)->id.lane_id);
 }

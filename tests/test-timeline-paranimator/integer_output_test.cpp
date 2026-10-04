@@ -123,11 +123,11 @@ TEST(IntegerOutput, matchesSourceGoldenAndSurvivesCopyingComparisonAndLayout)
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (line.id.lane_id == "animation-0")
+            if (layout.display_list().strings().lookup(line.id.lane_id) == "animation-0")
             {
                 const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(result);
-                EXPECT_EQ("animation-0", result->id.lane_id);
+                EXPECT_EQ("animation-0", layout.display_list().strings().lookup(result->id.lane_id));
                 EXPECT_EQ("animation-0-key-0", result->id.item_id);
                 hit = true;
             }
@@ -172,7 +172,7 @@ TEST(IntegerOutput, diagnosesInvalidKeysTransactionally)
     ASSERT_TRUE(imported.succeeded());
     ASSERT_EQ(6, imported.diagnostics.size());
     ASSERT_EQ(1, imported.document->lane_count());
-    EXPECT_EQ("animation-6", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-6", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < 6; ++index)
     {
         EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));

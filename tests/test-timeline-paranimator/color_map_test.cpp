@@ -131,7 +131,7 @@ TEST(MaskedColorMap, matchesSourceMapsWithOwnedDefinitionsAndWorkingComparison)
             else if (std::holds_alternative<timeline::Marker>(primitive))
             {
                 const timeline::Marker &marker = std::get<timeline::Marker>(primitive);
-                if (marker.id.lane_id.find("-amount") != std::string::npos)
+                if (layout.display_list().strings().lookup(marker.id.lane_id).find("-amount") != std::string::npos)
                 {
                     const std::optional<timeline::HitResult> hit =
                         layout.hit_test(timeline::Point{marker.x, marker.y}, 0);
@@ -224,7 +224,7 @@ TEST(MaskedColorMap, diagnosesInvalidMasksAmountsColorsAndSeedsTransactionally)
         "geometric"};
     ASSERT_EQ(needles.size(), imported.diagnostics.size());
     ASSERT_EQ(4, imported.document->lane_count());
-    EXPECT_EQ("animation-19", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-19", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(needles); ++index)
     {
         SCOPED_TRACE(index);
@@ -287,7 +287,7 @@ TEST(IndexedColorMap, matchesSourceMapsAndPreservesOwnedOffsetDefinitions)
                 if (member == "offset")
                 {
                     EXPECT_EQ("ping-pong", key.attributes().at("effect-kind"));
-                    EXPECT_NE(std::string::npos, lane.id().find("-offset"));
+                    EXPECT_NE(std::string::npos, document.strings().lookup(lane.id()).find("-offset"));
                 }
             }
         }
@@ -354,7 +354,7 @@ TEST(IndexedColorMap, rendersComparesAndHitsPaletteAndOffsetLanes)
         else if (std::holds_alternative<timeline::Marker>(primitive))
         {
             const timeline::Marker &marker = std::get<timeline::Marker>(primitive);
-            if (marker.id.lane_id == "animation-0-effect-1-offset")
+            if (layout.display_list().strings().lookup(marker.id.lane_id) == "animation-0-effect-1-offset")
             {
                 const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker.x, marker.y}, 0);
                 ASSERT_TRUE(hit);
@@ -375,7 +375,7 @@ TEST(IndexedColorMap, rejectsInvalidEffectsTransactionallyWithIndexedDiagnostics
         "integer", "field", "offset", "geometric", "range", "effect 1"};
     ASSERT_EQ(needles.size(), imported.diagnostics.size());
     ASSERT_EQ(2, imported.document->lane_count());
-    EXPECT_EQ("animation-14", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-14", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(needles); ++index)
     {
         SCOPED_TRACE(index);
@@ -428,7 +428,7 @@ TEST(ColorMapEffects, matchesSourceMapsAndExposesOwnedAmountSignals)
                 EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("effects"));
                 EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
                 EXPECT_EQ("amount", key.attributes().at("member"));
-                EXPECT_NE(std::string::npos, lane.id().find("-effect-"));
+                EXPECT_NE(std::string::npos, document.strings().lookup(lane.id()).find("-effect-"));
             }
         }
         EXPECT_EQ(fixture == "variants" ? 5 : fixture == "order" ? 2 : 1, palettes);
@@ -514,7 +514,7 @@ TEST(ColorMapEffects, preservesOrderAndDistinctPaletteAndSignalHits)
         else if (std::holds_alternative<timeline::Marker>(primitive))
         {
             const timeline::Marker &marker = std::get<timeline::Marker>(primitive);
-            if (marker.id.lane_id == "animation-0-effect-0-amount")
+            if (layout.display_list().strings().lookup(marker.id.lane_id) == "animation-0-effect-0-amount")
             {
                 const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker.x, marker.y}, 0);
                 ASSERT_TRUE(hit);
@@ -535,7 +535,7 @@ TEST(ColorMapEffects, diagnosesInvalidEffectsWithoutPartialPaletteOrSignalLanes)
         "geometric", "numeric", "positive", "curve", "field", "source", "effect 1", "range"};
     ASSERT_EQ(needles.size(), imported.diagnostics.size());
     ASSERT_EQ(2, imported.document->lane_count());
-    EXPECT_EQ("animation-14", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-14", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(needles); ++index)
     {
         SCOPED_TRACE(index);
@@ -599,7 +599,7 @@ TEST(ColorMapImport, matchesSourceEvaluatorAndPreservesStructuredOwnedValues)
         EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("swatch PALETTE"));
         if (keyed)
         {
-            EXPECT_EQ("animation-0-keys", document.lanes()[1].id());
+            EXPECT_EQ("animation-0-keys", document.strings().lookup(document.lanes()[1].id()));
             const timeline::Instant &key = std::get<timeline::Instant>(document.lanes()[1].items()[0]);
             EXPECT_EQ("input/warm.map", key.attributes().at("value"));
             EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("keys"));
@@ -636,8 +636,8 @@ TEST(ColorMapImport, preservesLayerIdentityAndIndependentDefinitions)
     ASSERT_TRUE(imported.succeeded());
     ASSERT_TRUE(imported.diagnostics.empty());
     ASSERT_EQ(3, imported.document->lane_count());
-    EXPECT_EQ("animation-layer-0-0", imported.document->lanes()[0].id());
-    EXPECT_EQ("animation-layer-1-0", imported.document->lanes()[2].id());
+    EXPECT_EQ("animation-layer-0-0", imported.document->strings().lookup(imported.document->lanes()[0].id()));
+    EXPECT_EQ("animation-layer-1-0", imported.document->strings().lookup(imported.document->lanes()[2].id()));
     const timeline::PaletteCurve &first = std::get<timeline::PaletteCurve>(imported.document->lanes()[0].items()[0]);
     const timeline::PaletteCurve &second = std::get<timeline::PaletteCurve>(imported.document->lanes()[2].items()[0]);
     EXPECT_EQ("palette", first.attributes().at("layer"));
@@ -655,7 +655,7 @@ TEST(ColorMapImport, diagnosesInvalidDefinitionsWithoutPartialLanes)
         "increasing", "string", "gradient"};
     ASSERT_EQ(diagnostics.size(), imported.diagnostics.size());
     ASSERT_EQ(2, imported.document->lane_count());
-    EXPECT_EQ("animation-20", imported.document->lanes()[0].id());
+    EXPECT_EQ("animation-20", imported.document->strings().lookup(imported.document->lanes()[0].id()));
     for (int index = 0; index < timeline::size_cast(diagnostics); ++index)
     {
         SCOPED_TRACE(index);

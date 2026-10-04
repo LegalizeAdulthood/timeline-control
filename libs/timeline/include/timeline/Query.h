@@ -65,7 +65,7 @@ struct InspectionItem
 ///
 struct LaneInspection
 {
-    std::string id;
+    StringId id;
     std::string label;
     std::string kind;
     int item_count;

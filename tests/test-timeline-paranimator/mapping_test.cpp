@@ -103,8 +103,11 @@ TEST(BeatKeysMapping, retainsRecipesAndRebuildsDisposableDisplayData)
     EXPECT_DOUBLE_EQ(0.875, result.mapping->recipes()[0].clamp->second);
     timeline::Document cache = result.mapping->materialize();
     const int count = cache.lane_count();
-    cache.add_lane(timeline::Lane(
-        "cache-only", "Temporary", "events", cache.frame_grid()->offset(), cache.frame_grid()->end_time()));
+    const timeline::Time start = cache.frame_grid()->offset();
+    const timeline::Time end = cache.frame_grid()->end_time();
+    timeline::DocumentBuilder builder(std::move(cache));
+    builder.add_lane(timeline::Lane(builder.intern("cache-only"), "Temporary", "events", start, end));
+    cache = std::move(builder).build();
     const timeline::Document rebuilt = result.mapping->materialize();
     EXPECT_EQ(count, rebuilt.lane_count());
     EXPECT_EQ(1, result.mapping->source_document().lane_count());

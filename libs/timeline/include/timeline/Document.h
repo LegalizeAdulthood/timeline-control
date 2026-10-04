@@ -1,9 +1,11 @@
 #pragma once
 
 #include <timeline/Lane.h>
+#include <timeline/StringTable.h>
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace timeline
@@ -237,9 +239,12 @@ public:
     {
         return m_lanes;
     }
+    const StringTable &strings() const
+    {
+        return m_strings;
+    }
     std::optional<Time> content_start() const;
     std::optional<Time> content_end() const;
-    void add_lane(Lane lane);
     int track_count() const
     {
         return m_track_count;
@@ -262,13 +267,46 @@ public:
     }
 
 private:
+    void add_lane(Lane lane);
+
     Timebase m_timebase;
     Metadata m_metadata;
     std::optional<FrameGrid> m_frame_grid;
     std::optional<SourceSummary> m_source_summary;
     std::vector<Lane> m_lanes;
+    StringTable m_strings;
     int m_track_count{0};
     int m_keyframe_count{0};
+
+    friend class DocumentBuilder;
+};
+
+/// Construction boundary that interns lane identities before sealing a document.
+///
+/// A builder can preserve an existing table's IDs, add lanes using newly
+/// interned IDs, and then transfer both lanes and immutable string storage into
+/// a completed document.
+///
+class DocumentBuilder
+{
+public:
+    explicit DocumentBuilder(Document document);
+    DocumentBuilder(Document document, const StringTable &strings);
+
+    StringId intern(std::string_view value)
+    {
+        return m_strings.intern(value);
+    }
+    std::string_view lookup(StringId id) const
+    {
+        return m_strings.lookup(id);
+    }
+    void add_lane(Lane lane);
+    Document build() &&;
+
+private:
+    Document m_document;
+    StringTableBuilder m_strings;
 };
 
 /// Combines compatible framed documents without changing source item times.

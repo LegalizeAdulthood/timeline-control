@@ -83,7 +83,8 @@ TEST(CameraNormalization, samplesSourceArithmeticAfterInterpolationWithOwnedBoun
                     EXPECT_LE(*curve.minimum(), curve.sample(time));
                     EXPECT_GE(*curve.maximum(), curve.sample(time));
                     EXPECT_TRUE(curve.samples().empty());
-                    EXPECT_EQ("animation-0-view-up[" + std::to_string(axis) + "]", document.lanes()[12 + axis].id());
+                    EXPECT_EQ("animation-0-view-up[" + std::to_string(axis) + "]",
+                        document.strings().lookup(document.lanes()[12 + axis].id()));
                     EXPECT_EQ("true", curve.attributes().at("normalize"));
                     EXPECT_EQ(keys.dump(), Json::parse(curve.attributes().at("signal")).at("keys").dump());
                 }

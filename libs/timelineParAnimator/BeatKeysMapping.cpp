@@ -182,9 +182,10 @@ timeline::Document BeatKeysMapping::materialize() const
         ? timeline::Document(
               grid, *m_source_document.source_summary(), timeline::size_cast(m_recipes), key_count, metadata)
         : timeline::Document(grid, timeline::size_cast(m_recipes), key_count, metadata);
+    timeline::DocumentBuilder builder(std::move(document), m_source_document.strings());
     for (const timeline::Lane &lane : m_source_document.lanes())
     {
-        document.add_lane(lane);
+        builder.add_lane(lane);
     }
     for (int index = 0; index < timeline::size_cast(m_recipes); ++index)
     {
@@ -194,16 +195,16 @@ timeline::Document BeatKeysMapping::materialize() const
         }
         const MappingRecipe &recipe = m_recipes[index];
         const std::string id = "mapping-" + std::to_string(index);
-        timeline::Lane lane(id, recipe.target, "keyframes", grid.offset(), grid.end_time());
+        timeline::Lane lane(builder.intern(id), recipe.target, "keyframes", grid.offset(), grid.end_time());
         for (const auto &[frame, value] : outputs[index])
         {
             lane.add(timeline::Keyframe(id + "-" + std::to_string(frame), grid.frame_start(frame), value,
                 timeline::KeyframeInterpolation::HOLD,
                 {{"source", recipe.source}, {"target", recipe.target}, {"op", recipe.operation}}));
         }
-        document.add_lane(std::move(lane));
+        builder.add_lane(std::move(lane));
     }
-    return document;
+    return std::move(builder).build();
 }
 
 } // namespace timeline_par_animator

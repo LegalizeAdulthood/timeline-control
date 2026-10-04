@@ -115,7 +115,7 @@ TEST(TimelineJson, importsTrackerTimelineWithAdjacentConfig)
     EXPECT_EQ(1, result.document->frame_grid()->frames_per_second_denominator());
     ASSERT_EQ(1, result.document->lane_count());
     const timeline::Lane &lane = result.document->lanes().front();
-    EXPECT_EQ("tracker-events", lane.id());
+    EXPECT_EQ("tracker-events", result.document->strings().lookup(lane.id()));
     EXPECT_EQ("Music events", lane.label());
     ASSERT_EQ(6, lane.item_count());
     EXPECT_EQ("note", std::get<timeline::Instant>(lane.items()[0]).kind());
@@ -262,7 +262,7 @@ TEST(TimelineJson, importsTrackerRmsCurve)
     EXPECT_EQ(46, result.document->frame_grid()->frame_count());
     ASSERT_EQ(1, result.document->lane_count());
     const timeline::Lane &lane = result.document->lanes().front();
-    EXPECT_EQ("tracker-rms", lane.id());
+    EXPECT_EQ("tracker-rms", result.document->strings().lookup(lane.id()));
     EXPECT_EQ("RMS", lane.label());
     ASSERT_EQ(1, lane.item_count());
     const auto &curve = std::get<timeline::Curve>(lane.items().front());
@@ -292,7 +292,7 @@ TEST(TimelineJson, mixedTrackerTimelineDrivesCoreDisplayList)
         if (const auto marker = std::get_if<timeline::Marker>(&primitive))
         {
             EXPECT_EQ(timeline::StyleRole::INSTANT_MARKER, marker->style);
-            EXPECT_EQ("tracker-events", marker->id.lane_id);
+            EXPECT_EQ("tracker-events", result.document->strings().lookup(marker->id.lane_id));
             EXPECT_FALSE(marker->id.item_id.empty());
             const std::optional<timeline::HitResult> hit = layout.hit_test(timeline::Point{marker->x, marker->y}, 3);
             ASSERT_TRUE(hit);
@@ -303,7 +303,7 @@ TEST(TimelineJson, mixedTrackerTimelineDrivesCoreDisplayList)
         if (const auto curve = std::get_if<timeline::Polyline>(&primitive))
         {
             EXPECT_EQ(timeline::StyleRole::CURVE, curve->style);
-            EXPECT_EQ("tracker-rms", curve->id.lane_id);
+            EXPECT_EQ("tracker-rms", result.document->strings().lookup(curve->id.lane_id));
             EXPECT_EQ("tracker-rms", curve->id.item_id);
             ASSERT_FALSE(curve->points.empty());
             const std::optional<timeline::HitResult> hit = layout.hit_test(curve->points.front(), 3);
@@ -432,7 +432,7 @@ TEST(TimelineJson, importsRmsOverlaySummary)
     EXPECT_EQ(5, result.document->frame_grid()->frame_count());
     ASSERT_EQ(3, result.document->lane_count());
     const timeline::Lane &zoom = result.document->lanes()[0];
-    EXPECT_EQ("camera.zoom", zoom.id());
+    EXPECT_EQ("camera.zoom", result.document->strings().lookup(zoom.id()));
     EXPECT_EQ("camera.zoom", zoom.label());
     ASSERT_EQ(3, zoom.item_count());
     const auto &first = std::get<timeline::Keyframe>(zoom.items()[0]);

@@ -244,7 +244,7 @@ std::string Viewer::inspector_text() const
     if (m_control.hit_result())
     {
         const timeline::DisplayId &id = m_control.hit_result()->id;
-        text << "\nHit lane: " << id.lane_id << "\nHit item: " << id.item_id;
+        text << "\nHit lane: " << document.strings().lookup(id.lane_id) << "\nHit item: " << id.item_id;
     }
     if (m_control.interaction())
     {
@@ -259,11 +259,11 @@ std::string Viewer::inspector_text() const
         }
         if (interaction.selected_lane())
         {
-            text << "\nSelected lane: " << *interaction.selected_lane();
+            text << "\nSelected lane: " << document.strings().lookup(*interaction.selected_lane());
         }
         for (const timeline::DisplayId &id : interaction.selected_items())
         {
-            text << "\nSelected item: " << id.lane_id << '/' << id.item_id;
+            text << "\nSelected item: " << document.strings().lookup(id.lane_id) << '/' << id.item_id;
         }
         if (interaction.selected_range())
         {

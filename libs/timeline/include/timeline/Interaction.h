@@ -47,7 +47,7 @@ public:
     {
         return m_playhead && m_frame_grid ? m_frame_grid->nearest_frame(*m_playhead) : std::nullopt;
     }
-    const std::optional<std::string> &selected_lane() const
+    const std::optional<StringId> &selected_lane() const
     {
         return m_selected_lane;
     }
@@ -85,7 +85,7 @@ private:
     std::optional<Time> m_end;
     std::optional<FrameGrid> m_frame_grid;
     std::optional<Time> m_playhead;
-    std::optional<std::string> m_selected_lane;
+    std::optional<StringId> m_selected_lane;
     std::vector<DisplayId> m_selected_items;
     std::optional<TimeRange> m_selected_range;
     std::optional<Time> m_range_anchor;

@@ -27,7 +27,7 @@ Duration lasting(Ticks ticks)
 
 TEST(Lane, preservesMixedItemsInInsertionOrder)
 {
-    Lane lane("music", "Music events", "events", at(0), at(100));
+    Lane lane(StringId{1}, "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(10), "Beat", 0.75, {{"channel", "1"}}));
     lane.add(Interval("phrase-1", "phrase", at(20), at(50), "Phrase", std::nullopt, {}));
     lane.add(Envelope("pulse-1", "pulse", at(60), lasting(10), lasting(20), lasting(10), "Pulse", std::nullopt, {}));
@@ -57,7 +57,7 @@ TEST(Lane, preservesMixedItemsInInsertionOrder)
 
 TEST(Lane, queriesItemsOverlappingATimeRange)
 {
-    Lane lane("music", "Music events", "events", at(0), at(100));
+    Lane lane(StringId{1}, "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(10)));
     lane.add(Interval("phrase-1", "phrase", at(20), at(50)));
     lane.add(Envelope("pulse-1", "pulse", at(60), lasting(10), lasting(20), lasting(10), {}, std::nullopt, {}));
@@ -71,14 +71,14 @@ TEST(Lane, queriesItemsOverlappingATimeRange)
 
 TEST(Lane, rejectsInvalidRangesAndItems)
 {
-    EXPECT_THROW(Lane("music", "Music events", "events", at(10), at(10)), std::invalid_argument);
+    EXPECT_THROW(Lane(StringId{1}, "Music events", "events", at(10), at(10)), std::invalid_argument);
     EXPECT_THROW(Interval("bad", "phrase", at(20), at(20)), std::invalid_argument);
     EXPECT_THROW(Interval("bad", "phrase", at(30), at(20)), std::invalid_argument);
     EXPECT_THROW(Envelope("bad", "pulse", at(10)), std::invalid_argument);
     EXPECT_THROW(Envelope("bad", "pulse", at(10), lasting(-1), std::nullopt, std::nullopt, {}, std::nullopt, {}),
         std::invalid_argument);
 
-    Lane lane("music", "Music events", "events", at(0), at(100));
+    Lane lane(StringId{1}, "Music events", "events", at(0), at(100));
     EXPECT_THROW(lane.add(Instant("early", "beat", at(-1))), std::out_of_range);
     EXPECT_THROW(lane.add(Instant("late", "beat", at(100))), std::out_of_range);
     EXPECT_THROW(lane.add(Interval("long", "phrase", at(90), at(101))), std::out_of_range);

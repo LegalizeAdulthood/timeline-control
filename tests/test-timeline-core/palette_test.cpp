@@ -37,14 +37,14 @@ TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
 {
     const Document document = []
     {
-        Document source(FrameGrid(Timebase(30), 3, 30, 1), 0, 0);
-        Lane lane("colors", "Colors", "palette", Time{}, Time::from_ticks(3));
+        DocumentBuilder builder(Document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0));
+        Lane lane(builder.intern("colors"), "Colors", "palette", Time{}, Time::from_ticks(3));
         lane.add(PaletteCurve(
             "palette", "color-map", Time{}, Time::from_ticks(3),
             [](Time time) { return Palette{RgbColor(static_cast<int>(time.ticks()) * 20, 0, 255)}; },
             Attributes{{"recipe", "owned"}}));
-        source.add_lane(std::move(lane));
-        return source;
+        builder.add_lane(std::move(lane));
+        return std::move(builder).build();
     }();
     const FrameInspection inspected = *inspect_frame(document, 1);
     ASSERT_EQ(1, inspected.lanes.size());
@@ -62,11 +62,13 @@ TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
 
 TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
 {
-    Document document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0);
-    Lane lane("colors", "Colors", "palette", Time{}, Time::from_ticks(3));
+    DocumentBuilder builder(Document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0));
+    const StringId colors_id = builder.intern("colors");
+    Lane lane(colors_id, "Colors", "palette", Time{}, Time::from_ticks(3));
     const Palette colors{RgbColor(255, 0, 0), RgbColor(0, 255, 0), RgbColor(0, 0, 255), RgbColor(255, 255, 255)};
     lane.add(PaletteCurve("palette", Time{}, Time::from_ticks(3), [colors](Time) { return colors; }));
-    document.add_lane(std::move(lane));
+    builder.add_lane(std::move(lane));
+    const Document document = std::move(builder).build();
     const Viewport viewport(260, 80, Time{}, Time::from_ticks(3));
     const LayoutMetrics metrics(20, 20, 40, 4);
     const Layout layout(document, viewport, metrics);
@@ -84,7 +86,7 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
             const std::optional<HitResult> result = layout.hit_test(Point{swatch.x, swatch.y}, 0);
             ASSERT_TRUE(result);
             const HitResult &hit = *result;
-            EXPECT_EQ("colors", hit.id.lane_id);
+            EXPECT_EQ(colors_id, hit.id.lane_id);
             EXPECT_EQ("palette", hit.id.item_id);
             EXPECT_EQ(StyleRole::PALETTE, hit.style);
             ++swatches;
@@ -93,7 +95,7 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
     EXPECT_EQ(12, swatches);
     EXPECT_NE(std::string::npos, render_snapshot(layout.display_list()).find("swatch PALETTE"));
     Interaction interaction(document);
-    interaction.select_hit(HitResult{StyleRole::PALETTE, DisplayId{"colors", "palette"}}, false);
+    interaction.select_hit(HitResult{StyleRole::PALETTE, DisplayId{colors_id, "palette"}}, false);
     const Layout selected(document, viewport, metrics, interaction);
     for (const Primitive &primitive : selected.display_list().primitives())
     {
@@ -109,8 +111,9 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
     const Layout outside(document, Viewport(260, 80, Time::from_ticks(-10), Time::from_ticks(-1)), metrics);
     EXPECT_FALSE(std::any_of(outside.display_list().primitives().begin(), outside.display_list().primitives().end(),
         [](const Primitive &primitive) { return std::holds_alternative<Swatch>(primitive); }));
-    Document continuous(Timebase(30));
-    continuous.add_lane(document.lanes()[0]);
+    DocumentBuilder continuous_builder(Document(Timebase(30)), document.strings());
+    continuous_builder.add_lane(document.lanes()[0]);
+    const Document continuous = std::move(continuous_builder).build();
     const Layout without_grid(continuous, viewport, metrics);
     EXPECT_TRUE(
         std::any_of(without_grid.display_list().primitives().begin(), without_grid.display_list().primitives().end(),

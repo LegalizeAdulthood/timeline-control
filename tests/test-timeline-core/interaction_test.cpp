@@ -18,12 +18,12 @@ Time at(Ticks ticks)
 
 Document framed_document()
 {
-    Document document(FrameGrid(Timebase(100), 10, 10, 1, at(50)), 0, 0);
-    Lane lane("music", "Music", "events", at(50), at(150));
+    DocumentBuilder builder(Document(FrameGrid(Timebase(100), 10, 10, 1, at(50)), 0, 0));
+    Lane lane(builder.intern("music"), "Music", "events", at(50), at(150));
     lane.add(Instant("beat", "beat", at(80)));
-    document.add_lane(std::move(lane));
-    document.add_lane(Lane("other", "Other", "events", at(50), at(150)));
-    return document;
+    builder.add_lane(std::move(lane));
+    builder.add_lane(Lane(builder.intern("other"), "Other", "events", at(50), at(150)));
+    return std::move(builder).build();
 }
 
 } // namespace
@@ -48,8 +48,9 @@ TEST(Interaction, snapsPlayheadAndClampsFrameMovement)
 
 TEST(Interaction, handlesFramelessAndEmptyDocuments)
 {
-    Document document(100);
-    document.add_lane(Lane("lane", "Lane", "events", at(20), at(80)));
+    DocumentBuilder builder(Document(100));
+    builder.add_lane(Lane(builder.intern("lane"), "Lane", "events", at(20), at(80)));
+    const Document document = std::move(builder).build();
     Interaction interaction(document);
     interaction.move_playhead(at(37));
     EXPECT_EQ(at(37), *interaction.playhead());
@@ -75,10 +76,10 @@ TEST(Interaction, handlesFramelessAndEmptyDocuments)
 TEST(Interaction, selectsAndTogglesLaneQualifiedItemIds)
 {
     Interaction interaction(framed_document());
-    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{"music", "beat"}};
-    const HitResult other{StyleRole::INSTANT_MARKER, DisplayId{"other", "beat"}};
+    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{StringId{1}, "beat"}};
+    const HitResult other{StyleRole::INSTANT_MARKER, DisplayId{StringId{2}, "beat"}};
     interaction.select_hit(beat, false);
-    EXPECT_EQ("music", *interaction.selected_lane());
+    EXPECT_EQ(StringId{1}, *interaction.selected_lane());
     ASSERT_EQ(1, size_cast(interaction.selected_items()));
     interaction.select_hit(other, true);
     EXPECT_EQ(2, size_cast(interaction.selected_items()));
@@ -87,9 +88,9 @@ TEST(Interaction, selectsAndTogglesLaneQualifiedItemIds)
     interaction.select_hit(beat, true);
     EXPECT_FALSE(interaction.is_selected(beat.id));
     EXPECT_TRUE(interaction.is_selected(other.id));
-    interaction.select_hit(HitResult{StyleRole::LANE_LABEL, DisplayId{"music", ""}}, false);
+    interaction.select_hit(HitResult{StyleRole::LANE_LABEL, DisplayId{StringId{1}, ""}}, false);
     EXPECT_TRUE(interaction.selected_items().empty());
-    EXPECT_EQ("music", *interaction.selected_lane());
+    EXPECT_EQ(StringId{1}, *interaction.selected_lane());
     interaction.clear_selection();
     EXPECT_FALSE(interaction.selected_lane());
     EXPECT_TRUE(interaction.selected_items().empty());
@@ -121,7 +122,7 @@ TEST(Interaction, preservesClickedItemsUntilADragCrossesAFrame)
 {
     const Document document = framed_document();
     Interaction interaction(document);
-    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{"music", "beat"}};
+    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{StringId{1}, "beat"}};
     interaction.select_hit(beat, false);
     interaction.begin_range(at(80));
     interaction.extend_range(at(84));
@@ -152,7 +153,7 @@ TEST(Interaction, extendsKeyboardRangesFromAStableAnchor)
     interaction.step_playhead(-4, true);
     EXPECT_EQ(1, interaction.selected_frames()->first());
     EXPECT_EQ(3, interaction.selected_frames()->last());
-    interaction.select_hit(HitResult{StyleRole::LANE_LABEL, DisplayId{"music", ""}}, false);
+    interaction.select_hit(HitResult{StyleRole::LANE_LABEL, DisplayId{StringId{1}, ""}}, false);
     interaction.step_playhead(1, true);
     EXPECT_EQ(1, interaction.selected_frames()->first());
     EXPECT_EQ(2, interaction.selected_frames()->last());
@@ -167,7 +168,7 @@ TEST(Interaction, rendersSelectionWithoutChangingHitIdentity)
 {
     const Document document = framed_document();
     Interaction interaction(document);
-    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{"music", "beat"}};
+    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{StringId{1}, "beat"}};
     interaction.select_hit(beat, false);
     interaction.move_playhead_frame(3);
     const LayoutMetrics metrics(100, 20, 30, 4);
@@ -182,7 +183,7 @@ TEST(Interaction, rendersSelectionWithoutChangingHitIdentity)
             [&](const auto &value)
             {
                 selected_marker |= value.style == StyleRole::SELECTED_ITEM && value.id.item_id == "beat";
-                selected_lane |= value.style == StyleRole::SELECTED_LANE && value.id.lane_id == "music";
+                selected_lane |= value.style == StyleRole::SELECTED_LANE && value.id.lane_id == StringId{1};
                 playhead |= value.style == StyleRole::PLAYHEAD;
             },
             primitive);
@@ -201,14 +202,14 @@ TEST(Interaction, keepsSelectionThroughZoomAndLaneScroll)
 {
     const Document document = framed_document();
     Interaction interaction(document);
-    interaction.select_hit(HitResult{StyleRole::INSTANT_MARKER, DisplayId{"music", "beat"}}, false);
+    interaction.select_hit(HitResult{StyleRole::INSTANT_MARKER, DisplayId{StringId{1}, "beat"}}, false);
     interaction.select_range(at(70), at(110));
     interaction.move_playhead_frame(3);
     Navigation navigation(at(50), at(150), 2);
     navigation.zoom_by(2.0, at(100));
     navigation.scroll_to_lane(1, 1);
     const Layout layout(document, navigation.viewport(400, 50), LayoutMetrics(100, 20, 30, 4), interaction);
-    EXPECT_EQ("music", *interaction.selected_lane());
+    EXPECT_EQ(StringId{1}, *interaction.selected_lane());
     EXPECT_EQ(3, *interaction.playhead_frame());
     EXPECT_EQ(2, interaction.selected_frames()->first());
     bool range_visible = false;

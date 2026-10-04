@@ -213,21 +213,21 @@ TimelineViewerFrame::TimelineViewerFrame() :
 
 void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 {
+    const std::optional<timeline::Document> &document = m_timeline_control->document();
     const std::optional<timeline::HitResult> &hit = m_timeline_control->hit_result();
     wxString text("Hit: none\n");
     if (hit)
     {
         text = "Hit: " + to_wx_string(timeline::to_string(hit->style)) + "\n";
-        if (!hit->id.lane_id.empty())
+        if (!hit->id.lane_id.empty() && document)
         {
-            text += "Lane: " + hit->id.lane_id + "\n";
+            text += "Lane: " + to_wx_string(document->strings().lookup(hit->id.lane_id)) + "\n";
         }
         if (!hit->id.item_id.empty())
         {
             text += "Item: " + hit->id.item_id + "\n";
         }
     }
-    const std::optional<timeline::Document> &document = m_timeline_control->document();
     if (document)
     {
         text += "\n" + document_summary(*document);
@@ -262,11 +262,11 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         if (interaction->selected_lane())
         {
-            text += "Selected lane: " + *interaction->selected_lane() + "\n";
+            text += "Selected lane: " + to_wx_string(document->strings().lookup(*interaction->selected_lane())) + "\n";
         }
         for (const timeline::DisplayId &id : interaction->selected_items())
         {
-            text += "Selected item: " + id.lane_id + "/" + id.item_id + "\n";
+            text += "Selected item: " + to_wx_string(document->strings().lookup(id.lane_id)) + "/" + id.item_id + "\n";
         }
         if (interaction->selected_range())
         {

@@ -94,7 +94,7 @@ TEST(AnimationImport, diagnosesInvalidPwmFunctionSlotsAndEndpoints)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
     }
-    EXPECT_EQ("animation-6", result.document->lanes().front().id());
+    EXPECT_EQ("animation-6", result.document->strings().lookup(result.document->lanes().front().id()));
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
     ASSERT_TRUE(inspection);
     EXPECT_EQ("sin/log", inspection->lanes.front().items.front().attributes.at("value"));
@@ -216,7 +216,7 @@ TEST(AnimationImport, diagnosesInvalidPwmRecipesAndRetainsValidOutput)
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
     }
     EXPECT_NE(std::string::npos, result.diagnostics[13].find("slot"));
-    EXPECT_EQ("animation-14", result.document->lanes().front().id());
+    EXPECT_EQ("animation-14", result.document->strings().lookup(result.document->lanes().front().id()));
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
     ASSERT_TRUE(inspection);
     EXPECT_EQ("yes", inspection->lanes.front().items.front().attributes.at("value"));
@@ -324,7 +324,7 @@ TEST(AnimationImport, ownsCatmullRomTuplesWithExtraPointsAndEndpointTangents)
             EXPECT_DOUBLE_EQ(3.0 * (component + 1) * frame / 8.0, line.sample(grid.frame_start(frame)));
         }
     }
-    EXPECT_EQ("animation-1", document.lanes()[3].id());
+    EXPECT_EQ("animation-1", document.strings().lookup(document.lanes()[3].id()));
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());
     const timeline::Document combined = timeline::combine_documents(*music.document, document);
@@ -349,9 +349,9 @@ TEST(AnimationImport, diagnosesMalformedCatmullRomRecipesWithoutLosingValidTrack
         }
     }
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("at least four control points"));
-    EXPECT_EQ("animation-7[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("animation-7[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
     EXPECT_EQ("true", std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes().at("normalize"));
-    EXPECT_EQ("animation-11[0]", result.document->lanes()[2].id());
+    EXPECT_EQ("animation-11[0]", result.document->strings().lookup(result.document->lanes()[2].id()));
     const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[3].items().front());
     EXPECT_DOUBLE_EQ(2.25, curve.sample(result.document->frame_grid()->frame_start(3)));
     const JsonImportResult single = import_timeline_json("fixtures/single-frame-catmull-rom.json");
@@ -449,7 +449,7 @@ TEST(AnimationImport, ownsBezierTupleDefinitionsAcrossDegreesAndComparison)
         EXPECT_EQ(0, curve.sample_count());
         EXPECT_NE(std::string::npos, curve.attributes().at("path").find("control-points"));
     }
-    EXPECT_EQ("animation-5", document.lanes()[14].id());
+    EXPECT_EQ("animation-5", document.strings().lookup(document.lanes()[14].id()));
     const timeline::Curve &quartic = std::get<timeline::Curve>(document.lanes()[10].items().front());
     EXPECT_DOUBLE_EQ(0.0, quartic.sample(grid.frame_start(0)));
     EXPECT_DOUBLE_EQ(16.0, quartic.sample(grid.frame_start(4)));
@@ -477,9 +477,9 @@ TEST(AnimationImport, diagnosesMalformedBezierPointsAndUnsupportedTargets)
             EXPECT_NE(std::string::npos, result.diagnostics[diagnostic].find("animation-" + std::to_string(index)));
         }
     }
-    EXPECT_EQ("animation-7[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("animation-7[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
     EXPECT_EQ("true", std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes().at("normalize"));
-    EXPECT_EQ("animation-11[0]", result.document->lanes()[2].id());
+    EXPECT_EQ("animation-11[0]", result.document->strings().lookup(result.document->lanes()[2].id()));
     const timeline::FrameGrid &grid = *result.document->frame_grid();
     const timeline::Curve &constant = std::get<timeline::Curve>(result.document->lanes()[2].items().front());
     EXPECT_DOUBLE_EQ(1.0, constant.sample(grid.frame_start(2)));
@@ -616,7 +616,7 @@ TEST(AnimationImport, diagnosesInvalidSpiralRecipesAndKeepsDefaultsAndZeroRadii)
     const timeline::FrameGrid &grid = *result.document->frame_grid();
     const timeline::Curve &x = std::get<timeline::Curve>(result.document->lanes()[0].items().front());
     const timeline::Curve &y = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
-    EXPECT_EQ("animation-8[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("animation-8[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
     EXPECT_DOUBLE_EQ(1.0, x.sample(grid.frame_start(0)));
     EXPECT_DOUBLE_EQ(-2.0, y.sample(grid.frame_start(0)));
     EXPECT_DOUBLE_EQ(0.0, x.sample(grid.frame_start(2)));
@@ -740,7 +740,7 @@ TEST(AnimationImport, diagnosesInvalidLissajousRecipesAndAcceptsZeroRadii)
     }
     const timeline::Curve &x = std::get<timeline::Curve>(result.document->lanes()[0].items().front());
     const timeline::Curve &y = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
-    EXPECT_EQ("animation-8[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("animation-8[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
     EXPECT_DOUBLE_EQ(1.0, x.sample(result.document->frame_grid()->frame_start(3)));
     EXPECT_DOUBLE_EQ(-2.0, y.sample(result.document->frame_grid()->frame_start(3)));
 }
@@ -847,7 +847,7 @@ TEST(AnimationImport, diagnosesInvalidPlanarPathsAndKeepsZeroRadiusDefaults)
     }
     const timeline::Curve &x = std::get<timeline::Curve>(result.document->lanes()[0].items().front());
     const timeline::Curve &y = std::get<timeline::Curve>(result.document->lanes()[1].items().front());
-    EXPECT_EQ("animation-10[0]", result.document->lanes()[0].id());
+    EXPECT_EQ("animation-10[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
     EXPECT_DOUBLE_EQ(1.0, x.sample(result.document->frame_grid()->frame_start(3)));
     EXPECT_DOUBLE_EQ(-2.0, y.sample(result.document->frame_grid()->frame_start(3)));
 }
@@ -910,7 +910,7 @@ TEST(AnimationImport, diagnosesInvalidPathsWithoutDiscardingAValidConstant)
     ASSERT_TRUE(result.succeeded());
     ASSERT_EQ(7, timeline::size_cast(result.diagnostics));
     ASSERT_EQ(1, result.document->lane_count());
-    EXPECT_EQ("animation-7", result.document->lanes().front().id());
+    EXPECT_EQ("animation-7", result.document->strings().lookup(result.document->lanes().front().id()));
     for (int index = 0; index < 7; ++index)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
@@ -1069,7 +1069,7 @@ TEST(AnimationImport, retainsValidTracksWithIndexedDiagnosticsForInvalidKeys)
     {
         EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
     }
-    EXPECT_EQ("animation-6", result.document->lanes().front().id());
+    EXPECT_EQ("animation-6", result.document->strings().lookup(result.document->lanes().front().id()));
 }
 
 TEST(AnimationImport, rejectsUnusableAnimationAndMissingCatalogs)
