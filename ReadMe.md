@@ -58,8 +58,9 @@ Hidden configure presets are provided to enable or disable the options.
 Note that the Cairo option requires the wxWidgets option.
 
 Each workflow performs configure, build, and test steps and writes its output
-to a sibling directory. `default-cairo` enables both Cairo and wxWidgets,
-because the Cairo renderer requires the wx control. On headless Linux, run
+to a sibling directory. `default-cairo` enables both Cairo and wxWidgets and
+builds the native `timeline-viewer` alongside `cairo-timeline-viewer`. On
+headless Linux, run
 `xvfb-run -a cmake --workflow --preset default-cairo`.
 
 # wxWidgets Timeline Adapter
@@ -96,9 +97,10 @@ The inspector shows document metadata, mapping recipes, hovered identities,
 selection, playhead, ranges, frame samples, parameter outputs, attributes, and
 palettes. View commands delegate zoom, fit, and clear-selection operations to
 the control. File > Export Snapshot writes the current core display list as
-text. A Cairo build starts with antialiased rendering and adds a View >
-Renderer menu for switching between Cairo and native wx presentation while
-keeping the same control state.
+text. With Cairo enabled, `timeline-viewer` remains the native wx executable
+and `cairo-timeline-viewer` starts with antialiased rendering, so both can run
+side by side. The Cairo viewer adds a View > Renderer menu for switching
+renderers without changing the control state.
 
 # ImGui Timeline Adapter
 

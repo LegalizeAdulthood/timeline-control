@@ -19,6 +19,12 @@
 namespace
 {
 
+#ifdef TIMELINE_CONTROL_WITH_CAIRO
+constexpr const char VIEWER_TITLE[] = "Cairo Timeline Viewer";
+#else
+constexpr const char VIEWER_TITLE[] = "Timeline Viewer";
+#endif
+
 wxString document_summary(const timeline::Document &document)
 {
     wxString text;
@@ -204,7 +210,7 @@ public:
 };
 
 TimelineViewerFrame::TimelineViewerFrame() :
-    wxFrame(nullptr, wxID_ANY, "Timeline Viewer", wxDefaultPosition, wxSize(800, 500)),
+    wxFrame(nullptr, wxID_ANY, VIEWER_TITLE, wxDefaultPosition, wxSize(800, 500)),
     m_content(new wxPanel(this)),
 #ifdef TIMELINE_CONTROL_WITH_CAIRO
     m_timeline_control(new wxCairoTimeline(m_content)),
@@ -471,7 +477,8 @@ void TimelineViewerFrame::load_file(bool append)
         m_mappings.push_back(std::move(*result.mapping));
     }
     m_timeline_control->set_document(std::move(*result.document));
-    SetTitle("Timeline Viewer - " + wxString::FromUTF8(m_timeline_control->document()->metadata().title().c_str()));
+    SetTitle(wxString::FromUTF8(VIEWER_TITLE) + " - " +
+        wxString::FromUTF8(m_timeline_control->document()->metadata().title().c_str()));
     SetStatusText("Loaded " + dialog.GetFilename());
     if (!result.diagnostics.empty())
     {
