@@ -1,13 +1,13 @@
 # Copyright (c) 2026 Richard Thomson
 
-add_library(imgui-viewer-content STATIC Viewer.h Viewer.cpp)
-target_include_directories(imgui-viewer-content PUBLIC .)
-target_link_libraries(imgui-viewer-content PUBLIC timeline-imgui timeline-paranimator)
-target_folder(imgui-viewer-content "Tools")
+add_library(imgui-viewer-core STATIC Viewer.h Viewer.cpp)
+target_include_directories(imgui-viewer-core PUBLIC .)
+target_link_libraries(imgui-viewer-core PUBLIC timeline-imgui timeline-paranimator)
+target_folder(imgui-viewer-core "Libraries")
 
 find_package(SDL3 CONFIG REQUIRED)
 add_executable(imgui-timeline-viewer WIN32 main.cpp)
-target_link_libraries(imgui-timeline-viewer PRIVATE imgui-viewer-content SDL3::SDL3)
+target_link_libraries(imgui-timeline-viewer PRIVATE imgui-viewer-core SDL3::SDL3)
 target_folder(imgui-timeline-viewer "Tools")
 
 if(BUILD_TESTING)

@@ -23,7 +23,7 @@ gtest_discover_tests(test-timeline-qt
 
 find_package(Qt6 CONFIG REQUIRED COMPONENTS Test)
 add_executable(test-timeline-qt-widget main.cpp control_test.cpp renderer_test.cpp viewer_test.cpp)
-target_link_libraries(test-timeline-qt-widget PRIVATE qt-viewer-content Qt6::Test GTest::gtest)
+target_link_libraries(test-timeline-qt-widget PRIVATE qt-viewer-core Qt6::Test GTest::gtest)
 target_compile_definitions(test-timeline-qt-widget PRIVATE
     TIMELINE_QT_TEST_PLATFORM="${TIMELINE_QT_TEST_PLATFORM}"
     TIMELINE_TEST_FIXTURE_DIR="${PROJECT_SOURCE_DIR}/tests/test-timeline-paranimator/fixtures")
