@@ -59,7 +59,7 @@ Note that the Cairo option requires the wxWidgets option.
 
 Each workflow performs configure, build, and test steps and writes its output
 to a sibling directory. `default-cairo` enables both Cairo and wxWidgets and
-builds the native `timeline-viewer` alongside `cairo-timeline-viewer`. On
+builds the native `wx-timeline-viewer` alongside `cairo-timeline-viewer`. On
 headless Linux, run
 `xvfb-run -a cmake --workflow --preset default-cairo`.
 
@@ -85,9 +85,10 @@ losing document, navigation, selection, or inspection state.
 
 # wxWidgets Timeline Viewer
 
-Run `timeline-viewer` from the build's `tools/timeline-viewer` directory, with
-the configuration subdirectory on multi-configuration generators. File > Open
-loads supported ParAnimator and par-beatdown JSON through the format adapters.
+Run `wx-timeline-viewer` from the build's `tools/timeline-viewer` directory,
+with the configuration subdirectory on multi-configuration generators.
+File > Open loads supported ParAnimator and par-beatdown JSON through the
+format adapters.
 File > Add combines a second document using the displayed timeline's timebase
 and frame rate, including companion `adapter.beat-keys.json` mappings when
 present. Import and composition failures retain the displayed document and
@@ -97,10 +98,10 @@ The inspector shows document metadata, mapping recipes, hovered identities,
 selection, playhead, ranges, frame samples, parameter outputs, attributes, and
 palettes. View commands delegate zoom, fit, and clear-selection operations to
 the control. File > Export Snapshot writes the current core display list as
-text. With Cairo enabled, `timeline-viewer` remains the native wx executable
-and `cairo-timeline-viewer` starts with antialiased rendering, so both can run
-side by side. The Cairo viewer adds a View > Renderer menu for switching
-renderers without changing the control state.
+text. With Cairo enabled, `wx-timeline-viewer` remains the native wx
+executable and `cairo-timeline-viewer` starts with antialiased rendering, so
+both can run side by side. The Cairo viewer adds a View > Renderer menu for
+switching renderers without changing the control state.
 
 # ImGui Timeline Adapter
 
@@ -185,7 +186,7 @@ unchanged.
 
 # Beat-Keys Mappings
 
-File > Open in `timeline-viewer` accepts `par-beatdown.beat-keys` mapping
+File > Open in `wx-timeline-viewer` accepts `par-beatdown.beat-keys` mapping
 configurations. Companion music paths are resolved relative to the
 configuration. Source music and generated parameter lanes appear together;
 the inspector retains the mapping recipes and output policy.
@@ -922,10 +923,11 @@ need manual verification on the target platforms.
 
 # Cairo wx Timeline Control
 
-With Cairo enabled, `timeline-viewer` uses `wxCairoTimeline`. View >
-Renderer selects Native wx or Cairo on the same control, preserving
-the document, viewport, selection, playhead, inspection, and mapping
-recipes. File > Open, Add comparison, and Export Snapshot remain unchanged.
+With Cairo enabled, `cairo-timeline-viewer` uses `wxCairoTimeline`, while
+`wx-timeline-viewer` continues to use `wxTimelineControl`. View > Renderer in
+the Cairo viewer selects Native wx or Cairo on the same control, preserving
+the document, viewport, selection, playhead, inspection, and mapping recipes.
+File > Open, Add comparison, and Export Snapshot remain unchanged.
 
 Cairo renders all six display-list primitive types in order: lines,
 rectangles, text, markers, polylines, and source RGB swatches. This covers
@@ -961,7 +963,7 @@ Cairo workflow's native control tests; image checks require no GPU.
 
 # Display Snapshots
 
-Open a JSON fixture through File > Open in `timeline-viewer`, then use
+Open a JSON fixture through File > Open in `wx-timeline-viewer`, then use
 File > Export Snapshot to save the displayed timeline as text. The export
 includes the current viewport, selection, and playhead geometry, but not
 the viewer's metadata or inspector panels.

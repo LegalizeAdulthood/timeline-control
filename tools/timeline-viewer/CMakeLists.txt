@@ -1,10 +1,10 @@
-add_executable(timeline-viewer WIN32 main.cpp)
-target_link_libraries(timeline-viewer
+add_executable(wx-timeline-viewer WIN32 main.cpp)
+target_link_libraries(wx-timeline-viewer
     PRIVATE
         timeline-paranimator
         timeline-wx
 )
-target_folder(timeline-viewer "Tools")
+target_folder(wx-timeline-viewer "Tools")
 
 if(TIMELINE_CONTROL_WITH_CAIRO)
     add_executable(cairo-timeline-viewer WIN32 main.cpp)
