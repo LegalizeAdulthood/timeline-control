@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <cstring>
 #include <gtest/gtest.h>
+#include <limits>
 #include <timelineParAnimator/TimelineJson.h>
 #include <wx/app.h>
 #include <wx/dcmemory.h>
@@ -336,4 +338,197 @@ TEST(CairoControl, switches_renderer_without_replacing_document_or_inspection_st
     settle(control);
     EXPECT_FALSE(control.interaction()->selected_frames());
     EXPECT_EQ(25, control.document()->lane_count());
+}
+
+TEST(CairoRenderer, partial_repaints_preserve_device_pixel_alignment)
+{
+    timeline::DisplayList list;
+    list.add(timeline::Rectangle{0, 0, 96, 64, timeline::StyleRole::LANE_BACKGROUND, {}});
+    list.add(timeline::Polyline{{{0, 0}, {95, 63}}, timeline::StyleRole::CURVE, {}});
+    list.add(timeline::Line{19, 0, 19, 63, timeline::StyleRole::PLAYHEAD, {}});
+    list.add(timeline::Text{8, 8, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    list.add(timeline::Swatch{40, 28, 20, 16, timeline::RgbColor(12, 34, 56), timeline::StyleRole::PALETTE, {}});
+    for (double scale : {1.0, 1.25, 1.5, 2.0})
+    {
+        SCOPED_TRACE(scale);
+        const auto paint = [&](wxRect clip)
+        {
+            wxBitmap bitmap(96, 64, 24);
+            wxMemoryDC dc(bitmap);
+            dc.SetFont(*wxNORMAL_FONT);
+            dc.SetBackground(*wxWHITE_BRUSH);
+            dc.Clear();
+            dc.SetClippingRegion(clip);
+            draw_cairo_timeline_display_list(dc, list, wxPoint(0, 0), LIGHT, 1, true, wxSize(96, 64), scale);
+            dc.SelectObject(wxNullBitmap);
+            return bitmap.ConvertToImage();
+        };
+        const wxImage full = paint(wxRect(0, 0, 96, 64));
+        const wxRect clip(7, 5, 70, 48);
+        const wxImage partial = paint(clip);
+        int mismatched = 0;
+        for (int y = 0; y < 64; ++y)
+        {
+            for (int x = 0; x < 96; ++x)
+            {
+                if (clip.Contains(x, y))
+                {
+                    mismatched += pixel(full, x, y) != pixel(partial, x, y);
+                }
+                else
+                {
+                    EXPECT_EQ(LIGHT.background, pixel(partial, x, y));
+                }
+            }
+        }
+        EXPECT_EQ(0, mismatched);
+    }
+}
+
+TEST(CairoRenderer, recreates_surfaces_for_scale_font_theme_and_size_changes)
+{
+    timeline::DisplayList list;
+    list.add(timeline::Rectangle{0, 0, 160, 80, timeline::StyleRole::LANE_BACKGROUND, {}});
+    list.add(timeline::Text{4, 4, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    list.add(timeline::Swatch{8, 48, 12, 12, timeline::RgbColor(12, 34, 56), timeline::StyleRole::PALETTE, {}});
+    const wxFont font = *wxNORMAL_FONT;
+    const wxImage baseline = render_cairo_display_list(
+        list, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, font, 1.0);
+    ASSERT_TRUE(baseline.IsOk());
+    for (int pass = 0; pass < 12; ++pass)
+    {
+        for (double scale : {1.0, 1.25, 1.5, 2.0})
+        {
+            SCOPED_TRACE(scale);
+            wxFont larger_font(font);
+            larger_font.SetFractionalPointSize(font.GetFractionalPointSize() * 1.5);
+            const wxImage changed = render_cairo_display_list(
+                list, wxSize(120, 64), wxPoint(0, 0), wxRect(0, 0, 120, 64), DARK, 2, false, larger_font, scale);
+            ASSERT_TRUE(changed.IsOk());
+            EXPECT_EQ(static_cast<int>(120 * scale), changed.GetWidth());
+            EXPECT_EQ(static_cast<int>(64 * scale), changed.GetHeight());
+            EXPECT_EQ(timeline_style_colour(timeline::StyleRole::LANE_BACKGROUND, DARK, false),
+                pixel(changed, static_cast<int>(110 * scale), static_cast<int>(60 * scale)));
+            EXPECT_EQ(wxColour(12, 34, 56), pixel(changed, static_cast<int>(12 * scale), static_cast<int>(54 * scale)));
+            const wxImage restored = render_cairo_display_list(
+                list, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, font, 1.0);
+            ASSERT_TRUE(restored.IsOk());
+            EXPECT_EQ(0, std::memcmp(baseline.GetData(), restored.GetData(), 160 * 80 * 3));
+            EXPECT_EQ(0, std::memcmp(baseline.GetAlpha(), restored.GetAlpha(), 160 * 80));
+        }
+    }
+    timeline::DisplayList text;
+    text.add(timeline::Text{4, 4, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    wxFont larger_font(font);
+    larger_font.SetFractionalPointSize(font.GetFractionalPointSize() * 1.5);
+    const wxImage small_image = render_cairo_display_list(
+        text, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, font, 1.0);
+    const wxImage large_image = render_cairo_display_list(
+        text, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, larger_font, 1.0);
+    ASSERT_TRUE(small_image.IsOk());
+    ASSERT_TRUE(large_image.IsOk());
+    EXPECT_NE(0, std::memcmp(small_image.GetAlpha(), large_image.GetAlpha(), 160 * 80));
+}
+
+TEST(CairoRenderer, recovers_after_invalid_surface_requests)
+{
+    timeline::DisplayList list;
+    list.add(DIAGONAL);
+    for (double scale : {0.0, -1.0, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN(),
+             std::numeric_limits<double>::max()})
+    {
+        EXPECT_FALSE(render_cairo_display_list(
+            list, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1, true, *wxNORMAL_FONT, scale)
+                .IsOk());
+    }
+    EXPECT_FALSE(render_cairo_display_list(
+        list, wxSize(0, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1, true, *wxNORMAL_FONT, 1.0)
+            .IsOk());
+    EXPECT_TRUE(render_cairo_display_list(
+        list, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1, true, *wxNORMAL_FONT, 1.0)
+            .IsOk());
+}
+
+TEST(CairoControl, preserves_interaction_through_presentation_changes_and_destruction)
+{
+    const std::filesystem::path fixtures(TIMELINE_FIXTURE_DIR);
+    const timeline_par_animator::JsonImportResult animation =
+        timeline_par_animator::import_timeline_json(fixtures / "extreme-normalized-vectors.json");
+    const timeline_par_animator::JsonImportResult mapping =
+        timeline_par_animator::import_timeline_json(fixtures / "beat-keys/rms.beat-keys.json");
+    const timeline_par_animator::JsonImportResult palette =
+        timeline_par_animator::import_timeline_json(fixtures / "color-map-mixed.json");
+    ASSERT_TRUE(animation.succeeded());
+    ASSERT_TRUE(mapping.succeeded());
+    ASSERT_TRUE(palette.succeeded());
+    for (int lifetime = 0; lifetime < 3; ++lifetime)
+    {
+        wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
+        wxCairoTimeline &control = *new wxCairoTimeline(&frame);
+        control.SetSize(600, 400);
+        control.set_document(timeline::combine_documents(*animation.document, *mapping.document));
+        frame.Show();
+        settle(control);
+        control.zoom_in();
+        settle(control);
+        wxKeyEvent key(wxEVT_CHAR_HOOK);
+        key.m_keyCode = WXK_RIGHT;
+        key.SetShiftDown(true);
+        control.ProcessWindowEvent(key);
+        settle(control);
+        ASSERT_TRUE(control.interaction()->selected_frames());
+        const timeline::Ticks first = control.interaction()->selected_frames()->first();
+        const timeline::Ticks last = control.interaction()->selected_frames()->last();
+        const timeline::Time playhead = *control.interaction()->playhead();
+        const timeline::Ticks frame_index = control.inspection()->frame;
+        const wxFont font = control.GetFont();
+        const wxColour background = control.GetBackgroundColour();
+        const wxColour foreground = control.GetForegroundColour();
+        const wxSize original_size = control.GetSize();
+        const std::string baseline = control.snapshot();
+        for (int pass = 0; pass < 6; ++pass)
+        {
+            control.set_cairo_enabled(pass % 2 == 0);
+            control.SetSize(440, 280);
+            wxFont larger_font(font);
+            larger_font.SetFractionalPointSize(font.GetFractionalPointSize() * 1.5);
+            control.SetFont(larger_font);
+            control.SetBackgroundColour(DARK.background);
+            control.SetForegroundColour(DARK.foreground);
+            control.Refresh(false);
+            settle(control);
+            EXPECT_FALSE(control.snapshot().empty());
+            EXPECT_NE(baseline, control.snapshot());
+            wxDPIChangedEvent dpi(wxSize(96, 96), wxSize(144, 144));
+            control.ProcessWindowEvent(dpi);
+            settle(control);
+            wxSysColourChangedEvent theme;
+            control.ProcessWindowEvent(theme);
+            settle(control);
+            control.SetFont(font);
+            control.SetBackgroundColour(background);
+            control.SetForegroundColour(foreground);
+            control.SetSize(original_size);
+            control.Refresh(false);
+            settle(control);
+            EXPECT_EQ(baseline, control.snapshot());
+            EXPECT_EQ(playhead, control.interaction()->playhead());
+            EXPECT_EQ(first, control.interaction()->selected_frames()->first());
+            EXPECT_EQ(last, control.interaction()->selected_frames()->last());
+            EXPECT_EQ(frame_index, control.inspection()->frame);
+            wxMouseEvent motion(wxEVT_MOTION);
+            motion.SetPosition(wxPoint(4, control.FromDIP(40)));
+            control.ProcessWindowEvent(motion);
+            ASSERT_TRUE(control.hit_result());
+            EXPECT_EQ("animation-0[0]", control.hit_result()->id.lane_id);
+        }
+        control.set_document(*palette.document);
+        settle(control);
+        EXPECT_EQ(1, control.document()->lane_count());
+        EXPECT_FALSE(control.interaction()->selected_frames());
+        EXPECT_NE(std::string::npos, control.snapshot().find("swatch PALETTE"));
+        control.set_document(*animation.document);
+        settle(control);
+        EXPECT_EQ(25, control.document()->lane_count());
+    }
 }

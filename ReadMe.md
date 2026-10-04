@@ -908,11 +908,22 @@ preserving font metrics without adding a second font backend.
 The control reuses all core layout, hit testing, and interaction behavior;
 renderer choice does not change frame samples or exported geometry.
 
-The renderer owns one clipped Cairo image surface and context per draw,
-converts premultiplied pixel data to wx images, and presents at the native
-content scale. See the [Cairo image-surface API][cairo-image-surfaces].
+The renderer owns one viewport-sized Cairo image surface and context per
+draw, converts premultiplied pixel data to wx images, and presents at the
+native content scale. The wx DC applies repaint clipping without moving
+the Cairo pixel grid, so partial and full repaints have the same coverage
+at fractional scales. See the
+[Cairo image-surface API][cairo-image-surfaces].
 Rendering failures fall back to the complete native display list.
-Additional scaling/lifecycle checks remain subsequent work.
+
+Surfaces and text masks are recreated for every draw using the current
+font, palette, size, and content scale; no renderer cache retains stale
+presentation resources. Tests exercise 100%, 125%, 150%, and 200% scaling,
+repeated font/theme changes, resizing, renderer switching, document
+replacement, and control destruction. DPI and system-color notifications
+reuse the base control's layout invalidation without resetting interaction.
+Native multi-display DPI transitions and non-Windows font behavior still
+need manual verification on the target platforms.
 
 CI runs all four public workflows. Linux installs Xvfb and xauth for the
 Cairo workflow's native control tests; image checks require no GPU.

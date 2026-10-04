@@ -245,14 +245,15 @@ void draw_cairo_timeline_display_list(wxDC &dc, const timeline::DisplayList &dis
     {
         return;
     }
-    const wxImage image = render_cairo_display_list(display_list, clip.GetSize(), origin - clip.GetPosition(),
-        wxRect(wxPoint(0, 0), clip.GetSize()), palette, stroke_width, focused, dc.GetFont(), device_scale);
+    // Keep rasterization anchored to the viewport, even for partial repaints.
+    const wxImage image = render_cairo_display_list(display_list, size, origin, wxRect(wxPoint(0, 0), size), palette,
+        stroke_width, focused, dc.GetFont(), device_scale);
     if (image.IsOk())
     {
         const wxBitmap bitmap(image, wxBITMAP_SCREEN_DEPTH, device_scale);
         if (bitmap.IsOk())
         {
-            dc.DrawBitmap(bitmap, clip.GetPosition(), true);
+            dc.DrawBitmap(bitmap, wxPoint(0, 0), true);
             return;
         }
     }
