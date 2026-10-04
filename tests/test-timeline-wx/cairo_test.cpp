@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <timelineParAnimator/TimelineJson.h>
-#include <wx/app.h>
 #include <wx/dcmemory.h>
 #include <wx/frame.h>
 #include <wxTimeline/wxCairoTimeline.h>
@@ -22,14 +21,9 @@ wxColour pixel(const wxImage &image, int x, int y)
     return wxColour(image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y));
 }
 
-void settle(wxTimelineControl &control)
+void refresh_layout(wxTimelineControl &control)
 {
-    for (int pass = 0; pass < 3; ++pass)
-    {
-        control.Refresh(false);
-        wxTheApp->Yield();
-        control.Update();
-    }
+    control.snapshot();
 }
 
 } // namespace
@@ -307,16 +301,16 @@ TEST(CairoControl, switchesRendererWithoutReplacingDocumentOrInspectionState)
     ASSERT_TRUE(mapping.succeeded());
     control.set_document(timeline::combine_documents(*animation.document, *mapping.document));
     frame.Show();
-    settle(control);
+    refresh_layout(control);
     control.SetFocus();
-    settle(control);
+    refresh_layout(control);
     control.zoom_in();
-    settle(control);
+    refresh_layout(control);
     wxKeyEvent key(wxEVT_CHAR_HOOK);
     key.m_keyCode = WXK_RIGHT;
     key.SetShiftDown(true);
     control.ProcessWindowEvent(key);
-    settle(control);
+    refresh_layout(control);
     const std::string before = control.snapshot();
     ASSERT_FALSE(before.empty());
     ASSERT_TRUE(control.inspection());
@@ -326,7 +320,7 @@ TEST(CairoControl, switchesRendererWithoutReplacingDocumentOrInspectionState)
     const timeline::Ticks last = control.interaction()->selected_frames()->last();
     EXPECT_TRUE(control.cairo_enabled());
     control.set_cairo_enabled(false);
-    settle(control);
+    refresh_layout(control);
     EXPECT_FALSE(control.cairo_enabled());
     EXPECT_EQ(before, control.snapshot());
     EXPECT_EQ(selected, control.inspection()->frame);
@@ -334,11 +328,11 @@ TEST(CairoControl, switchesRendererWithoutReplacingDocumentOrInspectionState)
     EXPECT_EQ(last, control.interaction()->selected_frames()->last());
     EXPECT_EQ(29, control.document()->lane_count());
     control.set_cairo_enabled(true);
-    settle(control);
+    refresh_layout(control);
     EXPECT_TRUE(control.cairo_enabled());
     EXPECT_EQ(before, control.snapshot());
     control.set_document(std::move(*animation.document));
-    settle(control);
+    refresh_layout(control);
     EXPECT_FALSE(control.interaction()->selected_frames());
     EXPECT_EQ(25, control.document()->lane_count());
 }
@@ -471,16 +465,16 @@ TEST(CairoControl, preservesInteractionThroughPresentationChangesAndDestruction)
         control.SetSize(600, 400);
         control.set_document(timeline::combine_documents(*animation.document, *mapping.document));
         frame.Show();
-        settle(control);
+        refresh_layout(control);
         control.SetFocus();
-        settle(control);
+        refresh_layout(control);
         control.zoom_in();
-        settle(control);
+        refresh_layout(control);
         wxKeyEvent key(wxEVT_CHAR_HOOK);
         key.m_keyCode = WXK_RIGHT;
         key.SetShiftDown(true);
         control.ProcessWindowEvent(key);
-        settle(control);
+        refresh_layout(control);
         ASSERT_TRUE(control.interaction()->selected_frames());
         const timeline::Ticks first = control.interaction()->selected_frames()->first();
         const timeline::Ticks last = control.interaction()->selected_frames()->last();
@@ -501,21 +495,21 @@ TEST(CairoControl, preservesInteractionThroughPresentationChangesAndDestruction)
             control.SetBackgroundColour(DARK.background);
             control.SetForegroundColour(DARK.foreground);
             control.Refresh(false);
-            settle(control);
+            refresh_layout(control);
             EXPECT_FALSE(control.snapshot().empty());
             EXPECT_NE(baseline, control.snapshot());
             wxDPIChangedEvent dpi(wxSize(96, 96), wxSize(144, 144));
             control.ProcessWindowEvent(dpi);
-            settle(control);
+            refresh_layout(control);
             wxSysColourChangedEvent theme;
             control.ProcessWindowEvent(theme);
-            settle(control);
+            refresh_layout(control);
             control.SetFont(font);
             control.SetBackgroundColour(background);
             control.SetForegroundColour(foreground);
             control.SetSize(original_size);
             control.Refresh(false);
-            settle(control);
+            refresh_layout(control);
             EXPECT_EQ(baseline, control.snapshot());
             EXPECT_EQ(playhead, control.interaction()->playhead());
             EXPECT_EQ(first, control.interaction()->selected_frames()->first());
@@ -528,12 +522,12 @@ TEST(CairoControl, preservesInteractionThroughPresentationChangesAndDestruction)
             EXPECT_EQ("animation-0[0]", control.hit_result()->id.lane_id);
         }
         control.set_document(*palette.document);
-        settle(control);
+        refresh_layout(control);
         EXPECT_EQ(1, control.document()->lane_count());
         EXPECT_FALSE(control.interaction()->selected_frames());
         EXPECT_NE(std::string::npos, control.snapshot().find("swatch PALETTE"));
         control.set_document(*animation.document);
-        settle(control);
+        refresh_layout(control);
         EXPECT_EQ(25, control.document()->lane_count());
     }
 }

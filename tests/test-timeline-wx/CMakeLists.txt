@@ -15,5 +15,5 @@ if(TIMELINE_CONTROL_WITH_CAIRO)
     target_compile_definitions(test-timeline-cairo PRIVATE
         TIMELINE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../test-timeline-paranimator/fixtures")
     target_folder(test-timeline-cairo "Tests")
-    gtest_discover_tests(test-timeline-cairo DISCOVERY_MODE PRE_TEST)
+    gtest_discover_tests(test-timeline-cairo DISCOVERY_MODE PRE_TEST PROPERTIES TIMEOUT 30)
 endif()

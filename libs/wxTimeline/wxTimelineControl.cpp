@@ -8,6 +8,7 @@
 #include <timeline/Snapshot.h>
 
 #include <wx/dcbuffer.h>
+#include <wx/dcclient.h>
 #include <wx/renderer.h>
 #include <wx/settings.h>
 
@@ -143,12 +144,15 @@ void wxTimelineControl::fit_view()
         return;
     }
     m_navigation->fit();
+    m_layout.reset();
     Refresh(false);
 }
 
 std::string wxTimelineControl::snapshot()
 {
-    Update();
+    wxClientDC dc(this);
+    dc.SetFont(GetFont());
+    rebuild_layout(dc);
     return m_layout ? timeline::render_snapshot(m_layout->display_list())
                     : timeline::render_snapshot(timeline::DisplayList{});
 }
@@ -162,6 +166,7 @@ void wxTimelineControl::zoom_by(double factor)
     const timeline::Ticks middle_tick =
         m_viewport->start().ticks() + (m_viewport->end().ticks() - m_viewport->start().ticks()) / 2;
     m_navigation->zoom_by(factor, timeline::Time::from_ticks(middle_tick));
+    m_layout.reset();
     Refresh(false);
 }
 
@@ -174,7 +179,12 @@ void wxTimelineControl::notify_inspection_changed()
 
 void wxTimelineControl::on_mouse_move(wxMouseEvent &event)
 {
-    Update();
+    if (!m_layout)
+    {
+        wxClientDC dc(this);
+        dc.SetFont(GetFont());
+        rebuild_layout(dc);
+    }
     m_hover_point = timeline::Point{event.GetX(), event.GetY()};
     if (HasCapture() && event.LeftIsDown() && m_interaction && m_viewport && m_layout_metrics)
     {
@@ -221,6 +231,7 @@ void wxTimelineControl::update_interaction()
         m_inspection = timeline::inspect_frame(*m_document, *m_interaction->playhead_frame());
     }
     notify_inspection_changed();
+    m_layout.reset();
     Refresh(false);
 }
 
@@ -353,6 +364,7 @@ void wxTimelineControl::on_mouse_wheel(wxMouseEvent &event)
         const int visible_lanes = std::max(1, timeline::visible_lane_count(*m_viewport, *m_layout_metrics));
         m_navigation->scroll_to_lane(m_viewport->first_lane() - steps, visible_lanes);
     }
+    m_layout.reset();
     Refresh(false);
 }
 
@@ -421,6 +433,7 @@ void wxTimelineControl::on_scroll(wxScrollWinEvent &event)
         const int visible_lanes = std::max(1, timeline::visible_lane_count(*m_viewport, *m_layout_metrics));
         m_navigation->scroll_to_lane(position, visible_lanes);
     }
+    m_layout.reset();
     Refresh(false);
 }
 
@@ -447,13 +460,8 @@ void wxTimelineControl::update_scrollbars()
     SetScrollbar(wxVERTICAL, vertical_position, vertical_thumb, vertical_range, true);
 }
 
-void wxTimelineControl::on_paint(wxPaintEvent &)
+void wxTimelineControl::rebuild_layout(wxDC &dc)
 {
-    wxAutoBufferedPaintDC dc(this);
-    dc.SetBackground(wxBrush(GetBackgroundColour()));
-    dc.Clear();
-    dc.SetFont(GetFont());
-    dc.SetTextForeground(GetForegroundColour());
     m_layout.reset();
     m_layout_metrics.reset();
     m_viewport.reset();
@@ -461,7 +469,6 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     const wxSize client_size = GetClientSize();
     if (!m_document || !m_navigation)
     {
-        dc.DrawText(m_document ? "No timeline content." : "No timeline loaded.", FromDIP(wxPoint(12, 12)));
         update_scrollbars();
         return;
     }
@@ -496,13 +503,32 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
         m_hit_result = hit;
         notify_inspection_changed();
     }
-    const wxTimelinePalette palette{
-        GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
-    const wxDCClipper clip(dc, GetClientRect());
-    draw_display_list(dc, m_layout->display_list(), palette, FromDIP(1), HasFocus());
-    if (HasFocus())
-    {
-        wxRendererNative::Get().DrawFocusRect(this, dc, GetClientRect(), wxCONTROL_FOCUSED);
-    }
     update_scrollbars();
+}
+
+void wxTimelineControl::on_paint(wxPaintEvent &)
+{
+    wxAutoBufferedPaintDC dc(this);
+    dc.SetBackground(wxBrush(GetBackgroundColour()));
+    dc.Clear();
+    dc.SetFont(GetFont());
+    dc.SetTextForeground(GetForegroundColour());
+    rebuild_layout(dc);
+
+    if (!m_document || !m_navigation)
+    {
+        dc.DrawText(m_document ? "No timeline content." : "No timeline loaded.", FromDIP(wxPoint(12, 12)));
+        return;
+    }
+    if (m_layout)
+    {
+        const wxTimelinePalette palette{
+            GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
+        const wxDCClipper clip(dc, GetClientRect());
+        draw_display_list(dc, m_layout->display_list(), palette, FromDIP(1), HasFocus());
+        if (HasFocus())
+        {
+            wxRendererNative::Get().DrawFocusRect(this, dc, GetClientRect(), wxCONTROL_FOCUSED);
+        }
+    }
 }

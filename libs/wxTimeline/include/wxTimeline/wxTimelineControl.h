@@ -69,6 +69,7 @@ protected:
     }
 
 private:
+    void rebuild_layout(wxDC &dc);
     void update_interaction();
     void on_mouse_down(wxMouseEvent &event);
     void on_mouse_up(wxMouseEvent &event);
