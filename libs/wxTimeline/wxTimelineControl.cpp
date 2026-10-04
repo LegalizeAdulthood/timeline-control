@@ -70,9 +70,9 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent) :
 wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxHSCROLL | wxVSCROLL)
 {
-    SetBackgroundStyle(wxBG_STYLE_PAINT);
-    SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-    SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+    wxPanel::SetBackgroundStyle(wxBG_STYLE_PAINT);
+    wxPanel::SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+    wxPanel::SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
     Bind(wxEVT_MOTION, &wxTimelineControl::on_mouse_move, this);
     Bind(wxEVT_LEFT_DOWN, &wxTimelineControl::on_mouse_down, this);
     Bind(wxEVT_LEFT_UP, &wxTimelineControl::on_mouse_up, this);

@@ -182,9 +182,9 @@ TimelineViewerFrame::TimelineViewerFrame() :
     auto *menu_bar = new wxMenuBar;
     menu_bar->Append(file_menu, "&File");
     menu_bar->Append(view_menu, "&View");
-    SetMenuBar(menu_bar);
-    CreateStatusBar();
-    SetStatusText("No timeline loaded");
+    wxFrame::SetMenuBar(menu_bar);
+    wxFrame::CreateStatusBar();
+    wxFrame::SetStatusText("No timeline loaded");
 
     auto *content = new wxBoxSizer(wxHORIZONTAL);
     content->Add(m_timeline_control, 1, wxEXPAND);
