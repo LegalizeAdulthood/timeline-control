@@ -40,61 +40,65 @@ git submodule update --depth 1
 
 # Building
 
-A CMake preset has been provided to perform the usual CMake steps of
-configure, build and test.
+The default workflow configures, builds, and tests the wxWidgets control and
+viewer:
 
-```
+```text
 cmake --workflow --preset default
 ```
 
-Places the build outputs in a sibling directory of the source code directory, e.g. up
-and outside of the source directory.
+| CMake Option | Default Value | Workflow Preset | Configure Presets |
+| --- | --- | --- | --- |
+| `TIMELINE_CONTROL_WITH_WX` | `ON` | `default` | `wx-on`, `wx-off` |
+| `TIMELINE_CONTROL_WITH_IMGUI` | `OFF` | `default-imgui` | `imgui-on`, `imgui-off` |
+| `TIMELINE_CONTROL_WITH_QT` | `OFF` | `default-qt` | `qt-on`, `qt-off` |
+| `TIMELINE_CONTROL_WITH_CAIRO` | `OFF` | `default-cairo` | `cairo-on`, `cairo-off` |
 
-For Dear ImGui without wxWidgets, use:
+Hidden configure presets are provided to enable or disable the options.
+Note that the Cairo option requires the wxWidgets option.
 
-```text
-cmake --workflow --preset default-imgui
-```
+Each workflow performs configure, build, and test steps and writes its output
+to a sibling directory. `default-cairo` enables both Cairo and wxWidgets,
+because the Cairo renderer requires the wx control. On headless Linux, run
+`xvfb-run -a cmake --workflow --preset default-cairo`.
 
-This workflow builds the core, JSON adapters, `timeline-imgui`, and
-`imgui-timeline-viewer`, plus adapter and viewer tests.
-The `default` workflow still builds the wx control and viewer.
+# wxWidgets Timeline Adapter
 
-For Qt without wxWidgets or Dear ImGui, use:
+Link a host to `timeline-wx` and include
+`wxTimeline/wxTimelineControl.h`. `wxTimelineControl` is a native `wxPanel`
+that owns the document supplied to `set_document`. Its accessors expose the
+current document, interaction state, hovered hit, and frame inspection, and
+`wxEVT_TIMELINE_INSPECTION_CHANGED` notifies the host when inspection changes.
 
-```text
-cmake --workflow --preset default-qt
-```
+The adapter supplies native font metrics, DPI-scaled dimensions, system theme
+colors, scrolling, focus, and pointer capture. It translates wxWidgets input
+into core selection, range dragging, frame stepping, zoom, and navigation,
+then delegates the core display list to `wxDC` drawing primitives. Resizing,
+DPI changes, and system color changes invalidate presentation state without
+changing the owned timeline document or interaction model.
 
-This workflow builds the core, JSON adapters, `timeline-qt`, and
-`qt-timeline-viewer`, plus headless native-widget and viewer tests.
-The Qt and ImGui build and test presets explicitly select Debug for
-multi-configuration generators.
+When Cairo support is enabled, include `wxTimeline/wxCairoTimeline.h` and use
+`wxCairoTimeline` as a drop-in subclass. It renders the same display list with
+antialiased Cairo drawing and can switch back to native wx rendering without
+losing document, navigation, selection, or inspection state.
 
-For Cairo rendering in the wx viewer, use:
+# wxWidgets Timeline Viewer
 
-```text
-cmake --workflow --preset default-cairo
-```
+Run `timeline-viewer` from the build's `tools/timeline-viewer` directory, with
+the configuration subdirectory on multi-configuration generators. File > Open
+loads supported ParAnimator and par-beatdown JSON through the format adapters.
+File > Add combines a second document using the displayed timeline's timebase
+and frame rate, including companion `adapter.beat-keys.json` mappings when
+present. Import and composition failures retain the displayed document and
+interaction state; the viewer displays importer-owned diagnostics.
 
-This workflow also selects Debug for multi-configuration generators.
-On Linux, native Cairo control tests need a display; use
-`xvfb-run -a cmake --workflow --preset default-cairo` without a desktop.
-
-`TIMELINE_CONTROL_WITH_WX` defaults to `ON`;
-`TIMELINE_CONTROL_WITH_IMGUI` and `TIMELINE_CONTROL_WITH_QT` default to
-`OFF`. Enable the options independently or disable all three for a
-headless build. Hidden `wx-on`, `wx-off`, `imgui-on`, `imgui-off`, `qt-on`,
-and `qt-off` configure presets compose additional configurations.
-CMake requests the matching vcpkg features before configuring dependencies.
-`TIMELINE_CONTROL_WITH_CAIRO` defaults to `OFF` and requires wx support.
-Hidden `cairo-on` and `cairo-off` presets compose with the other options.
-The `cairo` feature uses the image backend without optional font or X11
-backends; vcpkg supplies its transitive dependencies. Disabled builds do
-not discover Cairo or compile its control, renderer, or tests.
-The ImGui feature includes
-SDL3 platform and renderer backends for the standalone viewer. The control
-itself has no backend-specific code.
+The inspector shows document metadata, mapping recipes, hovered identities,
+selection, playhead, ranges, frame samples, parameter outputs, attributes, and
+palettes. View commands delegate zoom, fit, and clear-selection operations to
+the control. File > Export Snapshot writes the current core display list as
+text. A Cairo build starts with antialiased rendering and adds a View >
+Renderer menu for switching between Cairo and native wx presentation while
+keeping the same control state.
 
 # ImGui Timeline Adapter
 
