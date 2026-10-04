@@ -16,6 +16,7 @@
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <locale>
 #include <map>
 #include <numeric>
 #include <sstream>
@@ -454,9 +455,12 @@ std::vector<double> animation_value(const Json &value)
         const std::size_t end = text.find('/', start);
         const std::size_t length = end == std::string::npos ? text.size() - start : end - start;
         const char *first = text.data() + start;
+        std::istringstream input(std::string(first, length));
+        input.imbue(std::locale::classic());
+        input.unsetf(std::ios::skipws);
         double number = 0.0;
-        const std::from_chars_result parsed = std::from_chars(first, first + length, number);
-        if (parsed.ec != std::errc{} || parsed.ptr != first + length || !std::isfinite(number))
+        input >> number;
+        if (input.fail() || input.peek() != std::char_traits<char>::eof() || !std::isfinite(number))
         {
             throw std::invalid_argument("keyframe value is not a finite numeric scalar or tuple");
         }

@@ -248,6 +248,20 @@ void wxTimelineControl::clear_selection()
     }
 }
 
+void wxTimelineControl::step_playhead(int frames, bool extend_selection)
+{
+    if (!m_interaction)
+    {
+        return;
+    }
+    m_interaction->step_playhead(frames, extend_selection);
+    if (m_navigation && m_interaction->playhead())
+    {
+        m_navigation->reveal(*m_interaction->playhead());
+    }
+    update_interaction();
+}
+
 void wxTimelineControl::on_mouse_down(wxMouseEvent &event)
 {
     SetFocus();
@@ -315,12 +329,7 @@ void wxTimelineControl::on_key_down(wxKeyEvent &event)
     }
     if (m_interaction && (event.GetKeyCode() == WXK_LEFT || event.GetKeyCode() == WXK_RIGHT))
     {
-        m_interaction->step_playhead(event.GetKeyCode() == WXK_LEFT ? -1 : 1, event.ShiftDown());
-        if (m_navigation && m_interaction->playhead())
-        {
-            m_navigation->reveal(*m_interaction->playhead());
-        }
-        update_interaction();
+        step_playhead(event.GetKeyCode() == WXK_LEFT ? -1 : 1, event.ShiftDown());
         return;
     }
     event.Skip();

@@ -34,6 +34,7 @@ public:
     void zoom_out();
     void fit_view();
     void clear_selection();
+    void step_playhead(int frames, bool extend_selection);
 
     /// Repaints pending changes and snapshots the displayed timeline primitives.
     std::string snapshot();

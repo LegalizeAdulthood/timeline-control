@@ -306,10 +306,7 @@ TEST(CairoControl, switchesRendererWithoutReplacingDocumentOrInspectionState)
     refresh_layout(control);
     control.zoom_in();
     refresh_layout(control);
-    wxKeyEvent key(wxEVT_CHAR_HOOK);
-    key.m_keyCode = WXK_RIGHT;
-    key.SetShiftDown(true);
-    control.ProcessWindowEvent(key);
+    control.step_playhead(1, true);
     refresh_layout(control);
     const std::string before = control.snapshot();
     ASSERT_FALSE(before.empty());
@@ -470,10 +467,7 @@ TEST(CairoControl, preservesInteractionThroughPresentationChangesAndDestruction)
         refresh_layout(control);
         control.zoom_in();
         refresh_layout(control);
-        wxKeyEvent key(wxEVT_CHAR_HOOK);
-        key.m_keyCode = WXK_RIGHT;
-        key.SetShiftDown(true);
-        control.ProcessWindowEvent(key);
+        control.step_playhead(1, true);
         refresh_layout(control);
         ASSERT_TRUE(control.interaction()->selected_frames());
         const timeline::Ticks first = control.interaction()->selected_frames()->first();
