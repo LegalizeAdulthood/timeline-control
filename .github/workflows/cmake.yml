@@ -12,18 +12,14 @@ permissions:
 
 jobs:
   build:
-    name: ${{matrix.runner || matrix.os}} / ${{matrix.preset}}
+    name: ${{matrix.os}} / ${{matrix.preset}}
     strategy:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
         preset: [ default, default-imgui, default-cairo, default-qt ]
-        include:
-        - os: macos-latest
-          preset: default-qt
-          runner: macos-15-intel
 
-    runs-on: ${{matrix.runner || matrix.os}}
+    runs-on: ${{matrix.os}}
 
     steps:
     - name: Checkout
