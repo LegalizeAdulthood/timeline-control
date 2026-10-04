@@ -1,5 +1,5 @@
-line RULER "" "ruler" 100 19 399 19
-text RULER_LABEL "" "ruler" 4 4 "Time"
+line RULER "" "" 100 19 399 19
+text RULER_LABEL "" "" 4 4 "Time"
 rectangle LANE_BACKGROUND "row.flash" "" 100 20 300 30
 text LANE_LABEL "row.flash" "" 4 24 "row.flash"
 polyline KEYFRAME_SEGMENT "row.flash" "keyframe-0" 3 100 24 160 24 160 45

@@ -94,7 +94,8 @@ std::string Viewer::inspector_text() const
     if (m_control.hit_result())
     {
         const timeline::HitResult &hit = *m_control.hit_result();
-        text << "Hit lane: " << document.strings().lookup(hit.id.lane_id) << "\nHit item: " << hit.id.item_id << '\n';
+        text << "Hit lane: " << document.strings().lookup(hit.id.lane_id)
+             << "\nHit item: " << document.strings().lookup(hit.id.item_id) << '\n';
     }
     else
     {
@@ -179,7 +180,8 @@ std::string Viewer::inspector_text() const
         }
         for (const timeline::DisplayId &id : interaction.selected_items())
         {
-            text << "\nSelected item: " << document.strings().lookup(id.lane_id) << '/' << id.item_id;
+            text << "\nSelected item: " << document.strings().lookup(id.lane_id) << '/'
+                 << document.strings().lookup(id.item_id);
         }
         if (interaction.selected_range())
         {
@@ -213,7 +215,8 @@ std::string Viewer::inspector_text() const
         }
         for (const timeline::InspectionItem &item : lane.items)
         {
-            text << "\nItem: " << item.id << " [" << item.kind << "] (" << timeline::to_string(item.role) << ')';
+            text << "\nItem: " << document.strings().lookup(item.id) << " [" << item.kind << "] ("
+                 << timeline::to_string(item.role) << ')';
             if (item.value)
             {
                 text << " Value: " << *item.value;

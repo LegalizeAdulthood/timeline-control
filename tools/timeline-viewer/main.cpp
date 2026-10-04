@@ -225,7 +225,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         if (!hit->id.item_id.empty())
         {
-            text += "Item: " + hit->id.item_id + "\n";
+            text += "Item: " + to_wx_string(document->strings().lookup(hit->id.item_id)) + "\n";
         }
     }
     if (document)
@@ -266,7 +266,8 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         for (const timeline::DisplayId &id : interaction->selected_items())
         {
-            text += "Selected item: " + to_wx_string(document->strings().lookup(id.lane_id)) + "/" + id.item_id + "\n";
+            text += "Selected item: " + to_wx_string(document->strings().lookup(id.lane_id)) + "/" +
+                to_wx_string(document->strings().lookup(id.item_id)) + "\n";
         }
         if (interaction->selected_range())
         {
@@ -310,7 +311,8 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         for (const timeline::InspectionItem &item : lane.items)
         {
-            text += "\n  " + to_wx_string(timeline::to_string(item.type)) + " " + item.id + " (" +
+            text += "\n  " + to_wx_string(timeline::to_string(item.type)) + " " +
+                to_wx_string(document->strings().lookup(item.id)) + " (" +
                 to_wx_string(timeline::to_string(item.role)) + ")";
             if (item.value)
             {

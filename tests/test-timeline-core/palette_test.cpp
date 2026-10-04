@@ -19,16 +19,17 @@ TEST(Palette, validatesRgbComponentsAndOwnedDefinitions)
     EXPECT_THROW(RgbColor(0, 256, 0), std::invalid_argument);
     EXPECT_THROW(RgbColor(0, 0, 256), std::invalid_argument);
     const Palette colors{RgbColor(255, 0, 0), RgbColor(0, 0, 255)};
-    const PaletteCurve curve("palette", Time{}, Time::from_ticks(20), [colors](Time) { return colors; });
+    const PaletteCurve curve(StringId{1}, Time{}, Time::from_ticks(20), [colors](Time) { return colors; });
     EXPECT_EQ(colors, curve.sample(Time::from_ticks(-1)));
     EXPECT_EQ(colors, curve.sample(Time::from_ticks(21)));
     EXPECT_EQ(2, curve.color_count());
+    EXPECT_THROW(PaletteCurve(StringId{}, Time{}, Time::from_ticks(20), [colors](Time) { return colors; }),
+        std::invalid_argument);
     EXPECT_THROW(
-        PaletteCurve("", Time{}, Time::from_ticks(20), [colors](Time) { return colors; }), std::invalid_argument);
+        PaletteCurve(StringId{1}, Time{}, Time::from_ticks(20), [](Time) { return Palette{}; }), std::invalid_argument);
     EXPECT_THROW(
-        PaletteCurve("empty", Time{}, Time::from_ticks(20), [](Time) { return Palette{}; }), std::invalid_argument);
-    EXPECT_THROW(PaletteCurve("null", Time{}, Time::from_ticks(20), PaletteCurve::Evaluator{}), std::invalid_argument);
-    const PaletteCurve changing("changing", Time{}, Time::from_ticks(20),
+        PaletteCurve(StringId{1}, Time{}, Time::from_ticks(20), PaletteCurve::Evaluator{}), std::invalid_argument);
+    const PaletteCurve changing(StringId{1}, Time{}, Time::from_ticks(20),
         [colors](Time time) { return time.ticks() == 0 ? colors : Palette{}; });
     EXPECT_THROW(changing.sample(Time::from_ticks(10)), std::invalid_argument);
 }
@@ -40,7 +41,7 @@ TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
         DocumentBuilder builder(Document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0));
         Lane lane(builder.intern("colors"), "Colors", "palette", Time{}, Time::from_ticks(3));
         lane.add(PaletteCurve(
-            "palette", "color-map", Time{}, Time::from_ticks(3),
+            builder.intern("palette"), "color-map", Time{}, Time::from_ticks(3),
             [](Time time) { return Palette{RgbColor(static_cast<int>(time.ticks()) * 20, 0, 255)}; },
             Attributes{{"recipe", "owned"}}));
         builder.add_lane(std::move(lane));
@@ -66,7 +67,8 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
     const StringId colors_id = builder.intern("colors");
     Lane lane(colors_id, "Colors", "palette", Time{}, Time::from_ticks(3));
     const Palette colors{RgbColor(255, 0, 0), RgbColor(0, 255, 0), RgbColor(0, 0, 255), RgbColor(255, 255, 255)};
-    lane.add(PaletteCurve("palette", Time{}, Time::from_ticks(3), [colors](Time) { return colors; }));
+    const StringId palette_id = builder.intern("palette");
+    lane.add(PaletteCurve(palette_id, Time{}, Time::from_ticks(3), [colors](Time) { return colors; }));
     builder.add_lane(std::move(lane));
     const Document document = std::move(builder).build();
     const Viewport viewport(260, 80, Time{}, Time::from_ticks(3));
@@ -87,7 +89,7 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
             ASSERT_TRUE(result);
             const HitResult &hit = *result;
             EXPECT_EQ(colors_id, hit.id.lane_id);
-            EXPECT_EQ("palette", hit.id.item_id);
+            EXPECT_EQ(palette_id, hit.id.item_id);
             EXPECT_EQ(StyleRole::PALETTE, hit.style);
             ++swatches;
         }
@@ -95,7 +97,7 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
     EXPECT_EQ(12, swatches);
     EXPECT_NE(std::string::npos, render_snapshot(layout.display_list()).find("swatch PALETTE"));
     Interaction interaction(document);
-    interaction.select_hit(HitResult{StyleRole::PALETTE, DisplayId{colors_id, "palette"}}, false);
+    interaction.select_hit(HitResult{StyleRole::PALETTE, DisplayId{colors_id, palette_id}}, false);
     const Layout selected(document, viewport, metrics, interaction);
     for (const Primitive &primitive : selected.display_list().primitives())
     {

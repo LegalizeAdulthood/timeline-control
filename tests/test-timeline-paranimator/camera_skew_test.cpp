@@ -87,7 +87,8 @@ TEST(CameraSkew, matchesSourceGoldenAndPreservesOwnedDefinitions)
                 EXPECT_NEAR(source[component], *inspected->lanes[component].items.front().value, 1e-9);
                 const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[component].items().front());
                 EXPECT_TRUE(curve.samples().empty());
-                EXPECT_EQ("animation-0-" + output + "[" + std::to_string(component) + "]-camera", curve.id());
+                EXPECT_EQ("animation-0-" + output + "[" + std::to_string(component) + "]-camera",
+                    document.strings().lookup(curve.id()));
                 EXPECT_NE(std::string::npos, curve.attributes().at("camera2d").find("skew"));
             }
         }

@@ -31,7 +31,7 @@ TEST(Curve, ownsAnAnalyticDefinitionAndSamplesWithoutACache)
     const Curve curve = []
     {
         const double scale = 0.01;
-        return Curve("analytic", "signal", at(0), at(20),
+        return Curve(StringId{1}, "signal", at(0), at(20),
             [scale](Time time) { return scale * static_cast<double>(time.ticks() * time.ticks()); });
     }();
     EXPECT_EQ(CurveInterpolation::ANALYTIC, curve.interpolation());
@@ -54,30 +54,30 @@ TEST(Curve, rejectsInvalidAnalyticDefinitionsAndEvaluatedValues)
     {
         return static_cast<double>(time.ticks());
     };
-    EXPECT_THROW(Curve("", "signal", at(0), at(20), identity), std::invalid_argument);
-    EXPECT_THROW(Curve("analytic", "signal", at(0), at(0), identity), std::invalid_argument);
-    EXPECT_THROW(Curve("analytic", "signal", at(20), at(0), identity), std::invalid_argument);
-    EXPECT_THROW(Curve("analytic", "signal", at(0), at(20), CurveEvaluator{}), std::invalid_argument);
-    EXPECT_THROW(Curve("analytic", "signal", at(0), at(20), identity, "", 20.0, 0.0, {}), std::invalid_argument);
-    EXPECT_THROW(Curve("analytic", "signal", at(0), at(20), identity, "", 0.0, 1.0, {}), std::out_of_range);
+    EXPECT_THROW(Curve(StringId{}, "signal", at(0), at(20), identity), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "signal", at(0), at(0), identity), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "signal", at(20), at(0), identity), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "signal", at(0), at(20), CurveEvaluator{}), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "signal", at(0), at(20), identity, "", 20.0, 0.0, {}), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "signal", at(0), at(20), identity, "", 0.0, 1.0, {}), std::out_of_range);
     const auto invalid_interior = [](Time time)
     {
         return time == at(10) ? std::numeric_limits<double>::infinity() : 0.0;
     };
-    const Curve invalid("analytic", "signal", at(0), at(20), invalid_interior);
+    const Curve invalid(StringId{1}, "signal", at(0), at(20), invalid_interior);
     EXPECT_THROW(invalid.sample(at(10)), std::invalid_argument);
     const auto outside_bounds = [](Time time)
     {
         return time == at(10) ? 2.0 : 0.0;
     };
-    const Curve bounded("analytic", "signal", at(0), at(20), outside_bounds, "", 0.0, 1.0, {});
+    const Curve bounded(StringId{1}, "signal", at(0), at(20), outside_bounds, "", 0.0, 1.0, {});
     EXPECT_THROW(bounded.sample(at(10)), std::out_of_range);
 }
 
 TEST(Curve, storesExactSamplesAndInterpolates)
 {
-    const Curve curve(
-        "rms", "rms", {{at(0), 0.0}, {at(10), 1.0}, {at(20), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {});
+    const Curve curve(StringId{1}, "rms", {{at(0), 0.0}, {at(10), 1.0}, {at(20), 0.0}}, "RMS",
+        CurveInterpolation::LINEAR, 0.0, 1.0, {});
 
     ASSERT_EQ(3, curve.sample_count());
     EXPECT_EQ(10, curve.samples()[1].time().ticks());
@@ -89,8 +89,8 @@ TEST(Curve, storesExactSamplesAndInterpolates)
 
 TEST(Curve, supportsStepInterpolation)
 {
-    const Curve curve(
-        "rms", "rms", {{at(0), 0.25}, {at(10), 0.75}}, "RMS", CurveInterpolation::STEP, std::nullopt, std::nullopt, {});
+    const Curve curve(StringId{1}, "rms", {{at(0), 0.25}, {at(10), 0.75}}, "RMS", CurveInterpolation::STEP,
+        std::nullopt, std::nullopt, {});
 
     EXPECT_DOUBLE_EQ(0.25, curve.sample(at(5)));
     EXPECT_DOUBLE_EQ(0.75, curve.sample(at(10)));
@@ -98,8 +98,8 @@ TEST(Curve, supportsStepInterpolation)
 
 TEST(Curve, samplesAtFrameGridBoundaries)
 {
-    const Curve curve(
-        "rms", "rms", {{at(0), 0.0}, {at(20), 1.0}}, "RMS", CurveInterpolation::LINEAR, std::nullopt, std::nullopt, {});
+    const Curve curve(StringId{1}, "rms", {{at(0), 0.0}, {at(20), 1.0}}, "RMS", CurveInterpolation::LINEAR,
+        std::nullopt, std::nullopt, {});
     const FrameGrid grid(Timebase(10), 3, 1, 1);
 
     const std::vector<CurveSample> samples = curve.sample(grid);
@@ -117,12 +117,14 @@ TEST(Curve, rejectsInvalidSamplesAndBounds)
 {
     const auto infinity = std::numeric_limits<double>::infinity();
 
-    EXPECT_THROW(Curve("rms", "rms", {}), std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}}), std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(10), 0.0}, {at(0), 1.0}}), std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), infinity}}), std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.0}}, "RMS", CurveInterpolation::LINEAR, 1.0, 0.0, {}),
+    EXPECT_THROW(Curve(StringId{1}, "rms", {}), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "rms", {{at(0), 0.0}}), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "rms", {{at(10), 0.0}, {at(0), 1.0}}), std::invalid_argument);
+    EXPECT_THROW(Curve(StringId{1}, "rms", {{at(0), 0.0}, {at(10), infinity}}), std::invalid_argument);
+    EXPECT_THROW(
+        Curve(StringId{1}, "rms", {{at(0), 0.0}, {at(10), 1.0}}, "RMS", CurveInterpolation::LINEAR, 1.0, 0.0, {}),
         std::invalid_argument);
-    EXPECT_THROW(Curve("rms", "rms", {{at(0), 0.0}, {at(10), 1.5}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}),
+    EXPECT_THROW(
+        Curve(StringId{1}, "rms", {{at(0), 0.0}, {at(10), 1.5}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}),
         std::out_of_range);
 }

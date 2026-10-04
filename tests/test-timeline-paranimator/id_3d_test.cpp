@@ -109,7 +109,8 @@ TEST(Id3DView, matchesSourceGoldenAndPreservesOwnedRecipes)
                 {
                     const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
                     EXPECT_TRUE(curve.samples().empty());
-                    EXPECT_EQ(std::string(document.strings().lookup(lane.id())) + "-view", curve.id());
+                    EXPECT_EQ(std::string(document.strings().lookup(lane.id())) + "-view",
+                        document.strings().lookup(curve.id()));
                 }
             }
         }

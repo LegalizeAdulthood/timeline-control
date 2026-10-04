@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <timeline/StringTable.h>
 #include <timeline/Time.h>
 
 #include <map>
@@ -23,11 +24,11 @@ using Attributes = std::map<std::string, std::string>;
 class Instant
 {
 public:
-    Instant(std::string id, std::string kind, Time time);
-    Instant(std::string id, std::string kind, Time time, std::string label, std::optional<double> strength,
+    Instant(StringId id, std::string kind, Time time);
+    Instant(StringId id, std::string kind, Time time, std::string label, std::optional<double> strength,
         Attributes attributes);
 
-    const std::string &id() const
+    StringId id() const
     {
         return m_id;
     }
@@ -53,12 +54,14 @@ public:
     }
 
 private:
-    std::string m_id;
+    StringId m_id;
     std::string m_kind;
     Time m_time;
     std::string m_label;
     std::optional<double> m_strength;
     Attributes m_attributes;
+
+    friend class DocumentBuilder;
 };
 
 } // namespace timeline

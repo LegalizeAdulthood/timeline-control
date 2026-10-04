@@ -275,7 +275,28 @@ void DocumentBuilder::add_lane(Lane lane)
     {
         throw std::invalid_argument("timeline lane ID is not present in the document string table");
     }
+    for (const Item &item : lane.items())
+    {
+        std::visit(
+            [this](const auto &value)
+            {
+                if (!m_strings.contains(value.id()))
+                {
+                    throw std::invalid_argument("timeline item ID is not present in the document string table");
+                }
+            },
+            item);
+    }
     m_document.add_lane(std::move(lane));
+}
+
+void DocumentBuilder::add_lane(Lane lane, const StringTable &item_strings)
+{
+    for (Item &item : lane.m_items)
+    {
+        std::visit([this, &item_strings](auto &value) { value.m_id = intern(item_strings.lookup(value.id())); }, item);
+    }
+    add_lane(std::move(lane));
 }
 
 Document DocumentBuilder::build() &&
@@ -332,7 +353,14 @@ Document combine_documents(const Document &document, const Document &addition)
         {
             std::visit([&copy](const auto &value) { copy.add(value); }, item);
         }
-        builder.add_lane(std::move(copy));
+        if (document.strings().shares_storage_with(addition.strings()))
+        {
+            builder.add_lane(std::move(copy));
+        }
+        else
+        {
+            builder.add_lane(std::move(copy), addition.strings());
+        }
     }
     return std::move(builder).build();
 }

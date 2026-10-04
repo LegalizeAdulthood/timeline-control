@@ -65,15 +65,15 @@ private:
 class Curve
 {
 public:
-    Curve(std::string id, std::string kind, std::vector<CurveSample> samples);
-    Curve(std::string id, std::string kind, std::vector<CurveSample> samples, std::string label,
+    Curve(StringId id, std::string kind, std::vector<CurveSample> samples);
+    Curve(StringId id, std::string kind, std::vector<CurveSample> samples, std::string label,
         CurveInterpolation interpolation, std::optional<double> minimum, std::optional<double> maximum,
         Attributes attributes);
-    Curve(std::string id, std::string kind, Time start, Time end, CurveEvaluator evaluator);
-    Curve(std::string id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
+    Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator);
+    Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
         std::optional<double> minimum, std::optional<double> maximum, Attributes attributes);
 
-    const std::string &id() const
+    StringId id() const
     {
         return m_id;
     }
@@ -122,7 +122,7 @@ public:
     std::vector<CurveSample> sample(const FrameGrid &frame_grid) const;
 
 private:
-    std::string m_id;
+    StringId m_id;
     std::string m_kind;
     std::string m_label;
     CurveInterpolation m_interpolation;
@@ -133,6 +133,8 @@ private:
     Time m_start;
     Time m_end;
     CurveEvaluator m_evaluator;
+
+    friend class DocumentBuilder;
 };
 
 } // namespace timeline

@@ -840,7 +840,7 @@ TEST(CameraImport, composesStraightPathsLikeParanimatorAndOwnsTheirRecipes)
         const timeline::Keyframe &look = std::get<timeline::Keyframe>(document.lanes()[6].items().front());
         EXPECT_NE(std::string::npos, look.attributes().at("path").find("line"));
         EXPECT_NE(std::string::npos, look.attributes().at("signal").find("path"));
-        EXPECT_EQ("animation-0-look-at-key-0", look.id());
+        EXPECT_EQ("animation-0-look-at-key-0", document.strings().lookup(look.id()));
         const timeline::Time between =
             grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
         EXPECT_DOUBLE_EQ(fixture == fixtures.front() ? 0.5 : 0.25, *document.lanes()[6].evaluate_keyframes(between));
@@ -937,7 +937,7 @@ TEST(CameraImport, derivesDirectionFromAnalyticEyeLikeParanimator)
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::optional<timeline::HitResult> hit = layout.hit_test({180, 286}, 2);
     ASSERT_TRUE(hit);
-    EXPECT_EQ("animation-0-eye[0]-path", hit->id.item_id);
+    EXPECT_EQ("animation-0-eye[0]-path", result.document->strings().lookup(hit->id.item_id));
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("derived-view-up"));
 }
 
@@ -1041,7 +1041,7 @@ TEST(CameraImport, evaluatesCenterMagAndNestedKeysLikeParanimator)
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::optional<timeline::HitResult> hit = layout.hit_test({233, 35}, 2);
     ASSERT_TRUE(hit);
-    EXPECT_EQ("animation-0-center-mag[0]-camera", hit->id.item_id);
+    EXPECT_EQ("animation-0-center-mag[0]-camera", result.document->strings().lookup(hit->id.item_id));
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("camera / height"));
 }
 

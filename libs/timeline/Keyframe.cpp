@@ -23,14 +23,13 @@ std::string_view to_string(KeyframeInterpolation value)
     throw std::invalid_argument("unknown keyframe interpolation policy");
 }
 
-Keyframe::Keyframe(std::string id, Time time, double value) :
-    Keyframe(std::move(id), time, value, KeyframeInterpolation::HOLD, {})
+Keyframe::Keyframe(StringId id, Time time, double value) :
+    Keyframe(id, time, value, KeyframeInterpolation::HOLD, {})
 {
 }
 
-Keyframe::Keyframe(
-    std::string id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes) :
-    m_id(std::move(id)),
+Keyframe::Keyframe(StringId id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes) :
+    m_id(id),
     m_time(time),
     m_value(value),
     m_interpolation(interpolation),

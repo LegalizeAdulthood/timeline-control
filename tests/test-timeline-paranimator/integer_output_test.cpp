@@ -128,7 +128,7 @@ TEST(IntegerOutput, matchesSourceGoldenAndSurvivesCopyingComparisonAndLayout)
                 const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(result);
                 EXPECT_EQ("animation-0", layout.display_list().strings().lookup(result->id.lane_id));
-                EXPECT_EQ("animation-0-key-0", result->id.item_id);
+                EXPECT_EQ("animation-0-key-0", layout.display_list().strings().lookup(result->id.item_id));
                 hit = true;
             }
         }

@@ -569,7 +569,7 @@ TEST(ColorMapImport, matchesSourceEvaluatorAndPreservesStructuredOwnedValues)
         const timeline::FrameGrid &grid = *document.frame_grid();
         EXPECT_EQ(4004, grid.frame_duration().ticks());
         const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(document.lanes()[0].items().front());
-        EXPECT_EQ("animation-0-palette", curve.id());
+        EXPECT_EQ("animation-0-palette", document.strings().lookup(curve.id()));
         EXPECT_EQ(256, curve.color_count());
         EXPECT_EQ("colors", curve.attributes().at("parameter"));
         EXPECT_NE(std::string::npos, curve.attributes().at("color-map").find("at-file"));

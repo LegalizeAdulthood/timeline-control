@@ -23,8 +23,8 @@ std::string snapshot(const Document &document)
     return render_snapshot(layout.display_list());
 }
 
-const std::string RULER = "line RULER \"\" \"ruler\" 100 19 399 19\n"
-                          "text RULER_LABEL \"\" \"ruler\" 4 4 \"Time\"\n";
+const std::string RULER = "line RULER \"\" \"\" 100 19 399 19\n"
+                          "text RULER_LABEL \"\" \"\" 4 4 \"Time\"\n";
 
 /// Supplies digit grouping to detect accidental use of the global locale.
 ///
@@ -57,7 +57,7 @@ TEST(Snapshot, rendersEventLane)
 {
     DocumentBuilder builder(Document(100));
     Lane lane(builder.intern("events"), "Events", "events", at(0), at(100));
-    lane.add(Instant("beat", "beat", at(25)));
+    lane.add(Instant(builder.intern("beat"), "beat", at(25)));
     builder.add_lane(std::move(lane));
     const Document document = std::move(builder).build();
 
@@ -72,7 +72,7 @@ TEST(Snapshot, rendersCurveLane)
 {
     DocumentBuilder builder(Document(100));
     Lane lane(builder.intern("curve"), "Curve", "curve", at(0), at(100));
-    lane.add(Curve("signal", "signal", {{at(0), 0.0}, {at(40), 1.0}, {at(80), 0.0}}));
+    lane.add(Curve(builder.intern("signal"), "signal", {{at(0), 0.0}, {at(40), 1.0}, {at(80), 0.0}}));
     builder.add_lane(std::move(lane));
     const Document document = std::move(builder).build();
 
@@ -87,8 +87,8 @@ TEST(Snapshot, rendersKeyframeLane)
 {
     DocumentBuilder builder(Document(100));
     Lane lane(builder.intern("keys"), "Keys", "keyframes", at(0), at(100));
-    lane.add(Keyframe("first", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
-    lane.add(Keyframe("last", at(50), 1.0));
+    lane.add(Keyframe(builder.intern("first"), at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
+    lane.add(Keyframe(builder.intern("last"), at(50), 1.0));
     builder.add_lane(std::move(lane));
     const Document document = std::move(builder).build();
 
@@ -106,11 +106,13 @@ TEST(Snapshot, preservesOrderGeometryAndEscapedStrings)
     StringTableBuilder strings;
     const StringId escaped = strings.intern("lane\n");
     const StringId lane = strings.intern("lane");
+    const StringId escaped_item = strings.intern(std::string(1, '\x01') + std::string(1, '\xFF'));
+    const StringId item = strings.intern("item");
     DisplayList list(std::move(strings).build());
-    list.add(Text{-10, 20, "quotes\" slash\\ newline\n tab\t return\r", StyleRole::LANE_LABEL,
-        DisplayId{escaped, std::string(1, '\x01') + std::string(1, '\xFF')}});
+    list.add(Text{
+        -10, 20, "quotes\" slash\\ newline\n tab\t return\r", StyleRole::LANE_LABEL, DisplayId{escaped, escaped_item}});
     list.add(Polyline{{}, StyleRole::CURVE, {}});
-    list.add(Line{-1, -2, 3, 4, StyleRole::PLAYHEAD, {lane, "item"}});
+    list.add(Line{-1, -2, 3, 4, StyleRole::PLAYHEAD, {lane, item}});
     list.add(Rectangle{1, 2, 3, 4, StyleRole::INTERVAL_SPAN, {}});
     list.add(Marker{5, 6, 7, 8, StyleRole::SELECTED_ITEM, {}});
 

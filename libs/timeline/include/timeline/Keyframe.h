@@ -34,10 +34,10 @@ std::string_view to_string(KeyframeInterpolation value);
 class Keyframe
 {
 public:
-    Keyframe(std::string id, Time time, double value);
-    Keyframe(std::string id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes);
+    Keyframe(StringId id, Time time, double value);
+    Keyframe(StringId id, Time time, double value, KeyframeInterpolation interpolation, Attributes attributes);
 
-    const std::string &id() const
+    StringId id() const
     {
         return m_id;
     }
@@ -59,11 +59,13 @@ public:
     }
 
 private:
-    std::string m_id;
+    StringId m_id;
     Time m_time;
     double m_value;
     KeyframeInterpolation m_interpolation;
     Attributes m_attributes;
+
+    friend class DocumentBuilder;
 };
 
 /// Keyframes immediately surrounding a timeline time.

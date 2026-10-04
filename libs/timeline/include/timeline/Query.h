@@ -49,7 +49,7 @@ std::string_view to_string(InspectionItemRole value);
 ///
 struct InspectionItem
 {
-    std::string id;
+    StringId id;
     std::string kind;
     InspectionItemType type;
     InspectionItemRole role;

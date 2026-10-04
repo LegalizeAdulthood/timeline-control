@@ -393,8 +393,8 @@ timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, c
         const timeline::KeyframeInterpolation interpolation = index == 0 && destination == "linear"
             ? timeline::KeyframeInterpolation::LINEAR
             : timeline::KeyframeInterpolation::HOLD;
-        lane.add(timeline::Keyframe(id + "-key-" + std::to_string(index), grid.frame_start(index == 0 ? first : last),
-            values[index], interpolation, std::move(key_attributes)));
+        lane.add(timeline::Keyframe(strings.intern(id + "-key-" + std::to_string(index)),
+            grid.frame_start(index == 0 ? first : last), values[index], interpolation, std::move(key_attributes)));
     }
     return lane;
 }
@@ -769,9 +769,11 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
             key_attributes["source-key"] = keys[index].dump();
             const std::string key_id = id + "-key-" + std::to_string(index);
             const timeline::Time time = index == 0 ? start : end;
-            definitions.add(timeline::Instant(key_id, "keyframe", time, filename, std::nullopt, key_attributes));
-            definitions.add(timeline::Interval(key_id + "-hold", "keyframe-value", index == 0 ? grid.offset() : end,
-                index == 0 ? end : grid.end_time(), filename, std::nullopt, key_attributes));
+            definitions.add(
+                timeline::Instant(strings.intern(key_id), "keyframe", time, filename, std::nullopt, key_attributes));
+            definitions.add(
+                timeline::Interval(strings.intern(key_id + "-hold"), "keyframe-value", index == 0 ? grid.offset() : end,
+                    index == 0 ? end : grid.end_time(), filename, std::nullopt, key_attributes));
         }
         staged.push_back(std::move(definitions));
     }
@@ -790,8 +792,8 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
         };
     }
     timeline::Lane palette(strings.intern(id), label, "palette", grid.offset(), grid.end_time());
-    palette.add(timeline::PaletteCurve(
-        id + "-palette", "color-map", grid.offset(), grid.end_time(), std::move(evaluator), std::move(attributes)));
+    palette.add(timeline::PaletteCurve(strings.intern(id + "-palette"), "color-map", grid.offset(), grid.end_time(),
+        std::move(evaluator), std::move(attributes)));
     lanes.push_back(std::move(palette));
     for (timeline::Lane &lane : staged)
     {

@@ -105,6 +105,8 @@ private:
     std::vector<Item> m_items;
     KeyframeEvaluator m_keyframe_evaluator;
     KeyframeOutputEvaluator m_keyframe_output_evaluator;
+
+    friend class DocumentBuilder;
 };
 
 Time item_start(const Item &item);

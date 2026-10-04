@@ -18,15 +18,15 @@ Ticks phase_ticks(const std::optional<Duration> &phase)
 
 } // namespace
 
-Envelope::Envelope(std::string id, std::string kind, Time start) :
-    Envelope(std::move(id), std::move(kind), start, std::nullopt, std::nullopt, std::nullopt, {}, std::nullopt, {})
+Envelope::Envelope(StringId id, std::string kind, Time start) :
+    Envelope(id, std::move(kind), start, std::nullopt, std::nullopt, std::nullopt, {}, std::nullopt, {})
 {
 }
 
-Envelope::Envelope(std::string id, std::string kind, Time start, std::optional<Duration> attack,
+Envelope::Envelope(StringId id, std::string kind, Time start, std::optional<Duration> attack,
     std::optional<Duration> sustain, std::optional<Duration> decay, std::string label, std::optional<double> strength,
     Attributes attributes) :
-    m_id(std::move(id)),
+    m_id(id),
     m_kind(std::move(kind)),
     m_start(start),
     m_attack(attack),

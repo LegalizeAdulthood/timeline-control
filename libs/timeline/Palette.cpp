@@ -21,14 +21,14 @@ RgbColor::RgbColor(int red, int green, int blue) :
     }
 }
 
-PaletteCurve::PaletteCurve(std::string id, Time start, Time end, Evaluator evaluator) :
-    PaletteCurve(std::move(id), "palette", start, end, std::move(evaluator), {})
+PaletteCurve::PaletteCurve(StringId id, Time start, Time end, Evaluator evaluator) :
+    PaletteCurve(id, "palette", start, end, std::move(evaluator), {})
 {
 }
 
 PaletteCurve::PaletteCurve(
-    std::string id, std::string kind, Time start, Time end, Evaluator evaluator, Attributes attributes) :
-    m_id(std::move(id)),
+    StringId id, std::string kind, Time start, Time end, Evaluator evaluator, Attributes attributes) :
+    m_id(id),
     m_kind(std::move(kind)),
     m_start(start),
     m_end(end),

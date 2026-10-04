@@ -198,8 +198,8 @@ timeline::Document BeatKeysMapping::materialize() const
         timeline::Lane lane(builder.intern(id), recipe.target, "keyframes", grid.offset(), grid.end_time());
         for (const auto &[frame, value] : outputs[index])
         {
-            lane.add(timeline::Keyframe(id + "-" + std::to_string(frame), grid.frame_start(frame), value,
-                timeline::KeyframeInterpolation::HOLD,
+            lane.add(timeline::Keyframe(builder.intern(id + "-" + std::to_string(frame)), grid.frame_start(frame),
+                value, timeline::KeyframeInterpolation::HOLD,
                 {{"source", recipe.source}, {"target", recipe.target}, {"op", recipe.operation}}));
         }
         builder.add_lane(std::move(lane));

@@ -250,7 +250,7 @@ TEST(NormalizedVector, retainsKeyedOutputAfterCopyingComparisonAndLayout)
                 const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(hit);
                 EXPECT_EQ("animation-0[0]", layout.display_list().strings().lookup(hit->id.lane_id));
-                EXPECT_EQ("animation-0-key-0", hit->id.item_id);
+                EXPECT_EQ("animation-0-key-0", layout.display_list().strings().lookup(hit->id.item_id));
                 found = true;
             }
         }
@@ -365,7 +365,7 @@ TEST(NormalizedVector, ownsRecipesBoundsAndHitIdentityAcrossCopyingAndComparison
                 const std::optional<timeline::HitResult> hit = layout.hit_test(line.points[2], 0);
                 ASSERT_TRUE(hit);
                 EXPECT_EQ("animation-0[0]", layout.display_list().strings().lookup(hit->id.lane_id));
-                EXPECT_EQ("animation-0[0]-path", hit->id.item_id);
+                EXPECT_EQ("animation-0[0]-path", layout.display_list().strings().lookup(hit->id.item_id));
                 found = true;
             }
         }

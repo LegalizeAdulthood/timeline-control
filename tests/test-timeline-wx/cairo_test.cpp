@@ -18,7 +18,8 @@ namespace
 
 const wxTimelinePalette LIGHT{wxColour(255, 255, 255), wxColour(0, 0, 0), wxColour(0, 100, 200)};
 const wxTimelinePalette DARK{wxColour(24, 24, 24), wxColour(235, 235, 235), wxColour(70, 160, 230)};
-const timeline::Polyline DIAGONAL{{{3, 4}, {27, 22}}, timeline::StyleRole::CURVE, {timeline::StringId{1}, "curve"}};
+const timeline::Polyline DIAGONAL{
+    {{3, 4}, {27, 22}}, timeline::StyleRole::CURVE, {timeline::StringId{1}, timeline::StringId{2}}};
 
 wxColour pixel(const wxImage &image, int x, int y)
 {

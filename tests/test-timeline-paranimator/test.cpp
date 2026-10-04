@@ -199,9 +199,9 @@ TEST(TimelineJson, retainsValidRecordsWithIndexedDiagnostics)
     ASSERT_EQ(2, document.lane_count());
     const timeline::Lane &events = document.lanes()[0];
     ASSERT_EQ(2, events.item_count());
-    EXPECT_EQ("event-0", std::get<timeline::Instant>(events.items()[0]).id());
+    EXPECT_EQ("event-0", document.strings().lookup(std::get<timeline::Instant>(events.items()[0]).id()));
     const auto &event = std::get<timeline::Instant>(events.items()[1]);
-    EXPECT_EQ("event-4", event.id());
+    EXPECT_EQ("event-4", document.strings().lookup(event.id()));
     EXPECT_EQ(240000, event.time().ticks());
     EXPECT_EQ("125", event.attributes().at("parameter"));
     EXPECT_LT(event.time(), events.end());
@@ -304,7 +304,7 @@ TEST(TimelineJson, mixedTrackerTimelineDrivesCoreDisplayList)
         {
             EXPECT_EQ(timeline::StyleRole::CURVE, curve->style);
             EXPECT_EQ("tracker-rms", result.document->strings().lookup(curve->id.lane_id));
-            EXPECT_EQ("tracker-rms", curve->id.item_id);
+            EXPECT_EQ("tracker-rms", result.document->strings().lookup(curve->id.item_id));
             ASSERT_FALSE(curve->points.empty());
             const std::optional<timeline::HitResult> hit = layout.hit_test(curve->points.front(), 3);
             ASSERT_TRUE(hit);

@@ -59,10 +59,10 @@ public:
     /// Callable that owns the inputs required to evaluate one ordered palette.
     using Evaluator = std::function<Palette(Time)>;
 
-    PaletteCurve(std::string id, Time start, Time end, Evaluator evaluator);
-    PaletteCurve(std::string id, std::string kind, Time start, Time end, Evaluator evaluator, Attributes attributes);
+    PaletteCurve(StringId id, Time start, Time end, Evaluator evaluator);
+    PaletteCurve(StringId id, std::string kind, Time start, Time end, Evaluator evaluator, Attributes attributes);
 
-    const std::string &id() const
+    StringId id() const
     {
         return m_id;
     }
@@ -89,13 +89,15 @@ public:
     Palette sample(Time time) const;
 
 private:
-    std::string m_id;
+    StringId m_id;
     std::string m_kind;
     Time m_start;
     Time m_end;
     Evaluator m_evaluate;
     Attributes m_attributes;
     int m_color_count;
+
+    friend class DocumentBuilder;
 };
 
 } // namespace timeline

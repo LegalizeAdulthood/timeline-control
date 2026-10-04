@@ -528,8 +528,8 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
     }
 
     m_display_list.add(Line{metrics.lane_label_width(), metrics.ruler_height() - 1, viewport.width() - 1,
-        metrics.ruler_height() - 1, StyleRole::RULER, DisplayId{StringId{}, "ruler"}});
-    m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL, DisplayId{StringId{}, "ruler"}});
+        metrics.ruler_height() - 1, StyleRole::RULER, DisplayId{StringId{}, StringId{}}});
+    m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL, DisplayId{StringId{}, StringId{}}});
 
     for (int lane_index = viewport.first_lane(); lane_index < document.lane_count(); ++lane_index)
     {
@@ -541,9 +541,9 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         const Lane &lane = document.lanes()[lane_index];
         const int row_height = metrics.lane_height();
         m_display_list.add(Rectangle{metrics.lane_label_width(), *y, viewport.width() - metrics.lane_label_width(),
-            row_height, StyleRole::LANE_BACKGROUND, DisplayId{lane.id(), ""}});
-        m_display_list.add(
-            Text{4, *y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL, DisplayId{lane.id(), ""}});
+            row_height, StyleRole::LANE_BACKGROUND, DisplayId{lane.id(), StringId{}}});
+        m_display_list.add(Text{
+            4, *y + metrics.item_padding(), lane.label(), StyleRole::LANE_LABEL, DisplayId{lane.id(), StringId{}}});
 
         const int item_y = *y + metrics.item_padding();
         const int item_height = std::max(1, row_height - metrics.item_padding() * 2);
@@ -603,7 +603,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
     }
 
     m_hit_regions.emplace_back(
-        Rectangle{0, 0, viewport.width(), metrics.ruler_height(), StyleRole::RULER, DisplayId{StringId{}, "ruler"}});
+        Rectangle{0, 0, viewport.width(), metrics.ruler_height(), StyleRole::RULER, DisplayId{StringId{}, StringId{}}});
     for (const Primitive &primitive : m_display_list.primitives())
     {
         std::visit(
@@ -641,8 +641,8 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
             const Time end = document.frame_grid() && document.frame_grid()->frame_count() > 0
                 ? range.end() + document.frame_grid()->frame_duration()
                 : range.end();
-            add_span(decorated, range.start(), end, StyleRole::SELECTED_RANGE, DisplayId{StringId{}, ""}, y, height,
-                viewport, metrics);
+            add_span(decorated, range.start(), end, StyleRole::SELECTED_RANGE, DisplayId{StringId{}, StringId{}}, y,
+                height, viewport, metrics);
         }
     };
     add_range(0, metrics.ruler_height());
@@ -679,7 +679,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         *interaction.playhead() <= viewport.end())
     {
         const int x = std::min(viewport.width() - 1, time_x(*interaction.playhead(), viewport, metrics));
-        const DisplayId id{StringId{}, "playhead"};
+        const DisplayId id{StringId{}, StringId{}};
         decorated.add(Line{x, 0, x, viewport.height() - 1, StyleRole::PLAYHEAD, id});
         // Restrict the playhead hit to the ruler so it cannot hide item hits.
         m_hit_regions.emplace_back(Marker{x, 0, 1, metrics.ruler_height(), StyleRole::PLAYHEAD, id});

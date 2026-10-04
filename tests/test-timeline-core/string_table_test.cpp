@@ -18,8 +18,15 @@ Document document_with_lane(std::string_view id)
 {
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     DocumentBuilder builder(Document(grid, 0, 0));
-    builder.add_lane(Lane(builder.intern(id), std::string(id), "events", grid.offset(), grid.end_time()));
+    Lane lane(builder.intern(id), std::string(id), "events", grid.offset(), grid.end_time());
+    lane.add(Instant(builder.intern(std::string(id) + "-item"), "event", grid.offset()));
+    builder.add_lane(std::move(lane));
     return std::move(builder).build();
+}
+
+StringId first_item_id(const Document &document, int lane)
+{
+    return std::get<Instant>(document.lanes()[lane].items().front()).id();
 }
 
 } // namespace
@@ -73,6 +80,16 @@ TEST(StringTable, documentBuilderRejectsUnknownLaneIds)
         std::invalid_argument);
 }
 
+TEST(StringTable, documentBuilderRejectsUnknownItemIds)
+{
+    const FrameGrid grid(Timebase(30), 2, 30, 1);
+    DocumentBuilder builder(Document(grid, 0, 0));
+    Lane lane(builder.intern("known"), "Known", "events", grid.offset(), grid.end_time());
+    lane.add(Instant(StringId{2}, "event", grid.offset()));
+
+    EXPECT_THROW(builder.add_lane(std::move(lane)), std::invalid_argument);
+}
+
 TEST(StringTable, combinesDocumentsWithIndependentTables)
 {
     const Document first = document_with_lane("first");
@@ -86,6 +103,10 @@ TEST(StringTable, combinesDocumentsWithIndependentTables)
     EXPECT_EQ("first", combined.strings().lookup(combined.lanes()[0].id()));
     EXPECT_EQ("added-1-second", combined.strings().lookup(combined.lanes()[1].id()));
     EXPECT_NE(combined.lanes()[0].id(), combined.lanes()[1].id());
+    EXPECT_EQ(first_item_id(first, 0), first_item_id(combined, 0));
+    EXPECT_EQ("first-item", combined.strings().lookup(first_item_id(combined, 0)));
+    EXPECT_EQ("second-item", combined.strings().lookup(first_item_id(combined, 1)));
+    EXPECT_NE(first_item_id(combined, 0), first_item_id(combined, 1));
 }
 
 TEST(StringTable, combinesDocumentsThatShareATableWithoutRemappingOriginalIds)
@@ -93,13 +114,19 @@ TEST(StringTable, combinesDocumentsThatShareATableWithoutRemappingOriginalIds)
     StringTableBuilder strings;
     const StringId first_id = strings.intern("first");
     const StringId second_id = strings.intern("second");
+    const StringId first_item = strings.intern("first-item");
+    const StringId second_item = strings.intern("second-item");
     const StringTable table = std::move(strings).build();
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     DocumentBuilder first_builder(Document(grid, 0, 0), table);
-    first_builder.add_lane(Lane(first_id, "First", "events", grid.offset(), grid.end_time()));
+    Lane first_lane(first_id, "First", "events", grid.offset(), grid.end_time());
+    first_lane.add(Instant(first_item, "event", grid.offset()));
+    first_builder.add_lane(std::move(first_lane));
     const Document first = std::move(first_builder).build();
     DocumentBuilder second_builder(Document(grid, 0, 0), table);
-    second_builder.add_lane(Lane(second_id, "Second", "events", grid.offset(), grid.end_time()));
+    Lane second_lane(second_id, "Second", "events", grid.offset(), grid.end_time());
+    second_lane.add(Instant(second_item, "event", grid.offset()));
+    second_builder.add_lane(std::move(second_lane));
     const Document second = std::move(second_builder).build();
 
     ASSERT_TRUE(first.strings().shares_storage_with(second.strings()));
@@ -108,4 +135,6 @@ TEST(StringTable, combinesDocumentsThatShareATableWithoutRemappingOriginalIds)
     EXPECT_EQ(first_id, combined.lanes()[0].id());
     EXPECT_EQ("first", combined.strings().lookup(first_id));
     EXPECT_EQ("added-1-second", combined.strings().lookup(combined.lanes()[1].id()));
+    EXPECT_EQ(first_item, first_item_id(combined, 0));
+    EXPECT_EQ(second_item, first_item_id(combined, 1));
 }

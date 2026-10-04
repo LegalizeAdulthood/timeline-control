@@ -305,8 +305,12 @@ public:
     Document build() &&;
 
 private:
+    void add_lane(Lane lane, const StringTable &item_strings);
+
     Document m_document;
     StringTableBuilder m_strings;
+
+    friend Document combine_documents(const Document &document, const Document &addition);
 };
 
 /// Combines compatible framed documents without changing source item times.

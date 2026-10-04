@@ -15,12 +15,11 @@ namespace timeline
 class Envelope
 {
 public:
-    Envelope(std::string id, std::string kind, Time start);
-    Envelope(std::string id, std::string kind, Time start, std::optional<Duration> attack,
-        std::optional<Duration> sustain, std::optional<Duration> decay, std::string label,
-        std::optional<double> strength, Attributes attributes);
+    Envelope(StringId id, std::string kind, Time start);
+    Envelope(StringId id, std::string kind, Time start, std::optional<Duration> attack, std::optional<Duration> sustain,
+        std::optional<Duration> decay, std::string label, std::optional<double> strength, Attributes attributes);
 
-    const std::string &id() const
+    StringId id() const
     {
         return m_id;
     }
@@ -59,7 +58,7 @@ public:
     }
 
 private:
-    std::string m_id;
+    StringId m_id;
     std::string m_kind;
     Time m_start;
     std::optional<Duration> m_attack;
@@ -68,6 +67,8 @@ private:
     std::string m_label;
     std::optional<double> m_strength;
     Attributes m_attributes;
+
+    friend class DocumentBuilder;
 };
 
 } // namespace timeline

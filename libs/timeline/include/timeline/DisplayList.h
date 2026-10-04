@@ -45,7 +45,7 @@ std::string_view to_string(StyleRole value);
 struct DisplayId
 {
     StringId lane_id;
-    std::string item_id;
+    StringId item_id;
 };
 
 /// Toolkit-neutral line drawing primitive.

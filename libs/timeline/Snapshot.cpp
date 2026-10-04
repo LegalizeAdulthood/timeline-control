@@ -134,7 +134,8 @@ std::string render_snapshot(const DisplayList &display_list)
                     output << "polyline";
                 }
                 output << ' ' << style_name(value.style) << ' '
-                       << quoted(display_list.strings().lookup(value.id.lane_id)) << ' ' << quoted(value.id.item_id);
+                       << quoted(display_list.strings().lookup(value.id.lane_id)) << ' '
+                       << quoted(display_list.strings().lookup(value.id.item_id));
                 if constexpr (std::is_same_v<Value, Line>)
                 {
                     output << ' ' << value.x1 << ' ' << value.y1 << ' ' << value.x2 << ' ' << value.y2;

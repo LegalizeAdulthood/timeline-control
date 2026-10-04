@@ -177,7 +177,8 @@ TEST_F(QtTimeline, preservesSourceItemIdentityAndOwnsACopyOfTheDocument)
     }
     ASSERT_TRUE(selected);
     ASSERT_EQ(1, timeline::size_cast(m_widget.interaction()->selected_items()));
-    EXPECT_EQ("animation-0-key-0", m_widget.interaction()->selected_items().front().item_id);
+    EXPECT_EQ("animation-0-key-0",
+        m_widget.document()->strings().lookup(m_widget.interaction()->selected_items().front().item_id));
     timeline::Document copy = *m_widget.document();
     m_widget.set_document(copy);
     copy = timeline::Document(100);

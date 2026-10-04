@@ -1,2 +1,2 @@
-line RULER "" "ruler" 100 19 399 19
-text RULER_LABEL "" "ruler" 4 4 "Time"
+line RULER "" "" 100 19 399 19
+text RULER_LABEL "" "" 4 4 "Time"

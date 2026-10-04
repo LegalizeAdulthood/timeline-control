@@ -32,7 +32,7 @@ Document framed_document()
     {
         Lane lane(builder.intern("lane-" + std::to_string(lane_index)), "Lane " + std::to_string(lane_index), "events",
             at(0), at(100));
-        lane.add(Instant("pulse", "beat", at(lane_index == 1 ? 50 : 30)));
+        lane.add(Instant(builder.intern("pulse"), "beat", at(lane_index == 1 ? 50 : 30)));
         builder.add_lane(std::move(lane));
     }
     return std::move(builder).build();
@@ -172,7 +172,7 @@ TEST_F(ImGuiControl, delegatesLayoutAndHoverToCoreGeometry)
     move_mouse(control, frame_point(control, 3, 0));
     ASSERT_TRUE(control.hit_result());
     EXPECT_EQ("lane-0", control.document()->strings().lookup(control.hit_result()->id.lane_id));
-    EXPECT_EQ("pulse", control.hit_result()->id.item_id);
+    EXPECT_EQ(*control.document()->strings().find("pulse"), control.hit_result()->id.item_id);
     ASSERT_TRUE(control.inspection());
     EXPECT_EQ(3, control.inspection()->frame);
     EXPECT_EQ(0, *control.interaction()->playhead_frame());
@@ -189,7 +189,8 @@ TEST_F(ImGuiControl, selectsLaneQualifiedItemsAndSnapsDraggedRanges)
     mouse_button(control, false);
     ASSERT_TRUE(control.interaction());
     EXPECT_EQ(3, *control.interaction()->playhead_frame());
-    EXPECT_TRUE(control.interaction()->is_selected(DisplayId{StringId{1}, "pulse"}));
+    EXPECT_TRUE(
+        control.interaction()->is_selected(DisplayId{StringId{1}, *control.document()->strings().find("pulse")}));
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
     move_mouse(control, frame_point(control, 5, 1));
     mouse_button(control, true);

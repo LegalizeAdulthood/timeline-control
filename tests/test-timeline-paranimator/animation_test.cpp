@@ -50,7 +50,7 @@ TEST(AnimationImport, preservesSourceFunctionsInPwmOutputLikeParanimator)
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::optional<timeline::HitResult> hit = layout.hit_test({350, 35}, 2);
     ASSERT_TRUE(hit);
-    EXPECT_EQ("animation-0-pwm-2", hit->id.item_id);
+    EXPECT_EQ("animation-0-pwm-2", result.document->strings().lookup(hit->id.item_id));
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("function[1] / mix"));
 }
 

@@ -28,9 +28,9 @@ Duration lasting(Ticks ticks)
 TEST(Lane, preservesMixedItemsInInsertionOrder)
 {
     Lane lane(StringId{1}, "Music events", "events", at(0), at(100));
-    lane.add(Instant("beat-1", "beat", at(10), "Beat", 0.75, {{"channel", "1"}}));
-    lane.add(Interval("phrase-1", "phrase", at(20), at(50), "Phrase", std::nullopt, {}));
-    lane.add(Envelope("pulse-1", "pulse", at(60), lasting(10), lasting(20), lasting(10), "Pulse", std::nullopt, {}));
+    lane.add(Instant(StringId{2}, "beat", at(10), "Beat", 0.75, {{"channel", "1"}}));
+    lane.add(Interval(StringId{3}, "phrase", at(20), at(50), "Phrase", std::nullopt, {}));
+    lane.add(Envelope(StringId{4}, "pulse", at(60), lasting(10), lasting(20), lasting(10), "Pulse", std::nullopt, {}));
 
     ASSERT_EQ(3, lane.item_count());
     ASSERT_EQ(3U, lane.items().size());
@@ -39,7 +39,7 @@ TEST(Lane, preservesMixedItemsInInsertionOrder)
     EXPECT_TRUE(std::holds_alternative<Envelope>(lane.items()[2]));
 
     const auto &instant = std::get<Instant>(lane.items()[0]);
-    EXPECT_EQ("beat-1", instant.id());
+    EXPECT_EQ(StringId{2}, instant.id());
     EXPECT_EQ("beat", instant.kind());
     EXPECT_EQ("Beat", instant.label());
     EXPECT_DOUBLE_EQ(0.75, *instant.strength());
@@ -58,9 +58,9 @@ TEST(Lane, preservesMixedItemsInInsertionOrder)
 TEST(Lane, queriesItemsOverlappingATimeRange)
 {
     Lane lane(StringId{1}, "Music events", "events", at(0), at(100));
-    lane.add(Instant("beat-1", "beat", at(10)));
-    lane.add(Interval("phrase-1", "phrase", at(20), at(50)));
-    lane.add(Envelope("pulse-1", "pulse", at(60), lasting(10), lasting(20), lasting(10), {}, std::nullopt, {}));
+    lane.add(Instant(StringId{2}, "beat", at(10)));
+    lane.add(Interval(StringId{3}, "phrase", at(20), at(50)));
+    lane.add(Envelope(StringId{4}, "pulse", at(60), lasting(10), lasting(20), lasting(10), {}, std::nullopt, {}));
 
     const std::vector<Item> items = lane.items_in_range(at(15), at(65));
 
@@ -72,14 +72,14 @@ TEST(Lane, queriesItemsOverlappingATimeRange)
 TEST(Lane, rejectsInvalidRangesAndItems)
 {
     EXPECT_THROW(Lane(StringId{1}, "Music events", "events", at(10), at(10)), std::invalid_argument);
-    EXPECT_THROW(Interval("bad", "phrase", at(20), at(20)), std::invalid_argument);
-    EXPECT_THROW(Interval("bad", "phrase", at(30), at(20)), std::invalid_argument);
-    EXPECT_THROW(Envelope("bad", "pulse", at(10)), std::invalid_argument);
-    EXPECT_THROW(Envelope("bad", "pulse", at(10), lasting(-1), std::nullopt, std::nullopt, {}, std::nullopt, {}),
+    EXPECT_THROW(Interval(StringId{2}, "phrase", at(20), at(20)), std::invalid_argument);
+    EXPECT_THROW(Interval(StringId{2}, "phrase", at(30), at(20)), std::invalid_argument);
+    EXPECT_THROW(Envelope(StringId{2}, "pulse", at(10)), std::invalid_argument);
+    EXPECT_THROW(Envelope(StringId{2}, "pulse", at(10), lasting(-1), std::nullopt, std::nullopt, {}, std::nullopt, {}),
         std::invalid_argument);
 
     Lane lane(StringId{1}, "Music events", "events", at(0), at(100));
-    EXPECT_THROW(lane.add(Instant("early", "beat", at(-1))), std::out_of_range);
-    EXPECT_THROW(lane.add(Instant("late", "beat", at(100))), std::out_of_range);
-    EXPECT_THROW(lane.add(Interval("long", "phrase", at(90), at(101))), std::out_of_range);
+    EXPECT_THROW(lane.add(Instant(StringId{2}, "beat", at(-1))), std::out_of_range);
+    EXPECT_THROW(lane.add(Instant(StringId{3}, "beat", at(100))), std::out_of_range);
+    EXPECT_THROW(lane.add(Interval(StringId{4}, "phrase", at(90), at(101))), std::out_of_range);
 }
