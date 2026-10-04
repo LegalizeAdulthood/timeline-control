@@ -2,7 +2,7 @@
 
 # Timeline Control
 
-Sample code for the video Timelin Control.
+Sample code for the video Timeline Control.
 
 # Obtaining the Source
 
