@@ -1,8 +1,30 @@
 [![CMake workflow](https://github.com/LegalizeAdulthood/timeline-control/actions/workflows/cmake.yml/badge.svg)](https://github.com/LegalizeAdulthood/timeline-control/actions/workflows/cmake.yml)
 
-# Timeline Control
+# Animation Timeline Control
 
-Sample code for the video Timeline Control.
+This project applies [hexagonal architecture](https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)),
+also known as ports and adapters, to a reusable animation timeline control.
+`timeline-core` sits inside the hexagon and owns timeline mechanism: the
+document model, queries, navigation,
+interaction, layout, hit testing, and display-list generation. Its APIs and
+display-list contract are the ports through which the surrounding application
+uses the control. The core depends on neither a UI framework nor an
+application file format.
+
+The wxWidgets, Dear ImGui, and Qt libraries are presentation adapters. They
+translate native input into core interaction, supply font metrics, DPI-aware
+geometry, and semantic theme values, and render the resulting display list
+with toolkit primitives. Timeline behavior therefore remains shared and
+testable while each adapter retains native drawing and event handling.
+
+The JSON adapters bring application semantics across the other side of the
+hexagon. They interpret authored animation tracks from
+[ParAnimator](https://github.com/LegalizeAdulthood/paranimator) and music
+analysis and beat-key mappings from
+[par-beatdown](https://github.com/LegalizeAdulthood/par-beatdown), then produce
+the toolkit-neutral core document. The viewer applications are composition
+roots that connect these format adapters to a selected presentation adapter;
+neither concern leaks into `timeline-core`.
 
 # Obtaining the Source
 
