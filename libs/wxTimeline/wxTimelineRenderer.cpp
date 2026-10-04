@@ -129,7 +129,7 @@ void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxP
             else
             {
                 dc.SetTextForeground(colour);
-                dc.DrawText(wxString::FromUTF8(value.value.c_str()), origin.x + value.x, origin.y + value.y);
+                dc.DrawText(value.value, origin.x + value.x, origin.y + value.y);
             }
         },
         primitive);

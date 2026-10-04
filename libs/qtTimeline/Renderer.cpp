@@ -111,7 +111,7 @@ void draw_display_list(
                     }
                     painter.setPen(color);
                     painter.drawText(
-                        value.x, value.y + painter.fontMetrics().ascent(), QString::fromUtf8(value.value.c_str()));
+                        value.x, value.y + painter.fontMetrics().ascent(), QString::fromStdString(value.value));
                     painter.restore();
                 }
             },

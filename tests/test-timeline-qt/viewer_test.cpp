@@ -29,7 +29,7 @@ TEST(QtViewer, opensSharedAnimationAndInspectsSelectedFrames)
     viewer.control().setFocus();
     QTest::keyClick(&viewer.control(), Qt::Key_Right);
     EXPECT_NE(std::string::npos, viewer.inspector_text().find("Frame: 1"));
-    EXPECT_EQ(QString::fromUtf8(viewer.inspector_text().c_str()), viewer.findChild<QPlainTextEdit *>()->toPlainText());
+    EXPECT_EQ(QString::fromStdString(viewer.inspector_text()), viewer.findChild<QPlainTextEdit *>()->toPlainText());
     ASSERT_TRUE(viewer.load_file(fixtures / "empty-animation.json"));
     EXPECT_EQ(0, viewer.control().document()->lane_count());
     EXPECT_TRUE(viewer.control().layout());

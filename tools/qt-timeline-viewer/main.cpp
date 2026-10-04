@@ -25,7 +25,7 @@ int main(int argc, char **argv)
         QStringList messages;
         for (const std::string &message : viewer.diagnostics())
         {
-            messages.append(QString::fromUtf8(message.c_str()));
+            messages.append(QString::fromStdString(message));
         }
         QMessageBox::warning(&viewer, QStringLiteral("Import diagnostics"), messages.join('\n'));
     }

@@ -186,7 +186,7 @@ bool draw_primitive(const Context &context, const timeline::Primitive &primitive
             {
                 if (!value.value.empty())
                 {
-                    const Surface mask = text_mask(wxString::FromUTF8(value.value), font, device_scale);
+                    const Surface mask = text_mask(value.value, font, device_scale);
                     if (!mask)
                     {
                         return false;

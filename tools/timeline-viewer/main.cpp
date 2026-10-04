@@ -28,7 +28,7 @@ constexpr const char VIEWER_TITLE[] = "Timeline Viewer";
 
 wxString to_wx_string(std::string_view value)
 {
-    return wxString::FromUTF8(value.data(), value.size());
+    return wxString(value.data(), value.size());
 }
 
 wxString document_summary(const timeline::Document &document)
@@ -38,7 +38,7 @@ wxString document_summary(const timeline::Document &document)
     {
         text += line + "\n";
     };
-    auto title = wxString::FromUTF8(document.metadata().title().c_str());
+    wxString title = document.metadata().title();
     if (title.empty())
     {
         title = "Untitled timeline";
@@ -59,15 +59,13 @@ wxString document_summary(const timeline::Document &document)
     if (document.source_summary())
     {
         const timeline::SourceSummary &summary = *document.source_summary();
-        draw_line("Schema: " + wxString::FromUTF8(summary.schema().c_str()) +
-            wxString::Format(" v%d", summary.schema_version()));
+        draw_line("Schema: " + summary.schema() + wxString::Format(" v%d", summary.schema_version()));
         draw_line(wxString::Format("Features: %d", summary.feature_count()));
         draw_line(wxString::Format("Events: %d", summary.event_count()));
         if (summary.generation_summary())
         {
             const timeline::GenerationSummary &generation = *summary.generation_summary();
-            draw_line("Generator: " + wxString::FromUTF8(generation.generator_name().c_str()) + " " +
-                wxString::FromUTF8(generation.generator_version().c_str()));
+            draw_line("Generator: " + generation.generator_name() + " " + generation.generator_version());
             draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
             if (!generation.target_counts().empty())
             {
@@ -98,7 +96,7 @@ wxString document_summary(const timeline::Document &document)
     draw_line(wxString::Format("Tracks: %d", document.track_count()));
     draw_line(wxString::Format("Keyframes: %d", document.keyframe_count()));
     draw_line(wxString::Format("Lanes: %d", document.lane_count()));
-    draw_line("Source: " + wxString::FromUTF8(document.metadata().description().c_str()));
+    draw_line("Source: " + document.metadata().description());
     return text;
 }
 
@@ -219,11 +217,11 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         text = "Hit: " + to_wx_string(timeline::to_string(hit->style)) + "\n";
         if (!hit->id.lane_id.empty())
         {
-            text += "Lane: " + wxString::FromUTF8(hit->id.lane_id.c_str()) + "\n";
+            text += "Lane: " + hit->id.lane_id + "\n";
         }
         if (!hit->id.item_id.empty())
         {
-            text += "Item: " + wxString::FromUTF8(hit->id.item_id.c_str()) + "\n";
+            text += "Item: " + hit->id.item_id + "\n";
         }
     }
     const std::optional<timeline::Document> &document = m_timeline_control->document();
@@ -233,15 +231,12 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     }
     for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
     {
-        text +=
-            "\nMusic input: " + wxString::FromUTF8(mapping.source_document().metadata().description().c_str()) + "\n";
-        text += "Output: " + wxString::FromUTF8(mapping.output().mode.c_str()) + " / " +
-            wxString::FromUTF8(mapping.output().namespace_name.c_str()) + "\n";
+        text += "\nMusic input: " + mapping.source_document().metadata().description() + "\n";
+        text += "Output: " + mapping.output().mode + " / " + mapping.output().namespace_name + "\n";
         text += wxString::Format("Mapping recipes: %d\n", timeline::size_cast(mapping.recipes()));
         for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())
         {
-            text += wxString::FromUTF8(recipe.source.c_str()) + " -> " + wxString::FromUTF8(recipe.target.c_str()) +
-                " (" + wxString::FromUTF8(recipe.operation.c_str()) + ")\n";
+            text += recipe.source + " -> " + recipe.target + " (" + recipe.operation + ")\n";
             text += wxString::Format(
                 "Scale: %g  Offset: %g  Decay: %g seconds\n", recipe.scale, recipe.offset, recipe.decay_seconds);
             if (recipe.clamp)
@@ -264,12 +259,11 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         if (interaction->selected_lane())
         {
-            text += "Selected lane: " + wxString::FromUTF8(interaction->selected_lane()->c_str()) + "\n";
+            text += "Selected lane: " + *interaction->selected_lane() + "\n";
         }
         for (const timeline::DisplayId &id : interaction->selected_items())
         {
-            text += "Selected item: " + wxString::FromUTF8(id.lane_id.c_str()) + "/" +
-                wxString::FromUTF8(id.item_id.c_str()) + "\n";
+            text += "Selected item: " + id.lane_id + "/" + id.item_id + "\n";
         }
         if (interaction->selected_range())
         {
@@ -296,7 +290,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         m_timeline_control->document()->timebase().seconds(inspection->time));
     for (const timeline::LaneInspection &lane : inspection->lanes)
     {
-        text += "\n" + wxString::FromUTF8(lane.label.c_str()) + " [" + wxString::FromUTF8(lane.kind.c_str()) + "]";
+        text += "\n" + lane.label + " [" + lane.kind + "]";
         text += wxString::Format("\n  Source items: %d", lane.item_count);
         if (lane.value)
         {
@@ -313,8 +307,8 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         for (const timeline::InspectionItem &item : lane.items)
         {
-            text += "\n  " + to_wx_string(timeline::to_string(item.type)) + " " + wxString::FromUTF8(item.id.c_str()) +
-                " (" + to_wx_string(timeline::to_string(item.role)) + ")";
+            text += "\n  " + to_wx_string(timeline::to_string(item.type)) + " " + item.id + " (" +
+                to_wx_string(timeline::to_string(item.role)) + ")";
             if (item.value)
             {
                 text += wxString::Format(": %.6f", *item.value);
@@ -323,7 +317,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
             {
                 if (!value.empty())
                 {
-                    text += "\n    " + wxString::FromUTF8(name.c_str()) + ": " + wxString::FromUTF8(value.c_str());
+                    text += "\n    " + name + ": " + value;
                 }
             }
             if (item.palette)
@@ -406,8 +400,7 @@ void TimelineViewerFrame::load_file(bool append)
         m_mappings.push_back(std::move(*result.mapping));
     }
     m_timeline_control->set_document(std::move(*result.document));
-    SetTitle(wxString::FromUTF8(VIEWER_TITLE) + " - " +
-        wxString::FromUTF8(m_timeline_control->document()->metadata().title().c_str()));
+    SetTitle(wxString(VIEWER_TITLE) + " - " + m_timeline_control->document()->metadata().title());
     SetStatusText("Loaded " + dialog.GetFilename());
     if (!result.diagnostics.empty())
     {
@@ -471,7 +464,7 @@ void TimelineViewerFrame::show_import_diagnostics(
         {
             message += "\n";
         }
-        message += wxString::FromUTF8(diagnostic.c_str());
+        message += diagnostic;
     }
     if (message.empty())
     {

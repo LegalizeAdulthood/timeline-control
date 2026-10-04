@@ -140,9 +140,9 @@ bool Viewer::load_file(const std::filesystem::path &path, bool append)
         m_mappings.push_back(std::move(*imported.mapping));
     }
     m_control.set_document(std::move(*imported.document));
-    const QString name = QString::fromUtf8(path.filename().u8string().c_str());
+    const QString name = QString::fromStdString(path.filename().u8string());
     setWindowTitle(
-        QStringLiteral("Qt Timeline Viewer - ") + QString::fromUtf8(m_control.document()->metadata().title().c_str()));
+        QStringLiteral("Qt Timeline Viewer - ") + QString::fromStdString(m_control.document()->metadata().title()));
     statusBar()->showMessage(QStringLiteral("Loaded ") + name);
     return true;
 }
@@ -164,7 +164,7 @@ bool Viewer::export_snapshot(const std::filesystem::path &path)
         statusBar()->showMessage(QStringLiteral("Snapshot export failed"));
         return false;
     }
-    statusBar()->showMessage(QStringLiteral("Exported ") + QString::fromUtf8(path.filename().u8string().c_str()));
+    statusBar()->showMessage(QStringLiteral("Exported ") + QString::fromStdString(path.filename().u8string()));
     return true;
 }
 std::string Viewer::inspector_text() const
@@ -350,7 +350,7 @@ void Viewer::show_diagnostics(const QString &title)
         QStringList messages;
         for (const std::string &message : m_diagnostics)
         {
-            messages.append(QString::fromUtf8(message.c_str()));
+            messages.append(QString::fromStdString(message));
         }
         QMessageBox::warning(this, title, messages.join('\n'));
     }
@@ -365,7 +365,7 @@ void Viewer::update_inspector()
         action->setEnabled(m_control.layout().has_value());
     }
     const int scroll = m_inspector.verticalScrollBar()->value();
-    m_inspector.setPlainText(QString::fromUtf8(inspector_text().c_str()));
+    m_inspector.setPlainText(QString::fromStdString(inspector_text()));
     m_inspector.verticalScrollBar()->setValue(scroll);
 }
 

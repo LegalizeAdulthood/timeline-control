@@ -131,8 +131,7 @@ void QTimelineWidget::rebuild()
     int label_width = 80;
     for (const timeline::Lane &lane : m_document->lanes())
     {
-        label_width =
-            std::max(label_width, font_metrics.horizontalAdvance(QString::fromUtf8(lane.label().c_str())) + 16);
+        label_width = std::max(label_width, font_metrics.horizontalAdvance(QString::fromStdString(lane.label())) + 16);
     }
     label_width = std::min(label_width, viewport()->width() / 2);
     m_metrics.emplace(label_width, font_metrics.height() + 8, font_metrics.height() + 16, 4);

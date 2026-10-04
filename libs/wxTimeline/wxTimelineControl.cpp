@@ -491,8 +491,7 @@ void wxTimelineControl::rebuild_layout(wxDC &dc)
     int label_width = FromDIP(80);
     for (const timeline::Lane &lane : m_document->lanes())
     {
-        label_width =
-            std::max(label_width, dc.GetTextExtent(wxString::FromUTF8(lane.label().c_str())).GetWidth() + FromDIP(16));
+        label_width = std::max(label_width, dc.GetTextExtent(lane.label()).GetWidth() + FromDIP(16));
     }
     label_width = std::min(label_width, client_size.GetWidth() / 2);
     const timeline::LayoutMetrics layout_metrics(
