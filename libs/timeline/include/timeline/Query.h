@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace timeline
@@ -23,6 +24,9 @@ enum class InspectionItemType
     PALETTE
 };
 
+/// Returns the stable name of an inspection item type.
+std::string_view to_string(InspectionItemType value);
+
 /// Relationship between a returned item and the inspected time or range.
 ///
 enum class InspectionItemRole
@@ -33,6 +37,9 @@ enum class InspectionItemRole
     AFTER,
     EXACT
 };
+
+/// Returns the stable name of an inspection item role.
+std::string_view to_string(InspectionItemRole value);
 
 /// Stable item identity and optional sampled content returned by a query.
 ///

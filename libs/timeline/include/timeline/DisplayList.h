@@ -5,6 +5,7 @@
 #include <timeline/Palette.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -34,6 +35,9 @@ enum class StyleRole
     PLAYHEAD,
     PALETTE
 };
+
+/// Returns the stable name of a semantic rendering role.
+std::string_view to_string(StyleRole value);
 
 /// Stable source identity carried by a display-list primitive.
 ///

@@ -19,6 +19,13 @@ Time at(Ticks ticks)
 
 } // namespace
 
+TEST(CurveInterpolation, convertsEveryValueToString)
+{
+    EXPECT_EQ("linear", to_string(CurveInterpolation::LINEAR));
+    EXPECT_EQ("step", to_string(CurveInterpolation::STEP));
+    EXPECT_EQ("analytic", to_string(CurveInterpolation::ANALYTIC));
+}
+
 TEST(Curve, ownsAnAnalyticDefinitionAndSamplesWithoutACache)
 {
     const Curve curve = []

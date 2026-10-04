@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
@@ -24,6 +25,11 @@ constexpr const char VIEWER_TITLE[] = "Cairo Timeline Viewer";
 #else
 constexpr const char VIEWER_TITLE[] = "Timeline Viewer";
 #endif
+
+wxString to_wx_string(std::string_view value)
+{
+    return wxString::FromUTF8(value.data(), value.size());
+}
 
 wxString document_summary(const timeline::Document &document)
 {
@@ -94,83 +100,6 @@ wxString document_summary(const timeline::Document &document)
     draw_line(wxString::Format("Lanes: %d", document.lane_count()));
     draw_line("Source: " + wxString::FromUTF8(document.metadata().description().c_str()));
     return text;
-}
-
-const char *hit_role_name(timeline::StyleRole role)
-{
-    switch (role)
-    {
-    case timeline::StyleRole::RULER:
-    case timeline::StyleRole::RULER_LABEL:
-        return "ruler";
-    case timeline::StyleRole::LANE_LABEL:
-        return "lane header";
-    case timeline::StyleRole::LANE_BACKGROUND:
-        return "lane";
-    case timeline::StyleRole::INSTANT_MARKER:
-        return "instant event";
-    case timeline::StyleRole::INTERVAL_SPAN:
-        return "interval";
-    case timeline::StyleRole::ENVELOPE_ATTACK:
-        return "envelope attack";
-    case timeline::StyleRole::ENVELOPE_SUSTAIN:
-        return "envelope sustain";
-    case timeline::StyleRole::ENVELOPE_DECAY:
-        return "envelope decay";
-    case timeline::StyleRole::CURVE:
-        return "curve";
-    case timeline::StyleRole::PALETTE:
-        return "palette";
-    case timeline::StyleRole::KEYFRAME_SEGMENT:
-        return "keyframe segment";
-    case timeline::StyleRole::KEYFRAME_MARKER:
-        return "keyframe";
-    case timeline::StyleRole::PLAYHEAD:
-        return "playhead";
-    case timeline::StyleRole::SELECTED_ITEM:
-    case timeline::StyleRole::SELECTED_LANE:
-    case timeline::StyleRole::SELECTED_RANGE:
-        return "selection";
-    }
-    return "item";
-}
-
-const char *item_type_name(timeline::InspectionItemType type)
-{
-    switch (type)
-    {
-    case timeline::InspectionItemType::INSTANT:
-        return "instant";
-    case timeline::InspectionItemType::INTERVAL:
-        return "interval";
-    case timeline::InspectionItemType::ENVELOPE:
-        return "envelope";
-    case timeline::InspectionItemType::CURVE:
-        return "curve";
-    case timeline::InspectionItemType::PALETTE:
-        return "palette";
-    case timeline::InspectionItemType::KEYFRAME:
-        return "keyframe";
-    }
-    return "item";
-}
-
-const char *item_role_name(timeline::InspectionItemRole role)
-{
-    switch (role)
-    {
-    case timeline::InspectionItemRole::ACTIVE:
-        return "active";
-    case timeline::InspectionItemRole::SAMPLED:
-        return "sampled";
-    case timeline::InspectionItemRole::BEFORE:
-        return "before";
-    case timeline::InspectionItemRole::AFTER:
-        return "after";
-    case timeline::InspectionItemRole::EXACT:
-        return "exact";
-    }
-    return "item";
 }
 
 } // namespace
@@ -287,7 +216,7 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     wxString text("Hit: none\n");
     if (hit)
     {
-        text = "Hit: " + wxString::FromUTF8(hit_role_name(hit->style)) + "\n";
+        text = "Hit: " + to_wx_string(timeline::to_string(hit->style)) + "\n";
         if (!hit->id.lane_id.empty())
         {
             text += "Lane: " + wxString::FromUTF8(hit->id.lane_id.c_str()) + "\n";
@@ -384,8 +313,8 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         }
         for (const timeline::InspectionItem &item : lane.items)
         {
-            text += "\n  " + wxString::FromUTF8(item_type_name(item.type)) + " " + wxString::FromUTF8(item.id.c_str()) +
-                " (" + wxString::FromUTF8(item_role_name(item.role)) + ")";
+            text += "\n  " + to_wx_string(timeline::to_string(item.type)) + " " + wxString::FromUTF8(item.id.c_str()) +
+                " (" + to_wx_string(timeline::to_string(item.role)) + ")";
             if (item.value)
             {
                 text += wxString::Format(": %.6f", *item.value);

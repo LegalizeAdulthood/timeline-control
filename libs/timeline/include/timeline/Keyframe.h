@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace timeline
 {
@@ -20,6 +21,9 @@ enum class KeyframeInterpolation
     /// Interpolate positive endpoint values in logarithmic space.
     GEOMETRIC
 };
+
+/// Returns the stable name of a keyframe interpolation policy.
+std::string_view to_string(KeyframeInterpolation value);
 
 /// Numeric authored value at one exact timeline time.
 ///

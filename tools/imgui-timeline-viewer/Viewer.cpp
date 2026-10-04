@@ -13,29 +13,6 @@
 namespace timeline_imgui_viewer
 {
 
-namespace
-{
-
-std::string_view role_name(timeline::InspectionItemRole role)
-{
-    switch (role)
-    {
-    case timeline::InspectionItemRole::ACTIVE:
-        return "active";
-    case timeline::InspectionItemRole::SAMPLED:
-        return "sampled";
-    case timeline::InspectionItemRole::BEFORE:
-        return "before";
-    case timeline::InspectionItemRole::AFTER:
-        return "after";
-    case timeline::InspectionItemRole::EXACT:
-        return "exact";
-    }
-    return "item";
-}
-
-} // namespace
-
 bool Viewer::load_file(const std::filesystem::path &path, bool append)
 {
     timeline_par_animator::JsonImportOptions options{};
@@ -235,7 +212,7 @@ std::string Viewer::inspector_text() const
         }
         for (const timeline::InspectionItem &item : lane.items)
         {
-            text << "\nItem: " << item.id << " [" << item.kind << "] (" << role_name(item.role) << ')';
+            text << "\nItem: " << item.id << " [" << item.kind << "] (" << timeline::to_string(item.role) << ')';
             if (item.value)
             {
                 text << " Value: " << *item.value;

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string_view>
 
 namespace timeline
 {
@@ -21,6 +22,9 @@ enum class TimeRounding
     /// Round toward positive infinity.
     CEIL
 };
+
+/// Returns the stable name of a time rounding policy.
+std::string_view to_string(TimeRounding value);
 
 /// Signed elapsed interval on a timeline.
 ///

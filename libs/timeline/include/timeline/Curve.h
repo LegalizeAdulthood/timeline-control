@@ -8,6 +8,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace timeline
@@ -21,6 +22,9 @@ enum class CurveInterpolation
     STEP,
     ANALYTIC
 };
+
+/// Returns the stable name of a curve interpolation policy.
+std::string_view to_string(CurveInterpolation value);
 
 /// Owned callable that evaluates a numeric curve at an exact timeline time.
 /// Captured recipe data must be owned by value and evaluation must be pure.

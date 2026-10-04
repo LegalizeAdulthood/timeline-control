@@ -8,6 +8,45 @@
 
 namespace timeline
 {
+
+std::string_view to_string(InspectionItemType value)
+{
+    switch (value)
+    {
+    case InspectionItemType::INSTANT:
+        return "instant";
+    case InspectionItemType::INTERVAL:
+        return "interval";
+    case InspectionItemType::ENVELOPE:
+        return "envelope";
+    case InspectionItemType::CURVE:
+        return "curve";
+    case InspectionItemType::KEYFRAME:
+        return "keyframe";
+    case InspectionItemType::PALETTE:
+        return "palette";
+    }
+    throw std::invalid_argument("unknown inspection item type");
+}
+
+std::string_view to_string(InspectionItemRole value)
+{
+    switch (value)
+    {
+    case InspectionItemRole::ACTIVE:
+        return "active";
+    case InspectionItemRole::SAMPLED:
+        return "sampled";
+    case InspectionItemRole::BEFORE:
+        return "before";
+    case InspectionItemRole::AFTER:
+        return "after";
+    case InspectionItemRole::EXACT:
+        return "exact";
+    }
+    throw std::invalid_argument("unknown inspection item role");
+}
+
 namespace
 {
 

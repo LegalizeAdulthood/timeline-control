@@ -23,6 +23,13 @@ Time at(Ticks ticks)
 
 } // namespace
 
+TEST(KeyframeInterpolation, convertsEveryValueToString)
+{
+    EXPECT_EQ("hold", to_string(KeyframeInterpolation::HOLD));
+    EXPECT_EQ("linear", to_string(KeyframeInterpolation::LINEAR));
+    EXPECT_EQ("geometric", to_string(KeyframeInterpolation::GEOMETRIC));
+}
+
 TEST(Keyframe, storesNumericValueAndInterpolation)
 {
     const Keyframe keyframe(

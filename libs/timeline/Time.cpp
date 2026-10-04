@@ -85,6 +85,20 @@ Duration validate_frame_grid_arguments(
 
 } // namespace
 
+std::string_view to_string(TimeRounding value)
+{
+    switch (value)
+    {
+    case TimeRounding::FLOOR:
+        return "floor";
+    case TimeRounding::NEAREST:
+        return "nearest";
+    case TimeRounding::CEIL:
+        return "ceil";
+    }
+    throw std::invalid_argument("unknown time rounding policy");
+}
+
 Timebase::Timebase(Ticks ticks_per_second) :
     m_ticks_per_second(ticks_per_second)
 {

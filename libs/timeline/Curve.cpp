@@ -40,6 +40,20 @@ void validate_curve_value(double value, const std::optional<double> &minimum, co
 
 } // namespace
 
+std::string_view to_string(CurveInterpolation value)
+{
+    switch (value)
+    {
+    case CurveInterpolation::LINEAR:
+        return "linear";
+    case CurveInterpolation::STEP:
+        return "step";
+    case CurveInterpolation::ANALYTIC:
+        return "analytic";
+    }
+    throw std::invalid_argument("unknown curve interpolation policy");
+}
+
 CurveSample::CurveSample(Time time, double value) :
     m_time(time),
     m_value(value)

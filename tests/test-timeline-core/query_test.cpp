@@ -62,6 +62,25 @@ const LaneInspection &lane_named(const std::vector<LaneInspection> &lanes, const
 
 } // namespace
 
+TEST(InspectionItemType, convertsEveryValueToString)
+{
+    EXPECT_EQ("instant", to_string(InspectionItemType::INSTANT));
+    EXPECT_EQ("interval", to_string(InspectionItemType::INTERVAL));
+    EXPECT_EQ("envelope", to_string(InspectionItemType::ENVELOPE));
+    EXPECT_EQ("curve", to_string(InspectionItemType::CURVE));
+    EXPECT_EQ("keyframe", to_string(InspectionItemType::KEYFRAME));
+    EXPECT_EQ("palette", to_string(InspectionItemType::PALETTE));
+}
+
+TEST(InspectionItemRole, convertsEveryValueToString)
+{
+    EXPECT_EQ("active", to_string(InspectionItemRole::ACTIVE));
+    EXPECT_EQ("sampled", to_string(InspectionItemRole::SAMPLED));
+    EXPECT_EQ("before", to_string(InspectionItemRole::BEFORE));
+    EXPECT_EQ("after", to_string(InspectionItemRole::AFTER));
+    EXPECT_EQ("exact", to_string(InspectionItemRole::EXACT));
+}
+
 TEST(Query, inspectsMixedDocumentAtFrame)
 {
     const std::optional<FrameInspection> inspection = inspect_frame(mixed_document(), 1);

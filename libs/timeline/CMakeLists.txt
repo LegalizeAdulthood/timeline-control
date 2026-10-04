@@ -15,6 +15,7 @@ add_library(timeline-core
     include/timeline/size_cast.h
     include/timeline/Time.h
     Curve.cpp
+    DisplayList.cpp
     Document.cpp
     Envelope.cpp
     Event.cpp

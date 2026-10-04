@@ -7,6 +7,13 @@
 
 using namespace timeline;
 
+TEST(TimeRounding, convertsEveryValueToString)
+{
+    EXPECT_EQ("floor", to_string(TimeRounding::FLOOR));
+    EXPECT_EQ("nearest", to_string(TimeRounding::NEAREST));
+    EXPECT_EQ("ceil", to_string(TimeRounding::CEIL));
+}
+
 TEST(Timebase, rejectsInvalidTickRate)
 {
     EXPECT_THROW(Timebase(0), std::invalid_argument);

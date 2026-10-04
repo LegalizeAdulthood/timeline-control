@@ -9,6 +9,20 @@
 namespace timeline
 {
 
+std::string_view to_string(KeyframeInterpolation value)
+{
+    switch (value)
+    {
+    case KeyframeInterpolation::HOLD:
+        return "hold";
+    case KeyframeInterpolation::LINEAR:
+        return "linear";
+    case KeyframeInterpolation::GEOMETRIC:
+        return "geometric";
+    }
+    throw std::invalid_argument("unknown keyframe interpolation policy");
+}
+
 Keyframe::Keyframe(std::string id, Time time, double value) :
     Keyframe(std::move(id), time, value, KeyframeInterpolation::HOLD, {})
 {
