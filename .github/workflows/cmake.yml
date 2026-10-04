@@ -12,9 +12,12 @@ permissions:
 
 jobs:
   build:
+    name: ${{matrix.os}} / ${{matrix.preset}}
     strategy:
+      fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
+        preset: [ default, default-imgui, default-cairo, default-qt ]
 
     runs-on: ${{matrix.os}}
 
@@ -63,47 +66,20 @@ jobs:
       run: |
         cmake --version
 
-    - name: CMake workflow
-      shell: pwsh
-      run: |
-        cmake --workflow --preset default 2>&1 |
-          Tee-Object -FilePath build.log
-        if ($LASTEXITCODE -ne 0) {
-          exit $LASTEXITCODE
-        }
-
-    - name: CMake ImGui workflow
-      shell: pwsh
-      run: |
-        cmake --workflow --preset default-imgui 2>&1 |
-          Tee-Object -FilePath build.log -Append
-        if ($LASTEXITCODE -ne 0) {
-          exit $LASTEXITCODE
-        }
-
-    - name: CMake Qt workflow
-      shell: pwsh
-      run: |
-        cmake --workflow --preset default-qt 2>&1 |
-          Tee-Object -FilePath build.log -Append
-        if ($LASTEXITCODE -ne 0) {
-          exit $LASTEXITCODE
-        }
-
-    - name: CMake Cairo workflow Linux
+    - name: CMake workflow Linux
       if: ${{matrix.os == 'ubuntu-latest'}}
       shell: bash
       run: |
         set -o pipefail
-        xvfb-run -a cmake --workflow --preset default-cairo 2>&1 |
-          tee -a build.log
+        xvfb-run -a cmake --workflow --preset ${{matrix.preset}} 2>&1 |
+          tee build.log
 
-    - name: CMake Cairo workflow desktop
+    - name: CMake workflow desktop
       if: ${{matrix.os != 'ubuntu-latest'}}
       shell: pwsh
       run: |
-        cmake --workflow --preset default-cairo 2>&1 |
-          Tee-Object -FilePath build.log -Append
+        cmake --workflow --preset ${{matrix.preset}} 2>&1 |
+          Tee-Object -FilePath build.log
         if ($LASTEXITCODE -ne 0) {
           exit $LASTEXITCODE
         }
@@ -114,7 +90,7 @@ jobs:
       with:
         token: ${{github.token}}
         build-log: build.log
-        artifact-name: vcpkg-cache-diagnostics-${{github.job}}-${{matrix.os}}
+        artifact-name: vcpkg-cache-diagnostics-${{github.job}}-${{matrix.os}}-${{matrix.preset}}
         fail-on: "never"
         debug: "false"
         trace: "false"
