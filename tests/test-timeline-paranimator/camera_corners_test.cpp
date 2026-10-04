@@ -16,7 +16,7 @@
 
 using namespace timeline_par_animator;
 
-TEST(CameraCorners, samples_owned_affine_components_like_paranimator)
+TEST(CameraCorners, samplesOwnedAffineComponentsLikeParanimator)
 {
     const std::array<std::string, 4> fixtures{"camera2d-corners", "camera2d-eye-corners",
         "camera2d-corners-rotated-source", "camera2d-corners-reversed-source"};
@@ -127,7 +127,7 @@ TEST(CameraCorners, samples_owned_affine_components_like_paranimator)
     }
 }
 
-TEST(CameraCorners, diagnoses_unusable_source_views_and_output_types)
+TEST(CameraCorners, diagnosesUnusableSourceViewsAndOutputTypes)
 {
     const std::array<std::pair<std::string, std::string>, 6> cases{
         std::pair<std::string, std::string>{"BadArity", "four or six"},

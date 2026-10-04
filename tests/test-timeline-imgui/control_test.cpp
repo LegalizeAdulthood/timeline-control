@@ -134,7 +134,7 @@ void ImGuiControl::mouse_button(Control &control, bool down)
     frame(control);
 }
 
-TEST_F(ImGuiControl, handles_missing_empty_frameless_and_tiny_documents)
+TEST_F(ImGuiControl, handlesMissingEmptyFramelessAndTinyDocuments)
 {
     Control control;
     frame(control);
@@ -159,7 +159,7 @@ TEST_F(ImGuiControl, handles_missing_empty_frameless_and_tiny_documents)
     EXPECT_FALSE(control.inspection());
 }
 
-TEST_F(ImGuiControl, delegates_layout_and_hover_to_core_geometry)
+TEST_F(ImGuiControl, delegatesLayoutAndHoverToCoreGeometry)
 {
     Control control(framed_document());
     prime(control);
@@ -178,7 +178,7 @@ TEST_F(ImGuiControl, delegates_layout_and_hover_to_core_geometry)
     EXPECT_FALSE(control.hit_result());
 }
 
-TEST_F(ImGuiControl, selects_lane_qualified_items_and_snaps_dragged_ranges)
+TEST_F(ImGuiControl, selectsLaneQualifiedItemsAndSnapsDraggedRanges)
 {
     Control control(framed_document());
     prime(control);
@@ -205,7 +205,7 @@ TEST_F(ImGuiControl, selects_lane_qualified_items_and_snaps_dragged_ranges)
     EXPECT_EQ(6, control.inspection()->frame);
 }
 
-TEST_F(ImGuiControl, keeps_dragging_outside_the_item_and_cancels_on_focus_loss)
+TEST_F(ImGuiControl, keepsDraggingOutsideTheItemAndCancelsOnFocusLoss)
 {
     Control control(framed_document());
     prime(control);
@@ -226,7 +226,7 @@ TEST_F(ImGuiControl, keeps_dragging_outside_the_item_and_cancels_on_focus_loss)
     EXPECT_EQ(3, *control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, releases_a_range_beyond_the_right_edge_without_jumping_left)
+TEST_F(ImGuiControl, releasesARangeBeyondTheRightEdgeWithoutJumpingLeft)
 {
     Control control(framed_document());
     prime(control);
@@ -240,7 +240,7 @@ TEST_F(ImGuiControl, releases_a_range_beyond_the_right_edge_without_jumping_left
     EXPECT_EQ(9, *control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, owns_keyboard_navigation_without_intercepting_other_items)
+TEST_F(ImGuiControl, ownsKeyboardNavigationWithoutInterceptingOtherItems)
 {
     Control control(framed_document());
     prime(control);
@@ -286,7 +286,7 @@ TEST_F(ImGuiControl, owns_keyboard_navigation_without_intercepting_other_items)
     EXPECT_EQ(5, *control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, translates_wheel_zoom_horizontal_pan_and_lane_scroll)
+TEST_F(ImGuiControl, translatesWheelZoomHorizontalPanAndLaneScroll)
 {
     Control control(framed_document());
     prime(control);
@@ -313,7 +313,7 @@ TEST_F(ImGuiControl, translates_wheel_zoom_horizontal_pan_and_lane_scroll)
     EXPECT_EQ(0, control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, owns_documents_and_resets_all_state_on_replacement)
+TEST_F(ImGuiControl, ownsDocumentsAndResetsAllStateOnReplacement)
 {
     Document source = framed_document();
     Control control(source);
@@ -338,7 +338,7 @@ TEST_F(ImGuiControl, owns_documents_and_resets_all_state_on_replacement)
     EXPECT_EQ(0, *control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, owns_wheel_input_without_scrolling_the_host_window)
+TEST_F(ImGuiControl, ownsWheelInputWithoutScrollingTheHostWindow)
 {
     m_allow_window_scroll = true;
     Control control(framed_document());
@@ -351,7 +351,7 @@ TEST_F(ImGuiControl, owns_wheel_input_without_scrolling_the_host_window)
     EXPECT_EQ(1, control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, updates_geometry_and_clamps_lane_scroll_after_resize)
+TEST_F(ImGuiControl, updatesGeometryAndClampsLaneScrollAfterResize)
 {
     Control control(framed_document());
     prime(control);
@@ -371,7 +371,7 @@ TEST_F(ImGuiControl, updates_geometry_and_clamps_lane_scroll_after_resize)
     EXPECT_EQ(100, control.viewport()->end().ticks() - control.viewport()->start().ticks());
 }
 
-TEST_F(ImGuiControl, submits_multiple_independent_items_and_the_available_size_overload)
+TEST_F(ImGuiControl, submitsMultipleIndependentItemsAndTheAvailableSizeOverload)
 {
     Control first(framed_document());
     Control second(framed_document());
@@ -391,7 +391,7 @@ TEST_F(ImGuiControl, submits_multiple_independent_items_and_the_available_size_o
     EXPECT_TRUE(second.layout());
 }
 
-TEST_F(ImGuiControl, delegates_every_primitive_to_matching_imgui_mesh_operations)
+TEST_F(ImGuiControl, delegatesEveryPrimitiveToMatchingImguiMeshOperations)
 {
     begin_frame();
     ImDrawList &draw_list = *ImGui::GetWindowDrawList();
@@ -442,7 +442,7 @@ TEST_F(ImGuiControl, delegates_every_primitive_to_matching_imgui_mesh_operations
     }
 }
 
-TEST_F(ImGuiControl, clips_long_lane_labels_without_changing_the_draw_list_clip_stack)
+TEST_F(ImGuiControl, clipsLongLaneLabelsWithoutChangingTheDrawListClipStack)
 {
     begin_frame();
     ImDrawList &draw_list = *ImGui::GetWindowDrawList();
@@ -465,7 +465,7 @@ TEST_F(ImGuiControl, clips_long_lane_labels_without_changing_the_draw_list_clip_
     EXPECT_FLOAT_EQ(clip.y, after.y);
 }
 
-TEST_F(ImGuiControl, imports_shared_wx_fixtures_without_changing_timeline_semantics)
+TEST_F(ImGuiControl, importsSharedWxFixturesWithoutChangingTimelineSemantics)
 {
     const std::filesystem::path fixtures(TIMELINE_TEST_FIXTURE_DIR);
     for (const std::filesystem::path &source : {std::filesystem::path("beat-keys/timeline-events.json"),

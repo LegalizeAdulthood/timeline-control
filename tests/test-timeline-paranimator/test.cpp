@@ -38,7 +38,7 @@ JsonImportOptions tracker_options()
 
 } // namespace
 
-TEST(TimelineJson, imports_minimal_paranimator_config)
+TEST(TimelineJson, importsMinimalParanimatorConfig)
 {
     const std::filesystem::path source_path = fixture_path("maxiter.json");
     JsonImportResult result = import_timeline_json(source_path, TEST_OPTIONS);
@@ -62,7 +62,7 @@ TEST(TimelineJson, imports_minimal_paranimator_config)
     EXPECT_DOUBLE_EQ(150.0, *lane.evaluate_keyframes(result.document->frame_grid()->frame_start(1)));
 }
 
-TEST(TimelineJson, reports_multi_track_counts)
+TEST(TimelineJson, reportsMultiTrackCounts)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("multi-track.json"), TEST_OPTIONS);
 
@@ -72,7 +72,7 @@ TEST(TimelineJson, reports_multi_track_counts)
     EXPECT_EQ(4, result.document->keyframe_count());
 }
 
-TEST(TimelineJson, rejects_invalid_schema)
+TEST(TimelineJson, rejectsInvalidSchema)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("invalid-schema.json"), TEST_OPTIONS);
 
@@ -82,7 +82,7 @@ TEST(TimelineJson, rejects_invalid_schema)
     EXPECT_NE(std::string::npos, result.diagnostics.front().find("unexpected"));
 }
 
-TEST(TimelineJson, rejects_empty_source_path)
+TEST(TimelineJson, rejectsEmptySourcePath)
 {
     const JsonImportResult result = import_timeline_json({}, TEST_OPTIONS);
 
@@ -92,7 +92,7 @@ TEST(TimelineJson, rejects_empty_source_path)
     EXPECT_EQ("No JSON file was selected.", result.diagnostics.front());
 }
 
-TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
+TEST(TimelineJson, importsTrackerTimelineWithAdjacentConfig)
 {
     const JsonImportResult result =
         import_timeline_json(fixture_path("beat-keys/timeline-events.json"), tracker_options());
@@ -127,7 +127,7 @@ TEST(TimelineJson, imports_tracker_timeline_with_adjacent_config)
     EXPECT_TRUE(result.diagnostics.empty());
 }
 
-TEST(TimelineJson, imports_full_tracker_timeline_summary)
+TEST(TimelineJson, importsFullTrackerTimelineSummary)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/gold-write-timeline-clock.json"));
 
@@ -149,7 +149,7 @@ TEST(TimelineJson, imports_full_tracker_timeline_summary)
     EXPECT_TRUE(result.diagnostics.empty());
 }
 
-TEST(TimelineJson, imports_complete_music_timeline)
+TEST(TimelineJson, importsCompleteMusicTimeline)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/song.music.json"));
 
@@ -186,7 +186,7 @@ TEST(TimelineJson, imports_complete_music_timeline)
     EXPECT_DOUBLE_EQ(0.11958, *inspection->lanes[1].items[0].value);
 }
 
-TEST(TimelineJson, retains_valid_records_with_indexed_diagnostics)
+TEST(TimelineJson, retainsValidRecordsWithIndexedDiagnostics)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/partial.music.json"));
 
@@ -230,7 +230,7 @@ TEST(TimelineJson, retains_valid_records_with_indexed_diagnostics)
     EXPECT_TRUE(contains_diagnostic("unsupported"));
 }
 
-TEST(TimelineJson, rejects_invalid_tracker_array_shape)
+TEST(TimelineJson, rejectsInvalidTrackerArrayShape)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/invalid-shape.json"));
 
@@ -239,7 +239,7 @@ TEST(TimelineJson, rejects_invalid_tracker_array_shape)
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("events array"));
 }
 
-TEST(TimelineJson, malformed_optional_metadata_does_not_discard_events)
+TEST(TimelineJson, malformedOptionalMetadataDoesNotDiscardEvents)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/invalid-metadata.json"));
 
@@ -252,7 +252,7 @@ TEST(TimelineJson, malformed_optional_metadata_does_not_discard_events)
     EXPECT_EQ(3, timeline::size_cast(result.diagnostics));
 }
 
-TEST(TimelineJson, imports_tracker_rms_curve)
+TEST(TimelineJson, importsTrackerRmsCurve)
 {
     const JsonImportResult result =
         import_timeline_json(fixture_path("par-beatdown/gold-write-windowed-features.json"));
@@ -274,7 +274,7 @@ TEST(TimelineJson, imports_tracker_rms_curve)
     EXPECT_TRUE(result.diagnostics.empty());
 }
 
-TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
+TEST(TimelineJson, mixedTrackerTimelineDrivesCoreDisplayList)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
 
@@ -317,7 +317,7 @@ TEST(TimelineJson, mixed_tracker_timeline_drives_core_display_list)
     EXPECT_EQ(1, curve_count);
 }
 
-TEST(TimelineJson, imported_item_selection_survives_navigation)
+TEST(TimelineJson, importedItemSelectionSurvivesNavigation)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/mixed-events-and-features.json"));
     ASSERT_TRUE(result.succeeded());
@@ -363,7 +363,7 @@ TEST(TimelineJson, imported_item_selection_survives_navigation)
     EXPECT_EQ(0, *interaction.playhead_frame());
 }
 
-TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
+TEST(TimelineJson, preservesTrackerDiagnosticsOutsideCore)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("beat-keys/timeline-diagnostics.json"));
 
@@ -375,7 +375,7 @@ TEST(TimelineJson, preserves_tracker_diagnostics_outside_core)
     EXPECT_EQ("Log: loaded fixture", result.diagnostics[2]);
 }
 
-TEST(TimelineJson, imports_row_pulse_overlay_summary)
+TEST(TimelineJson, importsRowPulseOverlaySummary)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("beat-keys/gold-write-row-pulses.json"));
 
@@ -407,7 +407,7 @@ TEST(TimelineJson, imports_row_pulse_overlay_summary)
     EXPECT_TRUE(result.diagnostics.empty());
 }
 
-TEST(TimelineJson, imports_rms_overlay_summary)
+TEST(TimelineJson, importsRmsOverlaySummary)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("beat-keys/gold-write-rms-keyframes.json"));
 

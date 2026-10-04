@@ -7,7 +7,7 @@
 using timeline_qt::draw_display_list;
 using timeline_qt::style_color;
 
-TEST(QtRenderer, resolves_theme_and_focus_roles)
+TEST(QtRenderer, resolvesThemeAndFocusRoles)
 {
     QPalette palette;
     palette.setColor(QPalette::Base, Qt::white);
@@ -23,7 +23,7 @@ TEST(QtRenderer, resolves_theme_and_focus_roles)
     EXPECT_NE(light, style_color(timeline::StyleRole::KEYFRAME_SEGMENT, palette, true));
 }
 
-TEST(QtRenderer, draws_all_primitive_types_and_restores_painter_state)
+TEST(QtRenderer, drawsAllPrimitiveTypesAndRestoresPainterState)
 {
     QImage image(160, 80, QImage::Format_ARGB32);
     image.fill(Qt::white);
@@ -48,7 +48,7 @@ TEST(QtRenderer, draws_all_primitive_types_and_restores_painter_state)
     EXPECT_NE(QColor(Qt::white), image.pixelColor(90, 15));
 }
 
-TEST(QtRenderer, preserves_source_rgb_and_painter_clipping)
+TEST(QtRenderer, preservesSourceRgbAndPainterClipping)
 {
     QImage image(80, 60, QImage::Format_ARGB32);
     image.fill(Qt::white);

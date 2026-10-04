@@ -16,7 +16,7 @@ const wxTimelinePalette DARK{wxColour(24, 24, 24), wxColour(235, 235, 235), wxCo
 
 } // namespace
 
-TEST(WxPalette, uses_native_theme_colors_for_labels_and_selection)
+TEST(WxPalette, usesNativeThemeColorsForLabelsAndSelection)
 {
     for (const wxTimelinePalette &palette : {LIGHT, DARK})
     {
@@ -27,7 +27,7 @@ TEST(WxPalette, uses_native_theme_colors_for_labels_and_selection)
     }
 }
 
-TEST(WxPalette, adapts_every_style_to_light_and_dark_backgrounds)
+TEST(WxPalette, adaptsEveryStyleToLightAndDarkBackgrounds)
 {
     const std::array<StyleRole, 17> roles{StyleRole::RULER, StyleRole::RULER_LABEL, StyleRole::LANE_BACKGROUND,
         StyleRole::LANE_LABEL, StyleRole::INSTANT_MARKER, StyleRole::INTERVAL_SPAN, StyleRole::ENVELOPE_ATTACK,

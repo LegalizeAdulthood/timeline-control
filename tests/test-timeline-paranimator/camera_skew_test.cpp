@@ -16,7 +16,7 @@
 
 using namespace timeline_par_animator;
 
-TEST(CameraSkew, matches_source_golden_and_preserves_owned_definitions)
+TEST(CameraSkew, matchesSourceGoldenAndPreservesOwnedDefinitions)
 {
     const std::array<std::string, 9> fixtures{
         "center-mag", "corners", "geometric", "negative", "hold", "step", "reverse", "eye", "eye-corners"};
@@ -117,7 +117,7 @@ TEST(CameraSkew, matches_source_golden_and_preserves_owned_definitions)
     }
 }
 
-TEST(CameraSkew, evaluates_interpolation_and_composes_with_analytic_eye)
+TEST(CameraSkew, evaluatesInterpolationAndComposesWithAnalyticEye)
 {
     const std::array<std::string, 6> variants{"geometric", "negative", "hold", "step", "reverse", "eye"};
     for (const std::string &variant : variants)
@@ -165,7 +165,7 @@ TEST(CameraSkew, evaluates_interpolation_and_composes_with_analytic_eye)
     }
 }
 
-TEST(CameraSkew, diagnoses_malformed_keys_and_unsampled_corners_poles)
+TEST(CameraSkew, diagnosesMalformedKeysAndUnsampledCornersPoles)
 {
     const JsonImportResult center = import_timeline_json("fixtures/camera2d-skew-center-pole.json");
     ASSERT_TRUE(center.succeeded());

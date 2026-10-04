@@ -8,7 +8,7 @@
 
 using timeline::StyleRole;
 
-TEST(ImGuiPalette, uses_the_supplied_theme_for_labels)
+TEST(ImGuiPalette, usesTheSuppliedThemeForLabels)
 {
     ImGuiStyle style;
     style.Colors[ImGuiCol_Text] = ImVec4(0.8F, 0.2F, 0.4F, 1.0F);
@@ -17,7 +17,7 @@ TEST(ImGuiPalette, uses_the_supplied_theme_for_labels)
     EXPECT_EQ(expected, timeline_imgui::style_colour(StyleRole::LANE_LABEL, style, false));
 }
 
-TEST(ImGuiPalette, adapts_every_role_to_light_and_dark_themes)
+TEST(ImGuiPalette, adaptsEveryRoleToLightAndDarkThemes)
 {
     const std::array<StyleRole, 17> roles{StyleRole::RULER, StyleRole::RULER_LABEL, StyleRole::LANE_BACKGROUND,
         StyleRole::LANE_LABEL, StyleRole::INSTANT_MARKER, StyleRole::INTERVAL_SPAN, StyleRole::ENVELOPE_ATTACK,
@@ -37,7 +37,7 @@ TEST(ImGuiPalette, adapts_every_role_to_light_and_dark_themes)
         timeline_imgui::style_colour(StyleRole::LANE_BACKGROUND, dark, true));
 }
 
-TEST(ImGuiPalette, distinguishes_focused_selection_and_honors_style_alpha)
+TEST(ImGuiPalette, distinguishesFocusedSelectionAndHonorsStyleAlpha)
 {
     ImGuiStyle style;
     for (const StyleRole role : {StyleRole::SELECTED_ITEM, StyleRole::SELECTED_LANE, StyleRole::SELECTED_RANGE})

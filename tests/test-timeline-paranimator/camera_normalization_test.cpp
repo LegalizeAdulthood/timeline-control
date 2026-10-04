@@ -34,7 +34,7 @@ std::array<double, 3> hint_components(const Json &key)
 
 } // namespace
 
-TEST(CameraNormalization, samples_source_arithmetic_after_interpolation_with_owned_bounds)
+TEST(CameraNormalization, samplesSourceArithmeticAfterInterpolationWithOwnedBounds)
 {
     for (const std::string &family : {"id-3d", "julibrot"})
     {
@@ -98,7 +98,7 @@ TEST(CameraNormalization, samples_source_arithmetic_after_interpolation_with_own
     }
 }
 
-TEST(CameraNormalization, rejects_source_singularities_without_partial_tracks)
+TEST(CameraNormalization, rejectsSourceSingularitiesWithoutPartialTracks)
 {
     for (const std::string &family : {"id-3d", "julibrot"})
     {

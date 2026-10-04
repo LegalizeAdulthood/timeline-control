@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(ImGuiDependency, creates_context_without_platform_or_renderer_backend)
+TEST(ImGuiDependency, createsContextWithoutPlatformOrRendererBackend)
 {
     EXPECT_TRUE(IMGUI_CHECKVERSION());
     ImGuiContext *context = ImGui::CreateContext();

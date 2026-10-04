@@ -34,7 +34,7 @@ void settle(wxTimelineControl &control)
 
 } // namespace
 
-TEST(CairoRenderer, draws_nonblank_antialiased_curves_in_semantic_colours)
+TEST(CairoRenderer, drawsNonblankAntialiasedCurvesInSemanticColours)
 {
     for (const wxTimelinePalette &palette : {LIGHT, DARK})
     {
@@ -67,7 +67,7 @@ TEST(CairoRenderer, draws_nonblank_antialiased_curves_in_semantic_colours)
     }
 }
 
-TEST(CairoRenderer, clips_translated_curves_and_scales_device_pixels)
+TEST(CairoRenderer, clipsTranslatedCurvesAndScalesDevicePixels)
 {
     const wxRect clip(10, 8, 12, 10);
     const wxImage image = render_cairo_curve(DIAGONAL, wxSize(32, 28), wxPoint(2, 1), clip, LIGHT.foreground, 1, 2.0);
@@ -89,7 +89,7 @@ TEST(CairoRenderer, clips_translated_curves_and_scales_device_pixels)
     EXPECT_GT(covered, 0);
 }
 
-TEST(CairoRenderer, keeps_sharp_joins_within_the_stroke_bounds)
+TEST(CairoRenderer, keepsSharpJoinsWithinTheStrokeBounds)
 {
     const timeline::Polyline curve{{{14, 24}, {20, 8}, {26, 24}}, timeline::StyleRole::CURVE, {}};
     const wxImage image =
@@ -99,7 +99,7 @@ TEST(CairoRenderer, keeps_sharp_joins_within_the_stroke_bounds)
     EXPECT_GT(image.GetAlpha(20, 8), 0);
 }
 
-TEST(CairoRenderer, falls_back_to_native_when_device_scale_is_invalid)
+TEST(CairoRenderer, fallsBackToNativeWhenDeviceScaleIsInvalid)
 {
     timeline::DisplayList list;
     list.add(DIAGONAL);
@@ -126,7 +126,7 @@ TEST(CairoRenderer, falls_back_to_native_when_device_scale_is_invalid)
     }
 }
 
-TEST(CairoRenderer, handles_empty_and_single_point_curves_without_stray_pixels)
+TEST(CairoRenderer, handlesEmptyAndSinglePointCurvesWithoutStrayPixels)
 {
     for (const timeline::Polyline &curve : {timeline::Polyline{{}, timeline::StyleRole::CURVE, {}},
              timeline::Polyline{{{5, 5}}, timeline::StyleRole::KEYFRAME_SEGMENT, {}}})
@@ -144,7 +144,7 @@ TEST(CairoRenderer, handles_empty_and_single_point_curves_without_stray_pixels)
     }
 }
 
-TEST(CairoRenderer, preserves_source_rgb_and_primitive_order_when_presenting)
+TEST(CairoRenderer, preservesSourceRgbAndPrimitiveOrderWhenPresenting)
 {
     timeline::DisplayList list;
     list.add(timeline::Rectangle{0, 0, 32, 28, timeline::StyleRole::LANE_BACKGROUND, {}});
@@ -174,7 +174,7 @@ TEST(CairoRenderer, preserves_source_rgb_and_primitive_order_when_presenting)
     EXPECT_TRUE(antialiased);
 }
 
-TEST(CairoRenderer, draws_all_filled_roles_and_source_rgb_in_order)
+TEST(CairoRenderer, drawsAllFilledRolesAndSourceRgbInOrder)
 {
     for (const wxTimelinePalette &palette : {LIGHT, DARK})
     {
@@ -215,7 +215,7 @@ TEST(CairoRenderer, draws_all_filled_roles_and_source_rgb_in_order)
     }
 }
 
-TEST(CairoRenderer, clips_and_antialiases_rulers_playheads_and_keyframe_segments)
+TEST(CairoRenderer, clipsAndAntialiasesRulersPlayheadsAndKeyframeSegments)
 {
     timeline::DisplayList list;
     list.add(timeline::Line{0, 0, 31, 27, timeline::StyleRole::RULER, {}});
@@ -247,7 +247,7 @@ TEST(CairoRenderer, clips_and_antialiases_rulers_playheads_and_keyframe_segments
     EXPECT_EQ(timeline_style_colour(timeline::StyleRole::PLAYHEAD, LIGHT, true), pixel(image, 44, 12));
 }
 
-TEST(CairoRenderer, composites_native_font_coverage_with_clipping_and_draw_order)
+TEST(CairoRenderer, compositesNativeFontCoverageWithClippingAndDrawOrder)
 {
     wxBitmap bitmap(96, 40, 24);
     wxMemoryDC dc(bitmap);
@@ -293,7 +293,7 @@ TEST(CairoRenderer, composites_native_font_coverage_with_clipping_and_draw_order
     EXPECT_GT(covered, 0);
 }
 
-TEST(CairoControl, switches_renderer_without_replacing_document_or_inspection_state)
+TEST(CairoControl, switchesRendererWithoutReplacingDocumentOrInspectionState)
 {
     wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
     wxCairoTimeline &control = *new wxCairoTimeline(&frame);
@@ -343,7 +343,7 @@ TEST(CairoControl, switches_renderer_without_replacing_document_or_inspection_st
     EXPECT_EQ(25, control.document()->lane_count());
 }
 
-TEST(CairoRenderer, partial_repaints_preserve_device_pixel_alignment)
+TEST(CairoRenderer, partialRepaintsPreserveDevicePixelAlignment)
 {
     timeline::DisplayList list;
     list.add(timeline::Rectangle{0, 0, 96, 64, timeline::StyleRole::LANE_BACKGROUND, {}});
@@ -388,7 +388,7 @@ TEST(CairoRenderer, partial_repaints_preserve_device_pixel_alignment)
     }
 }
 
-TEST(CairoRenderer, recreates_surfaces_for_scale_font_theme_and_size_changes)
+TEST(CairoRenderer, recreatesSurfacesForScaleFontThemeAndSizeChanges)
 {
     timeline::DisplayList list;
     list.add(timeline::Rectangle{0, 0, 160, 80, timeline::StyleRole::LANE_BACKGROUND, {}});
@@ -433,7 +433,7 @@ TEST(CairoRenderer, recreates_surfaces_for_scale_font_theme_and_size_changes)
     EXPECT_NE(0, std::memcmp(small_image.GetAlpha(), large_image.GetAlpha(), 160 * 80));
 }
 
-TEST(CairoRenderer, recovers_after_invalid_surface_requests)
+TEST(CairoRenderer, recoversAfterInvalidSurfaceRequests)
 {
     timeline::DisplayList list;
     list.add(DIAGONAL);
@@ -452,7 +452,7 @@ TEST(CairoRenderer, recovers_after_invalid_surface_requests)
             .IsOk());
 }
 
-TEST(CairoControl, preserves_interaction_through_presentation_changes_and_destruction)
+TEST(CairoControl, preservesInteractionThroughPresentationChangesAndDestruction)
 {
     const std::filesystem::path fixtures(TIMELINE_FIXTURE_DIR);
     const timeline_par_animator::JsonImportResult animation =

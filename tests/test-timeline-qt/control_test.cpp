@@ -38,7 +38,7 @@ void QtTimeline::SetUp()
     QApplication::processEvents();
 }
 
-TEST_F(QtTimeline, owns_document_and_uses_the_core_display_list)
+TEST_F(QtTimeline, ownsDocumentAndUsesTheCoreDisplayList)
 {
     ASSERT_TRUE(m_widget.document());
     ASSERT_TRUE(m_widget.layout());
@@ -60,7 +60,7 @@ TEST_F(QtTimeline, owns_document_and_uses_the_core_display_list)
     EXPECT_TRUE(painted);
 }
 
-TEST_F(QtTimeline, selects_source_items_and_steps_frames_with_native_keys)
+TEST_F(QtTimeline, selectsSourceItemsAndStepsFramesWithNativeKeys)
 {
     ASSERT_TRUE(m_widget.layout_metrics());
     ASSERT_TRUE(m_widget.timeline_viewport());
@@ -81,7 +81,7 @@ TEST_F(QtTimeline, selects_source_items_and_steps_frames_with_native_keys)
     EXPECT_TRUE(m_widget.interaction()->selected_items().empty());
 }
 
-TEST_F(QtTimeline, zooms_scrolls_and_resets_owned_state_on_replacement)
+TEST_F(QtTimeline, zoomsScrollsAndResetsOwnedStateOnReplacement)
 {
     ASSERT_TRUE(m_widget.timeline_viewport());
     const timeline::Ticks before =
@@ -109,7 +109,7 @@ TEST_F(QtTimeline, zooms_scrolls_and_resets_owned_state_on_replacement)
     EXPECT_FALSE(m_widget.inspection());
 }
 
-TEST_F(QtTimeline, drags_frame_ranges_and_clears_hover_on_leave)
+TEST_F(QtTimeline, dragsFrameRangesAndClearsHoverOnLeave)
 {
     ASSERT_TRUE(m_widget.layout_metrics());
     ASSERT_TRUE(m_widget.timeline_viewport());
@@ -130,7 +130,7 @@ TEST_F(QtTimeline, drags_frame_ranges_and_clears_hover_on_leave)
     EXPECT_FALSE(m_widget.hit_result());
 }
 
-TEST_F(QtTimeline, translates_wheel_zoom_and_lane_scroll_then_reflows_fonts)
+TEST_F(QtTimeline, translatesWheelZoomAndLaneScrollThenReflowsFonts)
 {
     ASSERT_TRUE(m_widget.timeline_viewport());
     const timeline::Ticks before =
@@ -155,7 +155,7 @@ TEST_F(QtTimeline, translates_wheel_zoom_and_lane_scroll_then_reflows_fonts)
     EXPECT_LT(m_widget.timeline_viewport()->width(), 240);
 }
 
-TEST_F(QtTimeline, preserves_source_item_identity_and_owns_a_copy_of_the_document)
+TEST_F(QtTimeline, preservesSourceItemIdentityAndOwnsACopyOfTheDocument)
 {
     ASSERT_TRUE(m_widget.layout());
     const timeline::DisplayList list = m_widget.layout()->display_list();
@@ -181,7 +181,7 @@ TEST_F(QtTimeline, preserves_source_item_identity_and_owns_a_copy_of_the_documen
     EXPECT_TRUE(m_widget.interaction()->selected_items().empty());
 }
 
-TEST_F(QtTimeline, cancels_drags_on_focus_or_capture_loss_and_finishes_outside_the_view)
+TEST_F(QtTimeline, cancelsDragsOnFocusOrCaptureLossAndFinishesOutsideTheView)
 {
     ASSERT_TRUE(m_widget.layout_metrics());
     const timeline::LayoutMetrics metrics = *m_widget.layout_metrics();
@@ -219,7 +219,7 @@ TEST_F(QtTimeline, cancels_drags_on_focus_or_capture_loss_and_finishes_outside_t
     EXPECT_GT(m_widget.timeline_viewport()->start().ticks(), view.start().ticks());
 }
 
-TEST_F(QtTimeline, renders_imported_palette_colors_and_handles_an_unloaded_widget)
+TEST_F(QtTimeline, rendersImportedPaletteColorsAndHandlesAnUnloadedWidget)
 {
     QTimelineWidget empty;
     EXPECT_FALSE(empty.document());
@@ -251,7 +251,7 @@ TEST_F(QtTimeline, renders_imported_palette_colors_and_handles_an_unloaded_widge
     EXPECT_GT(checked, 0);
 }
 
-TEST_F(QtTimeline, translates_horizontal_trackpad_pixels_without_scrolling_lanes)
+TEST_F(QtTimeline, translatesHorizontalTrackpadPixelsWithoutScrollingLanes)
 {
     m_widget.zoom_in();
     ASSERT_TRUE(m_widget.timeline_viewport());

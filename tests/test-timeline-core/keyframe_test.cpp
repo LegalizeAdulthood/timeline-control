@@ -23,7 +23,7 @@ Time at(Ticks ticks)
 
 } // namespace
 
-TEST(Keyframe, stores_numeric_value_and_interpolation)
+TEST(Keyframe, storesNumericValueAndInterpolation)
 {
     const Keyframe keyframe(
         "zoom-1", at(10), 1.5, KeyframeInterpolation::LINEAR, {{"operation", "replace"}, {"source", "music.rms"}});
@@ -35,7 +35,7 @@ TEST(Keyframe, stores_numeric_value_and_interpolation)
     EXPECT_EQ("replace", keyframe.attributes().at("operation"));
 }
 
-TEST(Lane, owns_optional_keyframe_evaluation_and_rejects_invalid_recipes)
+TEST(Lane, ownsOptionalKeyframeEvaluationAndRejectsInvalidRecipes)
 {
     Lane empty("empty", "Empty", "keyframes", at(0), at(60));
     EXPECT_THROW(empty.set_keyframe_evaluator([](Time) { return std::optional<double>(1); }), std::invalid_argument);
@@ -65,7 +65,7 @@ TEST(Lane, owns_optional_keyframe_evaluation_and_rejects_invalid_recipes)
     EXPECT_THROW(lane.evaluate_keyframes(at(0)), std::invalid_argument);
 }
 
-TEST(Lane, owns_output_rules_without_changing_authored_samples)
+TEST(Lane, ownsOutputRulesWithoutChangingAuthoredSamples)
 {
     Lane empty("empty", "Empty", "keyframes", at(0), at(60));
     EXPECT_FALSE(empty.evaluate_keyframe_output(at(0)));
@@ -97,7 +97,7 @@ TEST(Lane, owns_output_rules_without_changing_authored_samples)
     EXPECT_DOUBLE_EQ(-3, *range.lanes[0].items[0].value);
 }
 
-TEST(Layout, samples_owned_keyframe_recipes_without_bridging_gaps)
+TEST(Layout, samplesOwnedKeyframeRecipesWithoutBridgingGaps)
 {
     Lane lane("recipe", "Recipe", "keyframes", at(0), at(60));
     lane.add(Keyframe("key-10", at(10), 2));
@@ -145,13 +145,13 @@ TEST(Layout, samples_owned_keyframe_recipes_without_bridging_gaps)
     }
 }
 
-TEST(Keyframe, rejects_invalid_identity_and_value)
+TEST(Keyframe, rejectsInvalidIdentityAndValue)
 {
     EXPECT_THROW(Keyframe("", at(0), 1.0), std::invalid_argument);
     EXPECT_THROW(Keyframe("bad", at(0), std::numeric_limits<double>::infinity()), std::invalid_argument);
 }
 
-TEST(Lane, finds_neighboring_keyframes)
+TEST(Lane, findsNeighboringKeyframes)
 {
     Lane lane("zoom", "camera.zoom", "keyframes", at(0), at(40));
     lane.add(Keyframe("zoom-20", at(20), 2.0));
@@ -166,7 +166,7 @@ TEST(Lane, finds_neighboring_keyframes)
     EXPECT_EQ("zoom-20", neighbors.after()->get().id());
 }
 
-TEST(Lane, evaluates_hold_and_linear_keyframes)
+TEST(Lane, evaluatesHoldAndLinearKeyframes)
 {
     Lane hold("hold", "Hold", "keyframes", at(0), at(30));
     hold.add(Keyframe("hold-0", at(0), 2.0, KeyframeInterpolation::HOLD, {}));
@@ -185,7 +185,7 @@ TEST(Lane, evaluates_hold_and_linear_keyframes)
     EXPECT_DOUBLE_EQ(2.0, *linear.evaluate_keyframes(at(-10)));
 }
 
-TEST(Lane, rejects_duplicate_keyframe_times)
+TEST(Lane, rejectsDuplicateKeyframeTimes)
 {
     Lane lane("zoom", "camera.zoom", "keyframes", at(0), at(30));
     lane.add(Keyframe("zoom-0", at(0), 1.0));
@@ -193,7 +193,7 @@ TEST(Lane, rejects_duplicate_keyframe_times)
     EXPECT_THROW(lane.add(Keyframe("zoom-again", at(0), 2.0)), std::invalid_argument);
 }
 
-TEST(Lane, evaluates_geometric_segments_and_rejects_nonpositive_endpoints)
+TEST(Lane, evaluatesGeometricSegmentsAndRejectsNonpositiveEndpoints)
 {
     Lane lane("zoom", "Zoom", "keyframes", at(0), at(30));
     lane.add(Keyframe("zoom-0", at(0), 1.0, KeyframeInterpolation::GEOMETRIC, {}));

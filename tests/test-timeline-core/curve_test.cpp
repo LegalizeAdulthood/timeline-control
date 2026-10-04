@@ -19,7 +19,7 @@ Time at(Ticks ticks)
 
 } // namespace
 
-TEST(Curve, owns_an_analytic_definition_and_samples_without_a_cache)
+TEST(Curve, ownsAnAnalyticDefinitionAndSamplesWithoutACache)
 {
     const Curve curve = []
     {
@@ -41,7 +41,7 @@ TEST(Curve, owns_an_analytic_definition_and_samples_without_a_cache)
     EXPECT_EQ(0, copy.sample_count());
 }
 
-TEST(Curve, rejects_invalid_analytic_definitions_and_evaluated_values)
+TEST(Curve, rejectsInvalidAnalyticDefinitionsAndEvaluatedValues)
 {
     const auto identity = [](Time time)
     {
@@ -67,7 +67,7 @@ TEST(Curve, rejects_invalid_analytic_definitions_and_evaluated_values)
     EXPECT_THROW(bounded.sample(at(10)), std::out_of_range);
 }
 
-TEST(Curve, stores_exact_samples_and_interpolates)
+TEST(Curve, storesExactSamplesAndInterpolates)
 {
     const Curve curve(
         "rms", "rms", {{at(0), 0.0}, {at(10), 1.0}, {at(20), 0.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {});
@@ -80,7 +80,7 @@ TEST(Curve, stores_exact_samples_and_interpolates)
     EXPECT_DOUBLE_EQ(0.0, curve.sample(at(25)));
 }
 
-TEST(Curve, supports_step_interpolation)
+TEST(Curve, supportsStepInterpolation)
 {
     const Curve curve(
         "rms", "rms", {{at(0), 0.25}, {at(10), 0.75}}, "RMS", CurveInterpolation::STEP, std::nullopt, std::nullopt, {});
@@ -89,7 +89,7 @@ TEST(Curve, supports_step_interpolation)
     EXPECT_DOUBLE_EQ(0.75, curve.sample(at(10)));
 }
 
-TEST(Curve, samples_at_frame_grid_boundaries)
+TEST(Curve, samplesAtFrameGridBoundaries)
 {
     const Curve curve(
         "rms", "rms", {{at(0), 0.0}, {at(20), 1.0}}, "RMS", CurveInterpolation::LINEAR, std::nullopt, std::nullopt, {});
@@ -106,7 +106,7 @@ TEST(Curve, samples_at_frame_grid_boundaries)
     EXPECT_DOUBLE_EQ(1.0, samples[2].value());
 }
 
-TEST(Curve, rejects_invalid_samples_and_bounds)
+TEST(Curve, rejectsInvalidSamplesAndBounds)
 {
     const auto infinity = std::numeric_limits<double>::infinity();
 

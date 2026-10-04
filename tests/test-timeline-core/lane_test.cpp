@@ -25,7 +25,7 @@ Duration lasting(Ticks ticks)
 
 } // namespace
 
-TEST(Lane, preserves_mixed_items_in_insertion_order)
+TEST(Lane, preservesMixedItemsInInsertionOrder)
 {
     Lane lane("music", "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(10), "Beat", 0.75, {{"channel", "1"}}));
@@ -55,7 +55,7 @@ TEST(Lane, preserves_mixed_items_in_insertion_order)
     EXPECT_EQ(100, envelope.end().ticks());
 }
 
-TEST(Lane, queries_items_overlapping_a_time_range)
+TEST(Lane, queriesItemsOverlappingATimeRange)
 {
     Lane lane("music", "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(10)));
@@ -69,7 +69,7 @@ TEST(Lane, queries_items_overlapping_a_time_range)
     EXPECT_TRUE(std::holds_alternative<Envelope>(items[1]));
 }
 
-TEST(Lane, rejects_invalid_ranges_and_items)
+TEST(Lane, rejectsInvalidRangesAndItems)
 {
     EXPECT_THROW(Lane("music", "Music events", "events", at(10), at(10)), std::invalid_argument);
     EXPECT_THROW(Interval("bad", "phrase", at(20), at(20)), std::invalid_argument);

@@ -43,7 +43,7 @@ timeline::Palette golden_palette(const std::string &filename)
 
 } // namespace
 
-TEST(MaskedColorMap, matches_source_maps_with_owned_definitions_and_working_comparison)
+TEST(MaskedColorMap, matchesSourceMapsWithOwnedDefinitionsAndWorkingComparison)
 {
     for (const std::string &fixture : {"effects", "variants"})
     {
@@ -145,7 +145,7 @@ TEST(MaskedColorMap, matches_source_maps_with_owned_definitions_and_working_comp
     }
 }
 
-TEST(MaskedColorMap, resets_the_source_random_engine_and_draws_rgb_in_order)
+TEST(MaskedColorMap, resetsTheSourceRandomEngineAndDrawsRgbInOrder)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-variants.json");
     ASSERT_TRUE(imported.succeeded());
@@ -182,7 +182,7 @@ TEST(MaskedColorMap, resets_the_source_random_engine_and_draws_rgb_in_order)
     }
 }
 
-TEST(MaskedColorMap, blends_overlaps_once_and_preserves_partial_hold_and_effect_order)
+TEST(MaskedColorMap, blendsOverlapsOnceAndPreservesPartialHoldAndEffectOrder)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-variants.json");
     ASSERT_TRUE(imported.succeeded());
@@ -214,7 +214,7 @@ TEST(MaskedColorMap, blends_overlaps_once_and_preserves_partial_hold_and_effect_
     EXPECT_NE(forward.sample(grid.frame_start(2))[4], reverse.sample(grid.frame_start(2))[4]);
 }
 
-TEST(MaskedColorMap, diagnoses_invalid_masks_amounts_colors_and_seeds_transactionally)
+TEST(MaskedColorMap, diagnosesInvalidMasksAmountsColorsAndSeedsTransactionally)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-partial.json");
     ASSERT_TRUE(imported.succeeded());
@@ -235,7 +235,7 @@ TEST(MaskedColorMap, diagnoses_invalid_masks_amounts_colors_and_seeds_transactio
     EXPECT_FALSE(failed.diagnostics.empty());
 }
 
-TEST(IndexedColorMap, matches_source_maps_and_preserves_owned_offset_definitions)
+TEST(IndexedColorMap, matchesSourceMapsAndPreservesOwnedOffsetDefinitions)
 {
     for (const std::string &fixture : {"effects", "variants"})
     {
@@ -293,7 +293,7 @@ TEST(IndexedColorMap, matches_source_maps_and_preserves_owned_offset_definitions
     }
 }
 
-TEST(IndexedColorMap, rounds_offsets_away_from_zero_and_retains_unrounded_signals)
+TEST(IndexedColorMap, roundsOffsetsAwayFromZeroAndRetainsUnroundedSignals)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-indexed-effects.json");
     ASSERT_TRUE(imported.succeeded());
@@ -324,7 +324,7 @@ TEST(IndexedColorMap, rounds_offsets_away_from_zero_and_retains_unrounded_signal
     EXPECT_EQ("step", first.attributes().at("outgoing-curve"));
 }
 
-TEST(IndexedColorMap, renders_compares_and_hits_palette_and_offset_lanes)
+TEST(IndexedColorMap, rendersComparesAndHitsPaletteAndOffsetLanes)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-indexed-effects.json");
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
@@ -366,7 +366,7 @@ TEST(IndexedColorMap, renders_compares_and_hits_palette_and_offset_lanes)
     EXPECT_TRUE(offset_hit);
 }
 
-TEST(IndexedColorMap, rejects_invalid_effects_transactionally_with_indexed_diagnostics)
+TEST(IndexedColorMap, rejectsInvalidEffectsTransactionallyWithIndexedDiagnostics)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-indexed-partial.json");
     ASSERT_TRUE(imported.succeeded());
@@ -386,7 +386,7 @@ TEST(IndexedColorMap, rejects_invalid_effects_transactionally_with_indexed_diagn
     EXPECT_FALSE(failed.diagnostics.empty());
 }
 
-TEST(ColorMapEffects, matches_source_maps_and_exposes_owned_amount_signals)
+TEST(ColorMapEffects, matchesSourceMapsAndExposesOwnedAmountSignals)
 {
     for (const std::string &fixture : {"brightness", "adjustments", "variants", "amount-hold", "order"})
     {
@@ -450,7 +450,7 @@ TEST(ColorMapEffects, matches_source_maps_and_exposes_owned_amount_signals)
     }
 }
 
-TEST(ColorMapEffects, samples_nested_amounts_continuously_with_destination_key_interpolation)
+TEST(ColorMapEffects, samplesNestedAmountsContinuouslyWithDestinationKeyInterpolation)
 {
     const timeline::Document document = []
     {
@@ -486,7 +486,7 @@ TEST(ColorMapEffects, samples_nested_amounts_continuously_with_destination_key_i
     EXPECT_EQ(timeline::KeyframeInterpolation::LINEAR, ignored.interpolation());
 }
 
-TEST(ColorMapEffects, preserves_order_and_distinct_palette_and_signal_hits)
+TEST(ColorMapEffects, preservesOrderAndDistinctPaletteAndSignalHits)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-effects-order.json");
     ASSERT_TRUE(imported.succeeded());
@@ -526,7 +526,7 @@ TEST(ColorMapEffects, preserves_order_and_distinct_palette_and_signal_hits)
     EXPECT_TRUE(signal_hit);
 }
 
-TEST(ColorMapEffects, diagnoses_invalid_effects_without_partial_palette_or_signal_lanes)
+TEST(ColorMapEffects, diagnosesInvalidEffectsWithoutPartialPaletteOrSignalLanes)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-effects-partial.json");
     ASSERT_TRUE(imported.succeeded());
@@ -546,7 +546,7 @@ TEST(ColorMapEffects, diagnoses_invalid_effects_without_partial_palette_or_signa
     EXPECT_FALSE(failed.diagnostics.empty());
 }
 
-TEST(ColorMapImport, matches_source_evaluator_and_preserves_structured_owned_values)
+TEST(ColorMapImport, matchesSourceEvaluatorAndPreservesStructuredOwnedValues)
 {
     for (const std::string &fixture : {"gradient", "file", "mixed", "names", "keyed", "hold", "partial-keys"})
     {
@@ -606,7 +606,7 @@ TEST(ColorMapImport, matches_source_evaluator_and_preserves_structured_owned_val
     }
 }
 
-TEST(ColorMapImport, samples_continuously_and_retains_boundary_hold_semantics)
+TEST(ColorMapImport, samplesContinuouslyAndRetainsBoundaryHoldSemantics)
 {
     const JsonImportResult linear = import_timeline_json("fixtures/color-map-keyed.json");
     ASSERT_TRUE(linear.succeeded());
@@ -629,7 +629,7 @@ TEST(ColorMapImport, samples_continuously_and_retains_boundary_hold_semantics)
         clamped.sample(partial.document->frame_grid()->frame_start(4)));
 }
 
-TEST(ColorMapImport, preserves_layer_identity_and_independent_definitions)
+TEST(ColorMapImport, preservesLayerIdentityAndIndependentDefinitions)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/color-map-layers.json");
     ASSERT_TRUE(imported.succeeded());
@@ -645,7 +645,7 @@ TEST(ColorMapImport, preserves_layer_identity_and_independent_definitions)
         second.sample(imported.document->frame_grid()->frame_start(1)));
 }
 
-TEST(ColorMapImport, diagnoses_invalid_definitions_without_partial_lanes)
+TEST(ColorMapImport, diagnosesInvalidDefinitionsWithoutPartialLanes)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-color-map.json");
     ASSERT_TRUE(imported.succeeded());

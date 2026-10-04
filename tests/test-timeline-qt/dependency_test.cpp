@@ -6,7 +6,7 @@
 #include <QPalette>
 #include <QWidget>
 
-TEST(QtDependency, initializes_widgets_and_paints_without_a_desktop)
+TEST(QtDependency, initializesWidgetsAndPaintsWithoutADesktop)
 {
     ASSERT_EQ(nullptr, QApplication::instance());
     int argc = 1;

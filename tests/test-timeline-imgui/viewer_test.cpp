@@ -53,7 +53,7 @@ Command ImGuiViewer::frame(Viewer &viewer)
     return command;
 }
 
-TEST_F(ImGuiViewer, loads_shared_animation_and_draws_the_complete_host)
+TEST_F(ImGuiViewer, loadsSharedAnimationAndDrawsTheCompleteHost)
 {
     Viewer viewer;
     ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
@@ -66,7 +66,7 @@ TEST_F(ImGuiViewer, loads_shared_animation_and_draws_the_complete_host)
     EXPECT_NE(std::string::npos, viewer.inspector_text().find("(exact)"));
 }
 
-TEST_F(ImGuiViewer, composes_music_and_recipes_then_replaces_the_document)
+TEST_F(ImGuiViewer, composesMusicAndRecipesThenReplacesTheDocument)
 {
     Viewer viewer;
     ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
@@ -80,7 +80,7 @@ TEST_F(ImGuiViewer, composes_music_and_recipes_then_replaces_the_document)
     EXPECT_TRUE(viewer.mappings().empty());
 }
 
-TEST_F(ImGuiViewer, preserves_owned_state_when_import_fails)
+TEST_F(ImGuiViewer, preservesOwnedStateWhenImportFails)
 {
     Viewer viewer;
     ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
@@ -93,7 +93,7 @@ TEST_F(ImGuiViewer, preserves_owned_state_when_import_fails)
     EXPECT_EQ(0, *viewer.control().interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiViewer, exports_the_core_snapshot_and_reports_write_failure)
+TEST_F(ImGuiViewer, exportsTheCoreSnapshotAndReportsWriteFailure)
 {
     Viewer viewer;
     const std::filesystem::path path = std::filesystem::current_path() / "timeline-imgui-viewer-test.txt";
@@ -110,7 +110,7 @@ TEST_F(ImGuiViewer, exports_the_core_snapshot_and_reports_write_failure)
     EXPECT_FALSE(viewer.diagnostics().empty());
 }
 
-TEST_F(ImGuiViewer, supports_empty_and_music_documents_without_a_second_semantic_model)
+TEST_F(ImGuiViewer, supportsEmptyAndMusicDocumentsWithoutASecondSemanticModel)
 {
     Viewer viewer;
     frame(viewer);
@@ -124,7 +124,7 @@ TEST_F(ImGuiViewer, supports_empty_and_music_documents_without_a_second_semantic
     EXPECT_NE(std::string::npos, viewer.inspector_text().find("Schema:"));
 }
 
-TEST_F(ImGuiViewer, keeps_keyboard_frame_navigation_on_the_nested_timeline)
+TEST_F(ImGuiViewer, keepsKeyboardFrameNavigationOnTheNestedTimeline)
 {
     Viewer viewer;
     ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
@@ -144,7 +144,7 @@ TEST_F(ImGuiViewer, keeps_keyboard_frame_navigation_on_the_nested_timeline)
     EXPECT_EQ(first + 1, *viewer.control().interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiViewer, routes_file_shortcuts_and_adapts_to_a_narrow_host)
+TEST_F(ImGuiViewer, routesFileShortcutsAndAdaptsToANarrowHost)
 {
     Viewer viewer;
     ImGuiIO &io = ImGui::GetIO();

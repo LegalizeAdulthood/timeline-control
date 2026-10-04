@@ -11,7 +11,7 @@
 
 using namespace timeline;
 
-TEST(Layout, samples_geometric_keyframe_segments_at_grid_boundaries)
+TEST(Layout, samplesGeometricKeyframeSegmentsAtGridBoundaries)
 {
     const FrameGrid grid(Timebase(100), 3, 10, 1);
     Document document(grid, 1, 2);
@@ -100,7 +100,7 @@ void expect_same_geometry(const Primitive &lhs, const Primitive &rhs)
 
 } // namespace
 
-TEST(Layout, emits_ruler_and_empty_lane_scaffolding)
+TEST(Layout, emitsRulerAndEmptyLaneScaffolding)
 {
     Document document(100);
     document.add_lane(Lane("empty", "Empty lane", "events", at(0), at(100)));
@@ -117,7 +117,7 @@ TEST(Layout, emits_ruler_and_empty_lane_scaffolding)
     EXPECT_TRUE(std::get<Text>(primitives[3]).id.item_id.empty());
 }
 
-TEST(Layout, samples_analytic_curves_without_a_frame_grid)
+TEST(Layout, samplesAnalyticCurvesWithoutAFrameGrid)
 {
     Document document(100);
     Lane lane("signal", "Signal", "curve", at(0), at(100));
@@ -144,7 +144,7 @@ TEST(Layout, samples_analytic_curves_without_a_frame_grid)
     EXPECT_TRUE(found);
 }
 
-TEST(Layout, emits_event_and_interval_primitives)
+TEST(Layout, emitsEventAndIntervalPrimitives)
 {
     Lane lane("music", "Music events", "events", at(0), at(100));
     lane.add(Instant("beat-1", "beat", at(25)));
@@ -191,7 +191,7 @@ TEST(Layout, emits_event_and_interval_primitives)
     EXPECT_EQ("pulse-1", std::get<Rectangle>(primitives[8]).id.item_id);
 }
 
-TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
+TEST(Layout, emitsCurvePolylineSampledAtFrameBoundaries)
 {
     Lane lane("rms", "RMS", "curve", at(0), at(40));
     lane.add(Curve(
@@ -219,7 +219,7 @@ TEST(Layout, emits_curve_polyline_sampled_at_frame_boundaries)
     EXPECT_EQ("rms", polyline.id.item_id);
 }
 
-TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
+TEST(Layout, emitsKeyframeMarkersAndInterpolationSegments)
 {
     Lane lane("zoom", "camera.zoom", "keyframes", at(0), at(50));
     lane.add(Keyframe("zoom-0", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
@@ -263,7 +263,7 @@ TEST(Layout, emits_keyframe_markers_and_interpolation_segments)
     EXPECT_EQ("zoom-40", std::get<Marker>(primitives[8]).id.item_id);
 }
 
-TEST(Layout, maps_horizontal_positions_to_timeline_time)
+TEST(Layout, mapsHorizontalPositionsToTimelineTime)
 {
     const Viewport viewport(300, 100, at(0), at(100));
     const LayoutMetrics metrics(100, 20, 30, 4);
@@ -275,7 +275,7 @@ TEST(Layout, maps_horizontal_positions_to_timeline_time)
     EXPECT_EQ(100, time_at_x(400, viewport, metrics).ticks());
 }
 
-TEST(Layout, computes_visible_frame_range)
+TEST(Layout, computesVisibleFrameRange)
 {
     const FrameGrid grid(Timebase(100), 10, 10, 1);
     const std::optional<FrameRange> range = visible_frame_range(grid, Viewport(300, 100, at(25), at(65)));
@@ -285,7 +285,7 @@ TEST(Layout, computes_visible_frame_range)
     EXPECT_EQ(6, range->last());
 }
 
-TEST(Layout, maps_frames_to_pixels_and_back)
+TEST(Layout, mapsFramesToPixelsAndBack)
 {
     const FrameGrid grid(Timebase(100), 10, 10, 1);
     const Viewport viewport(300, 100, at(20), at(60));
@@ -298,7 +298,7 @@ TEST(Layout, maps_frames_to_pixels_and_back)
     EXPECT_EQ(5, *frame_at_x(250, grid, viewport, metrics));
 }
 
-TEST(Layout, keeps_lane_heights_stable_while_scrolling)
+TEST(Layout, keepsLaneHeightsStableWhileScrolling)
 {
     Document document(100);
     document.add_lane(Lane("a", "Lane A", "events", at(0), at(100)));
@@ -325,7 +325,7 @@ TEST(Layout, keeps_lane_heights_stable_while_scrolling)
     EXPECT_EQ("Lane C", std::get<Text>(primitives[5]).value);
 }
 
-TEST(Layout, navigates_exact_ranges_without_changing_document_data)
+TEST(Layout, navigatesExactRangesWithoutChangingDocumentData)
 {
     Document document(100);
     document.add_lane(Lane("lane", "Lane", "events", at(0), at(100)));
@@ -352,7 +352,7 @@ TEST(Layout, navigates_exact_ranges_without_changing_document_data)
     EXPECT_EQ("lane", document.lanes()[0].id());
 }
 
-TEST(Navigation, reveals_positions_without_changing_zoom_or_lane)
+TEST(Navigation, revealsPositionsWithoutChangingZoomOrLane)
 {
     Navigation navigation(at(0), at(100), 5);
     navigation.zoom_by(2.0, at(50));
@@ -376,7 +376,7 @@ TEST(Navigation, reveals_positions_without_changing_zoom_or_lane)
     EXPECT_EQ(100, viewport.end().ticks());
 }
 
-TEST(Layout, produces_identical_geometry_for_identical_metrics)
+TEST(Layout, producesIdenticalGeometryForIdenticalMetrics)
 {
     Lane lane("music", "Music", "events", at(0), at(100));
     lane.add(Instant("beat", "beat", at(50)));
@@ -396,7 +396,7 @@ TEST(Layout, produces_identical_geometry_for_identical_metrics)
     }
 }
 
-TEST(Layout, hits_ruler_headers_and_empty_lane_body)
+TEST(Layout, hitsRulerHeadersAndEmptyLaneBody)
 {
     Document document(100);
     document.add_lane(Lane("music", "Music", "events", at(0), at(100)));
@@ -417,7 +417,7 @@ TEST(Layout, hits_ruler_headers_and_empty_lane_body)
     EXPECT_EQ("music", body->id.lane_id);
 }
 
-TEST(Layout, hits_item_geometry_and_preserves_display_ids)
+TEST(Layout, hitsItemGeometryAndPreservesDisplayIds)
 {
     Lane lane("music", "Music", "events", at(0), at(100));
     lane.add(Instant("beat", "beat", at(25)));
@@ -454,7 +454,7 @@ TEST(Layout, hits_item_geometry_and_preserves_display_ids)
     EXPECT_EQ(StyleRole::LANE_BACKGROUND, layout.hit_test(Point{280, 30}, 0)->style);
 }
 
-TEST(Layout, prefers_last_painted_item_when_markers_overlap)
+TEST(Layout, prefersLastPaintedItemWhenMarkersOverlap)
 {
     Lane lane("music", "Music", "events", at(0), at(100));
     lane.add(Instant("first", "note", at(25)));
@@ -468,7 +468,7 @@ TEST(Layout, prefers_last_painted_item_when_markers_overlap)
     EXPECT_EQ("second", hit->id.item_id);
 }
 
-TEST(Layout, hits_curve_segments_using_host_tolerance)
+TEST(Layout, hitsCurveSegmentsUsingHostTolerance)
 {
     Lane lane("rms", "RMS", "curve", at(0), at(100));
     lane.add(Curve("signal", "rms", {{at(0), 0.0}, {at(100), 1.0}}, "RMS", CurveInterpolation::LINEAR, 0.0, 1.0, {}));
@@ -485,7 +485,7 @@ TEST(Layout, hits_curve_segments_using_host_tolerance)
     EXPECT_THROW(layout.hit_test(Point{250, 36}, -1), std::invalid_argument);
 }
 
-TEST(Layout, keyframe_markers_take_priority_over_interpolation_segments)
+TEST(Layout, keyframeMarkersTakePriorityOverInterpolationSegments)
 {
     Lane lane("zoom", "Zoom", "keyframes", at(0), at(100));
     lane.add(Keyframe("start", at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
@@ -504,7 +504,7 @@ TEST(Layout, keyframe_markers_take_priority_over_interpolation_segments)
     EXPECT_EQ("start", segment->id.item_id);
 }
 
-TEST(Layout, does_not_hit_outside_viewport_or_in_unused_rows)
+TEST(Layout, doesNotHitOutsideViewportOrInUnusedRows)
 {
     Document document(100);
     document.add_lane(Lane("hidden", "Hidden", "events", at(0), at(100)));

@@ -48,7 +48,7 @@ std::optional<double> golden_value(const std::string &entry, const std::string &
 
 } // namespace
 
-TEST(IntegerOutput, retains_fractional_curve_and_declares_output_rounding)
+TEST(IntegerOutput, retainsFractionalCurveAndDeclaresOutputRounding)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/integer-output.json");
     ASSERT_TRUE(imported.succeeded());
@@ -83,7 +83,7 @@ TEST(IntegerOutput, retains_fractional_curve_and_declares_output_rounding)
     EXPECT_FALSE(import_timeline_json("fixtures/integer-output-invalid.json").succeeded());
 }
 
-TEST(IntegerOutput, matches_source_golden_and_survives_copying_comparison_and_layout)
+TEST(IntegerOutput, matchesSourceGoldenAndSurvivesCopyingComparisonAndLayout)
 {
     JsonImportResult imported = import_timeline_json("fixtures/integer-output.json");
     ASSERT_TRUE(imported.succeeded());
@@ -135,7 +135,7 @@ TEST(IntegerOutput, matches_source_golden_and_survives_copying_comparison_and_la
     EXPECT_TRUE(hit);
 }
 
-TEST(IntegerOutput, rounds_after_extrapolation_and_retains_gaps_and_held_values)
+TEST(IntegerOutput, roundsAfterExtrapolationAndRetainsGapsAndHeldValues)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/integer-output-policies.json");
     ASSERT_TRUE(imported.succeeded());
@@ -165,7 +165,7 @@ TEST(IntegerOutput, rounds_after_extrapolation_and_retains_gaps_and_held_values)
     EXPECT_DOUBLE_EQ(678, *timeline::inspect_frame(*imported.document, 0)->lanes[0].output_value);
 }
 
-TEST(IntegerOutput, diagnoses_invalid_keys_transactionally)
+TEST(IntegerOutput, diagnosesInvalidKeysTransactionally)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/integer-output-partial.json");
     ASSERT_TRUE(imported.succeeded());
@@ -185,7 +185,7 @@ TEST(IntegerOutput, diagnoses_invalid_keys_transactionally)
     EXPECT_FALSE(timeline::inspect_frame(*imported.document, 1)->lanes[0].output_value);
 }
 
-TEST(IntegerOutput, preserves_source_arithmetic_order_near_halfway_boundaries)
+TEST(IntegerOutput, preservesSourceArithmeticOrderNearHalfwayBoundaries)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/integer-output-boundary.json");
     ASSERT_TRUE(imported.succeeded());

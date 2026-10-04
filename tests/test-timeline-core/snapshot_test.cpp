@@ -43,17 +43,17 @@ protected:
 
 } // namespace
 
-TEST(Snapshot, renders_empty_display_list)
+TEST(Snapshot, rendersEmptyDisplayList)
 {
     EXPECT_EQ("", render_snapshot(DisplayList{}));
 }
 
-TEST(Snapshot, renders_empty_timeline)
+TEST(Snapshot, rendersEmptyTimeline)
 {
     EXPECT_EQ(RULER, snapshot(Document(100)));
 }
 
-TEST(Snapshot, renders_event_lane)
+TEST(Snapshot, rendersEventLane)
 {
     Document document(100);
     Lane lane("events", "Events", "events", at(0), at(100));
@@ -67,7 +67,7 @@ TEST(Snapshot, renders_event_lane)
         snapshot(document));
 }
 
-TEST(Snapshot, renders_curve_lane)
+TEST(Snapshot, rendersCurveLane)
 {
     Document document(100);
     Lane lane("curve", "Curve", "curve", at(0), at(100));
@@ -81,7 +81,7 @@ TEST(Snapshot, renders_curve_lane)
         snapshot(document));
 }
 
-TEST(Snapshot, renders_keyframe_lane)
+TEST(Snapshot, rendersKeyframeLane)
 {
     Document document(100);
     Lane lane("keys", "Keys", "keyframes", at(0), at(100));
@@ -98,7 +98,7 @@ TEST(Snapshot, renders_keyframe_lane)
         snapshot(document));
 }
 
-TEST(Snapshot, preserves_order_geometry_and_escaped_strings)
+TEST(Snapshot, preservesOrderGeometryAndEscapedStrings)
 {
     DisplayList list;
     list.add(Text{-10, 20, "quotes\" slash\\ newline\n tab\t return\r", StyleRole::LANE_LABEL,
@@ -118,7 +118,7 @@ TEST(Snapshot, preserves_order_geometry_and_escaped_strings)
     EXPECT_EQ(expected, render_snapshot(list));
 }
 
-TEST(Snapshot, ignores_global_numeric_locale)
+TEST(Snapshot, ignoresGlobalNumericLocale)
 {
     DisplayList list;
     list.add(Line{1000, 2000, 3000, 4000, StyleRole::RULER, {}});

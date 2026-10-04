@@ -51,7 +51,7 @@ std::vector<std::map<std::string, std::string>> julibrot_source_frames(const std
 
 } // namespace
 
-TEST(JulibrotView, matches_source_golden_and_preserves_owned_recipes)
+TEST(JulibrotView, matchesSourceGoldenAndPreservesOwnedRecipes)
 {
     for (const std::string &fixture : {"camera", "keyed", "hold", "normalized", "override", "camera-hold", "subnormal",
              "range", "range-hold", "tiny-component", "near-axis", "near-axis-hold", "near-axis-tolerance"})
@@ -122,7 +122,7 @@ TEST(JulibrotView, matches_source_golden_and_preserves_owned_recipes)
     }
 }
 
-TEST(JulibrotView, samples_fractional_distance_and_normalizes_after_interpolation)
+TEST(JulibrotView, samplesFractionalDistanceAndNormalizesAfterInterpolation)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/julibrot-view-normalized.json");
     ASSERT_TRUE(imported.succeeded());
@@ -155,7 +155,7 @@ TEST(JulibrotView, samples_fractional_distance_and_normalizes_after_interpolatio
     EXPECT_EQ("red-blue", timeline::inspect_frame(*keyed.document, 2)->lanes[0].items.front().attributes.at("value"));
 }
 
-TEST(JulibrotView, evaluates_near_axis_distance_and_signed_hints_continuously)
+TEST(JulibrotView, evaluatesNearAxisDistanceAndSignedHintsContinuously)
 {
     for (const std::string &fixture : {"near-axis", "near-axis-hold", "near-axis-tolerance"})
     {
@@ -206,7 +206,7 @@ TEST(JulibrotView, evaluates_near_axis_distance_and_signed_hints_continuously)
     }
 }
 
-TEST(JulibrotView, rejects_near_axis_boundaries_and_off_grid_departures)
+TEST(JulibrotView, rejectsNearAxisBoundariesAndOffGridDepartures)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/invalid-julibrot-near-axis.json");
     EXPECT_FALSE(imported.succeeded());
@@ -233,7 +233,7 @@ TEST(JulibrotView, rejects_near_axis_boundaries_and_off_grid_departures)
     EXPECT_EQ("false", raw_eye.attributes().at("used-by-camera"));
 }
 
-TEST(JulibrotView, preserves_layer_base_geometry_aliases_and_unused_camera)
+TEST(JulibrotView, preservesLayerBaseGeometryAliasesAndUnusedCamera)
 {
     const timeline::Document document = []
     {
@@ -260,7 +260,7 @@ TEST(JulibrotView, preserves_layer_base_geometry_aliases_and_unused_camera)
     EXPECT_EQ("overridden", up.attributes().at("layer"));
 }
 
-TEST(JulibrotView, rejects_invalid_tracks_transactionally_with_indexed_diagnostics)
+TEST(JulibrotView, rejectsInvalidTracksTransactionallyWithIndexedDiagnostics)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-julibrot-view.json");
     ASSERT_TRUE(imported.succeeded());
@@ -281,7 +281,7 @@ TEST(JulibrotView, rejects_invalid_tracks_transactionally_with_indexed_diagnosti
     EXPECT_FALSE(failed.diagnostics.empty());
 }
 
-TEST(JulibrotView, diagnoses_source_geometry_catalog_policies_and_off_grid_normalization)
+TEST(JulibrotView, diagnosesSourceGeometryCatalogPoliciesAndOffGridNormalization)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-julibrot-sources.json");
     ASSERT_TRUE(imported.succeeded());

@@ -13,7 +13,7 @@
 
 using namespace timeline;
 
-TEST(Palette, validates_rgb_components_and_owned_definitions)
+TEST(Palette, validatesRgbComponentsAndOwnedDefinitions)
 {
     EXPECT_THROW(RgbColor(-1, 0, 0), std::invalid_argument);
     EXPECT_THROW(RgbColor(0, 256, 0), std::invalid_argument);
@@ -33,7 +33,7 @@ TEST(Palette, validates_rgb_components_and_owned_definitions)
     EXPECT_THROW(changing.sample(Time::from_ticks(10)), std::invalid_argument);
 }
 
-TEST(Palette, queries_samples_without_scalar_substitution_and_survives_copying)
+TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
 {
     const Document document = []
     {
@@ -60,7 +60,7 @@ TEST(Palette, queries_samples_without_scalar_substitution_and_survives_copying)
     EXPECT_FALSE(range.lanes[0].items[0].palette);
 }
 
-TEST(Palette, lays_out_swatches_with_rgb_values_and_stable_hits)
+TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
 {
     Document document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0);
     Lane lane("colors", "Colors", "palette", Time{}, Time::from_ticks(3));

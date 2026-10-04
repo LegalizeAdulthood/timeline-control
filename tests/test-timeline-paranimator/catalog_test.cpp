@@ -68,7 +68,7 @@ protected:
 
 } // namespace
 
-TEST_F(CatalogLoading, rejects_unknown_targets_without_discarding_valid_tracks)
+TEST_F(CatalogLoading, rejectsUnknownTargetsWithoutDiscardingValidTracks)
 {
     m_config["tracks"][1]["parameter"] = "undeclared";
     const JsonImportResult result = import({m_catalog});
@@ -79,7 +79,7 @@ TEST_F(CatalogLoading, rejects_unknown_targets_without_discarding_valid_tracks)
     EXPECT_EQ(6, result.document->lane_count());
 }
 
-TEST_F(CatalogLoading, resolves_formula_knobs_and_functions_in_both_name_forms)
+TEST_F(CatalogLoading, resolvesFormulaKnobsAndFunctionsInBothNameForms)
 {
     std::ifstream catalog("fixtures/input/target-resolution-catalog.json");
     catalog >> m_catalog;
@@ -106,7 +106,7 @@ TEST_F(CatalogLoading, resolves_formula_knobs_and_functions_in_both_name_forms)
     EXPECT_EQ("sin/cos", inspection.lanes[4].items[0].attributes.at("value"));
 }
 
-TEST(TargetResolution, preserves_declared_targets_owned_metadata_and_inspection)
+TEST(TargetResolution, preservesDeclaredTargetsOwnedMetadataAndInspection)
 {
     const JsonImportResult result = import_timeline_json("fixtures/target-resolution.json");
     ASSERT_TRUE(result.succeeded());
@@ -126,7 +126,7 @@ TEST(TargetResolution, preserves_declared_targets_owned_metadata_and_inspection)
     EXPECT_EQ("params.c", Json::parse(inspection.lanes[1].items[0].attributes.at("track-definition")).at("parameter"));
 }
 
-TEST_F(CatalogLoading, requires_source_values_and_defaults_even_with_explicit_curves)
+TEST_F(CatalogLoading, requiresSourceValuesAndDefaultsEvenWithExplicitCurves)
 {
     m_catalog["parameters"]["scalar"].erase("default-curve");
     m_config["tracks"][3]["keys"][1]["curve"] = "linear";
@@ -140,7 +140,7 @@ TEST_F(CatalogLoading, requires_source_values_and_defaults_even_with_explicit_cu
     EXPECT_EQ(7, result.document->lane_count());
 }
 
-TEST_F(CatalogLoading, requires_categorical_defaults_and_ordinary_function_sources)
+TEST_F(CatalogLoading, requiresCategoricalDefaultsAndOrdinaryFunctionSources)
 {
     for (const std::string type : {"string", "enum", "function-list"})
     {
@@ -168,7 +168,7 @@ TEST_F(CatalogLoading, requires_categorical_defaults_and_ordinary_function_sourc
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("source parameter"));
 }
 
-TEST_F(CatalogLoading, supplies_center_mag_optional_fields_without_changing_authored_values)
+TEST_F(CatalogLoading, suppliesCenterMagOptionalFieldsWithoutChangingAuthoredValues)
 {
     m_catalog["parameters"]["scalar"] = {{"type", "center-mag"}, {"description", "Center and magnification"}};
     m_config["tracks"][3]["keys"][0]["value"] = "0/0/1";
@@ -184,7 +184,7 @@ TEST_F(CatalogLoading, supplies_center_mag_optional_fields_without_changing_auth
     EXPECT_EQ("0/0/1", inspection.lanes[9].items[0].attributes.at("value"));
 }
 
-TEST(TargetResolution, matches_reference_frames_and_retains_comparison_hit_identities)
+TEST(TargetResolution, matchesReferenceFramesAndRetainsComparisonHitIdentities)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/target-resolution.json");
     ASSERT_TRUE(imported.succeeded());
@@ -258,7 +258,7 @@ TEST(TargetResolution, matches_reference_frames_and_retains_comparison_hit_ident
     EXPECT_FALSE(import_timeline_json("fixtures/target-resolution-invalid.json").succeeded());
 }
 
-TEST_F(CatalogLoading, enforces_declared_value_types_and_complex_arity)
+TEST_F(CatalogLoading, enforcesDeclaredValueTypesAndComplexArity)
 {
     const std::vector<std::pair<Json, Json>> invalid{
         {{{"type", "double"}, {"default-curve", "linear"}}, Json::array({1})},
@@ -285,7 +285,7 @@ TEST_F(CatalogLoading, enforces_declared_value_types_and_complex_arity)
     }
 }
 
-TEST_F(CatalogLoading, diagnoses_recognized_but_unsupported_generic_types)
+TEST_F(CatalogLoading, diagnosesRecognizedButUnsupportedGenericTypes)
 {
     for (const std::string type : {"miim", "potential", "numeric-tuple-or-enum", "color-map"})
     {
@@ -304,7 +304,7 @@ TEST_F(CatalogLoading, diagnoses_recognized_but_unsupported_generic_types)
     }
 }
 
-TEST_F(CatalogLoading, rejects_complex_bounds_before_creating_component_lanes)
+TEST_F(CatalogLoading, rejectsComplexBoundsBeforeCreatingComponentLanes)
 {
     m_catalog["parameters"]["scalar"] = {
         {"type", "complex"}, {"description", "Complex"}, {"default-curve", "linear"}, {"max", 5}};
@@ -319,7 +319,7 @@ TEST_F(CatalogLoading, rejects_complex_bounds_before_creating_component_lanes)
     EXPECT_EQ(8, result.document->lane_count());
 }
 
-TEST_F(CatalogLoading, rejects_malformed_unused_metadata_before_importing_tracks)
+TEST_F(CatalogLoading, rejectsMalformedUnusedMetadataBeforeImportingTracks)
 {
     const std::vector<Json> invalid{nullptr, Json::array(), Json::object(),
         {{"type", "unknown"}, {"description", "Unused"}}, {{"type", "double"}, {"description", ""}},
@@ -350,7 +350,7 @@ TEST_F(CatalogLoading, rejects_malformed_unused_metadata_before_importing_tracks
     }
 }
 
-TEST_F(CatalogLoading, validates_nested_unused_entries)
+TEST_F(CatalogLoading, validatesNestedUnusedEntries)
 {
     const Json invalid = Json::parse(R"([
         {"fractal-types": []}, {"formula-entries": []},
@@ -373,7 +373,7 @@ TEST_F(CatalogLoading, validates_nested_unused_entries)
     }
 }
 
-TEST_F(CatalogLoading, rejects_duplicates_in_each_named_section_and_empty_catalog_lists)
+TEST_F(CatalogLoading, rejectsDuplicatesInEachNamedSectionAndEmptyCatalogLists)
 {
     EXPECT_FALSE(import({}).succeeded());
     for (const std::string section : {"parameters", "fractal-types", "formula-entries"})
@@ -393,7 +393,7 @@ TEST_F(CatalogLoading, rejects_duplicates_in_each_named_section_and_empty_catalo
     }
 }
 
-TEST_F(CatalogLoading, composes_distinct_valid_catalogs_without_changing_owned_metadata)
+TEST_F(CatalogLoading, composesDistinctValidCatalogsWithoutChangingOwnedMetadata)
 {
     const Json extra{
         {"parameters",
@@ -424,7 +424,7 @@ TEST_F(CatalogLoading, composes_distinct_valid_catalogs_without_changing_owned_m
     EXPECT_DOUBLE_EQ(2, *timeline::inspect_frame(copy, 1)->lanes[0].value);
 }
 
-TEST_F(CatalogLoading, validates_catalog_root_and_parameter_section)
+TEST_F(CatalogLoading, validatesCatalogRootAndParameterSection)
 {
     for (const Json &catalog : std::vector<Json>{nullptr, Json::array(), Json::object(), {{"parameters", 1}}})
     {
@@ -436,7 +436,7 @@ TEST_F(CatalogLoading, validates_catalog_root_and_parameter_section)
     }
 }
 
-TEST_F(CatalogLoading, accepts_source_types_and_optional_metadata_without_evaluating_unused_entries)
+TEST_F(CatalogLoading, acceptsSourceTypesAndOptionalMetadataWithoutEvaluatingUnusedEntries)
 {
     for (const std::string type : {"center-mag", "color-map", "corners", "complex", "double", "yes-no", "integer",
              "integer-tuple", "miim", "numeric-tuple", "point2", "point3", "potential", "string", "vector2", "vector3",
@@ -462,7 +462,7 @@ TEST_F(CatalogLoading, accepts_source_types_and_optional_metadata_without_evalua
     }
 }
 
-TEST(CatalogCompatibility, imports_valid_catalog_composition_and_rejects_unused_malformed_metadata)
+TEST(CatalogCompatibility, importsValidCatalogCompositionAndRejectsUnusedMalformedMetadata)
 {
     const JsonImportResult valid = import_timeline_json("fixtures/catalog-loading.json");
     ASSERT_TRUE(valid.succeeded());
@@ -476,7 +476,7 @@ TEST(CatalogCompatibility, imports_valid_catalog_composition_and_rejects_unused_
     EXPECT_NE(std::string::npos, invalid.diagnostics[0].find("description"));
 }
 
-TEST(CatalogCompatibility, retains_component_metadata_and_owned_definitions)
+TEST(CatalogCompatibility, retainsComponentMetadataAndOwnedDefinitions)
 {
     JsonImportResult imported = import_timeline_json("fixtures/catalog-loading.json");
     ASSERT_TRUE(imported.succeeded());
@@ -530,7 +530,7 @@ TEST(CatalogCompatibility, retains_component_metadata_and_owned_definitions)
     EXPECT_TRUE(hit);
 }
 
-TEST(CatalogCompatibility, rejects_source_invalid_tracks_without_partial_lanes)
+TEST(CatalogCompatibility, rejectsSourceInvalidTracksWithoutPartialLanes)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/catalog-audit-invalid.json");
     EXPECT_FALSE(imported.succeeded());
@@ -544,7 +544,7 @@ TEST(CatalogCompatibility, rejects_source_invalid_tracks_without_partial_lanes)
     }
 }
 
-TEST(CatalogCompatibility, matches_reference_output_at_every_frame)
+TEST(CatalogCompatibility, matchesReferenceOutputAtEveryFrame)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/catalog-loading.json");
     ASSERT_TRUE(imported.succeeded());

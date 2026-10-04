@@ -16,7 +16,7 @@
 
 using namespace timeline_par_animator;
 
-TEST(AnimationImport, preserves_source_functions_in_pwm_output_like_paranimator)
+TEST(AnimationImport, preservesSourceFunctionsInPwmOutputLikeParanimator)
 {
     const JsonImportResult result = import_timeline_json("fixtures/function-slot-pwm.json");
     ASSERT_TRUE(result.succeeded());
@@ -53,7 +53,7 @@ TEST(AnimationImport, preserves_source_functions_in_pwm_output_like_paranimator)
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("function[1] / mix"));
 }
 
-TEST(AnimationImport, retains_other_pwm_slots_and_fills_missing_slots_with_ident)
+TEST(AnimationImport, retainsOtherPwmSlotsAndFillsMissingSlotsWithIdent)
 {
     const timeline::Document document = []
     {
@@ -83,7 +83,7 @@ TEST(AnimationImport, retains_other_pwm_slots_and_fills_missing_slots_with_ident
     EXPECT_EQ("log/cos", inspection->lanes[4].items.front().attributes.at("value"));
 }
 
-TEST(AnimationImport, diagnoses_invalid_pwm_function_slots_and_endpoints)
+TEST(AnimationImport, diagnosesInvalidPwmFunctionSlotsAndEndpoints)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-function-slot-pwm.json");
     ASSERT_TRUE(result.succeeded());
@@ -99,7 +99,7 @@ TEST(AnimationImport, diagnoses_invalid_pwm_function_slots_and_endpoints)
     EXPECT_EQ("sin/log", inspection->lanes.front().items.front().attributes.at("value"));
 }
 
-TEST(AnimationImport, resolves_layer_sources_and_catalog_function_slots_with_indexed_errors)
+TEST(AnimationImport, resolvesLayerSourcesAndCatalogFunctionSlotsWithIndexedErrors)
 {
     const JsonImportResult result = import_timeline_json("fixtures/function-slot-sources.json");
     ASSERT_TRUE(result.succeeded());
@@ -119,7 +119,7 @@ TEST(AnimationImport, resolves_layer_sources_and_catalog_function_slots_with_ind
     EXPECT_EQ("sin/cos/exp", inspection->lanes[4].items.front().attributes.at("source-value"));
 }
 
-TEST(AnimationImport, displays_pwm_mix_and_frame_aligned_output_like_paranimator)
+TEST(AnimationImport, displaysPwmMixAndFrameAlignedOutputLikeParanimator)
 {
     const JsonImportResult result = import_timeline_json("fixtures/yes-no-pwm.json");
     ASSERT_TRUE(result.succeeded());
@@ -165,7 +165,7 @@ TEST(AnimationImport, displays_pwm_mix_and_frame_aligned_output_like_paranimator
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("showorbit / mix"));
 }
 
-TEST(AnimationImport, preserves_pwm_rounding_aliases_and_categorical_window_boundaries)
+TEST(AnimationImport, preservesPwmRoundingAliasesAndCategoricalWindowBoundaries)
 {
     const timeline::Document document = []
     {
@@ -204,7 +204,7 @@ TEST(AnimationImport, preserves_pwm_rounding_aliases_and_categorical_window_boun
     EXPECT_EQ("1", inspection->lanes[4].items.front().attributes.at("value"));
 }
 
-TEST(AnimationImport, diagnoses_invalid_pwm_recipes_and_retains_valid_output)
+TEST(AnimationImport, diagnosesInvalidPwmRecipesAndRetainsValidOutput)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-pwm.json");
     ASSERT_TRUE(result.succeeded());
@@ -221,7 +221,7 @@ TEST(AnimationImport, diagnoses_invalid_pwm_recipes_and_retains_valid_output)
     EXPECT_EQ("yes", inspection->lanes.front().items.front().attributes.at("value"));
 }
 
-TEST(AnimationImport, samples_analytic_catmull_rom_like_paranimator_across_segments)
+TEST(AnimationImport, samplesAnalyticCatmullRomLikeParanimatorAcrossSegments)
 {
     const JsonImportResult result = import_timeline_json("fixtures/catmull-rom-path.json");
     ASSERT_TRUE(result.succeeded());
@@ -288,7 +288,7 @@ TEST(AnimationImport, samples_analytic_catmull_rom_like_paranimator_across_segme
     EXPECT_EQ(2, curve_count);
 }
 
-TEST(AnimationImport, owns_catmull_rom_tuples_with_extra_points_and_endpoint_tangents)
+TEST(AnimationImport, ownsCatmullRomTuplesWithExtraPointsAndEndpointTangents)
 {
     const timeline::Document document = []
     {
@@ -333,7 +333,7 @@ TEST(AnimationImport, owns_catmull_rom_tuples_with_extra_points_and_endpoint_tan
     EXPECT_EQ(0, copy.sample_count());
 }
 
-TEST(AnimationImport, diagnoses_malformed_catmull_rom_recipes_without_losing_valid_tracks)
+TEST(AnimationImport, diagnosesMalformedCatmullRomRecipesWithoutLosingValidTracks)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-catmull-rom-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -359,7 +359,7 @@ TEST(AnimationImport, diagnoses_malformed_catmull_rom_recipes_without_losing_val
     EXPECT_NE(std::string::npos, single.diagnostics.front().find("at least two frames"));
 }
 
-TEST(AnimationImport, samples_analytic_bezier_like_paranimator_and_preserves_control_points)
+TEST(AnimationImport, samplesAnalyticBezierLikeParanimatorAndPreservesControlPoints)
 {
     const JsonImportResult result = import_timeline_json("fixtures/bezier-path.json");
     ASSERT_TRUE(result.succeeded());
@@ -425,7 +425,7 @@ TEST(AnimationImport, samples_analytic_bezier_like_paranimator_and_preserves_con
     EXPECT_EQ(2, curve_count);
 }
 
-TEST(AnimationImport, owns_bezier_tuple_definitions_across_degrees_and_comparison)
+TEST(AnimationImport, ownsBezierTupleDefinitionsAcrossDegreesAndComparison)
 {
     const timeline::Document document = []
     {
@@ -462,7 +462,7 @@ TEST(AnimationImport, owns_bezier_tuple_definitions_across_degrees_and_compariso
     EXPECT_EQ(quartic.attributes(), copy.attributes());
 }
 
-TEST(AnimationImport, diagnoses_malformed_bezier_points_and_unsupported_targets)
+TEST(AnimationImport, diagnosesMalformedBezierPointsAndUnsupportedTargets)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-bezier-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -490,7 +490,7 @@ TEST(AnimationImport, diagnoses_malformed_bezier_points_and_unsupported_targets)
     EXPECT_NE(std::string::npos, single.diagnostics.front().find("at least two frames"));
 }
 
-TEST(AnimationImport, samples_analytic_spirals_like_paranimator_and_preserves_the_recipe)
+TEST(AnimationImport, samplesAnalyticSpiralsLikeParanimatorAndPreservesTheRecipe)
 {
     const JsonImportResult result = import_timeline_json("fixtures/spiral-path.json");
     ASSERT_TRUE(result.succeeded());
@@ -556,7 +556,7 @@ TEST(AnimationImport, samples_analytic_spirals_like_paranimator_and_preserves_th
     EXPECT_EQ(2, curve_count);
 }
 
-TEST(AnimationImport, keeps_reverse_shrinking_spirals_and_constant_radius_definitions_owned)
+TEST(AnimationImport, keepsReverseShrinkingSpiralsAndConstantRadiusDefinitionsOwned)
 {
     const timeline::Document document = []
     {
@@ -602,7 +602,7 @@ TEST(AnimationImport, keeps_reverse_shrinking_spirals_and_constant_radius_defini
     EXPECT_EQ(x.attributes(), copy.attributes());
 }
 
-TEST(AnimationImport, diagnoses_invalid_spiral_recipes_and_keeps_defaults_and_zero_radii)
+TEST(AnimationImport, diagnosesInvalidSpiralRecipesAndKeepsDefaultsAndZeroRadii)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-spiral-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -629,7 +629,7 @@ TEST(AnimationImport, diagnoses_invalid_spiral_recipes_and_keeps_defaults_and_ze
     }
 }
 
-TEST(AnimationImport, samples_lissajous_like_paranimator_and_preserves_the_recipe)
+TEST(AnimationImport, samplesLissajousLikeParanimatorAndPreservesTheRecipe)
 {
     const JsonImportResult result = import_timeline_json("fixtures/lissajous-path.json");
     ASSERT_TRUE(result.succeeded());
@@ -695,7 +695,7 @@ TEST(AnimationImport, samples_lissajous_like_paranimator_and_preserves_the_recip
     EXPECT_EQ(2, curve_count);
 }
 
-TEST(AnimationImport, keeps_lissajous_frequencies_independent_and_phase_on_x_only)
+TEST(AnimationImport, keepsLissajousFrequenciesIndependentAndPhaseOnXOnly)
 {
     const timeline::Document document = []
     {
@@ -727,7 +727,7 @@ TEST(AnimationImport, keeps_lissajous_frequencies_independent_and_phase_on_x_onl
     EXPECT_EQ(x.attributes(), copy.attributes());
 }
 
-TEST(AnimationImport, diagnoses_invalid_lissajous_recipes_and_accepts_zero_radii)
+TEST(AnimationImport, diagnosesInvalidLissajousRecipesAndAcceptsZeroRadii)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-lissajous-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -744,7 +744,7 @@ TEST(AnimationImport, diagnoses_invalid_lissajous_recipes_and_accepts_zero_radii
     EXPECT_DOUBLE_EQ(-2.0, y.sample(result.document->frame_grid()->frame_start(3)));
 }
 
-TEST(AnimationImport, preserves_and_samples_analytic_ellipse_recipes)
+TEST(AnimationImport, preservesAndSamplesAnalyticEllipseRecipes)
 {
     const JsonImportResult result = import_timeline_json("fixtures/ellipse-path.json");
     ASSERT_TRUE(result.succeeded());
@@ -804,7 +804,7 @@ TEST(AnimationImport, preserves_and_samples_analytic_ellipse_recipes)
     EXPECT_EQ(2, curve_count);
 }
 
-TEST(AnimationImport, honors_circle_phase_reverse_turns_and_document_ownership)
+TEST(AnimationImport, honorsCirclePhaseReverseTurnsAndDocumentOwnership)
 {
     const timeline::Document document = []
     {
@@ -834,7 +834,7 @@ TEST(AnimationImport, honors_circle_phase_reverse_turns_and_document_ownership)
     EXPECT_EQ(x.attributes(), copy.attributes());
 }
 
-TEST(AnimationImport, diagnoses_invalid_planar_paths_and_keeps_zero_radius_defaults)
+TEST(AnimationImport, diagnosesInvalidPlanarPathsAndKeepsZeroRadiusDefaults)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-planar-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -851,7 +851,7 @@ TEST(AnimationImport, diagnoses_invalid_planar_paths_and_keeps_zero_radius_defau
     EXPECT_DOUBLE_EQ(-2.0, y.sample(result.document->frame_grid()->frame_start(3)));
 }
 
-TEST(AnimationImport, samples_constant_and_line_paths_like_paranimator)
+TEST(AnimationImport, samplesConstantAndLinePathsLikeParanimator)
 {
     const JsonImportResult result = import_timeline_json("fixtures/path-generators.json");
     ASSERT_TRUE(result.succeeded());
@@ -903,7 +903,7 @@ TEST(AnimationImport, samples_constant_and_line_paths_like_paranimator)
     EXPECT_NE(std::string::npos, snapshot.find("KEYFRAME_MARKER"));
 }
 
-TEST(AnimationImport, diagnoses_invalid_paths_without_discarding_a_valid_constant)
+TEST(AnimationImport, diagnosesInvalidPathsWithoutDiscardingAValidConstant)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -922,7 +922,7 @@ TEST(AnimationImport, diagnoses_invalid_paths_without_discarding_a_valid_constan
     EXPECT_EQ("{\"kind\":\"constant\",\"value\":\"bof60\"}", attributes.at("path"));
 }
 
-TEST(AnimationImport, rejects_paths_with_fewer_than_two_frames)
+TEST(AnimationImport, rejectsPathsWithFewerThanTwoFrames)
 {
     const JsonImportResult result = import_timeline_json("fixtures/single-frame-path.json");
     EXPECT_FALSE(result.succeeded());
@@ -930,7 +930,7 @@ TEST(AnimationImport, rejects_paths_with_fewer_than_two_frames)
     EXPECT_NE(std::string::npos, result.diagnostics.front().find("at least two frames"));
 }
 
-TEST(AnimationImport, translates_destination_curve_to_outgoing_segment)
+TEST(AnimationImport, translatesDestinationCurveToOutgoingSegment)
 {
     const JsonImportResult result = import_timeline_json("fixtures/maxiter-step.json");
     ASSERT_TRUE(result.succeeded());
@@ -946,7 +946,7 @@ TEST(AnimationImport, translates_destination_curve_to_outgoing_segment)
     EXPECT_DOUBLE_EQ(200.0, *lane.evaluate_keyframes(grid.frame_start(3)));
 }
 
-TEST(AnimationImport, splits_compound_parameters_without_losing_authored_values)
+TEST(AnimationImport, splitsCompoundParametersWithoutLosingAuthoredValues)
 {
     const JsonImportResult result = import_timeline_json("fixtures/multi-track.json");
     ASSERT_TRUE(result.succeeded());
@@ -968,7 +968,7 @@ TEST(AnimationImport, splits_compound_parameters_without_losing_authored_values)
     EXPECT_NEAR(std::sqrt(10.0), *inspection->lanes[2].value, 1e-12);
 }
 
-TEST(AnimationImport, retains_layer_identity_and_drives_display_and_inspection)
+TEST(AnimationImport, retainsLayerIdentityAndDrivesDisplayAndInspection)
 {
     const JsonImportResult result = import_timeline_json("fixtures/single-layer.json");
     ASSERT_TRUE(result.succeeded());
@@ -991,7 +991,7 @@ TEST(AnimationImport, retains_layer_identity_and_drives_display_and_inspection)
     EXPECT_DOUBLE_EQ(150.0, *lane.evaluate_keyframes(grid.frame_start(1)));
 }
 
-TEST(AnimationImport, combines_music_generated_output_and_animation_without_identity_collisions)
+TEST(AnimationImport, combinesMusicGeneratedOutputAndAnimationWithoutIdentityCollisions)
 {
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());
@@ -1022,7 +1022,7 @@ TEST(AnimationImport, combines_music_generated_output_and_animation_without_iden
     EXPECT_NE(std::string::npos, snapshot.find("maxiter"));
 }
 
-TEST(AnimationImport, rejects_incompatible_comparison_timing)
+TEST(AnimationImport, rejectsIncompatibleComparisonTiming)
 {
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     JsonImportOptions options;
@@ -1033,7 +1033,7 @@ TEST(AnimationImport, rejects_incompatible_comparison_timing)
     EXPECT_THROW(timeline::combine_documents(*music.document, *animation.document), std::invalid_argument);
 }
 
-TEST(AnimationImport, preserves_categorical_values_as_held_spans_and_key_instants)
+TEST(AnimationImport, preservesCategoricalValuesAsHeldSpansAndKeyInstants)
 {
     const JsonImportResult result = import_timeline_json("fixtures/inside-hold.json");
     ASSERT_TRUE(result.succeeded());
@@ -1058,7 +1058,7 @@ TEST(AnimationImport, preserves_categorical_values_as_held_spans_and_key_instant
     }
 }
 
-TEST(AnimationImport, retains_valid_tracks_with_indexed_diagnostics_for_invalid_keys)
+TEST(AnimationImport, retainsValidTracksWithIndexedDiagnosticsForInvalidKeys)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-animation.json");
     ASSERT_TRUE(result.succeeded());
@@ -1071,7 +1071,7 @@ TEST(AnimationImport, retains_valid_tracks_with_indexed_diagnostics_for_invalid_
     EXPECT_EQ("animation-6", result.document->lanes().front().id());
 }
 
-TEST(AnimationImport, rejects_unusable_animation_and_missing_catalogs)
+TEST(AnimationImport, rejectsUnusableAnimationAndMissingCatalogs)
 {
     for (const char *name : {"invalid-animation.json", "missing-catalog.json"})
     {

@@ -16,7 +16,7 @@ namespace
 const std::filesystem::path fixtures(TIMELINE_TEST_FIXTURE_DIR);
 }
 
-TEST(QtViewer, opens_shared_animation_and_inspects_selected_frames)
+TEST(QtViewer, opensSharedAnimationAndInspectsSelectedFrames)
 {
     timeline_qt_viewer::Viewer viewer;
     viewer.resize(1000, 640);
@@ -35,7 +35,7 @@ TEST(QtViewer, opens_shared_animation_and_inspects_selected_frames)
     EXPECT_TRUE(viewer.control().layout());
 }
 
-TEST(QtViewer, retains_document_and_selection_after_failed_import)
+TEST(QtViewer, retainsDocumentAndSelectionAfterFailedImport)
 {
     timeline_qt_viewer::Viewer viewer;
     viewer.show();
@@ -53,7 +53,7 @@ TEST(QtViewer, retains_document_and_selection_after_failed_import)
     EXPECT_EQ(1, *viewer.control().interaction()->playhead_frame());
 }
 
-TEST(QtViewer, delegates_supported_json_dispatch_and_exposes_file_open)
+TEST(QtViewer, delegatesSupportedJsonDispatchAndExposesFileOpen)
 {
     timeline_qt_viewer::Viewer viewer;
     const QList<QAction *> menus = viewer.menuBar()->actions();
@@ -69,7 +69,7 @@ TEST(QtViewer, delegates_supported_json_dispatch_and_exposes_file_open)
     EXPECT_TRUE(viewer.control().document()->source_summary());
 }
 
-TEST(QtViewer, composes_music_recipes_and_resets_them_on_replacement)
+TEST(QtViewer, composesMusicRecipesAndResetsThemOnReplacement)
 {
     timeline_qt_viewer::Viewer viewer;
     viewer.resize(1000, 640);
@@ -93,7 +93,7 @@ TEST(QtViewer, composes_music_recipes_and_resets_them_on_replacement)
     EXPECT_EQ(0, *viewer.control().interaction()->playhead_frame());
 }
 
-TEST(QtViewer, comparison_import_and_composition_failures_preserve_displayed_state)
+TEST(QtViewer, comparisonImportAndCompositionFailuresPreserveDisplayedState)
 {
     timeline_qt_viewer::Viewer viewer;
     viewer.show();
@@ -122,7 +122,7 @@ TEST(QtViewer, comparison_import_and_composition_failures_preserve_displayed_sta
     EXPECT_EQ(1, timeline::size_cast(viewer.mappings()));
 }
 
-TEST(QtViewer, comparison_reuses_the_displayed_timebase_and_frame_grid)
+TEST(QtViewer, comparisonReusesTheDisplayedTimebaseAndFrameGrid)
 {
     timeline_qt_viewer::Viewer viewer;
     timeline_par_animator::JsonImportOptions options;
@@ -140,7 +140,7 @@ TEST(QtViewer, comparison_reuses_the_displayed_timebase_and_frame_grid)
     EXPECT_EQ(24, viewer.control().document()->frame_grid()->frames_per_second_numerator());
 }
 
-TEST(QtViewer, exposes_generation_metadata_attributes_outputs_and_palettes)
+TEST(QtViewer, exposesGenerationMetadataAttributesOutputsAndPalettes)
 {
     timeline_qt_viewer::Viewer viewer;
     ASSERT_TRUE(viewer.load_file(fixtures / "beat-keys/gold-write-rms-keyframes.json"));
@@ -161,7 +161,7 @@ TEST(QtViewer, exposes_generation_metadata_attributes_outputs_and_palettes)
     EXPECT_NE(std::string::npos, viewer.inspector_text().find("RGB"));
 }
 
-TEST(QtViewer, exposes_native_menu_commands_and_delegates_view_actions)
+TEST(QtViewer, exposesNativeMenuCommandsAndDelegatesViewActions)
 {
     timeline_qt_viewer::Viewer viewer;
     viewer.resize(1000, 640);
@@ -204,7 +204,7 @@ TEST(QtViewer, exposes_native_menu_commands_and_delegates_view_actions)
     EXPECT_FALSE(viewer.control().interaction()->selected_frames());
 }
 
-TEST(QtViewer, exports_current_core_snapshot_and_keeps_state_on_write_failure)
+TEST(QtViewer, exportsCurrentCoreSnapshotAndKeepsStateOnWriteFailure)
 {
     QTemporaryDir directory;
     ASSERT_TRUE(directory.isValid());
@@ -229,7 +229,7 @@ TEST(QtViewer, exports_current_core_snapshot_and_keeps_state_on_write_failure)
     EXPECT_EQ(inspector, viewer.inspector_text());
 }
 
-TEST(QtViewer, accepts_optional_startup_path_and_reports_startup_failure)
+TEST(QtViewer, acceptsOptionalStartupPathAndReportsStartupFailure)
 {
     timeline_qt_viewer::Viewer viewer(fixtures / "extreme-normalized-vectors.json");
     ASSERT_TRUE(viewer.control().document());

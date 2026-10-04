@@ -16,7 +16,7 @@
 
 using namespace timeline_par_animator;
 
-TEST(CameraImport, preserves_keyed_nested_signals_and_source_eye_precedence)
+TEST(CameraImport, preservesKeyedNestedSignalsAndSourceEyePrecedence)
 {
     const std::array<std::string, 4> kinds{"linear", "hold", "eye-zero", "eye-crossing"};
     for (const std::string &kind : kinds)
@@ -118,7 +118,7 @@ TEST(CameraImport, preserves_keyed_nested_signals_and_source_eye_precedence)
     }
 }
 
-TEST(CameraImport, diagnoses_nested_signal_format_and_active_singularities)
+TEST(CameraImport, diagnosesNestedSignalFormatAndActiveSingularities)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-camera2d-nested.json");
     ASSERT_TRUE(imported.succeeded());
@@ -146,7 +146,7 @@ TEST(CameraImport, diagnoses_nested_signal_format_and_active_singularities)
     EXPECT_NE(std::string::npos, rejected.diagnostics.front().find("ParAnimator format"));
 }
 
-TEST(CameraImport, samples_owned_moving_look_compositions_like_paranimator)
+TEST(CameraImport, samplesOwnedMovingLookCompositionsLikeParanimator)
 {
     const std::array<std::string, 5> kinds{
         "keyed-bezier", "circle-keyed", "hold-spiral", "bezier-catmull", "ellipse-lissajous"};
@@ -257,7 +257,7 @@ TEST(CameraImport, samples_owned_moving_look_compositions_like_paranimator)
     }
 }
 
-TEST(CameraImport, diagnoses_whole_domain_moving_look_collisions)
+TEST(CameraImport, diagnosesWholeDomainMovingLookCollisions)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-camera2d-moving.json");
     ASSERT_TRUE(imported.succeeded());
@@ -272,7 +272,7 @@ TEST(CameraImport, diagnoses_whole_domain_moving_look_collisions)
     EXPECT_EQ("animation-7-center-mag[0]", imported.document->lanes().front().id());
 }
 
-TEST(CameraImport, samples_owned_remaining_eye_paths_like_paranimator)
+TEST(CameraImport, samplesOwnedRemainingEyePathsLikeParanimator)
 {
     const std::array<std::string, 4> kinds{"lissajous-independent", "lissajous-slow-y", "bezier", "catmull-rom"};
     for (const std::string &kind : kinds)
@@ -366,7 +366,7 @@ TEST(CameraImport, samples_owned_remaining_eye_paths_like_paranimator)
     }
 }
 
-TEST(CameraImport, diagnoses_remaining_eye_path_collisions_and_validation_limits)
+TEST(CameraImport, diagnosesRemainingEyePathCollisionsAndValidationLimits)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-eye-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -386,7 +386,7 @@ TEST(CameraImport, diagnoses_remaining_eye_path_collisions_and_validation_limits
     EXPECT_EQ("animation-12-center-mag[0]", result.document->lanes()[15].id());
 }
 
-TEST(CameraImport, samples_owned_equal_frequency_lissajous_eyes_like_paranimator)
+TEST(CameraImport, samplesOwnedEqualFrequencyLissajousEyesLikeParanimator)
 {
     const std::array<std::string, 3> kinds{"centered", "phase", "partial"};
     for (const std::string &kind : kinds)
@@ -475,7 +475,7 @@ TEST(CameraImport, samples_owned_equal_frequency_lissajous_eyes_like_paranimator
     }
 }
 
-TEST(CameraImport, diagnoses_lissajous_eye_collisions_and_invalid_or_pending_inputs)
+TEST(CameraImport, diagnosesLissajousEyeCollisionsAndInvalidOrPendingInputs)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-eye-lissajous.json");
     ASSERT_TRUE(result.succeeded());
@@ -493,7 +493,7 @@ TEST(CameraImport, diagnoses_lissajous_eye_collisions_and_invalid_or_pending_inp
     EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes()[15].id());
 }
 
-TEST(CameraImport, samples_owned_spiral_eyes_like_paranimator)
+TEST(CameraImport, samplesOwnedSpiralEyesLikeParanimator)
 {
     const std::array<std::string, 4> kinds{"expanding", "shrinking", "offset", "stationary"};
     for (const std::string &kind : kinds)
@@ -577,7 +577,7 @@ TEST(CameraImport, samples_owned_spiral_eyes_like_paranimator)
     }
 }
 
-TEST(CameraImport, diagnoses_spiral_eye_collisions_and_invalid_or_pending_inputs)
+TEST(CameraImport, diagnosesSpiralEyeCollisionsAndInvalidOrPendingInputs)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-eye-spirals.json");
     ASSERT_TRUE(result.succeeded());
@@ -595,7 +595,7 @@ TEST(CameraImport, diagnoses_spiral_eye_collisions_and_invalid_or_pending_inputs
     EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes()[15].id());
 }
 
-TEST(CameraImport, evaluates_owned_offset_eye_orbits_like_paranimator)
+TEST(CameraImport, evaluatesOwnedOffsetEyeOrbitsLikeParanimator)
 {
     const std::array<std::string, 3> kinds{"circle", "ellipse", "partial"};
     for (const std::string &kind : kinds)
@@ -672,7 +672,7 @@ TEST(CameraImport, evaluates_owned_offset_eye_orbits_like_paranimator)
     }
 }
 
-TEST(CameraImport, diagnoses_offset_orbit_collisions_between_frames_and_pending_motion)
+TEST(CameraImport, diagnosesOffsetOrbitCollisionsBetweenFramesAndPendingMotion)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-offset-orbits.json");
     ASSERT_TRUE(result.succeeded());
@@ -691,7 +691,7 @@ TEST(CameraImport, diagnoses_offset_orbit_collisions_between_frames_and_pending_
     EXPECT_EQ("animation-7-center-mag[0]", result.document->lanes()[15].id());
 }
 
-TEST(CameraImport, samples_owned_curved_look_at_like_paranimator_with_full_path_bounds)
+TEST(CameraImport, samplesOwnedCurvedLookAtLikeParanimatorWithFullPathBounds)
 {
     const std::array<std::string, 6> kinds{"circle", "ellipse", "lissajous", "spiral", "bezier", "catmull-rom"};
     for (const std::string &kind : kinds)
@@ -770,7 +770,7 @@ TEST(CameraImport, samples_owned_curved_look_at_like_paranimator_with_full_path_
     }
 }
 
-TEST(CameraImport, diagnoses_invalid_curved_look_at_and_retains_eye_compositions)
+TEST(CameraImport, diagnosesInvalidCurvedLookAtAndRetainsEyeCompositions)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-look-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -785,7 +785,7 @@ TEST(CameraImport, diagnoses_invalid_curved_look_at_and_retains_eye_compositions
     EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes()[15].id());
 }
 
-TEST(CameraImport, composes_straight_paths_like_paranimator_and_owns_their_recipes)
+TEST(CameraImport, composesStraightPathsLikeParanimatorAndOwnsTheirRecipes)
 {
     const std::array<std::string, 2> fixtures{"camera2d-straight-paths", "camera2d-straight-eye"};
     for (const std::string &fixture : fixtures)
@@ -857,7 +857,7 @@ TEST(CameraImport, composes_straight_paths_like_paranimator_and_owns_their_recip
     }
 }
 
-TEST(CameraImport, diagnoses_invalid_straight_compositions_without_partial_camera_lanes)
+TEST(CameraImport, diagnosesInvalidStraightCompositionsWithoutPartialCameraLanes)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-straight-paths.json");
     ASSERT_TRUE(result.succeeded());
@@ -870,7 +870,7 @@ TEST(CameraImport, diagnoses_invalid_straight_compositions_without_partial_camer
     EXPECT_EQ("animation-7-center-mag[0]", result.document->lanes().front().id());
 }
 
-TEST(CameraImport, normalizes_tiny_authored_view_up_before_cleaning_components)
+TEST(CameraImport, normalizesTinyAuthoredViewUpBeforeCleaningComponents)
 {
     const JsonImportResult result = import_timeline_json("fixtures/camera2d-tiny-view-up.json");
     ASSERT_TRUE(result.succeeded());
@@ -882,7 +882,7 @@ TEST(CameraImport, normalizes_tiny_authored_view_up_before_cleaning_components)
     EXPECT_DOUBLE_EQ(0, rotation.sample(grid.frame_start(2)));
 }
 
-TEST(CameraImport, derives_direction_from_analytic_eye_like_paranimator)
+TEST(CameraImport, derivesDirectionFromAnalyticEyeLikeParanimator)
 {
     const JsonImportResult result = import_timeline_json("fixtures/camera2d-eye-center-mag.json");
     ASSERT_TRUE(result.succeeded());
@@ -938,7 +938,7 @@ TEST(CameraImport, derives_direction_from_analytic_eye_like_paranimator)
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("derived-view-up"));
 }
 
-TEST(CameraImport, preserves_eye_precedence_and_owned_orbits_and_keyed_motion)
+TEST(CameraImport, preservesEyePrecedenceAndOwnedOrbitsAndKeyedMotion)
 {
     const timeline::Document document = []
     {
@@ -975,7 +975,7 @@ TEST(CameraImport, preserves_eye_precedence_and_owned_orbits_and_keyed_motion)
     EXPECT_DOUBLE_EQ(90, *inspection->lanes[8].items.front().value);
 }
 
-TEST(CameraImport, diagnoses_singular_eye_directions_and_pending_compositions)
+TEST(CameraImport, diagnosesSingularEyeDirectionsAndPendingCompositions)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d-eye.json");
     ASSERT_TRUE(result.succeeded());
@@ -988,7 +988,7 @@ TEST(CameraImport, diagnoses_singular_eye_directions_and_pending_compositions)
     EXPECT_EQ("animation-8-center-mag[0]", result.document->lanes().front().id());
 }
 
-TEST(CameraImport, evaluates_center_mag_and_nested_keys_like_paranimator)
+TEST(CameraImport, evaluatesCenterMagAndNestedKeysLikeParanimator)
 {
     const JsonImportResult result = import_timeline_json("fixtures/camera2d-center-mag.json");
     ASSERT_TRUE(result.succeeded());
@@ -1042,7 +1042,7 @@ TEST(CameraImport, evaluates_center_mag_and_nested_keys_like_paranimator)
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("camera / height"));
 }
 
-TEST(CameraImport, normalizes_interpolated_view_up_and_preserves_source_stretch)
+TEST(CameraImport, normalizesInterpolatedViewUpAndPreservesSourceStretch)
 {
     const timeline::Document document = []
     {
@@ -1084,7 +1084,7 @@ TEST(CameraImport, normalizes_interpolated_view_up_and_preserves_source_stretch)
     EXPECT_NEAR(45, *inspection->lanes[8].items.front().value, 1e-12);
 }
 
-TEST(CameraImport, diagnoses_invalid_and_pending_forms_without_partial_camera_lanes)
+TEST(CameraImport, diagnosesInvalidAndPendingFormsWithoutPartialCameraLanes)
 {
     const JsonImportResult result = import_timeline_json("fixtures/partial-camera2d.json");
     ASSERT_TRUE(result.succeeded());
@@ -1097,7 +1097,7 @@ TEST(CameraImport, diagnoses_invalid_and_pending_forms_without_partial_camera_la
     EXPECT_EQ("animation-14-center-mag[0]", result.document->lanes().front().id());
 }
 
-TEST(CameraImport, resolves_layer_views_and_diagnoses_unusable_source_entries)
+TEST(CameraImport, resolvesLayerViewsAndDiagnosesUnusableSourceEntries)
 {
     const JsonImportResult result = import_timeline_json("fixtures/camera2d-layer-sources.json");
     ASSERT_TRUE(result.succeeded());

@@ -42,7 +42,7 @@ double vector_golden_component(const std::string &entry, const std::string &para
 
 } // namespace
 
-TEST(NormalizedVector, matches_extreme_source_output_at_frames_and_between_frames)
+TEST(NormalizedVector, matchesExtremeSourceOutputAtFramesAndBetweenFrames)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/extreme-normalized-vectors.json");
     ASSERT_TRUE(imported.succeeded());
@@ -85,7 +85,7 @@ TEST(NormalizedVector, matches_extreme_source_output_at_frames_and_between_frame
     }
 }
 
-TEST(NormalizedVector, retains_extreme_authored_values_recipes_bounds_and_hit_identities)
+TEST(NormalizedVector, retainsExtremeAuthoredValuesRecipesBoundsAndHitIdentities)
 {
     JsonImportResult imported = import_timeline_json("fixtures/extreme-normalized-vectors.json");
     ASSERT_TRUE(imported.succeeded());
@@ -159,7 +159,7 @@ TEST(NormalizedVector, retains_extreme_authored_values_recipes_bounds_and_hit_id
     EXPECT_EQ(25, found);
 }
 
-TEST(NormalizedVector, rejects_extreme_singular_and_unresolved_intervals_not_overflow_alone)
+TEST(NormalizedVector, rejectsExtremeSingularAndUnresolvedIntervalsNotOverflowAlone)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/extreme-normalized-invalid.json");
     EXPECT_FALSE(imported.succeeded());
@@ -178,7 +178,7 @@ TEST(NormalizedVector, rejects_extreme_singular_and_unresolved_intervals_not_ove
     EXPECT_NE(std::string::npos, imported.diagnostics[6].find("nonzero"));
 }
 
-TEST(NormalizedVector, matches_source_keyed_output_without_cleaning_authored_components)
+TEST(NormalizedVector, matchesSourceKeyedOutputWithoutCleaningAuthoredComponents)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/normalized-keyed-vectors.json");
     ASSERT_TRUE(imported.succeeded());
@@ -215,7 +215,7 @@ TEST(NormalizedVector, matches_source_keyed_output_without_cleaning_authored_com
     EXPECT_EQ("0", middle.lanes[0].items[0].attributes.at("component"));
 }
 
-TEST(NormalizedVector, retains_keyed_output_after_copying_comparison_and_layout)
+TEST(NormalizedVector, retainsKeyedOutputAfterCopyingComparisonAndLayout)
 {
     JsonImportResult imported = import_timeline_json("fixtures/normalized-keyed-vectors.json");
     ASSERT_TRUE(imported.succeeded());
@@ -257,7 +257,7 @@ TEST(NormalizedVector, retains_keyed_output_after_copying_comparison_and_layout)
     EXPECT_TRUE(found);
 }
 
-TEST(NormalizedVector, diagnoses_invalid_keyed_inputs_without_partial_components)
+TEST(NormalizedVector, diagnosesInvalidKeyedInputsWithoutPartialComponents)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/normalized-keyed-partial.json");
     ASSERT_TRUE(imported.succeeded());
@@ -290,7 +290,7 @@ TEST(NormalizedVector, diagnoses_invalid_keyed_inputs_without_partial_components
     EXPECT_FALSE(import_timeline_json("fixtures/normalized-keyed-invalid.json").succeeded());
 }
 
-TEST(NormalizedVector, matches_source_control_point_output_at_every_frame)
+TEST(NormalizedVector, matchesSourceControlPointOutputAtEveryFrame)
 {
     const std::array<std::string, 2> fixtures{"normalized-bezier-vectors", "normalized-catmull-rom-vectors"};
     const std::array<std::string, 12> parameters{"direction2", "direction2", "direction3", "direction3", "direction3",
@@ -324,7 +324,7 @@ TEST(NormalizedVector, matches_source_control_point_output_at_every_frame)
     }
 }
 
-TEST(NormalizedVector, owns_recipes_bounds_and_hit_identity_across_copying_and_comparison)
+TEST(NormalizedVector, ownsRecipesBoundsAndHitIdentityAcrossCopyingAndComparison)
 {
     JsonImportResult imported = import_timeline_json("fixtures/normalized-bezier-vectors.json");
     ASSERT_TRUE(imported.succeeded());
@@ -372,7 +372,7 @@ TEST(NormalizedVector, owns_recipes_bounds_and_hit_identity_across_copying_and_c
     EXPECT_TRUE(found);
 }
 
-TEST(NormalizedVector, normalizes_after_interpolation_and_source_cleanup_at_fractional_times)
+TEST(NormalizedVector, normalizesAfterInterpolationAndSourceCleanupAtFractionalTimes)
 {
     const JsonImportResult imported =
         import_timeline_json("fixtures/normalized-bezier-vectors.json", JsonImportOptions{48000, 24000, 1001, {}});
@@ -396,7 +396,7 @@ TEST(NormalizedVector, normalizes_after_interpolation_and_source_cleanup_at_frac
     EXPECT_FALSE(std::get<timeline::Curve>(imported.document->lanes()[5].items()[0]).attributes().count("normalize"));
 }
 
-TEST(NormalizedVector, rejects_singular_intervals_and_malformed_targets_without_partial_lanes)
+TEST(NormalizedVector, rejectsSingularIntervalsAndMalformedTargetsWithoutPartialLanes)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/normalized-vector-partial.json");
     ASSERT_TRUE(imported.succeeded());

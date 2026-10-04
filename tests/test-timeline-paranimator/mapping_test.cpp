@@ -71,22 +71,22 @@ void expect_golden(const std::string &mapping_file, const std::string &golden_fi
 
 } // namespace
 
-TEST(BeatKeysMapping, matches_realized_rms_overlay)
+TEST(BeatKeysMapping, matchesRealizedRmsOverlay)
 {
     expect_golden("rms.beat-keys.json", "gold-write-rms-keyframes.json");
 }
 
-TEST(BeatKeysMapping, matches_realized_peak_overlay)
+TEST(BeatKeysMapping, matchesRealizedPeakOverlay)
 {
     expect_golden("peak.beat-keys.json", "gold-write-peak-keyframes.json");
 }
 
-TEST(BeatKeysMapping, matches_realized_row_pulses_with_untransformed_zero_returns)
+TEST(BeatKeysMapping, matchesRealizedRowPulsesWithUntransformedZeroReturns)
 {
     expect_golden("row-pulses.beat-keys.json", "gold-write-row-pulses.json");
 }
 
-TEST(BeatKeysMapping, matches_counted_note_and_effect_decay_with_extended_extent)
+TEST(BeatKeysMapping, matchesCountedNoteAndEffectDecayWithExtendedExtent)
 {
     expect_golden("note-pulses.beat-keys.json", "gold-write-note-pulses.json");
     const JsonImportResult result = import_timeline_json(fixture("note-pulses.beat-keys.json"));
@@ -94,7 +94,7 @@ TEST(BeatKeysMapping, matches_counted_note_and_effect_decay_with_extended_extent
     EXPECT_EQ(7, result.document->frame_grid()->frame_count());
 }
 
-TEST(BeatKeysMapping, retains_recipes_and_rebuilds_disposable_display_data)
+TEST(BeatKeysMapping, retainsRecipesAndRebuildsDisposableDisplayData)
 {
     const JsonImportResult result = import_timeline_json(fixture("rms.beat-keys.json"));
     ASSERT_TRUE(result.mapping);
@@ -114,7 +114,7 @@ TEST(BeatKeysMapping, retains_recipes_and_rebuilds_disposable_display_data)
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("RMS"));
 }
 
-TEST(BeatKeysMapping, rejects_unknown_bindings_and_missing_relative_inputs)
+TEST(BeatKeysMapping, rejectsUnknownBindingsAndMissingRelativeInputs)
 {
     for (const std::string &name : {"invalid-binding.beat-keys.json", "missing-input.beat-keys.json"})
     {
@@ -131,7 +131,7 @@ TEST(BeatKeysMapping, rejects_unknown_bindings_and_missing_relative_inputs)
     EXPECT_NE(std::string::npos, missing.diagnostics.back().find("missing.music.json"));
 }
 
-TEST(BeatKeysMapping, sums_overlapping_decay_before_transforming)
+TEST(BeatKeysMapping, sumsOverlappingDecayBeforeTransforming)
 {
     const timeline::FrameGrid grid(timeline::Timebase(120000), 2, 10, 1);
     const timeline::Document source(grid, 0, 0);
@@ -148,7 +148,7 @@ TEST(BeatKeysMapping, sums_overlapping_decay_before_transforming)
     EXPECT_DOUBLE_EQ(0.0, std::get<timeline::Keyframe>(lane.items()[3]).value());
 }
 
-TEST(BeatKeysMapping, rejects_fractional_source_frames_without_truncating)
+TEST(BeatKeysMapping, rejectsFractionalSourceFramesWithoutTruncating)
 {
     const JsonImportResult result = import_timeline_json(fixture("fractional-frame.beat-keys.json"));
     EXPECT_FALSE(result.succeeded());
@@ -157,7 +157,7 @@ TEST(BeatKeysMapping, rejects_fractional_source_frames_without_truncating)
     EXPECT_NE(std::string::npos, result.diagnostics.back().find("source frame"));
 }
 
-TEST(BeatKeysMapping, validates_recipes_and_frame_addressed_inputs)
+TEST(BeatKeysMapping, validatesRecipesAndFrameAddressedInputs)
 {
     const timeline::Document source(timeline::FrameGrid(timeline::Timebase(120000), 2, 30, 1), 0, 0);
     MappingRecipe recipe{"music.rms", "zoom", "replace"};
@@ -178,7 +178,7 @@ TEST(BeatKeysMapping, validates_recipes_and_frame_addressed_inputs)
         std::invalid_argument);
 }
 
-TEST(BeatKeysMapping, keeps_source_and_outputs_aligned_with_a_synchronization_offset)
+TEST(BeatKeysMapping, keepsSourceAndOutputsAlignedWithASynchronizationOffset)
 {
     const JsonImportResult result = import_timeline_json(fixture("offset-pulses.beat-keys.json"));
     ASSERT_TRUE(result.document);

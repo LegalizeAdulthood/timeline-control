@@ -51,7 +51,7 @@ std::vector<std::map<std::string, std::string>> source_frames(const std::string 
 
 } // namespace
 
-TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
+TEST(Id3DView, matchesSourceGoldenAndPreservesOwnedRecipes)
 {
     const std::array<std::string, 21> fixtures{"camera", "keyed", "hold", "override", "tilted", "tilted-hold",
         "oblique", "oblique-hold", "plane-hold", "oblique-plane-step", "azimuth", "azimuth-reverse", "tolerance",
@@ -126,7 +126,7 @@ TEST(Id3DView, matches_source_golden_and_preserves_owned_recipes)
     }
 }
 
-TEST(Id3DView, samples_continuously_with_integer_rounding_and_endpoint_holds)
+TEST(Id3DView, samplesContinuouslyWithIntegerRoundingAndEndpointHolds)
 {
     const JsonImportResult camera = import_timeline_json("fixtures/id-3d-view-camera.json");
     ASSERT_TRUE(camera.succeeded());
@@ -162,7 +162,7 @@ TEST(Id3DView, samples_continuously_with_integer_rounding_and_endpoint_holds)
     }
 }
 
-TEST(Id3DView, normalizes_tilted_hints_after_interpolation_with_owned_recipes)
+TEST(Id3DView, normalizesTiltedHintsAfterInterpolationWithOwnedRecipes)
 {
     for (const std::string &fixture : {"tilted", "tilted-hold"})
     {
@@ -201,7 +201,7 @@ TEST(Id3DView, normalizes_tilted_hints_after_interpolation_with_owned_recipes)
     }
 }
 
-TEST(Id3DView, rejects_invalid_tracks_transactionally_with_indexed_diagnostics)
+TEST(Id3DView, rejectsInvalidTracksTransactionallyWithIndexedDiagnostics)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/partial-id-3d-view.json");
     ASSERT_TRUE(imported.succeeded());
@@ -222,7 +222,7 @@ TEST(Id3DView, rejects_invalid_tracks_transactionally_with_indexed_diagnostics)
     EXPECT_FALSE(failed.diagnostics.empty());
 }
 
-TEST(Id3DView, samples_owned_oblique_hints_and_outputs_continuously)
+TEST(Id3DView, samplesOwnedObliqueHintsAndOutputsContinuously)
 {
     for (const std::string &fixture : {"oblique", "oblique-hold"})
     {
@@ -280,7 +280,7 @@ TEST(Id3DView, samples_owned_oblique_hints_and_outputs_continuously)
     }
 }
 
-TEST(Id3DView, holds_owned_camera_planes_until_the_exact_destination_key)
+TEST(Id3DView, holdsOwnedCameraPlanesUntilTheExactDestinationKey)
 {
     for (const std::string &fixture : {"plane-hold", "oblique-plane-step"})
     {
@@ -343,7 +343,7 @@ TEST(Id3DView, holds_owned_camera_planes_until_the_exact_destination_key)
     }
 }
 
-TEST(Id3DView, samples_owned_moving_azimuth_and_tilted_hints_between_frames)
+TEST(Id3DView, samplesOwnedMovingAzimuthAndTiltedHintsBetweenFrames)
 {
     for (const std::string &fixture : {"azimuth", "azimuth-reverse"})
     {
@@ -399,7 +399,7 @@ TEST(Id3DView, samples_owned_moving_azimuth_and_tilted_hints_between_frames)
     }
 }
 
-TEST(Id3DView, validates_tolerance_boundaries_continuously_with_owned_hints)
+TEST(Id3DView, validatesToleranceBoundariesContinuouslyWithOwnedHints)
 {
     for (const std::string &fixture :
         {"tolerance", "near-parallel", "orientation-minimum", "near-vertical", "hint-cleanup"})
@@ -448,7 +448,7 @@ TEST(Id3DView, validates_tolerance_boundaries_continuously_with_owned_hints)
     }
 }
 
-TEST(Id3DView, rejects_roll_and_cleanup_neighbors_without_partial_documents)
+TEST(Id3DView, rejectsRollAndCleanupNeighborsWithoutPartialDocuments)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-tolerance.json");
     EXPECT_FALSE(imported.succeeded());
@@ -462,7 +462,7 @@ TEST(Id3DView, rejects_roll_and_cleanup_neighbors_without_partial_documents)
     EXPECT_NE(std::string::npos, imported.diagnostics.back().find("no supported animation tracks"));
 }
 
-TEST(Id3DView, rejects_roll_between_sampled_frames_and_unsafe_azimuth_intervals)
+TEST(Id3DView, rejectsRollBetweenSampledFramesAndUnsafeAzimuthIntervals)
 {
     // Both authored endpoints are coplanar; their interpolated midpoint is not.
     EXPECT_NEAR(0, 3 * -0.8 - 4 * -0.6, 1e-12);
@@ -482,7 +482,7 @@ TEST(Id3DView, rejects_roll_between_sampled_frames_and_unsafe_azimuth_intervals)
     }
 }
 
-TEST(Id3DView, rejects_unsafe_plane_jump_endpoints_and_mixed_motion)
+TEST(Id3DView, rejectsUnsafePlaneJumpEndpointsAndMixedMotion)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-plane-jump.json");
     EXPECT_FALSE(imported.succeeded());
@@ -499,7 +499,7 @@ TEST(Id3DView, rejects_unsafe_plane_jump_endpoints_and_mixed_motion)
     EXPECT_NE(std::string::npos, imported.diagnostics.back().find("no supported animation tracks"));
 }
 
-TEST(Id3DView, diagnoses_oblique_roll_and_unsupported_motion_without_partial_lanes)
+TEST(Id3DView, diagnosesObliqueRollAndUnsupportedMotionWithoutPartialLanes)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-oblique.json");
     EXPECT_FALSE(imported.succeeded());
@@ -514,7 +514,7 @@ TEST(Id3DView, diagnoses_oblique_roll_and_unsupported_motion_without_partial_lan
     }
 }
 
-TEST(Id3DView, rejects_tilted_singularities_between_frames_and_at_held_endpoints)
+TEST(Id3DView, rejectsTiltedSingularitiesBetweenFramesAndAtHeldEndpoints)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/invalid-id-3d-view-tilted.json");
     EXPECT_FALSE(imported.succeeded());
@@ -528,7 +528,7 @@ TEST(Id3DView, rejects_tilted_singularities_between_frames_and_at_held_endpoints
     }
 }
 
-TEST(Id3DView, preserves_layer_sources_aliases_and_unused_camera_inputs)
+TEST(Id3DView, preservesLayerSourcesAliasesAndUnusedCameraInputs)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/id-3d-view-layers.json");
     ASSERT_TRUE(imported.succeeded());

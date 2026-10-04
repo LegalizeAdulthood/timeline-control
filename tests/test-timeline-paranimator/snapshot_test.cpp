@@ -44,24 +44,24 @@ void expect_snapshot(
 
 } // namespace
 
-TEST(ImportedSnapshot, renders_empty_timeline)
+TEST(ImportedSnapshot, rendersEmptyTimeline)
 {
     expect_snapshot("empty-animation.json", "empty.txt", {});
 }
 
-TEST(ImportedSnapshot, renders_event_lane)
+TEST(ImportedSnapshot, rendersEventLane)
 {
     JsonImportOptions options{};
     options.beat_keys_config_path = "fixtures/beat-keys/adapter.beat-keys.json";
     expect_snapshot("beat-keys/timeline-events.json", "events.txt", options);
 }
 
-TEST(ImportedSnapshot, renders_curve_lane)
+TEST(ImportedSnapshot, rendersCurveLane)
 {
     expect_snapshot("par-beatdown/gold-write-windowed-features.json", "curve.txt", {});
 }
 
-TEST(ImportedSnapshot, renders_keyframe_lane)
+TEST(ImportedSnapshot, rendersKeyframeLane)
 {
     expect_snapshot("beat-keys/gold-write-row-pulses.json", "keyframes.txt", {});
 }

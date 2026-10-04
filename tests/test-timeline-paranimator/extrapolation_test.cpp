@@ -13,7 +13,7 @@
 
 using namespace timeline_par_animator;
 
-TEST(Extrapolation, matches_source_output_and_preserves_owned_keys_in_comparison)
+TEST(Extrapolation, matchesSourceOutputAndPreservesOwnedKeysInComparison)
 {
     for (const std::string &policy : {"base", "omit", "cycle", "ping-pong"})
     {
@@ -89,7 +89,7 @@ TEST(Extrapolation, matches_source_output_and_preserves_owned_keys_in_comparison
     }
 }
 
-TEST(Extrapolation, keeps_continuous_values_and_exact_periods_before_and_after_keys)
+TEST(Extrapolation, keepsContinuousValuesAndExactPeriodsBeforeAndAfterKeys)
 {
     const JsonImportResult cycle = import_timeline_json("fixtures/maxiter-cycle.json");
     const JsonImportResult ping = import_timeline_json("fixtures/maxiter-ping-pong.json");
@@ -121,7 +121,7 @@ TEST(Extrapolation, keeps_continuous_values_and_exact_periods_before_and_after_k
     EXPECT_TRUE(reflecting.evaluate_keyframes(timeline::Time::from_ticks(std::numeric_limits<timeline::Ticks>::max())));
 }
 
-TEST(Extrapolation, diagnoses_malformed_keys_and_unsupported_forms_without_partial_lanes)
+TEST(Extrapolation, diagnosesMalformedKeysAndUnsupportedFormsWithoutPartialLanes)
 {
     const JsonImportResult partial = import_timeline_json("fixtures/extrapolation-partial.json");
     ASSERT_TRUE(partial.succeeded());
@@ -144,7 +144,7 @@ TEST(Extrapolation, diagnoses_malformed_keys_and_unsupported_forms_without_parti
     EXPECT_NE(std::string::npos, invalid.diagnostics[0].find("unknown extrapolate"));
 }
 
-TEST(Extrapolation, matches_source_double_integer_or_enum_and_hold_evaluation)
+TEST(Extrapolation, matchesSourceDoubleIntegerOrEnumAndHoldEvaluation)
 {
     const JsonImportResult imported = import_timeline_json("fixtures/extrapolation-variants.json");
     ASSERT_TRUE(imported.succeeded());

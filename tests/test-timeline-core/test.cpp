@@ -7,13 +7,13 @@
 
 using namespace timeline;
 
-TEST(Timebase, rejects_invalid_tick_rate)
+TEST(Timebase, rejectsInvalidTickRate)
 {
     EXPECT_THROW(Timebase(0), std::invalid_argument);
     EXPECT_THROW(Timebase(-1), std::invalid_argument);
 }
 
-TEST(Timebase, converts_exact_ratios_to_ticks)
+TEST(Timebase, convertsExactRatiosToTicks)
 {
     const Timebase timebase(24000);
 
@@ -22,7 +22,7 @@ TEST(Timebase, converts_exact_ratios_to_ticks)
     EXPECT_DOUBLE_EQ(2.5, timebase.seconds(Time::from_ticks(60000)));
 }
 
-TEST(Timebase, rounds_fractional_seconds_explicitly)
+TEST(Timebase, roundsFractionalSecondsExplicitly)
 {
     const Timebase timebase(1000);
 
@@ -31,7 +31,7 @@ TEST(Timebase, rounds_fractional_seconds_explicitly)
     EXPECT_EQ(1235, timebase.time_from_seconds(1.2345, TimeRounding::CEIL).ticks());
 }
 
-TEST(FrameGrid, converts_common_frame_rates_exactly)
+TEST(FrameGrid, convertsCommonFrameRatesExactly)
 {
     const Timebase timebase(24000);
     const FrameGrid grid(timebase, 10, 24, 1);
@@ -44,7 +44,7 @@ TEST(FrameGrid, converts_common_frame_rates_exactly)
     EXPECT_EQ(10000, grid.end_time().ticks());
 }
 
-TEST(FrameGrid, handles_final_frame_boundary)
+TEST(FrameGrid, handlesFinalFrameBoundary)
 {
     const Timebase timebase(30);
     const FrameGrid grid(timebase, 100, 30, 1);
@@ -55,7 +55,7 @@ TEST(FrameGrid, handles_final_frame_boundary)
     EXPECT_EQ(99, *grid.nearest_frame(Time::from_ticks(1000)));
 }
 
-TEST(FrameGrid, applies_offset)
+TEST(FrameGrid, appliesOffset)
 {
     const Timebase timebase(1000);
     const Time offset = timebase.time_from_seconds_ratio(1, 2, TimeRounding::NEAREST);
@@ -70,14 +70,14 @@ TEST(FrameGrid, applies_offset)
     EXPECT_EQ(2, *grid.frame_at_or_before(Time::from_ticks(580)));
 }
 
-TEST(FrameGrid, rejects_non_integral_frame_durations)
+TEST(FrameGrid, rejectsNonIntegralFrameDurations)
 {
     const Timebase timebase(1000);
 
     EXPECT_THROW((FrameGrid(timebase, 10, 24, 1)), std::invalid_argument);
 }
 
-TEST(Document, constructs_empty_document)
+TEST(Document, constructsEmptyDocument)
 {
     const Document document(1000);
 
@@ -85,13 +85,13 @@ TEST(Document, constructs_empty_document)
     EXPECT_EQ(1000, document.timebase().ticks_per_second());
 }
 
-TEST(Document, rejects_invalid_timebase)
+TEST(Document, rejectsInvalidTimebase)
 {
     EXPECT_THROW(Document(0), std::invalid_argument);
     EXPECT_THROW(Document(-1), std::invalid_argument);
 }
 
-TEST(Document, preserves_metadata)
+TEST(Document, preservesMetadata)
 {
     const Metadata metadata("Demo", "Empty timeline");
     const Document document(1000, metadata);
@@ -100,7 +100,7 @@ TEST(Document, preserves_metadata)
     EXPECT_EQ("Empty timeline", document.metadata().description());
 }
 
-TEST(Document, reports_zero_lanes)
+TEST(Document, reportsZeroLanes)
 {
     const Document document(1000);
 
@@ -108,7 +108,7 @@ TEST(Document, reports_zero_lanes)
     EXPECT_EQ(0, document.lane_count());
 }
 
-TEST(Document, preserves_frame_and_authored_content_summary)
+TEST(Document, preservesFrameAndAuthoredContentSummary)
 {
     const FrameGrid frame_grid(Timebase(24000), 3, 24, 1);
     const Document document(frame_grid, 2, 4);
@@ -121,7 +121,7 @@ TEST(Document, preserves_frame_and_authored_content_summary)
     EXPECT_TRUE(document.lanes_empty());
 }
 
-TEST(Document, preserves_source_summary)
+TEST(Document, preservesSourceSummary)
 {
     const SourceSummary summary("par-beatdown.tracker-timeline", 1, 3, 12, std::optional<Ticks>{2},
         std::optional<Ticks>{8}, std::optional<Time>{Time::from_ticks(200)}, std::optional<Time>{Time::from_ticks(800)},
@@ -140,7 +140,7 @@ TEST(Document, preserves_source_summary)
     EXPECT_EQ(25, document.source_summary()->frame_offset()->ticks());
 }
 
-TEST(Document, preserves_generation_summary)
+TEST(Document, preservesGenerationSummary)
 {
     const GenerationSummary generation("beat-keys", "0.1.0",
         {SourceReference("base_animation", "base.json"), SourceReference("timeline", "music.json")},
@@ -166,7 +166,7 @@ TEST(Document, preserves_generation_summary)
     EXPECT_EQ(3, summary.source_counts()[0].count());
 }
 
-TEST(Document, rejects_negative_counts)
+TEST(Document, rejectsNegativeCounts)
 {
     const SourceSummary source("schema", 1, 0, 0);
     const FrameGrid frame_grid(Timebase(1000), 1, 1, 1);

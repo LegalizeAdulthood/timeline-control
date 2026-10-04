@@ -28,7 +28,7 @@ Document framed_document()
 
 } // namespace
 
-TEST(Interaction, snaps_playhead_and_clamps_frame_movement)
+TEST(Interaction, snapsPlayheadAndClampsFrameMovement)
 {
     Interaction interaction(framed_document());
     EXPECT_FALSE(interaction.playhead());
@@ -46,7 +46,7 @@ TEST(Interaction, snaps_playhead_and_clamps_frame_movement)
     EXPECT_EQ(at(140), *interaction.playhead());
 }
 
-TEST(Interaction, handles_frameless_and_empty_documents)
+TEST(Interaction, handlesFramelessAndEmptyDocuments)
 {
     Document document(100);
     document.add_lane(Lane("lane", "Lane", "events", at(20), at(80)));
@@ -72,7 +72,7 @@ TEST(Interaction, handles_frameless_and_empty_documents)
     EXPECT_FALSE(zero_frames.playhead());
 }
 
-TEST(Interaction, selects_and_toggles_lane_qualified_item_ids)
+TEST(Interaction, selectsAndTogglesLaneQualifiedItemIds)
 {
     Interaction interaction(framed_document());
     const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{"music", "beat"}};
@@ -95,7 +95,7 @@ TEST(Interaction, selects_and_toggles_lane_qualified_item_ids)
     EXPECT_TRUE(interaction.selected_items().empty());
 }
 
-TEST(Interaction, selects_inclusive_frame_ranges_in_either_direction)
+TEST(Interaction, selectsInclusiveFrameRangesInEitherDirection)
 {
     Interaction interaction(framed_document());
     interaction.select_range(at(113), at(66));
@@ -117,7 +117,7 @@ TEST(Interaction, selects_inclusive_frame_ranges_in_either_direction)
     EXPECT_EQ(5, *interaction.playhead_frame());
 }
 
-TEST(Interaction, preserves_clicked_items_until_a_drag_crosses_a_frame)
+TEST(Interaction, preservesClickedItemsUntilADragCrossesAFrame)
 {
     const Document document = framed_document();
     Interaction interaction(document);
@@ -141,7 +141,7 @@ TEST(Interaction, preserves_clicked_items_until_a_drag_crosses_a_frame)
     EXPECT_THROW(TimeRange(at(20), at(10)), std::invalid_argument);
 }
 
-TEST(Interaction, extends_keyboard_ranges_from_a_stable_anchor)
+TEST(Interaction, extendsKeyboardRangesFromAStableAnchor)
 {
     Interaction interaction(framed_document());
     interaction.move_playhead_frame(3);
@@ -163,7 +163,7 @@ TEST(Interaction, extends_keyboard_ranges_from_a_stable_anchor)
     EXPECT_EQ(9, *interaction.playhead_frame());
 }
 
-TEST(Interaction, renders_selection_without_changing_hit_identity)
+TEST(Interaction, rendersSelectionWithoutChangingHitIdentity)
 {
     const Document document = framed_document();
     Interaction interaction(document);
@@ -197,7 +197,7 @@ TEST(Interaction, renders_selection_without_changing_hit_identity)
     EXPECT_EQ(StyleRole::INSTANT_MARKER, layout.hit_test(Point{189, 30}, 0)->style);
 }
 
-TEST(Interaction, keeps_selection_through_zoom_and_lane_scroll)
+TEST(Interaction, keepsSelectionThroughZoomAndLaneScroll)
 {
     const Document document = framed_document();
     Interaction interaction(document);

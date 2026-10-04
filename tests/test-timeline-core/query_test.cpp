@@ -62,7 +62,7 @@ const LaneInspection &lane_named(const std::vector<LaneInspection> &lanes, const
 
 } // namespace
 
-TEST(Query, inspects_mixed_document_at_frame)
+TEST(Query, inspectsMixedDocumentAtFrame)
 {
     const std::optional<FrameInspection> inspection = inspect_frame(mixed_document(), 1);
 
@@ -96,7 +96,7 @@ TEST(Query, inspects_mixed_document_at_frame)
     EXPECT_EQ(InspectionItemRole::AFTER, keyframes.items[1].role);
 }
 
-TEST(Query, reports_empty_lanes_and_exact_keyframes)
+TEST(Query, reportsEmptyLanesAndExactKeyframes)
 {
     const std::optional<FrameInspection> inspection = inspect_frame(mixed_document(), 2);
 
@@ -108,7 +108,7 @@ TEST(Query, reports_empty_lanes_and_exact_keyframes)
     EXPECT_EQ(InspectionItemRole::EXACT, keyframes.items[0].role);
 }
 
-TEST(Query, inspects_ranges_across_lanes)
+TEST(Query, inspectsRangesAcrossLanes)
 {
     const RangeInspection inspection = inspect_range(mixed_document(), at(9), at(11));
 
@@ -121,7 +121,7 @@ TEST(Query, inspects_ranges_across_lanes)
     EXPECT_THROW(inspect_range(mixed_document(), at(11), at(9)), std::invalid_argument);
 }
 
-TEST(Query, rejects_frames_without_a_matching_grid_position)
+TEST(Query, rejectsFramesWithoutAMatchingGridPosition)
 {
     EXPECT_FALSE(inspect_frame(Document(10), 0).has_value());
     EXPECT_FALSE(inspect_frame(mixed_document(), -1).has_value());
