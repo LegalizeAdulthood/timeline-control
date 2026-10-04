@@ -12,6 +12,8 @@
 namespace timeline_imgui
 {
 
+const double Control::m_zoom_step{1.25};
+
 void Control::set_document(timeline::Document document)
 {
     m_document = std::move(document);

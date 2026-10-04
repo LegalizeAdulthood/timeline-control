@@ -73,7 +73,7 @@ public:
 private:
     friend void draw_timeline(std::string_view id, Control &control, ImVec2 size);
 
-    static constexpr double m_zoom_step{1.25};
+    static const double m_zoom_step;
 
     void update_layout(ImVec2 size);
     void update_inspection();
