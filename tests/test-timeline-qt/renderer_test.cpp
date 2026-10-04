@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include <gtest/gtest.h>
-#include <QImage>
 #include <qtTimeline/Renderer.h>
+
+#include <gtest/gtest.h>
+
+#include <QImage>
 
 using timeline_qt::draw_display_list;
 using timeline_qt::style_color;

@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include <QAbstractScrollArea>
 #include <timeline/Interaction.h>
 #include <timeline/Layout.h>
 #include <timeline/Query.h>
+
+#include <QAbstractScrollArea>
 
 /// Document-owning Qt view of core layout, selection, and frame inspection.
 /// Native rendering and input translation contain no source-track semantics.

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include "Viewer.h"
+#include <Viewer.h>
+
 #include <QApplication>
 #include <QMessageBox>
 

@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include <timeline/Document.h>
 #include <timelineParAnimator/BeatKeysMapping.h>
+
+#include <timeline/Document.h>
 
 #include <filesystem>
 #include <optional>

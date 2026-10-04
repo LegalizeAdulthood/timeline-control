@@ -3,10 +3,11 @@
 #include <wxTimeline/config.h>
 
 #include <timelineParAnimator/TimelineJson.h>
-#include <wxTimeline/wxTimelineControl.h>
+
 #ifdef TIMELINE_CONTROL_WITH_CAIRO
 #include <wxTimeline/wxCairoTimeline.h>
 #endif
+#include <wxTimeline/wxTimelineControl.h>
 
 #include <wx/filedlg.h>
 #include <wx/sizer.h>

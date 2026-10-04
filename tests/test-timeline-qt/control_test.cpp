@@ -1,6 +1,13 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <qtTimeline/QTimelineWidget.h>
+
+#include <timelineParAnimator/TimelineJson.h>
+
+#include <timeline/Snapshot.h>
+
 #include <gtest/gtest.h>
+
 #include <QApplication>
 #include <QFocusEvent>
 #include <QImage>
@@ -8,10 +15,7 @@
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QtTest/QTest>
-#include <qtTimeline/QTimelineWidget.h>
 #include <QWheelEvent>
-#include <timeline/Snapshot.h>
-#include <timelineParAnimator/TimelineJson.h>
 
 namespace
 {

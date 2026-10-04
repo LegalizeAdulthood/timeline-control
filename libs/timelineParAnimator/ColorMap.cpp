@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include "ColorMap.h"
-#include "NamedColors.h"
+#include <ColorMap.h>
+#include <NamedColors.h>
 
 #include <timeline/size_cast.h>
 

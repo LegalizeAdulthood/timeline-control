@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
 #include <gtest/gtest.h>
+
 #include <wx/app.h>
 
 /// Native application lifetime for Cairo renderer and wx control checks.

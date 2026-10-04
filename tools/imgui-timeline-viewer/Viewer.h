@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include <imguiTimeline/TimelineControl.h>
 #include <timelineParAnimator/TimelineJson.h>
+
+#include <imguiTimeline/TimelineControl.h>
 
 namespace timeline_imgui_viewer
 {

@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include "Viewer.h"
+#include <Viewer.h>
 
-#include <fstream>
-#include <locale>
+#include <timelineParAnimator/TimelineJson.h>
+
 #include <QAction>
 #include <QFileDialog>
 #include <QMenu>
@@ -12,9 +12,11 @@
 #include <QScrollBar>
 #include <QSplitter>
 #include <QStatusBar>
+
+#include <fstream>
+#include <locale>
 #include <sstream>
 #include <system_error>
-#include <timelineParAnimator/TimelineJson.h>
 
 namespace timeline_qt_viewer
 {

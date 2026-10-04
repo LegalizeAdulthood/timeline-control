@@ -1,7 +1,10 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include <algorithm>
-#include <cmath>
+#include <qtTimeline/QTimelineWidget.h>
+#include <qtTimeline/Renderer.h>
+
+#include <timeline/Snapshot.h>
+
 #include <QFocusEvent>
 #include <QFontMetrics>
 #include <QKeyEvent>
@@ -11,10 +14,10 @@
 #include <QScopedValueRollback>
 #include <QScrollBar>
 #include <QSignalBlocker>
-#include <qtTimeline/QTimelineWidget.h>
-#include <qtTimeline/Renderer.h>
 #include <QWheelEvent>
-#include <timeline/Snapshot.h>
+
+#include <algorithm>
+#include <cmath>
 
 namespace
 {

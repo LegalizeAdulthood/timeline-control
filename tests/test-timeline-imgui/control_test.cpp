@@ -3,8 +3,9 @@
 #include <imguiTimeline/TimelineControl.h>
 #include <imguiTimeline/TimelineRenderer.h>
 
-#include <timeline/Snapshot.h>
 #include <timelineParAnimator/TimelineJson.h>
+
+#include <timeline/Snapshot.h>
 
 #include <gtest/gtest.h>
 

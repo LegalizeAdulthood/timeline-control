@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include <gtest/gtest.h>
 #include <QApplication>
 #include <QImage>
 #include <QPalette>
 #include <QWidget>
+
+#include <gtest/gtest.h>
 
 TEST(QtDependency, initializesWidgetsAndPaintsWithoutADesktop)
 {

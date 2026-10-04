@@ -2,8 +2,8 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
-#include "ColorMap.h"
-#include "ParameterCatalog.h"
+#include <ColorMap.h>
+#include <ParameterCatalog.h>
 
 #include <timeline/size_cast.h>
 

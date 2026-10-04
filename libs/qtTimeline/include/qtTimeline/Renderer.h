@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include <timeline/DisplayList.h>
+
 #include <QColor>
 #include <QPainter>
 #include <QPalette>
-#include <timeline/DisplayList.h>
 
 namespace timeline_qt
 {

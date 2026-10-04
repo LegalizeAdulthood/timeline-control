@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include "ParameterCatalog.h"
+#include <ParameterCatalog.h>
 
 #include <nlohmann/json.hpp>
 

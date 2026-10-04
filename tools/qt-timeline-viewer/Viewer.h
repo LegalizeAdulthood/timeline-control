@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include <filesystem>
+#include <timelineParAnimator/TimelineJson.h>
+
+#include <qtTimeline/QTimelineWidget.h>
 #include <QMainWindow>
 #include <QPlainTextEdit>
-#include <qtTimeline/QTimelineWidget.h>
+
+#include <filesystem>
 #include <string>
-#include <timelineParAnimator/TimelineJson.h>
 #include <vector>
 
 namespace timeline_qt_viewer

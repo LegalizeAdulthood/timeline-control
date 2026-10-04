@@ -2,17 +2,19 @@
 
 #include <wxTimeline/wxCairoTimelineRenderer.h>
 
-#include <algorithm>
+#include <timeline/size_cast.h>
+
 #include <cairo.h>
+#include <wx/bitmap.h>
+#include <wx/dcmemory.h>
+
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <memory>
-#include <timeline/size_cast.h>
 #include <type_traits>
-#include <wx/bitmap.h>
-#include <wx/dcmemory.h>
 
 namespace
 {

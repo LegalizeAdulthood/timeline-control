@@ -1,10 +1,13 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include "Viewer.h"
-#include <fstream>
-#include <gtest/gtest.h>
-#include <iterator>
+#include <Viewer.h>
+
 #include <timeline/Snapshot.h>
+
+#include <gtest/gtest.h>
+
+#include <fstream>
+#include <iterator>
 
 using timeline_imgui_viewer::Command;
 using timeline_imgui_viewer::Viewer;

@@ -1,13 +1,17 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include <cstring>
-#include <gtest/gtest.h>
-#include <limits>
-#include <timelineParAnimator/TimelineJson.h>
-#include <wx/dcmemory.h>
-#include <wx/frame.h>
 #include <wxTimeline/wxCairoTimeline.h>
 #include <wxTimeline/wxCairoTimelineRenderer.h>
+
+#include <timelineParAnimator/TimelineJson.h>
+
+#include <gtest/gtest.h>
+
+#include <wx/dcmemory.h>
+#include <wx/frame.h>
+
+#include <cstring>
+#include <limits>
 
 namespace
 {

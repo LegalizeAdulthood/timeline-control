@@ -1,9 +1,12 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include <algorithm>
-#include <QPolygon>
 #include <qtTimeline/Renderer.h>
+
 #include <timeline/size_cast.h>
+
+#include <QPolygon>
+
+#include <algorithm>
 #include <type_traits>
 
 namespace

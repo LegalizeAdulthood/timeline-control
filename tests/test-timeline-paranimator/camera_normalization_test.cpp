@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include <timeline/Query.h>
 #include <timelineParAnimator/TimelineJson.h>
+
+#include <timeline/Query.h>
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

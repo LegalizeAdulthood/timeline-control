@@ -5,6 +5,7 @@
 #include <timeline/Interaction.h>
 #include <timeline/Layout.h>
 #include <timeline/Query.h>
+
 #include <wxTimeline/wxTimelineRenderer.h>
 
 #include <wx/panel.h>

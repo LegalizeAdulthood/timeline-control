@@ -48,13 +48,22 @@ DerivePointerAlignment: false
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH ]
-IncludeCategories: 
-  - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
-    Priority:        2
-  - Regex:           '^(<|"(gtest|isl|json)/)'
-    Priority:        3
-  - Regex:           '.*'
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex:           '^<(ColorMap|NamedColors|ParameterCatalog|Viewer)\.h>'
     Priority:        1
+  - Regex:           '^<timelineParAnimator/'
+    Priority:        2
+  - Regex:           '^<timeline/'
+    Priority:        3
+  - Regex:           '^<(gtest|nlohmann)/'
+    Priority:        4
+  - Regex:           '^<(Q|Qt|SDL3/|cairo|imgui|imguiTimeline|qtTimeline|wx/|wxTimeline)/'
+    Priority:        5
+  - Regex:           '^<'
+    Priority:        6
+  - Regex:           '.*'
+    Priority:        7
 IndentCaseLabels: false
 IndentGotoLabels: false
 IndentWidth:     4

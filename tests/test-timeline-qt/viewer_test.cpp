@@ -1,15 +1,18 @@
 // Copyright (c) 2026 Richard Thomson
 
-#include "Viewer.h"
-#include <fstream>
+#include <Viewer.h>
+
 #include <gtest/gtest.h>
-#include <iterator>
+
 #include <QAction>
 #include <QApplication>
 #include <QMenu>
 #include <QMenuBar>
 #include <QTemporaryDir>
 #include <QtTest/QTest>
+
+#include <fstream>
+#include <iterator>
 
 namespace
 {

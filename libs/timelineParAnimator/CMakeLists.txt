@@ -12,7 +12,10 @@ add_library(timeline-paranimator
     TimelineJson.cpp
 )
 
-target_include_directories(timeline-paranimator PUBLIC include)
+target_include_directories(timeline-paranimator
+    PUBLIC include
+    PRIVATE .
+)
 target_link_libraries(timeline-paranimator
     PUBLIC
         timeline-core

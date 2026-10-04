@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
 #include <gtest/gtest.h>
+
 #include <QApplication>
 
 int main(int argc, char **argv)

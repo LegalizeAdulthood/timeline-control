@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include <wxTimeline/wxTimelineRenderer.h>
 #include <wx/font.h>
 #include <wx/image.h>
-#include <wxTimeline/wxTimelineRenderer.h>
 
 /// Renders a numeric polyline to a transparent, device-scaled Cairo image.
 /// Invalid dimensions or rendering failures return an invalid image.
