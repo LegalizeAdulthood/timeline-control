@@ -69,7 +69,7 @@ TEST(MaskedColorMap, matchesSourceMapsWithOwnedDefinitionsAndWorkingComparison)
         for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
         {
             const timeline::Lane &lane = document.lanes()[lane_index];
-            if (lane.kind() == "palette")
+            if (document.strings().lookup(lane.kind()) == "palette")
             {
                 const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
                 const std::string output = curve.attributes().at("output");
@@ -261,7 +261,7 @@ TEST(IndexedColorMap, matchesSourceMapsAndPreservesOwnedOffsetDefinitions)
         for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
         {
             const timeline::Lane &lane = document.lanes()[lane_index];
-            if (lane.kind() == "palette")
+            if (document.strings().lookup(lane.kind()) == "palette")
             {
                 const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
                 const std::string output = curve.attributes().at("output");
@@ -408,7 +408,7 @@ TEST(ColorMapEffects, matchesSourceMapsAndExposesOwnedAmountSignals)
         int palettes = 0;
         for (const timeline::Lane &lane : document.lanes())
         {
-            if (lane.kind() == "palette")
+            if (document.strings().lookup(lane.kind()) == "palette")
             {
                 ++palettes;
                 const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);

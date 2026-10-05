@@ -97,15 +97,17 @@ display.
 immutable after construction, and copies share their string storage.
 
 Adapters normally construct documents through `DocumentBuilder`. Its
-`StringTableBuilder` interns lane and item identities, while `add_lane`
-collects completed lanes. `build` seals the strings and lanes into a
-`Document`.
+`StringTableBuilder` interns lane and item identities together with lane
+and item kinds and labels. `add_lane` collects completed lanes and
+verifies that every string ID belongs to the document table. `build`
+seals the strings and lanes into a `Document`.
 
-The `with_id` functions return copies with translated identities. They
-allow `DocumentBuilder::append` and `combine_documents` to move content
-between documents whose string IDs belong to different tables. Item IDs
-remain qualified by their lane; `DisplayId` therefore contains both a
-lane ID and an item ID.
+The `with_id`, `with_strings`, and `with_kind` functions return copies
+with translated identities and semantic strings. They allow
+`DocumentBuilder::append` and `combine_documents` to move content between
+documents whose string IDs belong to different tables. Item IDs remain
+qualified by their lane; `DisplayId` therefore contains both a lane ID and
+an item ID.
 
 ## Viewing And Rendering
 
@@ -123,7 +125,9 @@ dimensions without introducing native GUI types.
 `Primitive` is a variant of `Line`, `Rectangle`, `Text`, `Marker`,
 `Polyline`, and `Swatch`. Each primitive has a semantic `StyleRole` and a
 `DisplayId`. GUI adapters map roles to native colors and fonts, then
-delegate each primitive to the toolkit's drawing API.
+delegate each primitive to the toolkit's drawing API. Static `Text`
+content is a `StringId`; the display list owns the immutable string table
+used by renderers to resolve it at the presentation boundary.
 
 `render_snapshot` serializes a display list into deterministic text. It is
 used for testing and export without depending on a GUI toolkit.

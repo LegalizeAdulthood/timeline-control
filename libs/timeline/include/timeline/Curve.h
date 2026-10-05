@@ -65,25 +65,27 @@ private:
 class Curve
 {
 public:
-    Curve(StringId id, std::string kind, std::vector<CurveSample> samples);
-    Curve(StringId id, std::string kind, std::vector<CurveSample> samples, std::string label,
+    Curve(StringId id, StringId kind, std::vector<CurveSample> samples);
+    Curve(StringId id, StringId kind, std::vector<CurveSample> samples, StringId label,
         CurveInterpolation interpolation, std::optional<double> minimum, std::optional<double> maximum,
         Attributes attributes);
-    Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator);
-    Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
+    Curve(StringId id, StringId kind, Time start, Time end, CurveEvaluator evaluator);
+    Curve(StringId id, StringId kind, Time start, Time end, CurveEvaluator evaluator, StringId label,
         std::optional<double> minimum, std::optional<double> maximum, Attributes attributes);
 
     /// Return a copy with the supplied identity.
     Curve with_id(StringId id) const;
+    /// Return a copy with the supplied kind and label identities.
+    Curve with_strings(StringId kind, StringId label) const;
     StringId id() const
     {
         return m_id;
     }
-    const std::string &kind() const
+    StringId kind() const
     {
         return m_kind;
     }
-    const std::string &label() const
+    StringId label() const
     {
         return m_label;
     }
@@ -125,8 +127,8 @@ public:
 
 private:
     StringId m_id;
-    std::string m_kind;
-    std::string m_label;
+    StringId m_kind;
+    StringId m_label;
     CurveInterpolation m_interpolation;
     std::optional<double> m_minimum;
     std::optional<double> m_maximum;

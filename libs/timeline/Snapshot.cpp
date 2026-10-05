@@ -151,7 +151,8 @@ std::string render_snapshot(const DisplayList &display_list)
                 }
                 else if constexpr (std::is_same_v<Value, Text>)
                 {
-                    output << ' ' << value.x << ' ' << value.y << ' ' << quoted(value.value);
+                    output << ' ' << value.x << ' ' << value.y << ' '
+                           << quoted(display_list.strings().lookup(value.value));
                 }
                 else
                 {

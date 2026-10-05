@@ -13,24 +13,34 @@
 
 using namespace timeline;
 
+namespace
+{
+
+constexpr StringId PALETTE_KIND{2};
+
+} // namespace
+
 TEST(Palette, validatesRgbComponentsAndOwnedDefinitions)
 {
     EXPECT_THROW(RgbColor(-1, 0, 0), std::invalid_argument);
     EXPECT_THROW(RgbColor(0, 256, 0), std::invalid_argument);
     EXPECT_THROW(RgbColor(0, 0, 256), std::invalid_argument);
     const Palette colors{RgbColor(255, 0, 0), RgbColor(0, 0, 255)};
-    const PaletteCurve curve(StringId{1}, Time{}, Time::from_ticks(20), [colors](Time) { return colors; });
+    const PaletteCurve curve(
+        StringId{1}, PALETTE_KIND, Time{}, Time::from_ticks(20), [colors](Time) { return colors; }, {});
     EXPECT_EQ(colors, curve.sample(Time::from_ticks(-1)));
     EXPECT_EQ(colors, curve.sample(Time::from_ticks(21)));
     EXPECT_EQ(2, curve.color_count());
-    EXPECT_THROW(PaletteCurve(StringId{}, Time{}, Time::from_ticks(20), [colors](Time) { return colors; }),
+    EXPECT_THROW(
+        PaletteCurve(StringId{}, PALETTE_KIND, Time{}, Time::from_ticks(20), [colors](Time) { return colors; }, {}),
         std::invalid_argument);
     EXPECT_THROW(
-        PaletteCurve(StringId{1}, Time{}, Time::from_ticks(20), [](Time) { return Palette{}; }), std::invalid_argument);
-    EXPECT_THROW(
-        PaletteCurve(StringId{1}, Time{}, Time::from_ticks(20), PaletteCurve::Evaluator{}), std::invalid_argument);
-    const PaletteCurve changing(StringId{1}, Time{}, Time::from_ticks(20),
-        [colors](Time time) { return time.ticks() == 0 ? colors : Palette{}; });
+        PaletteCurve(StringId{1}, PALETTE_KIND, Time{}, Time::from_ticks(20), [](Time) { return Palette{}; }, {}),
+        std::invalid_argument);
+    EXPECT_THROW(PaletteCurve(StringId{1}, PALETTE_KIND, Time{}, Time::from_ticks(20), PaletteCurve::Evaluator{}, {}),
+        std::invalid_argument);
+    const PaletteCurve changing(StringId{1}, PALETTE_KIND, Time{}, Time::from_ticks(20),
+        [colors](Time time) { return time.ticks() == 0 ? colors : Palette{}; }, {});
     EXPECT_THROW(changing.sample(Time::from_ticks(10)), std::invalid_argument);
 }
 
@@ -39,9 +49,10 @@ TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
     const Document document = []
     {
         DocumentBuilder builder(Document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0));
-        Lane lane(builder.intern("colors"), "Colors", "palette", Time{}, Time::from_ticks(3));
+        Lane lane(
+            builder.intern("colors"), builder.intern("Colors"), builder.intern("palette"), Time{}, Time::from_ticks(3));
         lane.add(PaletteCurve(
-            builder.intern("palette"), "color-map", Time{}, Time::from_ticks(3),
+            builder.intern("palette"), builder.intern("color-map"), Time{}, Time::from_ticks(3),
             [](Time time) { return Palette{RgbColor(static_cast<int>(time.ticks()) * 20, 0, 255)}; },
             Attributes{{"recipe", "owned"}}));
         builder.add_lane(std::move(lane));
@@ -65,10 +76,11 @@ TEST(Palette, laysOutSwatchesWithRgbValuesAndStableHits)
 {
     DocumentBuilder builder(Document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0));
     const StringId colors_id = builder.intern("colors");
-    Lane lane(colors_id, "Colors", "palette", Time{}, Time::from_ticks(3));
+    Lane lane(colors_id, builder.intern("Colors"), builder.intern("palette"), Time{}, Time::from_ticks(3));
     const Palette colors{RgbColor(255, 0, 0), RgbColor(0, 255, 0), RgbColor(0, 0, 255), RgbColor(255, 255, 255)};
     const StringId palette_id = builder.intern("palette");
-    lane.add(PaletteCurve(palette_id, Time{}, Time::from_ticks(3), [colors](Time) { return colors; }));
+    lane.add(PaletteCurve(
+        palette_id, builder.intern("color-map"), Time{}, Time::from_ticks(3), [colors](Time) { return colors; }, {}));
     builder.add_lane(std::move(lane));
     const Document document = std::move(builder).build();
     const Viewport viewport(260, 80, Time{}, Time::from_ticks(3));

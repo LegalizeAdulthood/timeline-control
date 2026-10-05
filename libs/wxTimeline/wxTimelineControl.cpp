@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 #include <utility>
 
 wxDEFINE_EVENT(wxEVT_TIMELINE_INSPECTION_CHANGED, wxCommandEvent);
@@ -490,7 +491,9 @@ void wxTimelineControl::rebuild_layout(wxDC &dc)
     int label_width = FromDIP(80);
     for (const timeline::Lane &lane : m_document->lanes())
     {
-        label_width = std::max(label_width, dc.GetTextExtent(lane.label()).GetWidth() + FromDIP(16));
+        const std::string_view label = m_document->strings().lookup(lane.label());
+        label_width =
+            std::max(label_width, dc.GetTextExtent(wxString(label.data(), label.size())).GetWidth() + FromDIP(16));
     }
     label_width = std::min(label_width, client_size.GetWidth() / 2);
     const timeline::LayoutMetrics layout_metrics(

@@ -18,8 +18,8 @@ Document document_with_lane(std::string_view id)
 {
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     DocumentBuilder builder(Document(grid, 0, 0));
-    Lane lane(builder.intern(id), std::string(id), "events", grid.offset(), grid.end_time());
-    lane.add(Instant(builder.intern(std::string(id) + "-item"), "event", grid.offset()));
+    Lane lane(builder.intern(id), builder.intern(id), builder.intern("events"), grid.offset(), grid.end_time());
+    lane.add(Instant(builder.intern(std::string(id) + "-item"), builder.intern("event"), grid.offset()));
     builder.add_lane(std::move(lane));
     return std::move(builder).build();
 }
@@ -63,11 +63,12 @@ TEST(StringTable, documentCopiesRetainSharedStringLifetime)
         const Document original = document_with_lane("events");
         return original;
     }();
+    const Document second_copy = copy;
 
     EXPECT_EQ("events", copy.strings().lookup(copy.lanes().front().id()));
+    EXPECT_TRUE(second_copy.strings().shares_storage_with(copy.strings()));
     const Layout layout(copy, Viewport(200, 60, Time{}, Time::from_ticks(2)), LayoutMetrics(80, 20, 30, 2));
     const DisplayList display = layout.display_list();
-    EXPECT_TRUE(display.strings().shares_storage_with(copy.strings()));
     EXPECT_EQ("events", display.strings().lookup(copy.lanes().front().id()));
 }
 
@@ -76,7 +77,7 @@ TEST(StringTable, documentBuilderRejectsUnknownLaneIds)
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     DocumentBuilder builder(Document(grid, 0, 0));
 
-    EXPECT_THROW(builder.add_lane(Lane(StringId{1}, "Unknown", "events", grid.offset(), grid.end_time())),
+    EXPECT_THROW(builder.add_lane(Lane(StringId{1}, StringId{2}, StringId{3}, grid.offset(), grid.end_time())),
         std::invalid_argument);
 }
 
@@ -84,8 +85,9 @@ TEST(StringTable, documentBuilderRejectsUnknownItemIds)
 {
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     DocumentBuilder builder(Document(grid, 0, 0));
-    Lane lane(builder.intern("known"), "Known", "events", grid.offset(), grid.end_time());
-    lane.add(Instant(StringId{2}, "event", grid.offset()));
+    Lane lane(
+        builder.intern("known"), builder.intern("Known"), builder.intern("events"), grid.offset(), grid.end_time());
+    lane.add(Instant(StringId{100}, builder.intern("event"), grid.offset()));
 
     EXPECT_THROW(builder.add_lane(std::move(lane)), std::invalid_argument);
 }
@@ -102,10 +104,14 @@ TEST(StringTable, combinesDocumentsWithIndependentTables)
     EXPECT_EQ(first.lanes().front().id(), combined.lanes()[0].id());
     EXPECT_EQ("first", combined.strings().lookup(combined.lanes()[0].id()));
     EXPECT_EQ("added-1-second", combined.strings().lookup(combined.lanes()[1].id()));
+    EXPECT_EQ("second", combined.strings().lookup(combined.lanes()[1].label()));
+    EXPECT_EQ("events", combined.strings().lookup(combined.lanes()[1].kind()));
     EXPECT_NE(combined.lanes()[0].id(), combined.lanes()[1].id());
     EXPECT_EQ(first_item_id(first, 0), first_item_id(combined, 0));
     EXPECT_EQ("first-item", combined.strings().lookup(first_item_id(combined, 0)));
     EXPECT_EQ("second-item", combined.strings().lookup(first_item_id(combined, 1)));
+    EXPECT_EQ("event", combined.strings().lookup(std::get<Instant>(combined.lanes()[1].items().front()).kind()));
+    EXPECT_TRUE(std::get<Instant>(combined.lanes()[1].items().front()).label().empty());
     EXPECT_NE(first_item_id(combined, 0), first_item_id(combined, 1));
 }
 
@@ -116,16 +122,20 @@ TEST(StringTable, combinesDocumentsThatShareATableWithoutRemappingOriginalIds)
     const StringId second_id = strings.intern("second");
     const StringId first_item = strings.intern("first-item");
     const StringId second_item = strings.intern("second-item");
+    const StringId first_label = strings.intern("First");
+    const StringId second_label = strings.intern("Second");
+    const StringId events_kind = strings.intern("events");
+    const StringId event_kind = strings.intern("event");
     const StringTable table = std::move(strings).build();
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     DocumentBuilder first_builder(Document(grid, 0, 0), table);
-    Lane first_lane(first_id, "First", "events", grid.offset(), grid.end_time());
-    first_lane.add(Instant(first_item, "event", grid.offset()));
+    Lane first_lane(first_id, first_label, events_kind, grid.offset(), grid.end_time());
+    first_lane.add(Instant(first_item, event_kind, grid.offset()));
     first_builder.add_lane(std::move(first_lane));
     const Document first = std::move(first_builder).build();
     DocumentBuilder second_builder(Document(grid, 0, 0), table);
-    Lane second_lane(second_id, "Second", "events", grid.offset(), grid.end_time());
-    second_lane.add(Instant(second_item, "event", grid.offset()));
+    Lane second_lane(second_id, second_label, events_kind, grid.offset(), grid.end_time());
+    second_lane.add(Instant(second_item, event_kind, grid.offset()));
     second_builder.add_lane(std::move(second_lane));
     const Document second = std::move(second_builder).build();
 
@@ -144,7 +154,8 @@ TEST(StringTable, combiningDocumentsPreservesLaneEvaluators)
     const FrameGrid grid(Timebase(30), 2, 30, 1);
     const Document first = document_with_lane("first");
     DocumentBuilder builder(Document(grid, 0, 2));
-    Lane lane(builder.intern("keys"), "Keys", "keyframes", grid.offset(), grid.end_time());
+    Lane lane(
+        builder.intern("keys"), builder.intern("Keys"), builder.intern("keyframes"), grid.offset(), grid.end_time());
     lane.add(Keyframe(builder.intern("first-key"), grid.offset(), 1.0));
     lane.add(Keyframe(builder.intern("last-key"), grid.frame_start(1), 2.0));
     lane.set_keyframe_evaluator([](Time) { return 3.0; });
@@ -157,4 +168,30 @@ TEST(StringTable, combiningDocumentsPreservesLaneEvaluators)
     ASSERT_EQ(2, combined.lane_count());
     EXPECT_DOUBLE_EQ(3.0, *combined.lanes()[1].evaluate_keyframes(grid.offset()));
     EXPECT_DOUBLE_EQ(6.0, *combined.lanes()[1].evaluate_keyframe_output(grid.offset()));
+}
+
+TEST(StringTable, storesLongRepeatedAndEmptyDisplayStrings)
+{
+    constexpr std::string_view LONG_LABEL =
+        "A deliberately long lane label that exercises presentation-boundary lookup without copying";
+    const FrameGrid grid(Timebase(30), 2, 30, 1);
+    DocumentBuilder builder(Document(grid, 0, 0));
+    const StringId label = builder.intern(LONG_LABEL);
+    const StringId kind = builder.intern("source-defined-kind");
+    Lane lane(builder.intern("lane"), label, kind, grid.offset(), grid.end_time());
+    lane.add(Instant(builder.intern("labeled"), kind, grid.offset(), label, std::nullopt, {}));
+    lane.add(Instant(builder.intern("empty"), kind, grid.frame_start(1)));
+    builder.add_lane(std::move(lane));
+
+    const Document document = std::move(builder).build();
+    const Lane &stored_lane = document.lanes().front();
+    const Instant &labeled = std::get<Instant>(stored_lane.items()[0]);
+    const Instant &empty = std::get<Instant>(stored_lane.items()[1]);
+
+    EXPECT_EQ(LONG_LABEL, document.strings().lookup(stored_lane.label()));
+    EXPECT_EQ(stored_lane.label(), labeled.label());
+    EXPECT_EQ(stored_lane.kind(), labeled.kind());
+    EXPECT_EQ("source-defined-kind", document.strings().lookup(labeled.kind()));
+    EXPECT_TRUE(empty.label().empty());
+    EXPECT_EQ("", document.strings().lookup(empty.label()));
 }

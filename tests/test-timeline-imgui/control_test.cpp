@@ -31,9 +31,9 @@ Document framed_document()
     DocumentBuilder builder(Document(FrameGrid(Timebase(100), 10, 10, 1), 0, 0));
     for (int lane_index = 0; lane_index < 12; ++lane_index)
     {
-        Lane lane(builder.intern("lane-" + std::to_string(lane_index)), "Lane " + std::to_string(lane_index), "events",
-            at(0), at(100));
-        lane.add(Instant(builder.intern("pulse"), "beat", at(lane_index == 1 ? 50 : 30)));
+        Lane lane(builder.intern("lane-" + std::to_string(lane_index)),
+            builder.intern("Lane " + std::to_string(lane_index)), builder.intern("events"), at(0), at(100));
+        lane.add(Instant(builder.intern("pulse"), builder.intern("beat"), at(lane_index == 1 ? 50 : 30)));
         builder.add_lane(std::move(lane));
     }
     return std::move(builder).build();
@@ -150,7 +150,8 @@ TEST_F(ImGuiControl, handlesMissingEmptyFramelessAndTinyDocuments)
     frame(control, ImVec2(1.0F, 1.0F));
     EXPECT_FALSE(control.layout());
     DocumentBuilder builder(Document(100));
-    builder.add_lane(Lane(builder.intern("continuous"), "Continuous", "signal", at(0), at(100)));
+    builder.add_lane(
+        Lane(builder.intern("continuous"), builder.intern("Continuous"), builder.intern("signal"), at(0), at(100)));
     control.set_document(std::move(builder).build());
     prime(control);
     ASSERT_TRUE(control.layout());
@@ -190,8 +191,8 @@ TEST_F(ImGuiControl, selectsLaneQualifiedItemsAndSnapsDraggedRanges)
     mouse_button(control, false);
     ASSERT_TRUE(control.interaction());
     EXPECT_EQ(3, *control.interaction()->playhead_frame());
-    EXPECT_TRUE(
-        control.interaction()->is_selected(DisplayId{StringId{1}, *control.document()->strings().find("pulse")}));
+    EXPECT_TRUE(control.interaction()->is_selected(
+        DisplayId{control.document()->lanes().front().id(), *control.document()->strings().find("pulse")}));
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
     move_mouse(control, frame_point(control, 5, 1));
     mouse_button(control, true);
@@ -322,7 +323,7 @@ TEST_F(ImGuiControl, ownsDocumentsAndResetsAllStateOnReplacement)
     Document source = framed_document();
     Control control(source);
     DocumentBuilder builder(std::move(source));
-    builder.add_lane(Lane(builder.intern("extra"), "Extra", "events", at(0), at(100)));
+    builder.add_lane(Lane(builder.intern("extra"), builder.intern("Extra"), builder.intern("events"), at(0), at(100)));
     source = std::move(builder).build();
     EXPECT_EQ(12, control.document()->lane_count());
     prime(control);
@@ -402,13 +403,15 @@ TEST_F(ImGuiControl, delegatesEveryPrimitiveToMatchingImguiMeshOperations)
     begin_frame();
     ImDrawList &draw_list = *ImGui::GetWindowDrawList();
     const ImGuiStyle &style = ImGui::GetStyle();
-    DisplayList list;
+    StringTableBuilder strings;
+    const StringId text = strings.intern("A");
+    DisplayList list(std::move(strings).build());
     list.add(Line{0, 0, 20, 0, StyleRole::RULER, {}});
     list.add(Rectangle{0, 10, 20, 5, StyleRole::LANE_BACKGROUND, {}});
     list.add(Marker{25, 10, 2, 5, StyleRole::INSTANT_MARKER, {}});
     list.add(Polyline{{{0, 20}, {10, 25}, {20, 20}}, StyleRole::CURVE, {}});
     list.add(Swatch{0, 30, 20, 5, RgbColor(7, 11, 19), StyleRole::SELECTED_ITEM, {}});
-    list.add(Text{0, 40, "A", StyleRole::RULER_LABEL, {}});
+    list.add(Text{0, 40, text, StyleRole::RULER_LABEL, {}});
     const int first_vertex = draw_list.VtxBuffer.Size;
     const int first_index = draw_list.IdxBuffer.Size;
     timeline_imgui::draw_display_list(draw_list, list, m_origin, style, true, 80);
@@ -454,8 +457,10 @@ TEST_F(ImGuiControl, clipsLongLaneLabelsWithoutChangingTheDrawListClipStack)
     ImDrawList &draw_list = *ImGui::GetWindowDrawList();
     const ImVec2 clip = draw_list.GetClipRectMax();
     const int first_vertex = draw_list.VtxBuffer.Size;
-    DisplayList list;
-    list.add(Text{0, 0, "A very long lane label which cannot fit", StyleRole::LANE_LABEL, {}});
+    StringTableBuilder strings;
+    const StringId text = strings.intern("A very long lane label which cannot fit");
+    DisplayList list(std::move(strings).build());
+    list.add(Text{0, 0, text, StyleRole::LANE_LABEL, {}});
     timeline_imgui::draw_display_list(draw_list, list, m_origin, ImGui::GetStyle(), false, 40);
     const std::vector<ImDrawVert> vertices(
         draw_list.VtxBuffer.Data + first_vertex, draw_list.VtxBuffer.Data + draw_list.VtxBuffer.Size);

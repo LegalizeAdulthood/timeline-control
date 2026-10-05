@@ -381,7 +381,8 @@ timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, c
     {
         throw std::invalid_argument(member + " range exceeds safe source evaluation");
     }
-    timeline::Lane lane(strings.intern(id), label, "keyframes", grid.offset(), grid.end_time());
+    timeline::Lane lane(
+        strings.intern(id), strings.intern(label), strings.intern("keyframes"), grid.offset(), grid.end_time());
     for (int index = 0; index < 2; ++index)
     {
         timeline::Attributes key_attributes = attributes;
@@ -758,8 +759,8 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
             }
             return colors;
         };
-        timeline::Lane definitions(
-            strings.intern(id + "-keys"), label + " / keys", "keyframe", grid.offset(), grid.end_time());
+        timeline::Lane definitions(strings.intern(id + "-keys"), strings.intern(label + " / keys"),
+            strings.intern("keyframe"), grid.offset(), grid.end_time());
         for (int index = 0; index < 2; ++index)
         {
             timeline::Attributes key_attributes = attributes;
@@ -769,11 +770,11 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
             key_attributes["source-key"] = keys[index].dump();
             const std::string key_id = id + "-key-" + std::to_string(index);
             const timeline::Time time = index == 0 ? start : end;
-            definitions.add(
-                timeline::Instant(strings.intern(key_id), "keyframe", time, filename, std::nullopt, key_attributes));
-            definitions.add(
-                timeline::Interval(strings.intern(key_id + "-hold"), "keyframe-value", index == 0 ? grid.offset() : end,
-                    index == 0 ? end : grid.end_time(), filename, std::nullopt, key_attributes));
+            definitions.add(timeline::Instant(strings.intern(key_id), strings.intern("keyframe"), time,
+                strings.intern(filename), std::nullopt, key_attributes));
+            definitions.add(timeline::Interval(strings.intern(key_id + "-hold"), strings.intern("keyframe-value"),
+                index == 0 ? grid.offset() : end, index == 0 ? end : grid.end_time(), strings.intern(filename),
+                std::nullopt, key_attributes));
         }
         staged.push_back(std::move(definitions));
     }
@@ -791,9 +792,10 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
             return colors;
         };
     }
-    timeline::Lane palette(strings.intern(id), label, "palette", grid.offset(), grid.end_time());
-    palette.add(timeline::PaletteCurve(strings.intern(id + "-palette"), "color-map", grid.offset(), grid.end_time(),
-        std::move(evaluator), std::move(attributes)));
+    timeline::Lane palette(
+        strings.intern(id), strings.intern(label), strings.intern("palette"), grid.offset(), grid.end_time());
+    palette.add(timeline::PaletteCurve(strings.intern(id + "-palette"), strings.intern("color-map"), grid.offset(),
+        grid.end_time(), std::move(evaluator), std::move(attributes)));
     lanes.push_back(std::move(palette));
     for (timeline::Lane &lane : staged)
     {

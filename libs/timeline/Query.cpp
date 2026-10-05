@@ -50,10 +50,11 @@ std::string_view to_string(InspectionItemRole value)
 namespace
 {
 
-InspectionItem inspect_item(const Item &item, InspectionItemRole role, std::optional<Time> sample_time)
+InspectionItem inspect_item(
+    const Item &item, InspectionItemRole role, std::optional<Time> sample_time, StringId keyframe_kind)
 {
     return std::visit(
-        [role, sample_time](const auto &value) -> InspectionItem
+        [role, sample_time, keyframe_kind](const auto &value) -> InspectionItem
         {
             using Value = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<Value, Instant>)
@@ -86,16 +87,16 @@ InspectionItem inspect_item(const Item &item, InspectionItemRole role, std::opti
             }
             else
             {
-                return {value.id(), "keyframe", InspectionItemType::KEYFRAME, role,
+                return {value.id(), keyframe_kind, InspectionItemType::KEYFRAME, role,
                     std::optional<double>{value.value()}, value.attributes()};
             }
         },
         item);
 }
 
-InspectionItem inspect_keyframe(const Keyframe &keyframe, InspectionItemRole role)
+InspectionItem inspect_keyframe(const Keyframe &keyframe, InspectionItemRole role, StringId kind)
 {
-    return {keyframe.id(), "keyframe", InspectionItemType::KEYFRAME, role, std::optional<double>{keyframe.value()},
+    return {keyframe.id(), kind, InspectionItemType::KEYFRAME, role, std::optional<double>{keyframe.value()},
         keyframe.attributes()};
 }
 
@@ -163,25 +164,27 @@ std::optional<FrameInspection> inspect_frame(const Document &document, Ticks fra
                     std::holds_alternative<Curve>(item) || std::holds_alternative<PaletteCurve>(item)
                     ? InspectionItemRole::SAMPLED
                     : InspectionItemRole::ACTIVE;
-                lane_inspection.items.push_back(inspect_item(item, role, start));
+                lane_inspection.items.push_back(inspect_item(item, role, start, lane.kind()));
             }
         }
 
         const KeyframeNeighbors neighbors = lane.neighboring_keyframes(start);
         if (neighbors.before() && neighbors.after() && neighbors.before()->get().id() == neighbors.after()->get().id())
         {
-            lane_inspection.items.push_back(inspect_keyframe(neighbors.before()->get(), InspectionItemRole::EXACT));
+            lane_inspection.items.push_back(
+                inspect_keyframe(neighbors.before()->get(), InspectionItemRole::EXACT, lane.kind()));
         }
         else
         {
             if (neighbors.before())
             {
                 lane_inspection.items.push_back(
-                    inspect_keyframe(neighbors.before()->get(), InspectionItemRole::BEFORE));
+                    inspect_keyframe(neighbors.before()->get(), InspectionItemRole::BEFORE, lane.kind()));
             }
             if (neighbors.after())
             {
-                lane_inspection.items.push_back(inspect_keyframe(neighbors.after()->get(), InspectionItemRole::AFTER));
+                lane_inspection.items.push_back(
+                    inspect_keyframe(neighbors.after()->get(), InspectionItemRole::AFTER, lane.kind()));
             }
         }
         inspection.lanes.push_back(std::move(lane_inspection));
@@ -205,7 +208,8 @@ RangeInspection inspect_range(const Document &document, Time start, Time end)
         {
             if (overlaps_range(item, start, end))
             {
-                lane_inspection.items.push_back(inspect_item(item, InspectionItemRole::ACTIVE, std::nullopt));
+                lane_inspection.items.push_back(
+                    inspect_item(item, InspectionItemRole::ACTIVE, std::nullopt, lane.kind()));
             }
         }
         inspection.lanes.push_back(std::move(lane_inspection));

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 #include <utility>
 
 namespace timeline_imgui
@@ -105,8 +106,10 @@ void Control::update_layout(ImVec2 size)
     int label_width = 6 * font_height;
     for (const timeline::Lane &lane : m_document->lanes())
     {
-        label_width = std::max(
-            label_width, static_cast<int>(std::ceil(ImGui::CalcTextSize(lane.label().c_str()).x)) + 4 * padding);
+        const std::string_view label = m_document->strings().lookup(lane.label());
+        label_width = std::max(label_width,
+            static_cast<int>(std::ceil(ImGui::CalcTextSize(label.data(), label.data() + label.size()).x)) +
+                4 * padding);
     }
     label_width = std::clamp(label_width, 1, width / 2);
     m_layout_metrics.emplace(label_width, font_height + 2 * padding, font_height + 4 * padding, padding);

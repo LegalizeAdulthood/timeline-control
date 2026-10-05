@@ -258,9 +258,12 @@ TEST(CairoRenderer, compositesNativeFontCoverageWithClippingAndDrawOrder)
     dc.DrawText("Timeline", 3, 2);
     dc.SelectObject(wxNullBitmap);
     const wxImage native = bitmap.ConvertToImage();
-    timeline::DisplayList list;
-    list.add(timeline::Text{3, 2, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
-    list.add(timeline::Text{3, 24, "Time", timeline::StyleRole::RULER_LABEL, {}});
+    timeline::StringTableBuilder strings;
+    const timeline::StringId timeline_text = strings.intern("Timeline");
+    const timeline::StringId time_text = strings.intern("Time");
+    timeline::DisplayList list(std::move(strings).build());
+    list.add(timeline::Text{3, 2, timeline_text, timeline::StyleRole::LANE_LABEL, {}});
+    list.add(timeline::Text{3, 24, time_text, timeline::StyleRole::RULER_LABEL, {}});
     list.add(timeline::Marker{20, 0, 5, 40, timeline::StyleRole::SELECTED_ITEM, {}});
     const wxRect clip(0, 0, 80, 40);
     const wxImage image =
@@ -341,11 +344,13 @@ TEST(CairoControl, switchesRendererWithoutReplacingDocumentOrInspectionState)
 
 TEST(CairoRenderer, partialRepaintsPreserveDevicePixelAlignment)
 {
-    timeline::DisplayList list;
+    timeline::StringTableBuilder strings;
+    const timeline::StringId text = strings.intern("Timeline");
+    timeline::DisplayList list(std::move(strings).build());
     list.add(timeline::Rectangle{0, 0, 96, 64, timeline::StyleRole::LANE_BACKGROUND, {}});
     list.add(timeline::Polyline{{{0, 0}, {95, 63}}, timeline::StyleRole::CURVE, {}});
     list.add(timeline::Line{19, 0, 19, 63, timeline::StyleRole::PLAYHEAD, {}});
-    list.add(timeline::Text{8, 8, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    list.add(timeline::Text{8, 8, text, timeline::StyleRole::LANE_LABEL, {}});
     list.add(timeline::Swatch{40, 28, 20, 16, timeline::RgbColor(12, 34, 56), timeline::StyleRole::PALETTE, {}});
     for (double scale : {1.0, 1.25, 1.5, 2.0})
     {
@@ -386,9 +391,11 @@ TEST(CairoRenderer, partialRepaintsPreserveDevicePixelAlignment)
 
 TEST(CairoRenderer, recreatesSurfacesForScaleFontThemeAndSizeChanges)
 {
-    timeline::DisplayList list;
+    timeline::StringTableBuilder strings;
+    const timeline::StringId timeline_text = strings.intern("Timeline");
+    timeline::DisplayList list(std::move(strings).build());
     list.add(timeline::Rectangle{0, 0, 160, 80, timeline::StyleRole::LANE_BACKGROUND, {}});
-    list.add(timeline::Text{4, 4, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    list.add(timeline::Text{4, 4, timeline_text, timeline::StyleRole::LANE_LABEL, {}});
     list.add(timeline::Swatch{8, 48, 12, 12, timeline::RgbColor(12, 34, 56), timeline::StyleRole::PALETTE, {}});
     const wxFont font = *wxNORMAL_FONT;
     const wxImage baseline = render_cairo_display_list(
@@ -416,8 +423,8 @@ TEST(CairoRenderer, recreatesSurfacesForScaleFontThemeAndSizeChanges)
             EXPECT_EQ(0, std::memcmp(baseline.GetAlpha(), restored.GetAlpha(), 160 * 80));
         }
     }
-    timeline::DisplayList text;
-    text.add(timeline::Text{4, 4, "Timeline", timeline::StyleRole::LANE_LABEL, {}});
+    timeline::DisplayList text(list.strings());
+    text.add(timeline::Text{4, 4, timeline_text, timeline::StyleRole::LANE_LABEL, {}});
     wxFont larger_font(font);
     larger_font.SetFractionalPointSize(font.GetFractionalPointSize() * 1.5);
     const wxImage small_image = render_cairo_display_list(

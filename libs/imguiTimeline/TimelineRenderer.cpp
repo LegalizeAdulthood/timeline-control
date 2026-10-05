@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <string_view>
 #include <type_traits>
 
 namespace timeline_imgui
@@ -113,9 +114,10 @@ void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &displ
                 }
                 else if constexpr (std::is_same_v<Value, timeline::Text>)
                 {
+                    const std::string_view text = display_list.strings().lookup(value.value);
                     const ImVec4 clip(origin.x, -FLT_MAX, origin.x + static_cast<float>(label_width), FLT_MAX);
                     draw_list.AddText(ImGui::GetFont(), ImGui::GetFontSize(), screen_point(origin, value.x, value.y),
-                        colour, value.value.data(), value.value.data() + value.value.size(), 0.0F,
+                        colour, text.data(), text.data() + text.size(), 0.0F,
                         value.style == timeline::StyleRole::LANE_LABEL ? &clip : nullptr);
                 }
                 else

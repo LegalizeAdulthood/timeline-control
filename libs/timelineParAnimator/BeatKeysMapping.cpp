@@ -195,7 +195,8 @@ timeline::Document BeatKeysMapping::materialize() const
         }
         const MappingRecipe &recipe = m_recipes[index];
         const std::string id = "mapping-" + std::to_string(index);
-        timeline::Lane lane(builder.intern(id), recipe.target, "keyframes", grid.offset(), grid.end_time());
+        timeline::Lane lane(builder.intern(id), builder.intern(recipe.target), builder.intern("keyframes"),
+            grid.offset(), grid.end_time());
         for (const auto &[frame, value] : outputs[index])
         {
             lane.add(timeline::Keyframe(builder.intern(id + "-" + std::to_string(frame)), grid.frame_start(frame),

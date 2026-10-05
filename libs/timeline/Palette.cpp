@@ -21,15 +21,10 @@ RgbColor::RgbColor(int red, int green, int blue) :
     }
 }
 
-PaletteCurve::PaletteCurve(StringId id, Time start, Time end, Evaluator evaluator) :
-    PaletteCurve(id, "palette", start, end, std::move(evaluator), {})
-{
-}
-
 PaletteCurve::PaletteCurve(
-    StringId id, std::string kind, Time start, Time end, Evaluator evaluator, Attributes attributes) :
+    StringId id, StringId kind, Time start, Time end, Evaluator evaluator, Attributes attributes) :
     m_id(id),
-    m_kind(std::move(kind)),
+    m_kind(kind),
     m_start(start),
     m_end(end),
     m_evaluate(std::move(evaluator)),
@@ -55,6 +50,17 @@ PaletteCurve PaletteCurve::with_id(StringId id) const
     }
     PaletteCurve result(*this);
     result.m_id = id;
+    return result;
+}
+
+PaletteCurve PaletteCurve::with_kind(StringId kind) const
+{
+    if (kind.empty())
+    {
+        throw std::invalid_argument("timeline palette curve kind cannot be empty");
+    }
+    PaletteCurve result(*this);
+    result.m_kind = kind;
     return result;
 }
 

@@ -9,18 +9,18 @@
 namespace timeline
 {
 
-Interval::Interval(StringId id, std::string kind, Time start, Time end) :
-    Interval(id, std::move(kind), start, end, {}, std::nullopt, {})
+Interval::Interval(StringId id, StringId kind, Time start, Time end) :
+    Interval(id, kind, start, end, {}, std::nullopt, {})
 {
 }
 
-Interval::Interval(StringId id, std::string kind, Time start, Time end, std::string label,
-    std::optional<double> strength, Attributes attributes) :
+Interval::Interval(StringId id, StringId kind, Time start, Time end, StringId label, std::optional<double> strength,
+    Attributes attributes) :
     m_id(id),
-    m_kind(std::move(kind)),
+    m_kind(kind),
     m_start(start),
     m_end(end),
-    m_label(std::move(label)),
+    m_label(label),
     m_strength(strength),
     m_attributes(std::move(attributes))
 {
@@ -46,6 +46,18 @@ Interval Interval::with_id(StringId id) const
     }
     Interval result(*this);
     result.m_id = id;
+    return result;
+}
+
+Interval Interval::with_strings(StringId kind, StringId label) const
+{
+    if (kind.empty())
+    {
+        throw std::invalid_argument("timeline interval kind cannot be empty");
+    }
+    Interval result(*this);
+    result.m_kind = kind;
+    result.m_label = label;
     return result;
 }
 

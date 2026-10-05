@@ -9,17 +9,17 @@
 namespace timeline
 {
 
-Instant::Instant(StringId id, std::string kind, Time time) :
-    Instant(id, std::move(kind), time, {}, std::nullopt, {})
+Instant::Instant(StringId id, StringId kind, Time time) :
+    Instant(id, kind, time, {}, std::nullopt, {})
 {
 }
 
-Instant::Instant(StringId id, std::string kind, Time time, std::string label, std::optional<double> strength,
-    Attributes attributes) :
+Instant::Instant(
+    StringId id, StringId kind, Time time, StringId label, std::optional<double> strength, Attributes attributes) :
     m_id(id),
-    m_kind(std::move(kind)),
+    m_kind(kind),
     m_time(time),
-    m_label(std::move(label)),
+    m_label(label),
     m_strength(strength),
     m_attributes(std::move(attributes))
 {
@@ -41,6 +41,18 @@ Instant Instant::with_id(StringId id) const
     }
     Instant result(*this);
     result.m_id = id;
+    return result;
+}
+
+Instant Instant::with_strings(StringId kind, StringId label) const
+{
+    if (kind.empty())
+    {
+        throw std::invalid_argument("timeline instant kind cannot be empty");
+    }
+    Instant result(*this);
+    result.m_kind = kind;
+    result.m_label = label;
     return result;
 }
 

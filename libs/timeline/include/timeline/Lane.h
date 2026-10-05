@@ -43,21 +43,23 @@ using KeyframeOutputEvaluator = std::function<double(Time, double)>;
 class Lane
 {
 public:
-    Lane(StringId id, std::string label, std::string kind, Time start, Time end);
+    Lane(StringId id, StringId label, StringId kind, Time start, Time end);
 
     /// Return a copy with the supplied lane identity.
     Lane with_id(StringId id) const;
     /// Return a copy with the supplied lane and item identities.
     Lane with_ids(StringId id, const std::vector<StringId> &item_ids) const;
+    /// Return a copy with the supplied lane strings and items.
+    Lane with_strings(StringId label, StringId kind, std::vector<Item> items) const;
     StringId id() const
     {
         return m_id;
     }
-    const std::string &label() const
+    StringId label() const
     {
         return m_label;
     }
-    const std::string &kind() const
+    StringId kind() const
     {
         return m_kind;
     }
@@ -102,8 +104,8 @@ private:
     void add_item(Item item);
 
     StringId m_id;
-    std::string m_label;
-    std::string m_kind;
+    StringId m_label;
+    StringId m_kind;
     Time m_start;
     Time m_end;
     std::vector<Item> m_items;

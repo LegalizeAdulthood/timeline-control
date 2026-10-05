@@ -78,7 +78,7 @@ struct Text
 {
     int x;
     int y;
-    std::string value;
+    StringId value;
     StyleRole style;
     DisplayId id;
 };

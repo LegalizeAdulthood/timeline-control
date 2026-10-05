@@ -50,7 +50,7 @@ std::string_view to_string(InspectionItemRole value);
 struct InspectionItem
 {
     StringId id;
-    std::string kind;
+    StringId kind;
     InspectionItemType type;
     InspectionItemRole role;
     std::optional<double> value;
@@ -66,8 +66,8 @@ struct InspectionItem
 struct LaneInspection
 {
     StringId id;
-    std::string label;
-    std::string kind;
+    StringId label;
+    StringId kind;
     int item_count;
     std::vector<InspectionItem> items;
     /// Evaluated numeric keyframe signal at a frame query's exact time.

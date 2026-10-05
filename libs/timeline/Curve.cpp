@@ -13,7 +13,7 @@ namespace
 {
 
 void validate_curve_metadata(
-    StringId id, const std::string &kind, const std::optional<double> &minimum, const std::optional<double> &maximum)
+    StringId id, StringId kind, const std::optional<double> &minimum, const std::optional<double> &maximum)
 {
     if (id.empty() || kind.empty())
     {
@@ -64,17 +64,17 @@ CurveSample::CurveSample(Time time, double value) :
     }
 }
 
-Curve::Curve(StringId id, std::string kind, std::vector<CurveSample> samples) :
-    Curve(id, std::move(kind), std::move(samples), {}, CurveInterpolation::LINEAR, std::nullopt, std::nullopt, {})
+Curve::Curve(StringId id, StringId kind, std::vector<CurveSample> samples) :
+    Curve(id, kind, std::move(samples), {}, CurveInterpolation::LINEAR, std::nullopt, std::nullopt, {})
 {
 }
 
-Curve::Curve(StringId id, std::string kind, std::vector<CurveSample> samples, std::string label,
+Curve::Curve(StringId id, StringId kind, std::vector<CurveSample> samples, StringId label,
     CurveInterpolation interpolation, std::optional<double> minimum, std::optional<double> maximum,
     Attributes attributes) :
     m_id(id),
-    m_kind(std::move(kind)),
-    m_label(std::move(label)),
+    m_kind(kind),
+    m_label(label),
     m_interpolation(interpolation),
     m_minimum(minimum),
     m_maximum(maximum),
@@ -104,16 +104,16 @@ Curve::Curve(StringId id, std::string kind, std::vector<CurveSample> samples, st
     m_end = m_samples.back().time();
 }
 
-Curve::Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator) :
-    Curve(id, std::move(kind), start, end, std::move(evaluator), {}, std::nullopt, std::nullopt, {})
+Curve::Curve(StringId id, StringId kind, Time start, Time end, CurveEvaluator evaluator) :
+    Curve(id, kind, start, end, std::move(evaluator), {}, std::nullopt, std::nullopt, {})
 {
 }
 
-Curve::Curve(StringId id, std::string kind, Time start, Time end, CurveEvaluator evaluator, std::string label,
+Curve::Curve(StringId id, StringId kind, Time start, Time end, CurveEvaluator evaluator, StringId label,
     std::optional<double> minimum, std::optional<double> maximum, Attributes attributes) :
     m_id(id),
-    m_kind(std::move(kind)),
-    m_label(std::move(label)),
+    m_kind(kind),
+    m_label(label),
     m_interpolation(CurveInterpolation::ANALYTIC),
     m_minimum(minimum),
     m_maximum(maximum),
@@ -139,6 +139,18 @@ Curve Curve::with_id(StringId id) const
     }
     Curve result(*this);
     result.m_id = id;
+    return result;
+}
+
+Curve Curve::with_strings(StringId kind, StringId label) const
+{
+    if (kind.empty())
+    {
+        throw std::invalid_argument("timeline curve kind cannot be empty");
+    }
+    Curve result(*this);
+    result.m_kind = kind;
+    result.m_label = label;
     return result;
 }
 

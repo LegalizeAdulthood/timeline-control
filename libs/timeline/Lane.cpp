@@ -47,10 +47,10 @@ Time item_end(const Item &item)
         item);
 }
 
-Lane::Lane(StringId id, std::string label, std::string kind, Time start, Time end) :
+Lane::Lane(StringId id, StringId label, StringId kind, Time start, Time end) :
     m_id(id),
-    m_label(std::move(label)),
-    m_kind(std::move(kind)),
+    m_label(label),
+    m_kind(kind),
     m_start(start),
     m_end(end)
 {
@@ -88,6 +88,23 @@ Lane Lane::with_ids(StringId id, const std::vector<StringId> &item_ids) const
         result.m_items[index] =
             std::visit([item_id](const auto &value) -> Item { return value.with_id(item_id); }, result.m_items[index]);
     }
+    return result;
+}
+
+Lane Lane::with_strings(StringId label, StringId kind, std::vector<Item> items) const
+{
+    if (kind.empty())
+    {
+        throw std::invalid_argument("timeline lane kind cannot be empty");
+    }
+    if (size_cast(items) != item_count())
+    {
+        throw std::invalid_argument("timeline lane item count cannot change when replacing strings");
+    }
+    Lane result(*this);
+    result.m_label = label;
+    result.m_kind = kind;
+    result.m_items = std::move(items);
     return result;
 }
 

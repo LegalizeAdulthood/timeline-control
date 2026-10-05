@@ -296,7 +296,8 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
         m_timeline_control->document()->timebase().seconds(inspection->time));
     for (const timeline::LaneInspection &lane : inspection->lanes)
     {
-        text += "\n" + lane.label + " [" + lane.kind + "]";
+        text += "\n" + to_wx_string(document->strings().lookup(lane.label)) + " [" +
+            to_wx_string(document->strings().lookup(lane.kind)) + "]";
         text += wxString::Format("\n  Source items: %d", lane.item_count);
         if (lane.value)
         {

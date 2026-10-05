@@ -290,7 +290,9 @@ std::string Viewer::inspector_text() const
          << " seconds";
     for (const timeline::LaneInspection &lane : inspection.lanes)
     {
-        text << "\n\n" << lane.label << " [" << lane.kind << "]\nSource items: " << lane.item_count;
+        text << "\n\n"
+             << document.strings().lookup(lane.label) << " [" << document.strings().lookup(lane.kind)
+             << "]\nSource items: " << lane.item_count;
         if (lane.value)
         {
             text << "\nFrame value: " << *lane.value;
@@ -305,8 +307,8 @@ std::string Viewer::inspector_text() const
         }
         for (const timeline::InspectionItem &item : lane.items)
         {
-            text << "\nItem: " << document.strings().lookup(item.id) << " [" << item.kind << "] ("
-                 << timeline::to_string(item.role) << ')';
+            text << "\nItem: " << document.strings().lookup(item.id) << " [" << document.strings().lookup(item.kind)
+                 << "] (" << timeline::to_string(item.role) << ')';
             if (item.value)
             {
                 text << " Value: " << *item.value;

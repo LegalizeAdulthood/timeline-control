@@ -24,17 +24,19 @@ using Attributes = std::map<std::string, std::string>;
 class Instant
 {
 public:
-    Instant(StringId id, std::string kind, Time time);
-    Instant(StringId id, std::string kind, Time time, std::string label, std::optional<double> strength,
-        Attributes attributes);
+    Instant(StringId id, StringId kind, Time time);
+    Instant(
+        StringId id, StringId kind, Time time, StringId label, std::optional<double> strength, Attributes attributes);
 
     /// Return a copy with the supplied identity.
     Instant with_id(StringId id) const;
+    /// Return a copy with the supplied kind and label identities.
+    Instant with_strings(StringId kind, StringId label) const;
     StringId id() const
     {
         return m_id;
     }
-    const std::string &kind() const
+    StringId kind() const
     {
         return m_kind;
     }
@@ -42,7 +44,7 @@ public:
     {
         return m_time;
     }
-    const std::string &label() const
+    StringId label() const
     {
         return m_label;
     }
@@ -57,9 +59,9 @@ public:
 
 private:
     StringId m_id;
-    std::string m_kind;
+    StringId m_kind;
     Time m_time;
-    std::string m_label;
+    StringId m_label;
     std::optional<double> m_strength;
     Attributes m_attributes;
 };

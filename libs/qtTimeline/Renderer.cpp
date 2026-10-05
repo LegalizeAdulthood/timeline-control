@@ -7,6 +7,7 @@
 #include <QPolygon>
 
 #include <algorithm>
+#include <string_view>
 #include <type_traits>
 
 namespace
@@ -106,6 +107,7 @@ void draw_display_list(
                 }
                 else
                 {
+                    const std::string_view text = list.strings().lookup(value.value);
                     painter.save();
                     if (value.style == timeline::StyleRole::LANE_LABEL)
                     {
@@ -113,8 +115,8 @@ void draw_display_list(
                             painter.fontMetrics().height(), Qt::IntersectClip);
                     }
                     painter.setPen(color);
-                    painter.drawText(
-                        value.x, value.y + painter.fontMetrics().ascent(), QString::fromStdString(value.value));
+                    painter.drawText(value.x, value.y + painter.fontMetrics().ascent(),
+                        QString::fromUtf8(text.data(), timeline::size_cast(text)));
                     painter.restore();
                 }
             },

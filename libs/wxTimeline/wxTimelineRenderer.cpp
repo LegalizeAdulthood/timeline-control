@@ -10,6 +10,7 @@
 #include <wx/settings.h>
 
 #include <algorithm>
+#include <string_view>
 #include <type_traits>
 #include <variant>
 
@@ -81,12 +82,12 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
     stroke_width = std::max(1, stroke_width);
     for (const timeline::Primitive &primitive : display_list.primitives())
     {
-        draw_timeline_primitive(dc, primitive, origin, palette, stroke_width, focused);
+        draw_timeline_primitive(dc, primitive, origin, display_list.strings(), palette, stroke_width, focused);
     }
 }
 
 void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
-    const wxTimelinePalette &palette, int stroke_width, bool focused)
+    const timeline::StringTable &strings, const wxTimelinePalette &palette, int stroke_width, bool focused)
 {
     stroke_width = std::max(1, stroke_width);
     std::visit(
@@ -129,7 +130,8 @@ void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxP
             else
             {
                 dc.SetTextForeground(colour);
-                dc.DrawText(value.value, origin.x + value.x, origin.y + value.y);
+                const std::string_view text = strings.lookup(value.value);
+                dc.DrawText(wxString(text.data(), text.size()), origin.x + value.x, origin.y + value.y);
             }
         },
         primitive);

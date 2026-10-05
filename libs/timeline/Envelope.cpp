@@ -18,21 +18,21 @@ Ticks phase_ticks(const std::optional<Duration> &phase)
 
 } // namespace
 
-Envelope::Envelope(StringId id, std::string kind, Time start) :
-    Envelope(id, std::move(kind), start, std::nullopt, std::nullopt, std::nullopt, {}, std::nullopt, {})
+Envelope::Envelope(StringId id, StringId kind, Time start) :
+    Envelope(id, kind, start, std::nullopt, std::nullopt, std::nullopt, {}, std::nullopt, {})
 {
 }
 
-Envelope::Envelope(StringId id, std::string kind, Time start, std::optional<Duration> attack,
-    std::optional<Duration> sustain, std::optional<Duration> decay, std::string label, std::optional<double> strength,
+Envelope::Envelope(StringId id, StringId kind, Time start, std::optional<Duration> attack,
+    std::optional<Duration> sustain, std::optional<Duration> decay, StringId label, std::optional<double> strength,
     Attributes attributes) :
     m_id(id),
-    m_kind(std::move(kind)),
+    m_kind(kind),
     m_start(start),
     m_attack(attack),
     m_sustain(sustain),
     m_decay(decay),
-    m_label(std::move(label)),
+    m_label(label),
     m_strength(strength),
     m_attributes(std::move(attributes))
 {
@@ -62,6 +62,18 @@ Envelope Envelope::with_id(StringId id) const
     }
     Envelope result(*this);
     result.m_id = id;
+    return result;
+}
+
+Envelope Envelope::with_strings(StringId kind, StringId label) const
+{
+    if (kind.empty())
+    {
+        throw std::invalid_argument("timeline envelope kind cannot be empty");
+    }
+    Envelope result(*this);
+    result.m_kind = kind;
+    result.m_label = label;
     return result;
 }
 

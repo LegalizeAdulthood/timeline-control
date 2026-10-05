@@ -87,7 +87,7 @@ TEST(CameraImport, preservesKeyedNestedSignalsAndSourceEyePrecedence)
         if (eye)
         {
             const timeline::Lane &authored = document.lanes()[13];
-            ASSERT_EQ("keyframes", authored.kind());
+            ASSERT_EQ("keyframes", document.strings().lookup(authored.kind()));
             const timeline::Keyframe &key = std::get<timeline::Keyframe>(authored.items().front());
             EXPECT_EQ("false", key.attributes().at("used-by-camera"));
             EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));

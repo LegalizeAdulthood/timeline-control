@@ -20,10 +20,10 @@ Time at(Ticks ticks)
 Document framed_document()
 {
     DocumentBuilder builder(Document(FrameGrid(Timebase(100), 10, 10, 1, at(50)), 0, 0));
-    Lane lane(builder.intern("music"), "Music", "events", at(50), at(150));
-    lane.add(Instant(builder.intern("beat"), "beat", at(80)));
+    Lane lane(builder.intern("music"), builder.intern("Music"), builder.intern("events"), at(50), at(150));
+    lane.add(Instant(builder.intern("beat"), builder.intern("beat"), at(80)));
     builder.add_lane(std::move(lane));
-    builder.add_lane(Lane(builder.intern("other"), "Other", "events", at(50), at(150)));
+    builder.add_lane(Lane(builder.intern("other"), builder.intern("Other"), builder.intern("events"), at(50), at(150)));
     return std::move(builder).build();
 }
 
@@ -50,7 +50,7 @@ TEST(Interaction, snapsPlayheadAndClampsFrameMovement)
 TEST(Interaction, handlesFramelessAndEmptyDocuments)
 {
     DocumentBuilder builder(Document(100));
-    builder.add_lane(Lane(builder.intern("lane"), "Lane", "events", at(20), at(80)));
+    builder.add_lane(Lane(builder.intern("lane"), builder.intern("Lane"), builder.intern("events"), at(20), at(80)));
     const Document document = std::move(builder).build();
     Interaction interaction(document);
     interaction.move_playhead(at(37));
@@ -123,7 +123,9 @@ TEST(Interaction, preservesClickedItemsUntilADragCrossesAFrame)
 {
     const Document document = framed_document();
     Interaction interaction(document);
-    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{StringId{1}, StringId{2}}};
+    const StringId lane_id = document.lanes().front().id();
+    const StringId beat_id = std::get<Instant>(document.lanes().front().items().front()).id();
+    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{lane_id, beat_id}};
     interaction.select_hit(beat, false);
     interaction.begin_range(at(80));
     interaction.extend_range(at(84));
@@ -169,7 +171,9 @@ TEST(Interaction, rendersSelectionWithoutChangingHitIdentity)
 {
     const Document document = framed_document();
     Interaction interaction(document);
-    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{StringId{1}, StringId{2}}};
+    const StringId lane_id = document.lanes().front().id();
+    const StringId beat_id = std::get<Instant>(document.lanes().front().items().front()).id();
+    const HitResult beat{StyleRole::INSTANT_MARKER, DisplayId{lane_id, beat_id}};
     interaction.select_hit(beat, false);
     interaction.move_playhead_frame(3);
     const LayoutMetrics metrics(100, 20, 30, 4);
@@ -183,8 +187,8 @@ TEST(Interaction, rendersSelectionWithoutChangingHitIdentity)
         std::visit(
             [&](const auto &value)
             {
-                selected_marker |= value.style == StyleRole::SELECTED_ITEM && value.id.item_id == StringId{2};
-                selected_lane |= value.style == StyleRole::SELECTED_LANE && value.id.lane_id == StringId{1};
+                selected_marker |= value.style == StyleRole::SELECTED_ITEM && value.id.item_id == beat_id;
+                selected_lane |= value.style == StyleRole::SELECTED_LANE && value.id.lane_id == lane_id;
                 playhead |= value.style == StyleRole::PLAYHEAD;
             },
             primitive);

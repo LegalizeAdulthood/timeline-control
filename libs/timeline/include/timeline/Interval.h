@@ -15,17 +15,19 @@ namespace timeline
 class Interval
 {
 public:
-    Interval(StringId id, std::string kind, Time start, Time end);
-    Interval(StringId id, std::string kind, Time start, Time end, std::string label, std::optional<double> strength,
+    Interval(StringId id, StringId kind, Time start, Time end);
+    Interval(StringId id, StringId kind, Time start, Time end, StringId label, std::optional<double> strength,
         Attributes attributes);
 
     /// Return a copy with the supplied identity.
     Interval with_id(StringId id) const;
+    /// Return a copy with the supplied kind and label identities.
+    Interval with_strings(StringId kind, StringId label) const;
     StringId id() const
     {
         return m_id;
     }
-    const std::string &kind() const
+    StringId kind() const
     {
         return m_kind;
     }
@@ -41,7 +43,7 @@ public:
     {
         return m_end - m_start;
     }
-    const std::string &label() const
+    StringId label() const
     {
         return m_label;
     }
@@ -56,10 +58,10 @@ public:
 
 private:
     StringId m_id;
-    std::string m_kind;
+    StringId m_kind;
     Time m_start;
     Time m_end;
-    std::string m_label;
+    StringId m_label;
     std::optional<double> m_strength;
     Attributes m_attributes;
 };

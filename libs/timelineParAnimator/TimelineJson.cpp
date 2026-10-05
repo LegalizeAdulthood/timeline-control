@@ -754,10 +754,11 @@ void animation_planar_lanes(const Json &path, const Json &metadata, const std::s
                 static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
             return planar_path_value(origin, radius, radius_change, component_phase, frequency, component, fraction);
         };
-        timeline::Lane lane(strings.intern(id + suffix), label + suffix, "curve", start, grid.end_time());
-        lane.add(timeline::Curve(strings.intern(id + suffix + "-path"), "procedural-path", start, end, evaluate,
-            label + suffix, clean_path_value(origin - maximum_radius), clean_path_value(origin + maximum_radius),
-            attributes));
+        timeline::Lane lane(strings.intern(id + suffix), strings.intern(label + suffix), strings.intern("curve"), start,
+            grid.end_time());
+        lane.add(timeline::Curve(strings.intern(id + suffix + "-path"), strings.intern("procedural-path"), start, end,
+            evaluate, strings.intern(label + suffix), clean_path_value(origin - maximum_radius),
+            clean_path_value(origin + maximum_radius), attributes));
         lanes.push_back(std::move(lane));
     }
 }
@@ -1081,9 +1082,11 @@ void animation_control_point_lanes(const Json &track, const Json &metadata, cons
                 return normalize_path_vector(std::move(sampled))[component];
             };
         }
-        timeline::Lane lane(strings.intern(id + suffix), label + suffix, "curve", start, grid.end_time());
-        lane.add(timeline::Curve(strings.intern(id + suffix + "-path"), "procedural-path", start, end, evaluate,
-            label + suffix, clean_path_value(bounds.first), clean_path_value(bounds.second), attributes));
+        timeline::Lane lane(strings.intern(id + suffix), strings.intern(label + suffix), strings.intern("curve"), start,
+            grid.end_time());
+        lane.add(timeline::Curve(strings.intern(id + suffix + "-path"), strings.intern("procedural-path"), start, end,
+            evaluate, strings.intern(label + suffix), clean_path_value(bounds.first), clean_path_value(bounds.second),
+            attributes));
         lanes.push_back(std::move(lane));
     }
 }
@@ -1317,7 +1320,8 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
     }
     if (categorical)
     {
-        timeline::Lane lane(strings.intern(id), label, "keyframes", grid.offset(), grid.end_time());
+        timeline::Lane lane(
+            strings.intern(id), strings.intern(label), strings.intern("keyframes"), grid.offset(), grid.end_time());
         for (int index = 0; index < timeline::size_cast(keys); ++index)
         {
             const Json &key = keys[index];
@@ -1364,9 +1368,10 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
                 attributes["path"] = track.at("path").dump();
             }
             const std::string key_id = id + "-key-" + std::to_string(index);
-            lane.add(timeline::Instant(strings.intern(key_id), "keyframe", start, value, std::nullopt, attributes));
-            lane.add(timeline::Interval(strings.intern(key_id + "-hold"), "keyframe-value",
-                index == 0 ? grid.offset() : start, end, value, std::nullopt, attributes));
+            lane.add(timeline::Instant(strings.intern(key_id), strings.intern("keyframe"), start, strings.intern(value),
+                std::nullopt, attributes));
+            lane.add(timeline::Interval(strings.intern(key_id + "-hold"), strings.intern("keyframe-value"),
+                index == 0 ? grid.offset() : start, end, strings.intern(value), std::nullopt, attributes));
         }
         lanes.push_back(std::move(lane));
         return;
@@ -1427,7 +1432,8 @@ void animation_key_lanes(const Json &track, const Json &metadata, const std::str
     for (int component = 0; component < components; ++component)
     {
         const std::string suffix = components == 1 ? "" : "[" + std::to_string(component) + "]";
-        timeline::Lane lane(strings.intern(id + suffix), label + suffix, "keyframes", grid.offset(), grid.end_time());
+        timeline::Lane lane(strings.intern(id + suffix), strings.intern(label + suffix), strings.intern("keyframes"),
+            grid.offset(), grid.end_time());
         for (int index = 0; index < timeline::size_cast(keys); ++index)
         {
             const Json &key = keys[index];
@@ -1710,7 +1716,8 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
     timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"track", id}, {"mode", "pwm"},
         {"pwm", track.dump()}, {"a", a}, {"b", b}, {"window", std::to_string(window)}};
     attributes.insert(source_attributes.begin(), source_attributes.end());
-    timeline::Lane output(strings.intern(id), label, "events", grid.offset(), grid.end_time());
+    timeline::Lane output(
+        strings.intern(id), strings.intern(label), strings.intern("events"), grid.offset(), grid.end_time());
     timeline::Ticks run_start = 0;
     std::string previous;
     const auto append_run = [&](timeline::Ticks end_frame)
@@ -1719,8 +1726,9 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
         run_attributes["value"] = previous;
         run_attributes["signal"] = "output";
         const timeline::Time end = end_frame == grid.frame_count() ? grid.end_time() : grid.frame_start(end_frame);
-        output.add(timeline::Interval(strings.intern(id + "-pwm-" + std::to_string(run_start)), "pwm-output",
-            grid.frame_start(run_start), end, previous, std::nullopt, std::move(run_attributes)));
+        output.add(
+            timeline::Interval(strings.intern(id + "-pwm-" + std::to_string(run_start)), strings.intern("pwm-output"),
+                grid.frame_start(run_start), end, strings.intern(previous), std::nullopt, std::move(run_attributes)));
     };
     for (timeline::Ticks frame = 0; frame < grid.frame_count(); ++frame)
     {
@@ -1736,7 +1744,8 @@ void animation_pwm_lanes(const Json &track, const Json &metadata, const std::str
         previous = value;
     }
     append_run(grid.frame_count());
-    timeline::Lane mix_lane(strings.intern(id + "-mix"), label + " / mix", "keyframes", grid.offset(), grid.end_time());
+    timeline::Lane mix_lane(strings.intern(id + "-mix"), strings.intern(label + " / mix"), strings.intern("keyframes"),
+        grid.offset(), grid.end_time());
     for (int index = 0; index < 2; ++index)
     {
         timeline::Attributes mix_attributes(attributes);
@@ -1839,9 +1848,11 @@ void camera2d_key_lanes(const Json &signal, const std::string &member, const std
                         static_cast<double>((time - start).ticks()) / static_cast<double>((end - start).ticks());
                     return from * std::pow(ratio, fraction);
                 };
-                timeline::Lane lane(strings.intern(id + "-skew"), label + " / skew", "curve", start, grid.end_time());
+                timeline::Lane lane(strings.intern(id + "-skew"), strings.intern(label + " / skew"),
+                    strings.intern("curve"), start, grid.end_time());
                 lane.add(timeline::Curve(strings.intern(std::string(strings.lookup(lane.id())) + "-geometric"),
-                    "camera2d-input", start, end, evaluate, lane.label(), std::min(from, to), std::max(from, to),
+                    strings.intern("camera2d-input"), start, end, evaluate, lane.label(), std::min(from, to),
+                    std::max(from, to),
                     {{"signal", signal.dump()}, {"curve", "geometric"}, {"layer", layer}, {"parameter", "skew"}}));
                 lanes.push_back(std::move(lane));
                 return;
@@ -2478,11 +2489,11 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         timeline::Attributes output_attributes = attributes;
         output_attributes["parameter"] = output;
         output_attributes["component"] = components[component];
-        timeline::Lane lane(
-            strings.intern(id + suffix), label + " / " + components[component], "curve", start, grid.end_time());
-        lane.add(timeline::Curve(strings.intern(id + suffix + "-camera"), "camera2d", start, end, evaluate,
-            lane.label(), clean_path_value(bounds[component].first), clean_path_value(bounds[component].second),
-            output_attributes));
+        timeline::Lane lane(strings.intern(id + suffix), strings.intern(label + " / " + components[component]),
+            strings.intern("curve"), start, grid.end_time());
+        lane.add(timeline::Curve(strings.intern(id + suffix + "-camera"), strings.intern("camera2d"), start, end,
+            evaluate, lane.label(), clean_path_value(bounds[component].first),
+            clean_path_value(bounds[component].second), output_attributes));
         lanes.push_back(std::move(lane));
     }
     for (int component = 0; component < timeline::size_cast(signals); ++component)
@@ -2496,7 +2507,7 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
         input_attributes["signal"] = track.at(member).dump();
         input_attributes["component"] = std::to_string(component >= 4 ? 0 : component % 2);
         timeline::Lane lane(signals[component].id(), signals[component].label(),
-            member == "view-up" ? "curve" : signals[component].kind(), start, grid.end_time());
+            member == "view-up" ? strings.intern("curve") : signals[component].kind(), start, grid.end_time());
         if (member == "view-up")
         {
             const auto evaluate = [normalized_up, component](timeline::Time time)
@@ -2505,7 +2516,7 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
             };
             input_attributes["normalize"] = "true";
             lane.add(timeline::Curve(strings.intern(std::string(strings.lookup(lane.id())) + "-normalized"),
-                "camera2d-input", start, end, evaluate, lane.label(), -1, 1, input_attributes));
+                strings.intern("camera2d-input"), start, end, evaluate, lane.label(), -1, 1, input_attributes));
         }
         else
         {
@@ -2552,9 +2563,10 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
                 return normalized_up(time)[component];
             };
             timeline::Lane lane(strings.intern(id + suffix),
-                label + " / derived-view-up[" + std::to_string(component) + "]", "curve", start, grid.end_time());
+                strings.intern(label + " / derived-view-up[" + std::to_string(component) + "]"),
+                strings.intern("curve"), start, grid.end_time());
             lane.add(timeline::Curve(strings.intern(std::string(strings.lookup(lane.id())) + "-normalized"),
-                "camera2d-direction", start, end, evaluate, lane.label(), -1, 1, derived_attributes));
+                strings.intern("camera2d-direction"), start, end, evaluate, lane.label(), -1, 1, derived_attributes));
             lanes.push_back(std::move(lane));
         }
         if (track.contains("view-up"))
@@ -2564,8 +2576,8 @@ void animation_camera2d_lanes(const Json &track, const Json &catalog, const std:
             // ParAnimator does not evaluate view-up when eye supplies the direction.
             for (int component = 0; component < 2; ++component)
             {
-                timeline::Lane lane(
-                    authored_up[component].id(), authored_up[component].label(), "keyframes", start, grid.end_time());
+                timeline::Lane lane(authored_up[component].id(), authored_up[component].label(),
+                    strings.intern("keyframes"), start, grid.end_time());
                 for (const timeline::Item &item : authored_up[component].items())
                 {
                     const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
@@ -3483,8 +3495,8 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         {
             const std::string suffix = member.components == 1 ? "" : "[" + std::to_string(component) + "]";
             const std::string lane_name = id + "-" + member.name + suffix;
-            timeline::Lane lane(
-                strings.intern(lane_name), label + " / " + member.name + suffix, "curve", start, grid.end_time());
+            timeline::Lane lane(strings.intern(lane_name), strings.intern(label + " / " + member.name + suffix),
+                strings.intern("curve"), start, grid.end_time());
             output_attributes["component"] = std::to_string(component);
             output_attributes["derived-from"] = input.empty() ? "camera3d" : "keys";
             double minimum = member.name == "rotation" ? -180 : 0;
@@ -3501,8 +3513,9 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
                     return std::round(*keys.evaluate_keyframes(time));
                 };
                 output_attributes["signal"] = track.at(member.name).dump();
-                timeline::Lane definition(
-                    strings.intern(lane_name + "-keys"), lane.label() + " keys", "keyframes", start, grid.end_time());
+                timeline::Lane definition(strings.intern(lane_name + "-keys"),
+                    strings.intern(std::string(strings.lookup(lane.label())) + " keys"), strings.intern("keyframes"),
+                    start, grid.end_time());
                 for (const timeline::Item &item : keys.items())
                 {
                     definition.add(std::get<timeline::Keyframe>(item));
@@ -3546,8 +3559,8 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
                     maximum = camera_bounds.second;
                 }
             }
-            lane.add(timeline::Curve(strings.intern(lane_name + "-view"), "id-3d-view", start, end, evaluate,
-                lane.label(), minimum, maximum, output_attributes));
+            lane.add(timeline::Curve(strings.intern(lane_name + "-view"), strings.intern("id-3d-view"), start, end,
+                evaluate, lane.label(), minimum, maximum, output_attributes));
             lanes.push_back(std::move(lane));
         }
     }
@@ -3566,10 +3579,12 @@ void animation_id_view_lanes(const Json &track, const Json &catalog, const std::
         if (member == "view-up" && derived)
         {
             const std::array<timeline::Lane, 3> inputs{signals[6], signals[7], signals[8]};
-            timeline::Lane lane(signals[component].id(), signals[component].label(), "curve", start, grid.end_time());
+            timeline::Lane lane(
+                signals[component].id(), signals[component].label(), strings.intern("curve"), start, grid.end_time());
             input_attributes["normalize"] = "true";
             lane.add(timeline::Curve(
-                strings.intern(std::string(strings.lookup(lane.id())) + "-normalized"), "id-3d-input", start, end,
+                strings.intern(std::string(strings.lookup(lane.id())) + "-normalized"), strings.intern("id-3d-input"),
+                start, end,
                 [inputs, axis = component % 3](timeline::Time time)
                 {
                     std::array<double, 3> up{};
@@ -3977,12 +3992,12 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
             }
             const std::string suffix = "[" + std::to_string(component) + "]";
             const std::string lane_name = id + "-geometry" + suffix;
-            timeline::Lane lane(
-                strings.intern(lane_name), label + " / geometry" + suffix, "curve", start, grid.end_time());
+            timeline::Lane lane(strings.intern(lane_name), strings.intern(label + " / geometry" + suffix),
+                strings.intern("curve"), start, grid.end_time());
             output_attributes["component"] = std::to_string(component);
             output_attributes["derived-from"] = "camera3d";
             lane.add(timeline::Curve(
-                strings.intern(lane_name + "-view"), "julibrot-view", start, end,
+                strings.intern(lane_name + "-view"), strings.intern("julibrot-view"), start, end,
                 [inputs, component, constant](timeline::Time time)
                 {
                     if (component != 5)
@@ -4013,10 +4028,12 @@ void animation_julibrot_view_lanes(const Json &track, const Json &catalog, const
         if (member == "view-up" && derived)
         {
             const std::array<timeline::Lane, 3> inputs{signals[6], signals[7], signals[8]};
-            timeline::Lane lane(signals[component].id(), signals[component].label(), "curve", start, grid.end_time());
+            timeline::Lane lane(
+                signals[component].id(), signals[component].label(), strings.intern("curve"), start, grid.end_time());
             input_attributes["normalize"] = "true";
             lane.add(timeline::Curve(
-                strings.intern(std::string(strings.lookup(lane.id())) + "-normalized"), "julibrot-input", start, end,
+                strings.intern(std::string(strings.lookup(lane.id())) + "-normalized"),
+                strings.intern("julibrot-input"), start, end,
                 [inputs, axis = component % 3](timeline::Time time)
                 {
                     std::array<double, 3> up{};
@@ -4575,7 +4592,8 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
         {
             for (auto &[target, keyframes] : keyframes_by_target)
             {
-                timeline::Lane lane(builder.intern(target), target, "keyframes", *document_start, *document_end);
+                timeline::Lane lane(builder.intern(target), builder.intern(target), builder.intern("keyframes"),
+                    *document_start, *document_end);
                 for (timeline::Keyframe &keyframe : keyframes)
                 {
                     lane.add(std::move(keyframe));
@@ -4961,8 +4979,8 @@ std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord
             {
                 strength = event.at("confidence").get<double>();
             }
-            events.emplace_back(strings.intern("event-" + std::to_string(record.source_index)), kind, *time, kind,
-                strength, tracker_event_attributes(event));
+            events.emplace_back(strings.intern("event-" + std::to_string(record.source_index)), strings.intern(kind),
+                *time, strings.intern(kind), strength, tracker_event_attributes(event));
             first_time = first_time ? std::min(*first_time, *time) : *time;
             last_time = last_time ? std::max(*last_time, *time) : *time;
         }
@@ -4985,7 +5003,8 @@ std::optional<timeline::Lane> tracker_event_lane(const std::vector<TrackerRecord
         lane_end = frame_grid->end_time();
     }
 
-    timeline::Lane lane(strings.intern("tracker-events"), "Music events", "events", lane_start, lane_end);
+    timeline::Lane lane(strings.intern("tracker-events"), strings.intern("Music events"), strings.intern("events"),
+        lane_start, lane_end);
     for (timeline::Instant &event : events)
     {
         lane.add(std::move(event));
@@ -5051,9 +5070,9 @@ std::optional<timeline::Lane> tracker_feature_lane(const std::vector<TrackerReco
     }
 
     const std::string id = std::string("tracker-") + field;
-    timeline::Lane lane(strings.intern(id), label, "curve", lane_start, lane_end);
-    lane.add(timeline::Curve(
-        strings.intern(id), field, std::move(samples), label, timeline::CurveInterpolation::LINEAR, 0.0, maximum, {}));
+    timeline::Lane lane(strings.intern(id), strings.intern(label), strings.intern("curve"), lane_start, lane_end);
+    lane.add(timeline::Curve(strings.intern(id), strings.intern(field), std::move(samples), strings.intern(label),
+        timeline::CurveInterpolation::LINEAR, 0.0, maximum, {}));
     return lane;
 }
 

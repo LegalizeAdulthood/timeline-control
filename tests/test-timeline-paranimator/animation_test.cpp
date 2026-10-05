@@ -958,7 +958,7 @@ TEST(AnimationImport, splitsCompoundParametersWithoutLosingAuthoredValues)
     EXPECT_EQ(4, result.document->keyframe_count());
     const timeline::FrameGrid &grid = *result.document->frame_grid();
     const timeline::Lane &magnification = result.document->lanes()[2];
-    EXPECT_EQ("center-mag[2]", magnification.label());
+    EXPECT_EQ("center-mag[2]", result.document->strings().lookup(magnification.label()));
     EXPECT_NEAR(std::sqrt(10.0), *magnification.evaluate_keyframes(grid.frame_start(1)), 1e-12);
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(magnification.items().front());
     EXPECT_EQ("-0.5/0/1", first.attributes().at("value"));
@@ -976,7 +976,7 @@ TEST(AnimationImport, retainsLayerIdentityAndDrivesDisplayAndInspection)
     ASSERT_TRUE(result.succeeded());
     ASSERT_EQ(1, result.document->lane_count());
     const timeline::Lane &lane = result.document->lanes().front();
-    EXPECT_EQ("base / maxiter", lane.label());
+    EXPECT_EQ("base / maxiter", result.document->strings().lookup(lane.label()));
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(lane.items().front());
     EXPECT_EQ("base", first.attributes().at("layer"));
     const timeline::FrameGrid &grid = *result.document->frame_grid();
@@ -1008,7 +1008,7 @@ TEST(AnimationImport, combinesMusicGeneratedOutputAndAnimationWithoutIdentityCol
     EXPECT_EQ(11, combined.keyframe_count());
     EXPECT_EQ(music.document->lanes().front().id(), combined.lanes().front().id());
     const timeline::Lane &authored = combined.lanes().back();
-    EXPECT_EQ("maxiter", authored.label());
+    EXPECT_EQ("maxiter", combined.strings().lookup(authored.label()));
     EXPECT_DOUBLE_EQ(150.0, *authored.evaluate_keyframes(combined.frame_grid()->frame_start(1)));
     const timeline::Document repeated = timeline::combine_documents(combined, *animation.document);
     ASSERT_EQ(6, repeated.lane_count());
@@ -1043,7 +1043,7 @@ TEST(AnimationImport, preservesCategoricalValuesAsHeldSpansAndKeyInstants)
     ASSERT_EQ(1, result.document->lane_count());
     EXPECT_EQ(2, result.document->keyframe_count());
     const timeline::Lane &lane = result.document->lanes().front();
-    EXPECT_EQ("keyframes", lane.kind());
+    EXPECT_EQ("keyframes", result.document->strings().lookup(lane.kind()));
     ASSERT_EQ(4, lane.item_count());
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 1);
     ASSERT_TRUE(inspection);

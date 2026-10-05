@@ -14,6 +14,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 
 namespace
@@ -151,7 +152,8 @@ wxImage surface_image(const Surface &surface)
 }
 
 bool draw_primitive(const Context &context, const timeline::Primitive &primitive, wxPoint origin,
-    const wxTimelinePalette &palette, int stroke_width, bool focused, const wxFont &font, double device_scale)
+    const timeline::StringTable &strings, const wxTimelinePalette &palette, int stroke_width, bool focused,
+    const wxFont &font, double device_scale)
 {
     return std::visit(
         [&](const auto &value)
@@ -186,9 +188,10 @@ bool draw_primitive(const Context &context, const timeline::Primitive &primitive
             }
             else
             {
-                if (!value.value.empty())
+                const std::string_view text = strings.lookup(value.value);
+                if (!text.empty())
                 {
-                    const Surface mask = text_mask(value.value, font, device_scale);
+                    const Surface mask = text_mask(wxString(text.data(), text.size()), font, device_scale);
                     if (!mask)
                     {
                         return false;
@@ -229,7 +232,8 @@ wxImage render_cairo_display_list(const timeline::DisplayList &display_list, wxS
     const Context context = drawing_context(surface, clip, device_scale);
     for (const timeline::Primitive &primitive : display_list.primitives())
     {
-        if (!draw_primitive(context, primitive, origin, palette, stroke_width, focused, font, device_scale))
+        if (!draw_primitive(
+                context, primitive, origin, display_list.strings(), palette, stroke_width, focused, font, device_scale))
         {
             return {};
         }

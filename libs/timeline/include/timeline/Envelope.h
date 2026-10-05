@@ -15,17 +15,19 @@ namespace timeline
 class Envelope
 {
 public:
-    Envelope(StringId id, std::string kind, Time start);
-    Envelope(StringId id, std::string kind, Time start, std::optional<Duration> attack, std::optional<Duration> sustain,
-        std::optional<Duration> decay, std::string label, std::optional<double> strength, Attributes attributes);
+    Envelope(StringId id, StringId kind, Time start);
+    Envelope(StringId id, StringId kind, Time start, std::optional<Duration> attack, std::optional<Duration> sustain,
+        std::optional<Duration> decay, StringId label, std::optional<double> strength, Attributes attributes);
 
     /// Return a copy with the supplied identity.
     Envelope with_id(StringId id) const;
+    /// Return a copy with the supplied kind and label identities.
+    Envelope with_strings(StringId kind, StringId label) const;
     StringId id() const
     {
         return m_id;
     }
-    const std::string &kind() const
+    StringId kind() const
     {
         return m_kind;
     }
@@ -46,7 +48,7 @@ public:
     {
         return m_decay;
     }
-    const std::string &label() const
+    StringId label() const
     {
         return m_label;
     }
@@ -61,12 +63,12 @@ public:
 
 private:
     StringId m_id;
-    std::string m_kind;
+    StringId m_kind;
     Time m_start;
     std::optional<Duration> m_attack;
     std::optional<Duration> m_sustain;
     std::optional<Duration> m_decay;
-    std::string m_label;
+    StringId m_label;
     std::optional<double> m_strength;
     Attributes m_attributes;
 };

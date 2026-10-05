@@ -44,8 +44,8 @@ void expect_golden(const std::string &mapping_file, const std::string &golden_fi
     {
         const MappingRecipe &recipe = result.mapping->recipes()[index];
         const timeline::Lane &lane = document.lanes()[source_lanes + index];
-        EXPECT_EQ("keyframes", lane.kind());
-        EXPECT_EQ(recipe.target, lane.label());
+        EXPECT_EQ("keyframes", document.strings().lookup(lane.kind()));
+        EXPECT_EQ(recipe.target, document.strings().lookup(lane.label()));
         for (const timeline::Item &item : lane.items())
         {
             const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
@@ -107,7 +107,8 @@ TEST(BeatKeysMapping, retainsRecipesAndRebuildsDisposableDisplayData)
     const timeline::Time start = cache.frame_grid()->offset();
     const timeline::Time end = cache.frame_grid()->end_time();
     timeline::DocumentBuilder builder(std::move(cache));
-    builder.add_lane(timeline::Lane(builder.intern("cache-only"), "Temporary", "events", start, end));
+    builder.add_lane(timeline::Lane(
+        builder.intern("cache-only"), builder.intern("Temporary"), builder.intern("events"), start, end));
     cache = std::move(builder).build();
     const timeline::Document rebuilt = result.mapping->materialize();
     EXPECT_EQ(count, rebuilt.lane_count());

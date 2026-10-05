@@ -58,7 +58,7 @@ TEST(TimelineJson, importsMinimalParanimatorConfig)
     EXPECT_EQ(2, result.document->keyframe_count());
     ASSERT_EQ(1, result.document->lane_count());
     const timeline::Lane &lane = result.document->lanes().front();
-    EXPECT_EQ("maxiter", lane.label());
+    EXPECT_EQ("maxiter", result.document->strings().lookup(lane.label()));
     ASSERT_EQ(2, lane.item_count());
     EXPECT_DOUBLE_EQ(150.0, *lane.evaluate_keyframes(result.document->frame_grid()->frame_start(1)));
 }
@@ -117,13 +117,13 @@ TEST(TimelineJson, importsTrackerTimelineWithAdjacentConfig)
     ASSERT_EQ(1, result.document->lane_count());
     const timeline::Lane &lane = result.document->lanes().front();
     EXPECT_EQ("tracker-events", result.document->strings().lookup(lane.id()));
-    EXPECT_EQ("Music events", lane.label());
+    EXPECT_EQ("Music events", result.document->strings().lookup(lane.label()));
     ASSERT_EQ(6, lane.item_count());
-    EXPECT_EQ("note", std::get<timeline::Instant>(lane.items()[0]).kind());
+    EXPECT_EQ("note", result.document->strings().lookup(std::get<timeline::Instant>(lane.items()[0]).kind()));
     EXPECT_EQ(0, std::get<timeline::Instant>(lane.items()[0]).time().ticks());
-    EXPECT_EQ("effect", std::get<timeline::Instant>(lane.items()[2]).kind());
+    EXPECT_EQ("effect", result.document->strings().lookup(std::get<timeline::Instant>(lane.items()[2]).kind()));
     EXPECT_EQ(8000, std::get<timeline::Instant>(lane.items()[2]).time().ticks());
-    EXPECT_EQ("row", std::get<timeline::Instant>(lane.items()[3]).kind());
+    EXPECT_EQ("row", result.document->strings().lookup(std::get<timeline::Instant>(lane.items()[3]).kind()));
     EXPECT_EQ(12000, std::get<timeline::Instant>(lane.items()[4]).time().ticks());
     EXPECT_TRUE(result.diagnostics.empty());
 }
@@ -264,7 +264,7 @@ TEST(TimelineJson, importsTrackerRmsCurve)
     ASSERT_EQ(1, result.document->lane_count());
     const timeline::Lane &lane = result.document->lanes().front();
     EXPECT_EQ("tracker-rms", result.document->strings().lookup(lane.id()));
-    EXPECT_EQ("RMS", lane.label());
+    EXPECT_EQ("RMS", result.document->strings().lookup(lane.label()));
     ASSERT_EQ(1, lane.item_count());
     const auto &curve = std::get<timeline::Curve>(lane.items().front());
     ASSERT_EQ(4, curve.sample_count());
@@ -434,7 +434,7 @@ TEST(TimelineJson, importsRmsOverlaySummary)
     ASSERT_EQ(3, result.document->lane_count());
     const timeline::Lane &zoom = result.document->lanes()[0];
     EXPECT_EQ("camera.zoom", result.document->strings().lookup(zoom.id()));
-    EXPECT_EQ("camera.zoom", zoom.label());
+    EXPECT_EQ("camera.zoom", result.document->strings().lookup(zoom.label()));
     ASSERT_EQ(3, zoom.item_count());
     const auto &first = std::get<timeline::Keyframe>(zoom.items()[0]);
     EXPECT_EQ(0, first.time().ticks());

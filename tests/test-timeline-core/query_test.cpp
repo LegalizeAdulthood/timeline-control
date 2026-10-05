@@ -28,26 +28,28 @@ Document mixed_document()
 {
     DocumentBuilder builder(Document(FrameGrid(Timebase(10), 4, 1, 1), 1, 2));
 
-    Lane events(builder.intern("events"), "Events", "events", at(0), at(40));
-    events.add(Instant(builder.intern("beat-10"), "beat", at(10)));
-    events.add(Interval(builder.intern("phrase-8"), "phrase", at(8), at(18)));
+    Lane events(builder.intern("events"), builder.intern("Events"), builder.intern("events"), at(0), at(40));
+    events.add(Instant(builder.intern("beat-10"), builder.intern("beat"), at(10)));
+    events.add(Interval(builder.intern("phrase-8"), builder.intern("phrase"), at(8), at(18)));
     builder.add_lane(std::move(events));
 
-    Lane envelopes(builder.intern("envelopes"), "Envelopes", "envelopes", at(0), at(40));
-    envelopes.add(Envelope(
-        builder.intern("pulse-10"), "pulse", at(10), lasting(2), lasting(6), lasting(2), {}, std::nullopt, {}));
+    Lane envelopes(
+        builder.intern("envelopes"), builder.intern("Envelopes"), builder.intern("envelopes"), at(0), at(40));
+    envelopes.add(Envelope(builder.intern("pulse-10"), builder.intern("pulse"), at(10), lasting(2), lasting(6),
+        lasting(2), {}, std::nullopt, {}));
     builder.add_lane(std::move(envelopes));
 
-    Lane curves(builder.intern("curves"), "Curves", "curves", at(0), at(40));
-    curves.add(Curve(builder.intern("rms"), "rms", {{at(0), 0.0}, {at(20), 1.0}, {at(30), 0.0}}));
+    Lane curves(builder.intern("curves"), builder.intern("Curves"), builder.intern("curves"), at(0), at(40));
+    curves.add(Curve(builder.intern("rms"), builder.intern("rms"), {{at(0), 0.0}, {at(20), 1.0}, {at(30), 0.0}}));
     builder.add_lane(std::move(curves));
 
-    Lane keyframes(builder.intern("keyframes"), "Keyframes", "keyframes", at(0), at(40));
+    Lane keyframes(
+        builder.intern("keyframes"), builder.intern("Keyframes"), builder.intern("keyframes"), at(0), at(40));
     keyframes.add(Keyframe(builder.intern("zoom-0"), at(0), 0.0, KeyframeInterpolation::LINEAR, {}));
     keyframes.add(Keyframe(builder.intern("zoom-20"), at(20), 2.0));
     builder.add_lane(std::move(keyframes));
 
-    builder.add_lane(Lane(builder.intern("empty"), "Empty", "events", at(0), at(40)));
+    builder.add_lane(Lane(builder.intern("empty"), builder.intern("Empty"), builder.intern("events"), at(0), at(40)));
     return std::move(builder).build();
 }
 
@@ -99,7 +101,7 @@ TEST(Query, inspectsMixedDocumentAtFrame)
     ASSERT_EQ(5U, inspection->lanes.size());
 
     const LaneInspection &events = lane_named(inspection->lanes, id_named(document, "events"));
-    EXPECT_EQ("Events", events.label);
+    EXPECT_EQ("Events", document.strings().lookup(events.label));
     EXPECT_EQ(2, events.item_count);
     ASSERT_EQ(2U, events.items.size());
     EXPECT_EQ(id_named(document, "beat-10"), events.items[0].id);

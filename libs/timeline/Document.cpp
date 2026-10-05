@@ -6,6 +6,7 @@
 #include <limits>
 #include <set>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 namespace timeline
@@ -271,9 +272,9 @@ DocumentBuilder::DocumentBuilder(Document document, const StringTable &strings) 
 
 void DocumentBuilder::add_lane(Lane lane)
 {
-    if (!m_strings.contains(lane.id()))
+    if (!m_strings.contains(lane.id()) || !m_strings.contains(lane.label()) || !m_strings.contains(lane.kind()))
     {
-        throw std::invalid_argument("timeline lane ID is not present in the document string table");
+        throw std::invalid_argument("timeline lane string ID is not present in the document string table");
     }
     for (const Item &item : lane.items())
     {
@@ -284,6 +285,21 @@ void DocumentBuilder::add_lane(Lane lane)
                 {
                     throw std::invalid_argument("timeline item ID is not present in the document string table");
                 }
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (!std::is_same_v<Value, Keyframe>)
+                {
+                    if (!m_strings.contains(value.kind()))
+                    {
+                        throw std::invalid_argument("timeline item kind is not present in the document string table");
+                    }
+                }
+                if constexpr (!std::is_same_v<Value, Keyframe> && !std::is_same_v<Value, PaletteCurve>)
+                {
+                    if (!m_strings.contains(value.label()))
+                    {
+                        throw std::invalid_argument("timeline item label is not present in the document string table");
+                    }
+                }
             },
             item);
     }
@@ -292,13 +308,32 @@ void DocumentBuilder::add_lane(Lane lane)
 
 void DocumentBuilder::append(const Lane &lane, const StringTable &strings, StringId id)
 {
-    std::vector<StringId> item_ids;
+    std::vector<Item> items;
     for (const Item &item : lane.items())
     {
-        item_ids.push_back(
-            std::visit([this, &strings](const auto &value) { return intern(strings.lookup(value.id())); }, item));
+        items.push_back(std::visit(
+            [this, &strings](const auto &value) -> Item
+            {
+                using Value = std::decay_t<decltype(value)>;
+                const StringId item_id = intern(strings.lookup(value.id()));
+                if constexpr (std::is_same_v<Value, Keyframe>)
+                {
+                    return value.with_id(item_id);
+                }
+                else if constexpr (std::is_same_v<Value, PaletteCurve>)
+                {
+                    return value.with_id(item_id).with_kind(intern(strings.lookup(value.kind())));
+                }
+                else
+                {
+                    return value.with_id(item_id).with_strings(
+                        intern(strings.lookup(value.kind())), intern(strings.lookup(value.label())));
+                }
+            },
+            item));
     }
-    add_lane(lane.with_ids(id, item_ids));
+    add_lane(lane.with_id(id).with_strings(
+        intern(strings.lookup(lane.label())), intern(strings.lookup(lane.kind())), std::move(items)));
 }
 
 Document DocumentBuilder::build() &&

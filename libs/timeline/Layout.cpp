@@ -527,9 +527,12 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
         throw std::invalid_argument("timeline lane labels leave no content width");
     }
 
+    StringTableBuilder strings(document.strings());
+    const StringId time_label = strings.intern("Time");
+    m_display_list = DisplayList(std::move(strings).build());
     m_display_list.add(Line{metrics.lane_label_width(), metrics.ruler_height() - 1, viewport.width() - 1,
         metrics.ruler_height() - 1, StyleRole::RULER, DisplayId{StringId{}, StringId{}}});
-    m_display_list.add(Text{4, 4, "Time", StyleRole::RULER_LABEL, DisplayId{StringId{}, StringId{}}});
+    m_display_list.add(Text{4, 4, time_label, StyleRole::RULER_LABEL, DisplayId{StringId{}, StringId{}}});
 
     for (int lane_index = viewport.first_lane(); lane_index < document.lane_count(); ++lane_index)
     {
@@ -632,7 +635,7 @@ Layout::Layout(const Document &document, Viewport viewport, LayoutMetrics metric
             primitive);
     }
 
-    DisplayList decorated(document.strings());
+    DisplayList decorated(m_display_list.strings());
     const auto add_range = [&](int y, int height)
     {
         if (interaction.selected_range())
