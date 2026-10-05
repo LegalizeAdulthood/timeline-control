@@ -10,179 +10,647 @@
 
 #include <gtest/gtest.h>
 
-#include <array>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <optional>
+#include <ostream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <variant>
+#include <vector>
 
 using namespace timeline_par_animator;
 
-TEST(Extrapolation, matchesSourceOutputAndPreservesOwnedKeysInComparison)
+namespace
 {
-    for (const std::string &policy : {"base", "omit", "cycle", "ping-pong"})
-    {
-        SCOPED_TRACE(policy);
-        JsonImportOptions options;
-        options.frames_per_second_numerator = 30000;
-        options.frames_per_second_denominator = 1001;
-        JsonImportResult imported = import_timeline_json("fixtures/maxiter-" + policy + ".json", options);
-        ASSERT_TRUE(imported.succeeded());
-        ASSERT_TRUE(imported.diagnostics.empty());
-        const timeline::Document document = *imported.document;
-        imported.document.reset();
-        const timeline::Lane &lane = document.lanes()[0];
-        ASSERT_EQ(2, lane.item_count());
-        const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
-        EXPECT_EQ(policy, resolved_attributes(document, key.attributes()).at("extrapolate"));
-        EXPECT_NE(
-            std::string::npos, resolved_attributes(document, key.attributes()).at("track-definition").find("keys"));
-        EXPECT_EQ(4004, key.time().ticks());
-        const timeline::FrameGrid &grid = *document.frame_grid();
-        std::ifstream input("fixtures/gold-maxiter-" + policy + ".par");
-        ASSERT_TRUE(input);
-        const std::string golden{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-        for (int frame = 0; frame < grid.frame_count(); ++frame)
-        {
-            SCOPED_TRACE(frame);
-            const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
-            ASSERT_NE(std::string::npos, start);
-            const std::string entry = golden.substr(start, golden.find('}', start) - start);
-            const std::size_t value_start = entry.find("maxiter=");
-            const std::optional<double> value = lane.evaluate_keyframes(grid.frame_start(frame));
-            const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
-            EXPECT_EQ(value, inspection.lanes[0].value);
-            if (value_start == std::string::npos)
-            {
-                EXPECT_FALSE(value);
-            }
-            else
-            {
-                ASSERT_TRUE(value);
-                EXPECT_DOUBLE_EQ(std::stod(entry.substr(value_start + 8)), *value);
-            }
-        }
-        const JsonImportResult comparison = import_timeline_json("fixtures/maxiter-" + policy + ".json");
-        ASSERT_TRUE(comparison.succeeded());
-        const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
-        ASSERT_TRUE(music.succeeded());
-        const timeline::Document combined = timeline::combine_documents(*comparison.document, *music.document);
-        EXPECT_EQ(5, combined.lane_count());
-        EXPECT_EQ(lane.evaluate_keyframes(timeline::Time{}), combined.lanes()[0].evaluate_keyframes(timeline::Time{}));
-        const timeline::Layout layout(combined, timeline::Viewport(600, 300, grid.offset(), grid.end_time()),
-            timeline::LayoutMetrics(100, 20, 40, 4));
-        bool hit = false;
-        for (const timeline::Primitive &primitive : layout.display_list().primitives())
-        {
-            if (std::holds_alternative<timeline::Polyline>(primitive))
-            {
-                const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-                if (line.id.lane_id == lane.id())
-                {
-                    for (const timeline::Point &point : line.points)
-                    {
-                        EXPECT_GE(point.y, 24);
-                        EXPECT_LT(point.y, 56);
-                    }
-                    const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
-                    ASSERT_TRUE(result);
-                    EXPECT_EQ(lane.id(), result->id.lane_id);
-                    hit = true;
-                }
-            }
-        }
-        EXPECT_TRUE(hit);
-    }
+
+/// One non-clamping extrapolation policy.
+///
+struct PolicyCase
+{
+    std::string name;
+    std::string policy;
+};
+
+/// One exact extrapolated value sampled at a rational frame position.
+///
+struct ValueCase
+{
+    std::string name;
+    std::string policy;
+    timeline::Ticks frame_numerator;
+    timeline::Ticks frame_denominator;
+    timeline::Ticks tick_adjustment;
+    std::optional<double> expected;
+};
+
+/// One extrapolation policy sampled at an extreme timeline tick.
+///
+struct ExtremeCase
+{
+    std::string name;
+    std::string policy;
+    timeline::Ticks ticks;
+};
+
+/// One scalar type represented by the extrapolation variants fixture.
+///
+struct VariantCase
+{
+    std::string name;
+    int lane;
+    std::string parameter;
+};
+
+/// One independently diagnosed malformed extrapolation track.
+///
+struct DiagnosticCase
+{
+    std::string name;
+    int index;
+    std::string message;
+};
+
+const std::vector<PolicyCase> POLICY_CASES{
+    {"Base", "base"},
+    {"Omit", "omit"},
+    {"Cycle", "cycle"},
+    {"PingPong", "ping-pong"},
+};
+
+const std::vector<ValueCase> VALUE_CASES{
+    {"CycleBeforeDistantPeriod", "cycle", -7, 1, 0, 200.0},
+    {"CycleBeforeFirstPeriod", "cycle", -1, 1, 0, 200.0},
+    {"CycleAtAuthoredMidpoint", "cycle", 2, 1, 0, 200.0},
+    {"CycleAfterOnePeriod", "cycle", 5, 1, 0, 200.0},
+    {"CycleAfterThreePeriods", "cycle", 11, 1, 0, 200.0},
+    {"CycleAtRepeatedKey", "cycle", 7, 2, 0, 300.0},
+    {"CycleWithinRepeatedRamp", "cycle", 9, 2, 0, 150.0},
+    {"CycleWithinAuthoredRamp", "cycle", 3, 2, 0, 150.0},
+    {"PingPongWithinReflectedRamp", "ping-pong", 7, 2, 0, 250.0},
+    {"PingPongBeforeFirstPeriod", "ping-pong", -4, 1, 0, 200.0},
+    {"BaseAtFirstKey", "base", 1, 1, 0, 100.0},
+    {"BaseWithinAuthoredRamp", "base", 2, 1, 0, 200.0},
+    {"BaseBeforeFirstKey", "base", 1, 1, -1, 678.0},
+    {"BaseAfterLastKey", "base", 2, 1, 1, 678.0},
+    {"OmitBeforeFirstKey", "omit", 1, 1, -1, std::nullopt},
+    {"OmitAfterLastKey", "omit", 2, 1, 1, std::nullopt},
+};
+
+const std::vector<ExtremeCase> EXTREME_CASES{
+    {"CycleMinimumTick", "cycle", std::numeric_limits<timeline::Ticks>::min()},
+    {"PingPongMaximumTick", "ping-pong", std::numeric_limits<timeline::Ticks>::max()},
+};
+
+const std::vector<VariantCase> VARIANT_CASES{
+    {"Integer", 0, "maxiter"},
+    {"Double", 1, "bailout"},
+    {"IntegerOrEnum", 2, "choice"},
+};
+
+const std::vector<DiagnosticCase> DIAGNOSTIC_CASES{
+    {"IncreasingKeys", 0, "strictly increasing"},
+    {"NumericScalar", 1, "numeric scalar"},
+    {"TwoKeys", 2, "two keys"},
+    {"SourceParameter", 3, "source parameter"},
+    {"IntegralValue", 4, "integral"},
+    {"JsonInteger", 5, "JSON integer"},
+};
+
+void PrintTo(const PolicyCase &value, std::ostream *stream)
+{
+    *stream << value.name;
 }
 
-TEST(Extrapolation, keepsContinuousValuesAndExactPeriodsBeforeAndAfterKeys)
+void PrintTo(const ValueCase &value, std::ostream *stream)
 {
-    const JsonImportResult cycle = import_timeline_json("fixtures/maxiter-cycle.json");
-    const JsonImportResult ping = import_timeline_json("fixtures/maxiter-ping-pong.json");
-    const JsonImportResult base = import_timeline_json("fixtures/maxiter-base.json");
-    const JsonImportResult omit = import_timeline_json("fixtures/maxiter-omit.json");
-    ASSERT_TRUE(cycle.succeeded());
-    ASSERT_TRUE(ping.succeeded());
-    ASSERT_TRUE(base.succeeded());
-    ASSERT_TRUE(omit.succeeded());
-    const timeline::Lane &cycling = cycle.document->lanes()[0];
-    const timeline::Lane &reflecting = ping.document->lanes()[0];
-    const timeline::Ticks width = cycle.document->frame_grid()->frame_duration().ticks();
-    for (int frame : {-7, -1, 2, 5, 11})
-    {
-        EXPECT_DOUBLE_EQ(200, *cycling.evaluate_keyframes(timeline::Time::from_ticks(frame * width)));
-    }
-    EXPECT_DOUBLE_EQ(300, *cycling.evaluate_keyframes(timeline::Time::from_ticks(7 * width / 2)));
-    EXPECT_DOUBLE_EQ(150, *cycling.evaluate_keyframes(timeline::Time::from_ticks(9 * width / 2)));
-    EXPECT_DOUBLE_EQ(250, *reflecting.evaluate_keyframes(timeline::Time::from_ticks(7 * width / 2)));
-    EXPECT_DOUBLE_EQ(200, *reflecting.evaluate_keyframes(timeline::Time::from_ticks(-4 * width)));
-    EXPECT_DOUBLE_EQ(150, *cycling.evaluate_keyframes(timeline::Time::from_ticks(3 * width / 2)));
-    EXPECT_DOUBLE_EQ(100, *base.document->lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(width)));
-    EXPECT_DOUBLE_EQ(200, *base.document->lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(2 * width)));
-    EXPECT_DOUBLE_EQ(678, *base.document->lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(width - 1)));
-    EXPECT_DOUBLE_EQ(678, *base.document->lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(2 * width + 1)));
-    EXPECT_FALSE(omit.document->lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(width - 1)));
-    EXPECT_FALSE(omit.document->lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(2 * width + 1)));
-    EXPECT_TRUE(cycling.evaluate_keyframes(timeline::Time::from_ticks(std::numeric_limits<timeline::Ticks>::min())));
-    EXPECT_TRUE(reflecting.evaluate_keyframes(timeline::Time::from_ticks(std::numeric_limits<timeline::Ticks>::max())));
+    *stream << value.name;
 }
 
-TEST(Extrapolation, diagnosesMalformedKeysAndUnsupportedFormsWithoutPartialLanes)
+void PrintTo(const ExtremeCase &value, std::ostream *stream)
 {
-    const JsonImportResult partial = import_timeline_json("fixtures/extrapolation-partial.json");
-    ASSERT_TRUE(partial.succeeded());
-    ASSERT_EQ(6, partial.diagnostics.size());
-    ASSERT_EQ(1, partial.document->lane_count());
-    EXPECT_EQ("animation-6", partial.document->strings().lookup(partial.document->lanes()[0].id()));
-    for (int index = 0; index < 6; ++index)
-    {
-        EXPECT_NE(std::string::npos, partial.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
-    }
-    EXPECT_NE(std::string::npos, partial.diagnostics[0].find("strictly increasing"));
-    EXPECT_NE(std::string::npos, partial.diagnostics[1].find("numeric scalar"));
-    EXPECT_NE(std::string::npos, partial.diagnostics[2].find("two keys"));
-    EXPECT_NE(std::string::npos, partial.diagnostics[3].find("source parameter"));
-    EXPECT_NE(std::string::npos, partial.diagnostics[4].find("integral"));
-    EXPECT_NE(std::string::npos, partial.diagnostics[5].find("JSON integer"));
-    const JsonImportResult invalid = import_timeline_json("fixtures/extrapolation-invalid.json");
-    EXPECT_FALSE(invalid.succeeded());
-    ASSERT_EQ(1, timeline::size_cast(invalid.diagnostics));
-    EXPECT_NE(std::string::npos, invalid.diagnostics[0].find("unknown extrapolate"));
+    *stream << value.name;
 }
 
-TEST(Extrapolation, matchesSourceDoubleIntegerOrEnumAndHoldEvaluation)
+void PrintTo(const VariantCase &value, std::ostream *stream)
 {
-    const JsonImportResult imported = import_timeline_json("fixtures/extrapolation-variants.json");
-    ASSERT_TRUE(imported.succeeded());
-    ASSERT_TRUE(imported.diagnostics.empty());
-    ASSERT_EQ(3, imported.document->lane_count());
-    const timeline::Document document = *imported.document;
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    std::ifstream input("fixtures/gold-extrapolation-variants.par");
-    ASSERT_TRUE(input);
-    const std::string golden{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-    const std::array<std::string, 3> parameters{"maxiter", "bailout", "choice"};
+    *stream << value.name;
+}
+
+void PrintTo(const DiagnosticCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+template <typename Case>
+std::string case_name(const testing::TestParamInfo<Case> &information)
+{
+    return information.param.name;
+}
+
+std::filesystem::path policy_fixture(std::string_view policy)
+{
+    return std::filesystem::path("fixtures/maxiter-" + std::string(policy) + ".json");
+}
+
+std::filesystem::path policy_golden(std::string_view policy)
+{
+    return std::filesystem::path("fixtures/gold-maxiter-" + std::string(policy) + ".par");
+}
+
+std::string read_text(const std::filesystem::path &path)
+{
+    std::ifstream input(path);
+    if (!input)
+    {
+        throw std::runtime_error("cannot read test fixture");
+    }
+    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
+std::string golden_entry(const std::string &golden, int frame)
+{
+    const std::string heading = "frame-000" + std::to_string(frame + 1) + " {";
+    const std::string::size_type start = golden.find(heading);
+    if (start == std::string::npos)
+    {
+        throw std::runtime_error("golden frame entry is missing");
+    }
+    const std::string::size_type end = golden.find('}', start);
+    if (end == std::string::npos)
+    {
+        throw std::runtime_error("golden frame entry is incomplete");
+    }
+    return golden.substr(start, end - start);
+}
+
+std::optional<double> golden_value(const std::string &golden, int frame, std::string_view parameter)
+{
+    const std::string entry = golden_entry(golden, frame);
+    const std::string assignment = std::string(parameter) + "=";
+    const std::string::size_type start = entry.find(assignment);
+    if (start == std::string::npos)
+    {
+        return std::nullopt;
+    }
+    return std::stod(entry.substr(start + assignment.size()));
+}
+
+JsonImportResult import_clean_result(const std::filesystem::path &path, const JsonImportOptions &options)
+{
+    JsonImportResult result = import_timeline_json(path, options);
+    if (!result.succeeded() || !result.diagnostics.empty())
+    {
+        throw std::runtime_error("test fixture failed to import cleanly");
+    }
+    return result;
+}
+
+JsonImportResult import_clean_result(const std::filesystem::path &path)
+{
+    return import_clean_result(path, JsonImportOptions{});
+}
+
+timeline::Document import_clean_document(const std::filesystem::path &path, const JsonImportOptions &options)
+{
+    return *import_clean_result(path, options).document;
+}
+
+timeline::Document import_clean_document(const std::filesystem::path &path)
+{
+    return import_clean_document(path, JsonImportOptions{});
+}
+
+timeline::Document import_partial_document(const std::filesystem::path &path)
+{
+    const JsonImportResult result = import_timeline_json(path);
+    if (!result.succeeded())
+    {
+        throw std::runtime_error("partial test fixture did not produce a document");
+    }
+    return *result.document;
+}
+
+const std::string &diagnostic_at(const JsonImportResult &result, int index)
+{
+    if (index < 0 || timeline::size_cast(result.diagnostics) <= index)
+    {
+        throw std::out_of_range("test diagnostic index is out of range");
+    }
+    return result.diagnostics[index];
+}
+
+timeline::Document policy_document(std::string_view policy)
+{
+    return import_clean_document(policy_fixture(policy));
+}
+
+std::vector<std::optional<double>> lane_values(
+    const timeline::Document &document, int lane_index, const timeline::FrameGrid &grid)
+{
+    std::vector<std::optional<double>> result;
     for (int frame = 0; frame < grid.frame_count(); ++frame)
     {
-        const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
-        ASSERT_NE(std::string::npos, start);
-        const std::string entry = golden.substr(start, golden.find('}', start) - start);
-        for (int index = 0; index < 3; ++index)
+        result.push_back(document.lanes()[lane_index].evaluate_keyframes(grid.frame_start(frame)));
+    }
+    return result;
+}
+
+std::vector<std::optional<double>> inspection_values(
+    const timeline::Document &document, int lane_index, const timeline::FrameGrid &grid)
+{
+    std::vector<std::optional<double>> result;
+    for (int frame = 0; frame < grid.frame_count(); ++frame)
+    {
+        result.push_back(timeline::inspect_frame(document, frame)->lanes[lane_index].value);
+    }
+    return result;
+}
+
+std::vector<std::optional<double>> golden_values(
+    const std::filesystem::path &path, std::string_view parameter, int frame_count)
+{
+    const std::string golden = read_text(path);
+    std::vector<std::optional<double>> result;
+    for (int frame = 0; frame < frame_count; ++frame)
+    {
+        result.push_back(golden_value(golden, frame, parameter));
+    }
+    return result;
+}
+
+const timeline::Keyframe &first_key(const timeline::Document &document, int lane_index)
+{
+    return std::get<timeline::Keyframe>(document.lanes()[lane_index].items()[0]);
+}
+
+timeline::Document combine_with_music(const timeline::Document &document)
+{
+    const timeline::Document music = import_clean_document("fixtures/beat-keys/rms.beat-keys.json");
+    return timeline::combine_documents(document, music);
+}
+
+const timeline::Polyline &curve_line(const timeline::Layout &layout, timeline::StringId lane_id)
+{
+    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    {
+        if (std::holds_alternative<timeline::Polyline>(primitive))
         {
-            const std::string name = parameters[index] + "=";
-            const std::size_t offset = entry.find(name);
-            ASSERT_NE(std::string::npos, offset);
-            const std::optional<double> actual = document.lanes()[index].evaluate_keyframes(grid.frame_start(frame));
-            ASSERT_TRUE(actual);
-            EXPECT_DOUBLE_EQ(std::stod(entry.substr(offset + name.size())), *actual);
+            const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
+            if (line.id.lane_id == lane_id)
+            {
+                return line;
+            }
         }
     }
-    const timeline::Lane &base = document.lanes()[1];
-    const timeline::Keyframe &key = std::get<timeline::Keyframe>(base.items()[0]);
-    EXPECT_EQ("1.25", resolved_attributes(document, key.attributes()).at("source-value"));
-    EXPECT_EQ("Bailout_Demo", resolved_attributes(document, key.attributes()).at("source-entry"));
-    EXPECT_NE(
-        std::string::npos, resolved_attributes(document, key.attributes()).at("catalog-definition").find("double"));
-    const timeline::Time half = timeline::Time::from_ticks(grid.frame_duration().ticks() * 3 / 2);
-    EXPECT_DOUBLE_EQ(2, *base.evaluate_keyframes(half));
-    EXPECT_DOUBLE_EQ(100, *document.lanes()[0].evaluate_keyframes(half));
+    throw std::runtime_error("extrapolation curve line is missing");
+}
+
+/// Exercises behavior shared by each non-clamping extrapolation policy.
+///
+class ExtrapolationPolicyTest : public testing::TestWithParam<PolicyCase>
+{
+};
+
+/// Exercises one extrapolation policy at one exact rational frame position.
+///
+class ExtrapolationValueTest : public testing::TestWithParam<ValueCase>
+{
+};
+
+/// Exercises overflow-safe extrapolation at timeline tick limits.
+///
+class ExtrapolationExtremeTest : public testing::TestWithParam<ExtremeCase>
+{
+};
+
+/// Exercises source comparison for each supported scalar type.
+///
+class ExtrapolationVariantTest : public testing::TestWithParam<VariantCase>
+{
+};
+
+/// Exercises one malformed extrapolation form and its diagnostic.
+///
+class ExtrapolationDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+{
+};
+
+} // namespace
+
+TEST_P(ExtrapolationPolicyTest, matchesSourceOutput)
+{
+    const PolicyCase &definition = GetParam();
+    JsonImportOptions options;
+    options.frames_per_second_numerator = 30000;
+    options.frames_per_second_denominator = 1001;
+    const timeline::Document document = import_clean_document(policy_fixture(definition.policy), options);
+    const timeline::FrameGrid &grid = *document.frame_grid();
+
+    const std::vector<std::optional<double>> actual = lane_values(document, 0, grid);
+    const std::vector<std::optional<double>> expected =
+        golden_values(policy_golden(definition.policy), "maxiter", grid.frame_count());
+
+    ASSERT_EQ(timeline::size_cast(expected), timeline::size_cast(actual));
+    for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
+    {
+        ASSERT_EQ(expected[frame].has_value(), actual[frame].has_value()) << frame;
+        if (expected[frame])
+        {
+            EXPECT_DOUBLE_EQ(*expected[frame], *actual[frame]) << frame;
+        }
+    }
+}
+
+TEST_P(ExtrapolationPolicyTest, ownsPolicyMetadataAfterImportResultRelease)
+{
+    const PolicyCase &definition = GetParam();
+    JsonImportResult imported = import_clean_result(policy_fixture(definition.policy));
+    const timeline::Document document = *imported.document;
+
+    imported.document.reset();
+    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 0).attributes());
+
+    EXPECT_EQ(definition.policy, attributes.at("extrapolate"));
+}
+
+TEST_P(ExtrapolationPolicyTest, ownsTrackDefinitionAfterImportResultRelease)
+{
+    const PolicyCase &definition = GetParam();
+    JsonImportResult imported = import_clean_result(policy_fixture(definition.policy));
+    const timeline::Document document = *imported.document;
+
+    imported.document.reset();
+    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 0).attributes());
+
+    EXPECT_NE(std::string_view::npos, attributes.at("track-definition").find("keys"));
+}
+
+TEST_P(ExtrapolationPolicyTest, placesFirstKeyAtSourceFrame)
+{
+    const PolicyCase &definition = GetParam();
+    JsonImportOptions options;
+    options.frames_per_second_numerator = 30000;
+    options.frames_per_second_denominator = 1001;
+
+    const timeline::Document document = import_clean_document(policy_fixture(definition.policy), options);
+    const timeline::Time time = first_key(document, 0).time();
+
+    EXPECT_EQ(4004, time.ticks());
+}
+
+TEST_P(ExtrapolationPolicyTest, matchesFrameInspection)
+{
+    const PolicyCase &definition = GetParam();
+    const timeline::Document document = policy_document(definition.policy);
+    const timeline::FrameGrid &grid = *document.frame_grid();
+
+    const std::vector<std::optional<double>> evaluated = lane_values(document, 0, grid);
+    const std::vector<std::optional<double>> inspected = inspection_values(document, 0, grid);
+
+    EXPECT_EQ(evaluated, inspected);
+}
+
+TEST_P(ExtrapolationPolicyTest, combinesWithMusicDocument)
+{
+    const PolicyCase &definition = GetParam();
+    const timeline::Document document = policy_document(definition.policy);
+
+    const timeline::Document combined = combine_with_music(document);
+
+    EXPECT_EQ(5, combined.lane_count());
+}
+
+TEST_P(ExtrapolationPolicyTest, preservesInitialValueWhenCombined)
+{
+    const PolicyCase &definition = GetParam();
+    const timeline::Document document = policy_document(definition.policy);
+    const std::optional<double> expected = document.lanes()[0].evaluate_keyframes(timeline::Time{});
+
+    const timeline::Document combined = combine_with_music(document);
+    const std::optional<double> actual = combined.lanes()[0].evaluate_keyframes(timeline::Time{});
+
+    EXPECT_EQ(expected, actual);
+}
+
+TEST_P(ExtrapolationPolicyTest, rendersCurveWithinLaneBand)
+{
+    const PolicyCase &definition = GetParam();
+    const timeline::Document document = combine_with_music(policy_document(definition.policy));
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Layout layout(document, timeline::Viewport(600, 300, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 40, 4));
+
+    const timeline::Polyline &line = curve_line(layout, document.lanes()[0].id());
+
+    for (const timeline::Point &point : line.points)
+    {
+        EXPECT_GE(point.y, 24);
+        EXPECT_LT(point.y, 56);
+    }
+}
+
+TEST_P(ExtrapolationPolicyTest, hitTestsCurveIdentity)
+{
+    const PolicyCase &definition = GetParam();
+    const timeline::Document document = combine_with_music(policy_document(definition.policy));
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Layout layout(document, timeline::Viewport(600, 300, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 40, 4));
+    const timeline::Polyline &line = curve_line(layout, document.lanes()[0].id());
+
+    const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(document.lanes()[0].id(), result->id.lane_id);
+}
+
+INSTANTIATE_TEST_SUITE_P(Policies, ExtrapolationPolicyTest, testing::ValuesIn(POLICY_CASES), case_name<PolicyCase>);
+
+TEST_P(ExtrapolationValueTest, evaluatesExpectedValue)
+{
+    const ValueCase &definition = GetParam();
+    const timeline::Document document = policy_document(definition.policy);
+    const timeline::Ticks width = document.frame_grid()->frame_duration().ticks();
+    const timeline::Ticks ticks =
+        width * definition.frame_numerator / definition.frame_denominator + definition.tick_adjustment;
+
+    const std::optional<double> actual = document.lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(ticks));
+
+    ASSERT_EQ(definition.expected.has_value(), actual.has_value());
+    if (definition.expected)
+    {
+        EXPECT_DOUBLE_EQ(*definition.expected, *actual);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Values, ExtrapolationValueTest, testing::ValuesIn(VALUE_CASES), case_name<ValueCase>);
+
+TEST_P(ExtrapolationExtremeTest, evaluatesWithoutTickOverflow)
+{
+    const ExtremeCase &definition = GetParam();
+    const timeline::Document document = policy_document(definition.policy);
+
+    const std::optional<double> value =
+        document.lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(definition.ticks));
+
+    EXPECT_TRUE(value);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ExtremeTicks, ExtrapolationExtremeTest, testing::ValuesIn(EXTREME_CASES), case_name<ExtremeCase>);
+
+TEST_P(ExtrapolationVariantTest, matchesSourceOutput)
+{
+    const VariantCase &definition = GetParam();
+    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
+    const timeline::FrameGrid &grid = *document.frame_grid();
+
+    const std::vector<std::optional<double>> actual = lane_values(document, definition.lane, grid);
+    const std::vector<std::optional<double>> expected =
+        golden_values("fixtures/gold-extrapolation-variants.par", definition.parameter, grid.frame_count());
+
+    ASSERT_EQ(timeline::size_cast(expected), timeline::size_cast(actual));
+    for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
+    {
+        ASSERT_TRUE(expected[frame]) << frame;
+        ASSERT_TRUE(actual[frame]) << frame;
+        EXPECT_DOUBLE_EQ(*expected[frame], *actual[frame]) << frame;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ScalarTypes, ExtrapolationVariantTest, testing::ValuesIn(VARIANT_CASES), case_name<VariantCase>);
+
+TEST(ExtrapolationVariants, importsEveryScalarType)
+{
+    const std::filesystem::path fixture("fixtures/extrapolation-variants.json");
+
+    const timeline::Document document = import_clean_document(fixture);
+
+    EXPECT_EQ(3, document.lane_count());
+}
+
+TEST(ExtrapolationVariants, preservesDoubleSourceValue)
+{
+    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
+
+    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 1).attributes());
+
+    EXPECT_EQ("1.25", attributes.at("source-value"));
+}
+
+TEST(ExtrapolationVariants, preservesDoubleSourceEntry)
+{
+    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
+
+    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 1).attributes());
+
+    EXPECT_EQ("Bailout_Demo", attributes.at("source-entry"));
+}
+
+TEST(ExtrapolationVariants, preservesDoubleCatalogDefinition)
+{
+    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
+
+    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 1).attributes());
+
+    EXPECT_NE(std::string_view::npos, attributes.at("catalog-definition").find("double"));
+}
+
+TEST(ExtrapolationVariants, interpolatesDoubleBetweenKeys)
+{
+    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
+    const timeline::Ticks width = document.frame_grid()->frame_duration().ticks();
+    const timeline::Time half = timeline::Time::from_ticks(width * 3 / 2);
+
+    const std::optional<double> value = document.lanes()[1].evaluate_keyframes(half);
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(2, *value);
+}
+
+TEST(ExtrapolationVariants, holdsIntegerBetweenKeys)
+{
+    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
+    const timeline::Ticks width = document.frame_grid()->frame_duration().ticks();
+    const timeline::Time half = timeline::Time::from_ticks(width * 3 / 2);
+
+    const std::optional<double> value = document.lanes()[0].evaluate_keyframes(half);
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(100, *value);
+}
+
+TEST(ExtrapolationDiagnostics, reportsEveryMalformedTrack)
+{
+    const std::filesystem::path fixture("fixtures/extrapolation-partial.json");
+
+    const JsonImportResult result = import_timeline_json(fixture);
+
+    EXPECT_EQ(6, timeline::size_cast(result.diagnostics));
+}
+
+TEST(ExtrapolationDiagnostics, retainsOnlyValidTrackAfterMalformedTracks)
+{
+    const std::filesystem::path fixture("fixtures/extrapolation-partial.json");
+
+    const timeline::Document document = import_partial_document(fixture);
+
+    EXPECT_EQ(1, document.lane_count());
+}
+
+TEST(ExtrapolationDiagnostics, retainsExpectedValidTrackAfterMalformedTracks)
+{
+    const std::filesystem::path fixture("fixtures/extrapolation-partial.json");
+
+    const timeline::Document document = import_partial_document(fixture);
+    ASSERT_EQ(1, document.lane_count());
+    const std::string_view identity = document.strings().lookup(document.lanes()[0].id());
+
+    EXPECT_EQ("animation-6", identity);
+}
+
+TEST_P(ExtrapolationDiagnosticTest, identifiesMalformedForm)
+{
+    const DiagnosticCase &definition = GetParam();
+    const JsonImportResult result = import_timeline_json("fixtures/extrapolation-partial.json");
+
+    const std::string &diagnostic = diagnostic_at(result, definition.index);
+
+    EXPECT_NE(std::string::npos, diagnostic.find("animation-" + std::to_string(definition.index) + ":"));
+    EXPECT_NE(std::string::npos, diagnostic.find(definition.message));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MalformedForms, ExtrapolationDiagnosticTest, testing::ValuesIn(DIAGNOSTIC_CASES), case_name<DiagnosticCase>);
+
+TEST(ExtrapolationDiagnostics, rejectsUnsupportedPolicy)
+{
+    const std::filesystem::path fixture("fixtures/extrapolation-invalid.json");
+
+    const JsonImportResult result = import_timeline_json(fixture);
+
+    EXPECT_FALSE(result.succeeded());
+}
+
+TEST(ExtrapolationDiagnostics, reportsSingleUnsupportedPolicyDiagnostic)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/extrapolation-invalid.json");
+
+    const int count = timeline::size_cast(result.diagnostics);
+
+    EXPECT_EQ(1, count);
+}
+
+TEST(ExtrapolationDiagnostics, identifiesUnsupportedPolicy)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/extrapolation-invalid.json");
+
+    const std::string &diagnostic = diagnostic_at(result, 0);
+
+    EXPECT_NE(std::string::npos, diagnostic.find("unknown extrapolate"));
 }
