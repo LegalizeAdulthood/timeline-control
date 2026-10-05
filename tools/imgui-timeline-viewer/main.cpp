@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 namespace
@@ -202,7 +203,9 @@ void Host::receive_dialog(Viewer &viewer)
             viewer.load_file(result->path, result->command == Command::ADD);
             if (viewer.control().document())
             {
-                const std::string title = "ImGui Timeline Viewer - " + viewer.control().document()->metadata().title();
+                const timeline::Document &document = *viewer.control().document();
+                std::string title("ImGui Timeline Viewer - ");
+                title += document.strings().lookup(document.metadata().title());
                 SDL_SetWindowTitle(m_window.get(), title.c_str());
             }
         }

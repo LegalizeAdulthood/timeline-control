@@ -5,7 +5,6 @@
 #include <timeline/StringTable.h>
 
 #include <optional>
-#include <string>
 #include <string_view>
 #include <vector>
 
@@ -15,63 +14,65 @@ namespace timeline
 /// Human-facing information carried by a timeline document.
 ///
 /// Metadata describes the document without affecting timeline coordinates,
-/// validation, or lane contents.
+/// validation, or lane contents. Its text IDs resolve through the containing
+/// document's string table.
 ///
 class Metadata
 {
 public:
     Metadata() = default;
-    Metadata(std::string title, std::string description);
+    Metadata(StringId title, StringId description);
 
-    const std::string &title() const
+    StringId title() const
     {
         return m_title;
     }
-    const std::string &description() const
+    StringId description() const
     {
         return m_description;
     }
 
 private:
-    std::string m_title;
-    std::string m_description;
+    StringId m_title;
+    StringId m_description;
 };
 
 /// Identifies one input used to produce generated timeline content.
 ///
 /// A source reference retains the input's semantic role separately from its
-/// source-format location.
+/// source-format location. Both are IDs in the containing document's string
+/// table.
 ///
 class SourceReference
 {
 public:
-    SourceReference(std::string role, std::string location);
+    SourceReference(StringId role, StringId location);
 
-    const std::string &role() const
+    StringId role() const
     {
         return m_role;
     }
-    const std::string &location() const
+    StringId location() const
     {
         return m_location;
     }
 
 private:
-    std::string m_role;
-    std::string m_location;
+    StringId m_role;
+    StringId m_location;
 };
 
 /// Associates a named generated-content group with its item count.
 ///
 /// Named counts preserve source-defined grouping without materializing the
-/// grouped timeline content.
+/// grouped timeline content. Names resolve through the document string table.
 ///
 class NamedCount
 {
 public:
-    NamedCount(std::string name, int count);
+    NamedCount(StringId name, int count);
 
-    const std::string &name() const
+    StringId name() const
     {
         return m_name;
     }
@@ -81,27 +82,28 @@ public:
     }
 
 private:
-    std::string m_name;
+    StringId m_name;
     int m_count;
 };
 
 /// Provenance and grouping facts for generated timeline content.
 ///
 /// A generation summary identifies the producer and its inputs, then reports
-/// generated items grouped by output target and semantic source.
+/// generated items grouped by output target and semantic source. All
+/// descriptive text is represented by document-owned string IDs.
 ///
 class GenerationSummary
 {
 public:
-    GenerationSummary(std::string generator_name, std::string generator_version,
+    GenerationSummary(StringId generator_name, StringId generator_version,
         std::vector<SourceReference> source_references, std::vector<NamedCount> target_counts,
         std::vector<NamedCount> source_counts);
 
-    const std::string &generator_name() const
+    StringId generator_name() const
     {
         return m_generator_name;
     }
-    const std::string &generator_version() const
+    StringId generator_version() const
     {
         return m_generator_version;
     }
@@ -119,8 +121,8 @@ public:
     }
 
 private:
-    std::string m_generator_name;
-    std::string m_generator_version;
+    StringId m_generator_name;
+    StringId m_generator_version;
     std::vector<SourceReference> m_source_references;
     std::vector<NamedCount> m_target_counts;
     std::vector<NamedCount> m_source_counts;
@@ -130,18 +132,18 @@ private:
 ///
 /// A source summary identifies the imported schema, counts authored records,
 /// and preserves optional frame, time, and synchronization extents in exact
-/// core units.
+/// core units. Its schema is an ID in the containing document's string table.
 ///
 class SourceSummary
 {
 public:
-    SourceSummary(std::string schema, int schema_version, int feature_count, int event_count);
-    SourceSummary(std::string schema, int schema_version, int feature_count, int event_count,
+    SourceSummary(StringId schema, int schema_version, int feature_count, int event_count);
+    SourceSummary(StringId schema, int schema_version, int feature_count, int event_count,
         std::optional<Ticks> first_frame, std::optional<Ticks> last_frame, std::optional<Time> first_time,
         std::optional<Time> last_time, std::optional<Duration> frame_offset,
         std::optional<GenerationSummary> generation_summary);
 
-    const std::string &schema() const
+    StringId schema() const
     {
         return m_schema;
     }
@@ -183,7 +185,7 @@ public:
     }
 
 private:
-    std::string m_schema;
+    StringId m_schema;
     int m_schema_version;
     int m_feature_count;
     int m_event_count;
@@ -282,11 +284,11 @@ private:
     friend class DocumentBuilder;
 };
 
-/// Construction boundary that interns lane identities before sealing a document.
+/// Construction boundary that binds interned text to a document.
 ///
-/// A builder can preserve an existing table's IDs, add lanes using newly
-/// interned IDs, and then transfer both lanes and immutable string storage into
-/// a completed document.
+/// A builder validates document descriptions, preserves an existing table's
+/// IDs, adds lanes using newly interned IDs, and then transfers both lanes and
+/// immutable string storage into a completed document.
 ///
 class DocumentBuilder
 {

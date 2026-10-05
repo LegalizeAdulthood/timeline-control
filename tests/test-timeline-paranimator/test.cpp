@@ -49,8 +49,8 @@ TEST(TimelineJson, importsMinimalParanimatorConfig)
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document.has_value());
     EXPECT_TRUE(result.diagnostics.empty());
-    EXPECT_EQ("maxiter.json", result.document->metadata().title());
-    EXPECT_EQ(source_path.string(), result.document->metadata().description());
+    EXPECT_EQ("maxiter.json", result.document->strings().lookup(result.document->metadata().title()));
+    EXPECT_EQ(source_path.string(), result.document->strings().lookup(result.document->metadata().description()));
     EXPECT_EQ(24000, result.document->timebase().ticks_per_second());
     ASSERT_TRUE(result.document->frame_grid().has_value());
     EXPECT_EQ(3, result.document->frame_grid()->frame_count());
@@ -103,7 +103,7 @@ TEST(TimelineJson, importsTrackerTimelineWithAdjacentConfig)
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
     const timeline::SourceSummary &summary = *result.document->source_summary();
-    EXPECT_EQ("par-beatdown.tracker-timeline", summary.schema());
+    EXPECT_EQ("par-beatdown.tracker-timeline", result.document->strings().lookup(summary.schema()));
     EXPECT_EQ(1, summary.schema_version());
     EXPECT_EQ(0, summary.feature_count());
     EXPECT_EQ(6, summary.event_count());
@@ -159,19 +159,21 @@ TEST(TimelineJson, importsCompleteMusicTimeline)
     ASSERT_TRUE(result.succeeded());
     EXPECT_TRUE(result.diagnostics.empty());
     const timeline::Document &document = *result.document;
-    EXPECT_EQ("song.music.json", document.metadata().title());
-    EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm (xm)", document.metadata().description());
+    EXPECT_EQ("song.music.json", document.strings().lookup(document.metadata().title()));
+    EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm (xm)",
+        document.strings().lookup(document.metadata().description()));
     ASSERT_TRUE(document.source_summary());
     const timeline::SourceSummary &summary = *document.source_summary();
     EXPECT_EQ(36, summary.event_count());
     EXPECT_EQ(4, summary.feature_count());
     ASSERT_TRUE(summary.generation_summary());
     const timeline::GenerationSummary &generation = *summary.generation_summary();
-    EXPECT_EQ("par-beatdown", generation.generator_name());
-    EXPECT_EQ("0.1.0", generation.generator_version());
+    EXPECT_EQ("par-beatdown", document.strings().lookup(generation.generator_name()));
+    EXPECT_EQ("0.1.0", document.strings().lookup(generation.generator_version()));
     ASSERT_EQ(1, timeline::size_cast(generation.source_references()));
-    EXPECT_EQ("music", generation.source_references()[0].role());
-    EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm", generation.source_references()[0].location());
+    EXPECT_EQ("music", document.strings().lookup(generation.source_references()[0].role()));
+    EXPECT_EQ("data/my_neighbors_kid_is_an_internet_addict.xm",
+        document.strings().lookup(generation.source_references()[0].location()));
     ASSERT_TRUE(document.frame_grid());
     EXPECT_EQ(61, document.frame_grid()->frame_count());
     EXPECT_EQ(30, document.frame_grid()->frames_per_second_numerator());
@@ -195,8 +197,8 @@ TEST(TimelineJson, retainsValidRecordsWithIndexedDiagnostics)
 
     ASSERT_TRUE(result.succeeded());
     const timeline::Document &document = *result.document;
-    EXPECT_EQ("Recovered song", document.metadata().title());
-    EXPECT_EQ("fixture.xm (xm)", document.metadata().description());
+    EXPECT_EQ("Recovered song", document.strings().lookup(document.metadata().title()));
+    EXPECT_EQ("fixture.xm (xm)", document.strings().lookup(document.metadata().description()));
     ASSERT_TRUE(document.frame_grid());
     EXPECT_EQ(61, document.frame_grid()->frame_count());
     ASSERT_EQ(2, document.lane_count());
@@ -247,8 +249,8 @@ TEST(TimelineJson, malformedOptionalMetadataDoesNotDiscardEvents)
     const JsonImportResult result = import_timeline_json(fixture_path("par-beatdown/invalid-metadata.json"));
 
     ASSERT_TRUE(result.succeeded());
-    EXPECT_EQ("invalid-metadata.json", result.document->metadata().title());
-    EXPECT_EQ("fixture.xm (xm)", result.document->metadata().description());
+    EXPECT_EQ("invalid-metadata.json", result.document->strings().lookup(result.document->metadata().title()));
+    EXPECT_EQ("fixture.xm (xm)", result.document->strings().lookup(result.document->metadata().description()));
     EXPECT_FALSE(result.document->source_summary()->generation_summary());
     EXPECT_EQ(1, result.document->lane_count());
     EXPECT_EQ(1, result.document->lanes()[0].item_count());
@@ -385,25 +387,28 @@ TEST(TimelineJson, importsRowPulseOverlaySummary)
     ASSERT_TRUE(result.succeeded());
     ASSERT_TRUE(result.document->source_summary().has_value());
     const timeline::SourceSummary &source = *result.document->source_summary();
-    EXPECT_EQ("par-beatdown.beat-keys-overlay", source.schema());
+    EXPECT_EQ("par-beatdown.beat-keys-overlay", result.document->strings().lookup(source.schema()));
     EXPECT_EQ(0, *source.first_frame());
     EXPECT_EQ(4, *source.last_frame());
     ASSERT_TRUE(source.generation_summary().has_value());
     const timeline::GenerationSummary &generation = *source.generation_summary();
-    EXPECT_EQ("beat-keys", generation.generator_name());
-    EXPECT_EQ("0.1.0", generation.generator_version());
+    EXPECT_EQ("beat-keys", result.document->strings().lookup(generation.generator_name()));
+    EXPECT_EQ("0.1.0", result.document->strings().lookup(generation.generator_version()));
     ASSERT_EQ(3U, generation.source_references().size());
-    EXPECT_EQ("base_animation", generation.source_references()[0].role());
-    EXPECT_EQ("tests/beat-keys/base-animation.json", generation.source_references()[0].location());
-    EXPECT_EQ("timeline", generation.source_references()[1].role());
-    EXPECT_EQ("tests/beat-keys/timeline-events.json", generation.source_references()[1].location());
-    EXPECT_EQ("adapter_config", generation.source_references()[2].role());
-    EXPECT_EQ("tests/beat-keys/row-pulses.beat-keys.json", generation.source_references()[2].location());
+    EXPECT_EQ("base_animation", result.document->strings().lookup(generation.source_references()[0].role()));
+    EXPECT_EQ("tests/beat-keys/base-animation.json",
+        result.document->strings().lookup(generation.source_references()[0].location()));
+    EXPECT_EQ("timeline", result.document->strings().lookup(generation.source_references()[1].role()));
+    EXPECT_EQ("tests/beat-keys/timeline-events.json",
+        result.document->strings().lookup(generation.source_references()[1].location()));
+    EXPECT_EQ("adapter_config", result.document->strings().lookup(generation.source_references()[2].role()));
+    EXPECT_EQ("tests/beat-keys/row-pulses.beat-keys.json",
+        result.document->strings().lookup(generation.source_references()[2].location()));
     ASSERT_EQ(1U, generation.target_counts().size());
-    EXPECT_EQ("row.flash", generation.target_counts()[0].name());
+    EXPECT_EQ("row.flash", result.document->strings().lookup(generation.target_counts()[0].name()));
     EXPECT_EQ(4, generation.target_counts()[0].count());
     ASSERT_EQ(1U, generation.source_counts().size());
-    EXPECT_EQ("music.row_pulse", generation.source_counts()[0].name());
+    EXPECT_EQ("music.row_pulse", result.document->strings().lookup(generation.source_counts()[0].name()));
     EXPECT_EQ(4, generation.source_counts()[0].count());
     EXPECT_EQ(1, result.document->track_count());
     EXPECT_EQ(4, result.document->keyframe_count());
@@ -420,14 +425,14 @@ TEST(TimelineJson, importsRmsOverlaySummary)
     ASSERT_TRUE(source.generation_summary().has_value());
     const timeline::GenerationSummary &generation = *source.generation_summary();
     ASSERT_EQ(3U, generation.target_counts().size());
-    EXPECT_EQ("camera.zoom", generation.target_counts()[0].name());
+    EXPECT_EQ("camera.zoom", result.document->strings().lookup(generation.target_counts()[0].name()));
     EXPECT_EQ(3, generation.target_counts()[0].count());
-    EXPECT_EQ("color.brightness", generation.target_counts()[1].name());
+    EXPECT_EQ("color.brightness", result.document->strings().lookup(generation.target_counts()[1].name()));
     EXPECT_EQ(3, generation.target_counts()[1].count());
-    EXPECT_EQ("layer.opacity", generation.target_counts()[2].name());
+    EXPECT_EQ("layer.opacity", result.document->strings().lookup(generation.target_counts()[2].name()));
     EXPECT_EQ(3, generation.target_counts()[2].count());
     ASSERT_EQ(1U, generation.source_counts().size());
-    EXPECT_EQ("music.rms", generation.source_counts()[0].name());
+    EXPECT_EQ("music.rms", result.document->strings().lookup(generation.source_counts()[0].name()));
     EXPECT_EQ(9, generation.source_counts()[0].count());
     EXPECT_EQ(3, result.document->track_count());
     EXPECT_EQ(9, result.document->keyframe_count());

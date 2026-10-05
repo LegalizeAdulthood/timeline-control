@@ -39,11 +39,12 @@ wxString to_wx_string(std::string_view value)
 wxString document_summary(const timeline::Document &document)
 {
     wxString text;
+    const timeline::StringTable &strings = document.strings();
     const auto draw_line = [&text](const wxString &line)
     {
         text += line + "\n";
     };
-    wxString title = document.metadata().title();
+    wxString title = to_wx_string(strings.lookup(document.metadata().title()));
     if (title.empty())
     {
         title = "Untitled timeline";
@@ -64,13 +65,15 @@ wxString document_summary(const timeline::Document &document)
     if (document.source_summary())
     {
         const timeline::SourceSummary &summary = *document.source_summary();
-        draw_line("Schema: " + summary.schema() + wxString::Format(" v%d", summary.schema_version()));
+        draw_line("Schema: " + to_wx_string(strings.lookup(summary.schema())) +
+            wxString::Format(" v%d", summary.schema_version()));
         draw_line(wxString::Format("Features: %d", summary.feature_count()));
         draw_line(wxString::Format("Events: %d", summary.event_count()));
         if (summary.generation_summary())
         {
             const timeline::GenerationSummary &generation = *summary.generation_summary();
-            draw_line("Generator: " + generation.generator_name() + " " + generation.generator_version());
+            draw_line("Generator: " + to_wx_string(strings.lookup(generation.generator_name())) + " " +
+                to_wx_string(strings.lookup(generation.generator_version())));
             draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
             if (!generation.target_counts().empty())
             {
@@ -101,7 +104,7 @@ wxString document_summary(const timeline::Document &document)
     draw_line(wxString::Format("Tracks: %d", document.track_count()));
     draw_line(wxString::Format("Keyframes: %d", document.keyframe_count()));
     draw_line(wxString::Format("Lanes: %d", document.lane_count()));
-    draw_line("Source: " + document.metadata().description());
+    draw_line("Source: " + to_wx_string(strings.lookup(document.metadata().description())));
     return text;
 }
 
@@ -236,7 +239,8 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
     }
     for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
     {
-        text += "\nMusic input: " + mapping.source_document().metadata().description() + "\n";
+        const timeline::Document &source = mapping.source_document();
+        text += "\nMusic input: " + to_wx_string(source.strings().lookup(source.metadata().description())) + "\n";
         text += "Output: " + mapping.output().mode + " / " + mapping.output().namespace_name + "\n";
         text += wxString::Format("Mapping recipes: %d\n", timeline::size_cast(mapping.recipes()));
         for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())
@@ -410,7 +414,8 @@ void TimelineViewerFrame::load_file(bool append)
         m_mappings.push_back(std::move(*result.mapping));
     }
     m_timeline_control->set_document(std::move(*result.document));
-    SetTitle(wxString(VIEWER_TITLE) + " - " + m_timeline_control->document()->metadata().title());
+    const timeline::Document &document = *m_timeline_control->document();
+    SetTitle(wxString(VIEWER_TITLE) + " - " + to_wx_string(document.strings().lookup(document.metadata().title())));
     SetStatusText("Loaded " + dialog.GetFilename());
     if (!result.diagnostics.empty())
     {

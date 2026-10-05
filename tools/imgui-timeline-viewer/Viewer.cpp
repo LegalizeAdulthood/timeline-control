@@ -102,7 +102,8 @@ std::string Viewer::inspector_text() const
     {
         text << "Hit: none\n";
     }
-    text << "\nTitle: " << document.metadata().title() << "\nValid: " << (document.is_valid() ? "yes" : "no")
+    text << "\nTitle: " << document.strings().lookup(document.metadata().title())
+         << "\nValid: " << (document.is_valid() ? "yes" : "no")
          << "\nTicks per second: " << document.timebase().ticks_per_second();
     if (document.frame_grid())
     {
@@ -113,23 +114,25 @@ std::string Viewer::inspector_text() const
     if (document.source_summary())
     {
         const timeline::SourceSummary &source = *document.source_summary();
-        text << "\nSchema: " << source.schema() << " v" << source.schema_version()
+        text << "\nSchema: " << document.strings().lookup(source.schema()) << " v" << source.schema_version()
              << "\nFeatures: " << source.feature_count() << "\nEvents: " << source.event_count();
         if (source.generation_summary())
         {
             const timeline::GenerationSummary &generation = *source.generation_summary();
-            text << "\nGenerator: " << generation.generator_name() << ' ' << generation.generator_version();
+            text << "\nGenerator: " << document.strings().lookup(generation.generator_name()) << ' '
+                 << document.strings().lookup(generation.generator_version());
             for (const timeline::SourceReference &input : generation.source_references())
             {
-                text << "\nInput " << input.role() << ": " << input.location();
+                text << "\nInput " << document.strings().lookup(input.role()) << ": "
+                     << document.strings().lookup(input.location());
             }
             for (const timeline::NamedCount &count : generation.target_counts())
             {
-                text << "\nTarget " << count.name() << ": " << count.count();
+                text << "\nTarget " << document.strings().lookup(count.name()) << ": " << count.count();
             }
             for (const timeline::NamedCount &count : generation.source_counts())
             {
-                text << "\nSource " << count.name() << ": " << count.count();
+                text << "\nSource " << document.strings().lookup(count.name()) << ": " << count.count();
             }
         }
         if (source.first_frame())
@@ -147,10 +150,12 @@ std::string Viewer::inspector_text() const
         }
     }
     text << "\nTracks: " << document.track_count() << "\nKeyframes: " << document.keyframe_count()
-         << "\nLanes: " << document.lane_count() << "\nSource: " << document.metadata().description() << '\n';
+         << "\nLanes: " << document.lane_count()
+         << "\nSource: " << document.strings().lookup(document.metadata().description()) << '\n';
     for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
     {
-        text << "\nMusic input: " << mapping.source_document().metadata().description()
+        const timeline::Document &source = mapping.source_document();
+        text << "\nMusic input: " << source.strings().lookup(source.metadata().description())
              << "\nOutput: " << mapping.output().mode << " / " << mapping.output().namespace_name
              << "\nMapping recipes: " << timeline::size_cast(mapping.recipes());
         for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())

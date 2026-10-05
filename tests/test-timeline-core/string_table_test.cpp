@@ -29,6 +29,20 @@ StringId first_item_id(const Document &document, int lane)
     return std::get<Instant>(document.lanes()[lane].items().front()).id();
 }
 
+Document document_with_descriptions(std::string_view title, std::string_view description, std::string_view schema)
+{
+    StringTableBuilder strings;
+    const Metadata metadata(strings.intern(title), strings.intern(description));
+    const GenerationSummary generation(strings.intern("generator"), strings.intern("1.0"),
+        {SourceReference(strings.intern("input"), strings.intern("source.json"))},
+        {NamedCount(strings.intern("target"), 2)}, {NamedCount(strings.intern("source"), 3)});
+    const SourceSummary summary(strings.intern(schema), 1, 2, 3, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+        std::nullopt, generation);
+    DocumentBuilder builder(
+        Document(FrameGrid(Timebase(30), 2, 30, 1), summary, 1, 2, metadata), std::move(strings).build());
+    return std::move(builder).build();
+}
+
 } // namespace
 
 TEST(StringId, comparesIntegerValues)
@@ -70,6 +84,41 @@ TEST(StringTable, documentCopiesRetainSharedStringLifetime)
     const Layout layout(copy, Viewport(200, 60, Time{}, Time::from_ticks(2)), LayoutMetrics(80, 20, 30, 2));
     const DisplayList display = layout.display_list();
     EXPECT_EQ("events", display.strings().lookup(copy.lanes().front().id()));
+}
+
+TEST(StringTable, documentCopiesRetainDescriptionIds)
+{
+    const Document original = document_with_descriptions("Original", "source.json", "schema");
+
+    const Document copy = original;
+
+    ASSERT_TRUE(copy.strings().shares_storage_with(original.strings()));
+    EXPECT_EQ("Original", copy.strings().lookup(copy.metadata().title()));
+    EXPECT_EQ("source.json", copy.strings().lookup(copy.metadata().description()));
+    ASSERT_TRUE(copy.source_summary());
+    EXPECT_EQ("schema", copy.strings().lookup(copy.source_summary()->schema()));
+    ASSERT_TRUE(copy.source_summary()->generation_summary());
+    const GenerationSummary &generation = *copy.source_summary()->generation_summary();
+    EXPECT_EQ("generator", copy.strings().lookup(generation.generator_name()));
+    EXPECT_EQ("1.0", copy.strings().lookup(generation.generator_version()));
+    EXPECT_EQ("input", copy.strings().lookup(generation.source_references().front().role()));
+    EXPECT_EQ("source.json", copy.strings().lookup(generation.source_references().front().location()));
+    EXPECT_EQ("target", copy.strings().lookup(generation.target_counts().front().name()));
+    EXPECT_EQ("source", copy.strings().lookup(generation.source_counts().front().name()));
+}
+
+TEST(StringTable, combinesOverlappingAndDistinctDocumentDescriptions)
+{
+    const Document first = document_with_descriptions("First", "shared", "shared");
+    const Document second = document_with_descriptions("Second", "distinct", "other-schema");
+
+    const Document combined = combine_documents(first, second);
+
+    EXPECT_EQ("First + Second", combined.strings().lookup(combined.metadata().title()));
+    EXPECT_EQ("shared\ndistinct", combined.strings().lookup(combined.metadata().description()));
+    ASSERT_TRUE(combined.source_summary());
+    EXPECT_EQ("shared", combined.strings().lookup(combined.source_summary()->schema()));
+    EXPECT_EQ(first.source_summary()->schema(), combined.source_summary()->schema());
 }
 
 TEST(StringTable, documentBuilderRejectsUnknownLaneIds)

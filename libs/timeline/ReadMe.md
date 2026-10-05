@@ -62,7 +62,8 @@ set of `Lane` objects. An empty document is valid.
 `Metadata` contains human-facing document text. `SourceSummary`,
 `GenerationSummary`, `SourceReference`, and `NamedCount` preserve shallow
 facts about imported or generated content without embedding a source
-format in the core model.
+format in the core model. Their descriptive text is stored as `StringId`
+values and resolved through the containing document's `StringTable`.
 
 A `Lane` is one normalized display row with a finite time range. It owns
 an ordered collection of `Item` values. Source formats may call their
@@ -106,10 +107,10 @@ translating their input; presentation code resolves the IDs only when it
 needs text.
 
 Adapters normally construct documents through `DocumentBuilder`. Its
-`StringTableBuilder` interns lane and item identities together with lane
-and item kinds, labels, attribute keys, and attribute values. `add_lane`
-collects completed lanes and verifies that every string ID belongs to the
-document table. `build` seals the strings and lanes into a `Document`.
+`StringTableBuilder` interns document descriptions, source summaries, lane
+and item identities, kinds, labels, attribute keys, and attribute values.
+The builder verifies that document and lane string IDs belong to the table.
+`build` seals the strings and lanes into a `Document`.
 
 The `with_id`, `with_strings`, `with_kind`, and `with_attributes`
 functions return copies with translated identities and semantic strings.

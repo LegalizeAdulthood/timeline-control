@@ -4348,12 +4348,13 @@ void import_par_animator(const std::filesystem::path &source_path, const Json &c
     try
     {
         const auto [track_count, keyframe_count] = summarize_par_animator_content(config);
-        timeline::Metadata metadata(source_path.filename().string(), source_path.string());
         timeline::FrameGrid frame_grid(timeline::Timebase(options.ticks_per_second),
             config.at("num-frames").get<timeline::Ticks>(), options.frames_per_second_numerator,
             options.frames_per_second_denominator);
         const Json catalog = animation_catalog(source_path, config, result.diagnostics);
         timeline::StringTableBuilder strings;
+        const timeline::Metadata metadata(
+            strings.intern(source_path.filename().string()), strings.intern(source_path.string()));
         std::vector<timeline::Lane> lanes;
         if (config.contains("tracks"))
         {
@@ -4489,13 +4490,14 @@ bool validate_beat_keys_overlay(const Json &config, std::vector<std::string> &di
     return valid;
 }
 
-std::vector<timeline::NamedCount> named_counts(const std::map<std::string, int> &counts)
+std::vector<timeline::NamedCount> named_counts(
+    const std::map<std::string, int> &counts, timeline::StringTableBuilder &strings)
 {
     std::vector<timeline::NamedCount> result{};
     result.reserve(counts.size());
     for (const auto &[name, count] : counts)
     {
-        result.emplace_back(name, count);
+        result.emplace_back(strings.intern(name), count);
     }
     return result;
 }
@@ -4544,7 +4546,7 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
         std::map<std::string, int> target_counts{};
         std::map<std::string, int> source_counts{};
         std::map<std::string, std::vector<timeline::Keyframe>> keyframes_by_target{};
-        timeline::StringTableBuilder item_strings;
+        timeline::StringTableBuilder strings;
         for (const Json &keyframe : config.at("keyframes"))
         {
             const auto frame = keyframe.at("frame").get<timeline::Ticks>();
@@ -4571,30 +4573,34 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
                 const auto target = keyframe.at("target").get<std::string>();
                 AttributeStrings attributes{{"operation", keyframe.at("op").get<std::string>()},
                     {"source", keyframe.at("source").get<std::string>()}};
-                keyframes_by_target[target].emplace_back(
-                    item_strings.intern("keyframe-" + std::to_string(keyframe_index)),
+                keyframes_by_target[target].emplace_back(strings.intern("keyframe-" + std::to_string(keyframe_index)),
                     frame_grid->frame_start(keyframe.at("frame").get<timeline::Ticks>()),
                     keyframe.at("value").get<double>(), timeline::KeyframeInterpolation::HOLD,
-                    intern_attributes(attributes, item_strings));
+                    intern_attributes(attributes, strings));
                 ++keyframe_index;
             }
         }
 
         const Json &generator = config.at("generator");
         const Json &source = config.at("source");
-        timeline::GenerationSummary generation_summary(generator.at("name").get<std::string>(),
-            generator.at("version").get<std::string>(),
-            {timeline::SourceReference("base_animation", source.at("base_animation").get<std::string>()),
-                timeline::SourceReference("timeline", source.at("timeline").get<std::string>()),
-                timeline::SourceReference("adapter_config", source.at("adapter_config").get<std::string>())},
-            named_counts(target_counts), named_counts(source_counts));
+        timeline::GenerationSummary generation_summary(strings.intern(generator.at("name").get<std::string>()),
+            strings.intern(generator.at("version").get<std::string>()),
+            {timeline::SourceReference(
+                 strings.intern("base_animation"), strings.intern(source.at("base_animation").get<std::string>())),
+                timeline::SourceReference(
+                    strings.intern("timeline"), strings.intern(source.at("timeline").get<std::string>())),
+                timeline::SourceReference(
+                    strings.intern("adapter_config"), strings.intern(source.at("adapter_config").get<std::string>()))},
+            named_counts(target_counts, strings), named_counts(source_counts, strings));
         const std::optional<timeline::Time> first_time =
             first_frame ? std::optional{frame_grid->frame_start(*first_frame)} : std::nullopt;
         const std::optional<timeline::Time> last_time =
             last_frame ? std::optional{frame_grid->frame_start(*last_frame)} : std::nullopt;
-        timeline::SourceSummary source_summary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
-            0, 0, first_frame, last_frame, first_time, last_time, std::nullopt, std::move(generation_summary));
-        timeline::Metadata metadata(source_path.filename().string(), source_path.string());
+        timeline::SourceSummary source_summary(strings.intern(config.at("schema").get<std::string>()),
+            config.at("version").get<int>(), 0, 0, first_frame, last_frame, first_time, last_time, std::nullopt,
+            std::move(generation_summary));
+        const timeline::Metadata metadata(
+            strings.intern(source_path.filename().string()), strings.intern(source_path.string()));
         append_diagnostic_array(config.at("diagnostics"), "warnings", "Warning: ", result.diagnostics);
         timeline::Document document = frame_grid
             ? timeline::Document(std::move(*frame_grid), std::move(source_summary), timeline::size_cast(target_counts),
@@ -4605,7 +4611,7 @@ void import_beat_keys_overlay(const std::filesystem::path &source_path, const Js
             document.frame_grid() ? std::optional{document.frame_grid()->offset()} : std::nullopt;
         const std::optional<timeline::Time> document_end =
             document.frame_grid() ? std::optional{document.frame_grid()->end_time()} : std::nullopt;
-        timeline::DocumentBuilder builder(std::move(document), std::move(item_strings).build());
+        timeline::DocumentBuilder builder(std::move(document), std::move(strings).build());
         if (frame_grid)
         {
             for (auto &[target, keyframes] : keyframes_by_target)
@@ -5126,8 +5132,8 @@ std::string tracker_source_string(const Json &source, std::string_view field, st
     return source.at(name).get<std::string>();
 }
 
-timeline::Metadata tracker_metadata(
-    const std::filesystem::path &path, const Json &config, std::vector<std::string> &diagnostics)
+timeline::Metadata tracker_metadata(const std::filesystem::path &path, const Json &config,
+    timeline::StringTableBuilder &strings, std::vector<std::string> &diagnostics)
 {
     std::string title = path.filename().string();
     std::string description = path.string();
@@ -5157,11 +5163,11 @@ timeline::Metadata tracker_metadata(
             }
         }
     }
-    return timeline::Metadata(std::move(title), std::move(description));
+    return timeline::Metadata(strings.intern(title), strings.intern(description));
 }
 
 std::optional<timeline::GenerationSummary> tracker_generation_summary(
-    const Json &config, std::vector<std::string> &diagnostics)
+    const Json &config, timeline::StringTableBuilder &strings, std::vector<std::string> &diagnostics)
 {
     if (!config.contains("generator"))
     {
@@ -5177,11 +5183,11 @@ std::optional<timeline::GenerationSummary> tracker_generation_summary(
             if (source.contains("file") && source.at("file").is_string() &&
                 !source.at("file").get<std::string>().empty())
             {
-                sources.emplace_back("music", source.at("file").get<std::string>());
+                sources.emplace_back(strings.intern("music"), strings.intern(source.at("file").get<std::string>()));
             }
         }
-        return timeline::GenerationSummary(generator.at("name").get<std::string>(),
-            generator.at("version").get<std::string>(), std::move(sources), {}, {});
+        return timeline::GenerationSummary(strings.intern(generator.at("name").get<std::string>()),
+            strings.intern(generator.at("version").get<std::string>()), std::move(sources), {}, {});
     }
     catch (const std::exception &error)
     {
@@ -5234,11 +5240,13 @@ void import_tracker_timeline(const std::filesystem::path &source_path, const Jso
             tracker_event_lane(events, timebase, frame_grid, strings, result.diagnostics);
         std::optional<timeline::Lane> rms_lane =
             tracker_feature_lane(features, timebase, frame_grid, "rms", "RMS", strings, result.diagnostics);
-        timeline::Metadata metadata = tracker_metadata(source_path, config, result.diagnostics);
-        std::optional<timeline::GenerationSummary> generation = tracker_generation_summary(config, result.diagnostics);
-        timeline::SourceSummary source_summary(config.at("schema").get<std::string>(), config.at("version").get<int>(),
-            timeline::size_cast(config.at("features")), timeline::size_cast(config.at("events")), extent.first_frame,
-            extent.last_frame, first_time, last_time, frame_offset, std::move(generation));
+        const timeline::Metadata metadata = tracker_metadata(source_path, config, strings, result.diagnostics);
+        std::optional<timeline::GenerationSummary> generation =
+            tracker_generation_summary(config, strings, result.diagnostics);
+        timeline::SourceSummary source_summary(strings.intern(config.at("schema").get<std::string>()),
+            config.at("version").get<int>(), timeline::size_cast(config.at("features")),
+            timeline::size_cast(config.at("events")), extent.first_frame, extent.last_frame, first_time, last_time,
+            frame_offset, std::move(generation));
         timeline::Document document = frame_grid
             ? timeline::Document(std::move(*frame_grid), std::move(source_summary), std::move(metadata))
             : timeline::Document(timebase, std::move(source_summary), std::move(metadata));

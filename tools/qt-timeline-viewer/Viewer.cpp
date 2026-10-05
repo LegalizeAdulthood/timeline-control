@@ -18,6 +18,7 @@
 #include <fstream>
 #include <locale>
 #include <sstream>
+#include <string_view>
 #include <system_error>
 
 namespace timeline_qt_viewer
@@ -33,6 +34,11 @@ std::filesystem::path native_path(const QString &path)
 #else
     return std::filesystem::u8path(path.toStdString());
 #endif
+}
+
+QString to_qt_string(std::string_view value)
+{
+    return QString::fromLatin1(value.data(), timeline::size_cast(value));
 }
 
 } // namespace
@@ -145,8 +151,9 @@ bool Viewer::load_file(const std::filesystem::path &path, bool append)
     }
     m_control.set_document(std::move(*imported.document));
     const QString name = QString::fromStdString(path.filename().u8string());
+    const timeline::Document &document = *m_control.document();
     setWindowTitle(
-        QStringLiteral("Qt Timeline Viewer - ") + QString::fromStdString(m_control.document()->metadata().title()));
+        QStringLiteral("Qt Timeline Viewer - ") + to_qt_string(document.strings().lookup(document.metadata().title())));
     statusBar()->showMessage(QStringLiteral("Loaded ") + name);
     return true;
 }
@@ -180,7 +187,8 @@ std::string Viewer::inspector_text() const
     const timeline::Document &document = *m_control.document();
     std::ostringstream text;
     text.imbue(std::locale::classic());
-    text << "Title: " << document.metadata().title() << "\nValid: " << (document.is_valid() ? "yes" : "no")
+    text << "Title: " << document.strings().lookup(document.metadata().title())
+         << "\nValid: " << (document.is_valid() ? "yes" : "no")
          << "\nTicks per second: " << document.timebase().ticks_per_second();
     if (document.frame_grid())
     {
@@ -191,23 +199,25 @@ std::string Viewer::inspector_text() const
     if (document.source_summary())
     {
         const timeline::SourceSummary &source = *document.source_summary();
-        text << "\nSchema: " << source.schema() << " v" << source.schema_version()
+        text << "\nSchema: " << document.strings().lookup(source.schema()) << " v" << source.schema_version()
              << "\nFeatures: " << source.feature_count() << "\nEvents: " << source.event_count();
         if (source.generation_summary())
         {
             const timeline::GenerationSummary &generation = *source.generation_summary();
-            text << "\nGenerator: " << generation.generator_name() << ' ' << generation.generator_version();
+            text << "\nGenerator: " << document.strings().lookup(generation.generator_name()) << ' '
+                 << document.strings().lookup(generation.generator_version());
             for (const timeline::SourceReference &input : generation.source_references())
             {
-                text << "\nInput " << input.role() << ": " << input.location();
+                text << "\nInput " << document.strings().lookup(input.role()) << ": "
+                     << document.strings().lookup(input.location());
             }
             for (const timeline::NamedCount &count : generation.target_counts())
             {
-                text << "\nTarget " << count.name() << ": " << count.count();
+                text << "\nTarget " << document.strings().lookup(count.name()) << ": " << count.count();
             }
             for (const timeline::NamedCount &count : generation.source_counts())
             {
-                text << "\nSource " << count.name() << ": " << count.count();
+                text << "\nSource " << document.strings().lookup(count.name()) << ": " << count.count();
             }
         }
         if (source.first_frame())
@@ -225,10 +235,12 @@ std::string Viewer::inspector_text() const
         }
     }
     text << "\nTracks: " << document.track_count() << "\nKeyframes: " << document.keyframe_count()
-         << "\nLanes: " << document.lane_count() << "\nSource: " << document.metadata().description();
+         << "\nLanes: " << document.lane_count()
+         << "\nSource: " << document.strings().lookup(document.metadata().description());
     for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
     {
-        text << "\n\nMusic input: " << mapping.source_document().metadata().description()
+        const timeline::Document &source = mapping.source_document();
+        text << "\n\nMusic input: " << source.strings().lookup(source.metadata().description())
              << "\nOutput: " << mapping.output().mode << " / " << mapping.output().namespace_name
              << "\nMapping recipes: " << timeline::size_cast(mapping.recipes());
         for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())

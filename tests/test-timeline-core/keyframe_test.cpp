@@ -136,8 +136,8 @@ TEST(Layout, samplesOwnedKeyframeRecipesWithoutBridgingGaps)
         });
     for (bool framed : {false, true})
     {
-        Document document = framed ? Document(FrameGrid(Timebase(60), 6, 6, 1), 1, 2, Metadata("Recipe", ""))
-                                   : Document(Timebase(60), Metadata("Recipe", ""));
+        Document document = framed ? Document(FrameGrid(Timebase(60), 6, 6, 1), 1, 2, Metadata(recipe_label, {}))
+                                   : Document(Timebase(60), Metadata(recipe_label, {}));
         DocumentBuilder builder(std::move(document), strings);
         builder.add_lane(lane);
         document = std::move(builder).build();

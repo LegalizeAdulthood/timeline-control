@@ -6,6 +6,7 @@
 #include <limits>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -22,17 +23,68 @@ void validate_document_counts(int track_count, int keyframe_count)
     }
 }
 
+void validate_generation_strings(const GenerationSummary &summary, const StringTableBuilder &strings)
+{
+    if (!strings.contains(summary.generator_name()) || !strings.contains(summary.generator_version()))
+    {
+        throw std::invalid_argument(
+            "timeline generation summary string ID is not present in the document string table");
+    }
+    for (const SourceReference &source : summary.source_references())
+    {
+        if (!strings.contains(source.role()) || !strings.contains(source.location()))
+        {
+            throw std::invalid_argument(
+                "timeline source reference string ID is not present in the document string table");
+        }
+    }
+    for (const NamedCount &count : summary.target_counts())
+    {
+        if (!strings.contains(count.name()))
+        {
+            throw std::invalid_argument("timeline named count string ID is not present in the document string table");
+        }
+    }
+    for (const NamedCount &count : summary.source_counts())
+    {
+        if (!strings.contains(count.name()))
+        {
+            throw std::invalid_argument("timeline named count string ID is not present in the document string table");
+        }
+    }
+}
+
+void validate_document_strings(const Document &document, const StringTableBuilder &strings)
+{
+    if (!strings.contains(document.metadata().title()) || !strings.contains(document.metadata().description()))
+    {
+        throw std::invalid_argument("timeline metadata string ID is not present in the document string table");
+    }
+    if (!document.source_summary())
+    {
+        return;
+    }
+    if (!strings.contains(document.source_summary()->schema()))
+    {
+        throw std::invalid_argument("timeline source schema string ID is not present in the document string table");
+    }
+    if (document.source_summary()->generation_summary())
+    {
+        validate_generation_strings(*document.source_summary()->generation_summary(), strings);
+    }
+}
+
 } // namespace
 
-Metadata::Metadata(std::string title, std::string description) :
-    m_title(std::move(title)),
-    m_description(std::move(description))
+Metadata::Metadata(StringId title, StringId description) :
+    m_title(title),
+    m_description(description)
 {
 }
 
-SourceReference::SourceReference(std::string role, std::string location) :
-    m_role(std::move(role)),
-    m_location(std::move(location))
+SourceReference::SourceReference(StringId role, StringId location) :
+    m_role(role),
+    m_location(location)
 {
     if (m_role.empty() || m_location.empty())
     {
@@ -40,8 +92,8 @@ SourceReference::SourceReference(std::string role, std::string location) :
     }
 }
 
-NamedCount::NamedCount(std::string name, int count) :
-    m_name(std::move(name)),
+NamedCount::NamedCount(StringId name, int count) :
+    m_name(name),
     m_count(count)
 {
     if (m_name.empty() || m_count < 0)
@@ -50,11 +102,11 @@ NamedCount::NamedCount(std::string name, int count) :
     }
 }
 
-GenerationSummary::GenerationSummary(std::string generator_name, std::string generator_version,
+GenerationSummary::GenerationSummary(StringId generator_name, StringId generator_version,
     std::vector<SourceReference> source_references, std::vector<NamedCount> target_counts,
     std::vector<NamedCount> source_counts) :
-    m_generator_name(std::move(generator_name)),
-    m_generator_version(std::move(generator_version)),
+    m_generator_name(generator_name),
+    m_generator_version(generator_version),
     m_source_references(std::move(source_references)),
     m_target_counts(std::move(target_counts)),
     m_source_counts(std::move(source_counts))
@@ -65,17 +117,17 @@ GenerationSummary::GenerationSummary(std::string generator_name, std::string gen
     }
 }
 
-SourceSummary::SourceSummary(std::string schema, int schema_version, int feature_count, int event_count) :
-    SourceSummary(std::move(schema), schema_version, feature_count, event_count, std::nullopt, std::nullopt,
-        std::nullopt, std::nullopt, std::nullopt, std::nullopt)
+SourceSummary::SourceSummary(StringId schema, int schema_version, int feature_count, int event_count) :
+    SourceSummary(schema, schema_version, feature_count, event_count, std::nullopt, std::nullopt, std::nullopt,
+        std::nullopt, std::nullopt, std::nullopt)
 {
 }
 
-SourceSummary::SourceSummary(std::string schema, int schema_version, int feature_count, int event_count,
+SourceSummary::SourceSummary(StringId schema, int schema_version, int feature_count, int event_count,
     std::optional<Ticks> first_frame, std::optional<Ticks> last_frame, std::optional<Time> first_time,
     std::optional<Time> last_time, std::optional<Duration> frame_offset,
     std::optional<GenerationSummary> generation_summary) :
-    m_schema(std::move(schema)),
+    m_schema(schema),
     m_schema_version(schema_version),
     m_feature_count(feature_count),
     m_event_count(event_count),
@@ -268,6 +320,7 @@ DocumentBuilder::DocumentBuilder(Document document, const StringTable &strings) 
     m_document(std::move(document)),
     m_strings(strings)
 {
+    validate_document_strings(m_document, m_strings);
 }
 
 void DocumentBuilder::add_lane(Lane lane)
@@ -383,14 +436,18 @@ Document combine_documents(const Document &document, const Document &addition)
     const Ticks frame_count = duration / frame_ticks + (duration % frame_ticks != 0 ? 1 : 0);
     const FrameGrid grid(document.timebase(), frame_count, original.frames_per_second_numerator(),
         original.frames_per_second_denominator(), start);
-    const Metadata metadata(document.metadata().title() + " + " + addition.metadata().title(),
-        document.metadata().description() + "\n" + addition.metadata().description());
+    StringTableBuilder strings(document.strings());
+    const std::string title = std::string(document.strings().lookup(document.metadata().title())) + " + " +
+        std::string(addition.strings().lookup(addition.metadata().title()));
+    const std::string description = std::string(document.strings().lookup(document.metadata().description())) + "\n" +
+        std::string(addition.strings().lookup(addition.metadata().description()));
+    const Metadata metadata(strings.intern(title), strings.intern(description));
     const int track_count = document.track_count() + addition.track_count();
     const int keyframe_count = document.keyframe_count() + addition.keyframe_count();
     Document combined = document.source_summary()
         ? Document(grid, *document.source_summary(), track_count, keyframe_count, metadata)
         : Document(grid, track_count, keyframe_count, metadata);
-    DocumentBuilder builder(std::move(combined), document.strings());
+    DocumentBuilder builder(std::move(combined), std::move(strings).build());
     std::set<std::string> lane_ids;
     for (const Lane &lane : document.lanes())
     {

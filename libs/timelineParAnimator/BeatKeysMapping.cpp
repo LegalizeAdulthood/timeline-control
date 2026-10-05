@@ -179,12 +179,14 @@ timeline::Document BeatKeysMapping::materialize() const
     }
     timeline::FrameGrid grid(source_grid.timebase(), frame_count, source_grid.frames_per_second_numerator(),
         source_grid.frames_per_second_denominator(), source_grid.offset());
-    const timeline::Metadata metadata(m_config_path.filename().string(), m_config_path.string());
+    timeline::StringTableBuilder strings(m_source_document.strings());
+    const timeline::Metadata metadata(
+        strings.intern(m_config_path.filename().string()), strings.intern(m_config_path.string()));
     timeline::Document document = m_source_document.source_summary()
         ? timeline::Document(
               grid, *m_source_document.source_summary(), timeline::size_cast(m_recipes), key_count, metadata)
         : timeline::Document(grid, timeline::size_cast(m_recipes), key_count, metadata);
-    timeline::DocumentBuilder builder(std::move(document), m_source_document.strings());
+    timeline::DocumentBuilder builder(std::move(document), std::move(strings).build());
     for (const timeline::Lane &lane : m_source_document.lanes())
     {
         builder.add_lane(lane);

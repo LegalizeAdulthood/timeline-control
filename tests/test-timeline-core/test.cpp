@@ -100,11 +100,14 @@ TEST(Document, rejectsInvalidTimebase)
 
 TEST(Document, preservesMetadata)
 {
-    const Metadata metadata("Demo", "Empty timeline");
-    const Document document(1000, metadata);
+    StringTableBuilder strings;
+    const Metadata metadata(strings.intern("Demo"), strings.intern("Empty timeline"));
+    DocumentBuilder builder(Document(1000, metadata), std::move(strings).build());
 
-    EXPECT_EQ("Demo", document.metadata().title());
-    EXPECT_EQ("Empty timeline", document.metadata().description());
+    const Document document = std::move(builder).build();
+
+    EXPECT_EQ("Demo", document.strings().lookup(document.metadata().title()));
+    EXPECT_EQ("Empty timeline", document.strings().lookup(document.metadata().description()));
 }
 
 TEST(Document, reportsZeroLanes)
@@ -130,13 +133,16 @@ TEST(Document, preservesFrameAndAuthoredContentSummary)
 
 TEST(Document, preservesSourceSummary)
 {
-    const SourceSummary summary("par-beatdown.tracker-timeline", 1, 3, 12, std::optional<Ticks>{2},
+    StringTableBuilder strings;
+    const SourceSummary summary(strings.intern("par-beatdown.tracker-timeline"), 1, 3, 12, std::optional<Ticks>{2},
         std::optional<Ticks>{8}, std::optional<Time>{Time::from_ticks(200)}, std::optional<Time>{Time::from_ticks(800)},
         std::optional<Duration>{Duration::from_ticks(25)}, std::nullopt);
-    const Document document(Timebase(1000), summary);
+    DocumentBuilder builder(Document(Timebase(1000), summary), std::move(strings).build());
+
+    const Document document = std::move(builder).build();
 
     ASSERT_TRUE(document.source_summary().has_value());
-    EXPECT_EQ("par-beatdown.tracker-timeline", document.source_summary()->schema());
+    EXPECT_EQ("par-beatdown.tracker-timeline", document.strings().lookup(document.source_summary()->schema()));
     EXPECT_EQ(1, document.source_summary()->schema_version());
     EXPECT_EQ(3, document.source_summary()->feature_count());
     EXPECT_EQ(12, document.source_summary()->event_count());
@@ -149,39 +155,46 @@ TEST(Document, preservesSourceSummary)
 
 TEST(Document, preservesGenerationSummary)
 {
-    const GenerationSummary generation("beat-keys", "0.1.0",
-        {SourceReference("base_animation", "base.json"), SourceReference("timeline", "music.json")},
-        {NamedCount("camera.zoom", 3)}, {NamedCount("music.rms", 3)});
-    const SourceSummary source("par-beatdown.beat-keys-overlay", 1, 0, 0, std::optional<Ticks>{0},
+    StringTableBuilder strings;
+    const GenerationSummary generation(strings.intern("beat-keys"), strings.intern("0.1.0"),
+        {SourceReference(strings.intern("base_animation"), strings.intern("base.json")),
+            SourceReference(strings.intern("timeline"), strings.intern("music.json"))},
+        {NamedCount(strings.intern("camera.zoom"), 3)}, {NamedCount(strings.intern("music.rms"), 3)});
+    const SourceSummary source(strings.intern("par-beatdown.beat-keys-overlay"), 1, 0, 0, std::optional<Ticks>{0},
         std::optional<Ticks>{4}, std::nullopt, std::nullopt, std::nullopt, generation);
-    const Document document(Timebase(120000), source, 1, 3);
+    DocumentBuilder builder(Document(Timebase(120000), source, 1, 3), std::move(strings).build());
+
+    const Document document = std::move(builder).build();
 
     EXPECT_EQ(1, document.track_count());
     EXPECT_EQ(3, document.keyframe_count());
     ASSERT_TRUE(document.source_summary()->generation_summary().has_value());
     const GenerationSummary &summary = *document.source_summary()->generation_summary();
-    EXPECT_EQ("beat-keys", summary.generator_name());
-    EXPECT_EQ("0.1.0", summary.generator_version());
+    EXPECT_EQ("beat-keys", document.strings().lookup(summary.generator_name()));
+    EXPECT_EQ("0.1.0", document.strings().lookup(summary.generator_version()));
     ASSERT_EQ(2U, summary.source_references().size());
-    EXPECT_EQ("base_animation", summary.source_references()[0].role());
-    EXPECT_EQ("base.json", summary.source_references()[0].location());
+    EXPECT_EQ("base_animation", document.strings().lookup(summary.source_references()[0].role()));
+    EXPECT_EQ("base.json", document.strings().lookup(summary.source_references()[0].location()));
     ASSERT_EQ(1U, summary.target_counts().size());
-    EXPECT_EQ("camera.zoom", summary.target_counts()[0].name());
+    EXPECT_EQ("camera.zoom", document.strings().lookup(summary.target_counts()[0].name()));
     EXPECT_EQ(3, summary.target_counts()[0].count());
     ASSERT_EQ(1U, summary.source_counts().size());
-    EXPECT_EQ("music.rms", summary.source_counts()[0].name());
+    EXPECT_EQ("music.rms", document.strings().lookup(summary.source_counts()[0].name()));
     EXPECT_EQ(3, summary.source_counts()[0].count());
 }
 
 TEST(Document, rejectsNegativeCounts)
 {
-    const SourceSummary source("schema", 1, 0, 0);
+    StringTableBuilder strings;
+    const StringId schema = strings.intern("schema");
+    const StringId items = strings.intern("items");
+    const SourceSummary source(schema, 1, 0, 0);
     const FrameGrid frame_grid(Timebase(1000), 1, 1, 1);
 
-    EXPECT_THROW(NamedCount("items", -1), std::invalid_argument);
-    EXPECT_THROW(SourceSummary("schema", -1, 0, 0), std::invalid_argument);
-    EXPECT_THROW(SourceSummary("schema", 1, -1, 0), std::invalid_argument);
-    EXPECT_THROW(SourceSummary("schema", 1, 0, -1), std::invalid_argument);
+    EXPECT_THROW(NamedCount(items, -1), std::invalid_argument);
+    EXPECT_THROW(SourceSummary(schema, -1, 0, 0), std::invalid_argument);
+    EXPECT_THROW(SourceSummary(schema, 1, -1, 0), std::invalid_argument);
+    EXPECT_THROW(SourceSummary(schema, 1, 0, -1), std::invalid_argument);
     EXPECT_THROW(Document(Timebase(1000), source, -1, 0), std::invalid_argument);
     EXPECT_THROW(Document(Timebase(1000), source, 0, -1), std::invalid_argument);
     EXPECT_THROW(Document(frame_grid, -1, 0), std::invalid_argument);
