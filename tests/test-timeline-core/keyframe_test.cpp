@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <limits>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -16,6 +17,16 @@
 #include <vector>
 
 using namespace timeline;
+
+namespace timeline
+{
+
+void PrintTo(KeyframeInterpolation value, std::ostream *stream)
+{
+    *stream << to_string(value);
+}
+
+} // namespace timeline
 
 namespace
 {
