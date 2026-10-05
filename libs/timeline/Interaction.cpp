@@ -3,10 +3,25 @@
 #include <timeline/Interaction.h>
 
 #include <algorithm>
+#include <locale>
+#include <sstream>
 #include <stdexcept>
 
 namespace timeline
 {
+namespace
+{
+
+void begin_line(std::ostringstream &text, bool &first)
+{
+    if (!first)
+    {
+        text << '\n';
+    }
+    first = false;
+}
+
+} // namespace
 
 TimeRange::TimeRange(Time start, Time end) :
     m_start(start),
@@ -23,6 +38,47 @@ Interaction::Interaction(const Document &document) :
     m_end(document.content_end()),
     m_frame_grid(document.frame_grid())
 {
+}
+
+std::string to_string(const Document &document, const Interaction &interaction)
+{
+    std::ostringstream text;
+    text.imbue(std::locale::classic());
+    bool first = true;
+    if (interaction.playhead())
+    {
+        begin_line(text, first);
+        text << "Playhead: " << document.timebase().seconds(*interaction.playhead()) << " seconds";
+    }
+    if (interaction.playhead_frame())
+    {
+        begin_line(text, first);
+        text << "Playhead frame: " << *interaction.playhead_frame();
+    }
+    if (interaction.selected_lane())
+    {
+        begin_line(text, first);
+        text << "Selected lane: " << document.strings().lookup(*interaction.selected_lane());
+    }
+    for (const DisplayId &id : interaction.selected_items())
+    {
+        begin_line(text, first);
+        text << "Selected item: " << document.strings().lookup(id.lane_id) << '/'
+             << document.strings().lookup(id.item_id);
+    }
+    if (interaction.selected_range())
+    {
+        begin_line(text, first);
+        text << "Selected range: " << document.timebase().seconds(interaction.selected_range()->start()) << " to "
+             << document.timebase().seconds(interaction.selected_range()->end()) << " seconds";
+    }
+    if (interaction.selected_frames())
+    {
+        begin_line(text, first);
+        text << "Selected frames: " << interaction.selected_frames()->first() << " to "
+             << interaction.selected_frames()->last();
+    }
+    return text.str();
 }
 
 std::optional<Time> Interaction::snap(Time time) const

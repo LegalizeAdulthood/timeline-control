@@ -2,13 +2,12 @@
 
 #include <Viewer.h>
 
-#include <timeline/size_cast.h>
+#include <timelineViewer/format_inspector.h>
+
 #include <timeline/Snapshot.h>
 
 #include <algorithm>
 #include <fstream>
-#include <locale>
-#include <sstream>
 #include <system_error>
 #include <utility>
 
@@ -85,167 +84,8 @@ bool Viewer::export_snapshot(const std::filesystem::path &path)
 }
 std::string Viewer::inspector_text() const
 {
-    std::ostringstream text;
-    text.imbue(std::locale::classic());
-    if (!m_control.document())
-    {
-        return "No frame inspection.";
-    }
-    const timeline::Document &document = *m_control.document();
-    if (m_control.hit_result())
-    {
-        const timeline::HitResult &hit = *m_control.hit_result();
-        text << "Hit lane: " << document.strings().lookup(hit.id.lane_id)
-             << "\nHit item: " << document.strings().lookup(hit.id.item_id) << '\n';
-    }
-    else
-    {
-        text << "Hit: none\n";
-    }
-    text << "\nTitle: " << document.strings().lookup(document.metadata().title())
-         << "\nValid: " << (document.is_valid() ? "yes" : "no")
-         << "\nTicks per second: " << document.timebase().ticks_per_second();
-    if (document.frame_grid())
-    {
-        const timeline::FrameGrid &grid = *document.frame_grid();
-        text << "\nFrames: " << grid.frame_count() << "\nFrame rate: " << grid.frames_per_second_numerator() << '/'
-             << grid.frames_per_second_denominator() << " fps";
-    }
-    if (document.source_summary())
-    {
-        const timeline::SourceSummary &source = *document.source_summary();
-        text << "\nSchema: " << document.strings().lookup(source.schema()) << " v" << source.schema_version()
-             << "\nFeatures: " << source.feature_count() << "\nEvents: " << source.event_count();
-        if (source.generation_summary())
-        {
-            const timeline::GenerationSummary &generation = *source.generation_summary();
-            text << "\nGenerator: " << document.strings().lookup(generation.generator_name()) << ' '
-                 << document.strings().lookup(generation.generator_version());
-            for (const timeline::SourceReference &input : generation.source_references())
-            {
-                text << "\nInput " << document.strings().lookup(input.role()) << ": "
-                     << document.strings().lookup(input.location());
-            }
-            for (const timeline::NamedCount &count : generation.target_counts())
-            {
-                text << "\nTarget " << document.strings().lookup(count.name()) << ": " << count.count();
-            }
-            for (const timeline::NamedCount &count : generation.source_counts())
-            {
-                text << "\nSource " << document.strings().lookup(count.name()) << ": " << count.count();
-            }
-        }
-        if (source.first_frame())
-        {
-            text << "\nFrame extent: " << *source.first_frame() << " to " << *source.last_frame();
-        }
-        if (source.first_time())
-        {
-            text << "\nTime extent: " << document.timebase().seconds(*source.first_time()) << " to "
-                 << document.timebase().seconds(*source.last_time()) << " seconds";
-        }
-        if (source.frame_offset())
-        {
-            text << "\nFrame offset: " << document.timebase().seconds(*source.frame_offset()) << " seconds";
-        }
-    }
-    text << "\nTracks: " << document.track_count() << "\nKeyframes: " << document.keyframe_count()
-         << "\nLanes: " << document.lane_count()
-         << "\nSource: " << document.strings().lookup(document.metadata().description()) << '\n';
-    for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
-    {
-        const timeline::Document &source = mapping.source_document();
-        text << "\nMusic input: " << source.strings().lookup(source.metadata().description())
-             << "\nOutput: " << mapping.output().mode << " / " << mapping.output().namespace_name
-             << "\nMapping recipes: " << timeline::size_cast(mapping.recipes());
-        for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())
-        {
-            text << '\n'
-                 << recipe.source << " -> " << recipe.target << " (" << recipe.operation << ")"
-                 << "\nScale: " << recipe.scale << " Offset: " << recipe.offset << " Decay: " << recipe.decay_seconds;
-            if (recipe.clamp)
-            {
-                text << "\nClamp: " << recipe.clamp->first << " to " << recipe.clamp->second;
-            }
-        }
-    }
-    if (m_control.interaction())
-    {
-        const timeline::Interaction &interaction = *m_control.interaction();
-        if (interaction.playhead())
-        {
-            text << "\n\nPlayhead: " << document.timebase().seconds(*interaction.playhead()) << " seconds";
-        }
-        if (interaction.playhead_frame())
-        {
-            text << "\nPlayhead frame: " << *interaction.playhead_frame();
-        }
-        if (interaction.selected_lane())
-        {
-            text << "\nSelected lane: " << document.strings().lookup(*interaction.selected_lane());
-        }
-        for (const timeline::DisplayId &id : interaction.selected_items())
-        {
-            text << "\nSelected item: " << document.strings().lookup(id.lane_id) << '/'
-                 << document.strings().lookup(id.item_id);
-        }
-        if (interaction.selected_range())
-        {
-            text << "\nSelected range: " << document.timebase().seconds(interaction.selected_range()->start()) << " to "
-                 << document.timebase().seconds(interaction.selected_range()->end()) << " seconds";
-        }
-        if (interaction.selected_frames())
-        {
-            text << "\nSelected frames: " << interaction.selected_frames()->first() << " to "
-                 << interaction.selected_frames()->last();
-        }
-    }
-    if (!m_control.inspection())
-    {
-        text << "\n\nNo frame inspection.";
-        return text.str();
-    }
-    const timeline::FrameInspection &inspection = *m_control.inspection();
-    text << "\n\nFrame: " << inspection.frame << "\nTime: " << document.timebase().seconds(inspection.time)
-         << " seconds";
-    for (const timeline::LaneInspection &lane : inspection.lanes)
-    {
-        text << "\n\n"
-             << document.strings().lookup(lane.label) << " [" << document.strings().lookup(lane.kind)
-             << "]\nSource items: " << lane.item_count;
-        if (lane.value)
-        {
-            text << "\nFrame value: " << *lane.value;
-        }
-        if (lane.output_value)
-        {
-            text << "\nParameter output: " << *lane.output_value;
-        }
-        for (const timeline::InspectionItem &item : lane.items)
-        {
-            text << "\nItem: " << document.strings().lookup(item.id) << " [" << document.strings().lookup(item.kind)
-                 << "] (" << timeline::to_string(item.role) << ')';
-            if (item.value)
-            {
-                text << " Value: " << *item.value;
-            }
-            for (const timeline::Attribute &attribute : item.attributes.values())
-            {
-                text << '\n'
-                     << document.strings().lookup(attribute.key()) << ": "
-                     << document.strings().lookup(attribute.value());
-            }
-            if (item.palette)
-            {
-                for (int index = 0; index < timeline::size_cast(*item.palette); ++index)
-                {
-                    const timeline::RgbColor &color = (*item.palette)[index];
-                    text << "\n[" << index << "] RGB " << color.red() << '/' << color.green() << '/' << color.blue();
-                }
-            }
-        }
-    }
-    return text.str();
+    return timeline_viewer::format_inspector(
+        m_control.document(), m_control.hit_result(), m_control.interaction(), m_control.inspection(), m_mappings);
 }
 Command draw_viewer(Viewer &viewer, bool dialog_pending)
 {

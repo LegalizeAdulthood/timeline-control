@@ -2,6 +2,10 @@
 
 #include <timeline/Query.h>
 
+#include <timeline/size_cast.h>
+
+#include <locale>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -45,6 +49,56 @@ std::string_view to_string(InspectionItemRole value)
         return "exact";
     }
     throw std::invalid_argument("unknown inspection item role");
+}
+
+std::string to_string(const Document &document, const FrameInspection &inspection)
+{
+    std::ostringstream text;
+    text.imbue(std::locale::classic());
+    text << "Frame: " << inspection.frame << "\nTime: " << document.timebase().seconds(inspection.time) << " seconds";
+    for (const LaneInspection &lane : inspection.lanes)
+    {
+        text << "\n\n"
+             << document.strings().lookup(lane.label) << " [" << document.strings().lookup(lane.kind)
+             << "]\nSource items: " << lane.item_count;
+        if (lane.value)
+        {
+            text << "\nFrame value: " << *lane.value;
+        }
+        if (lane.output_value)
+        {
+            text << "\nParameter output: " << *lane.output_value;
+        }
+        if (lane.items.empty())
+        {
+            text << "\nNo activity";
+        }
+        for (const InspectionItem &item : lane.items)
+        {
+            text << "\nItem: " << document.strings().lookup(item.id) << " [" << document.strings().lookup(item.kind)
+                 << "] (" << to_string(item.role) << ')';
+            if (item.value)
+            {
+                text << " Value: " << *item.value;
+            }
+            for (const Attribute &attribute : item.attributes.values())
+            {
+                text << '\n'
+                     << document.strings().lookup(attribute.key()) << ": "
+                     << document.strings().lookup(attribute.value());
+            }
+            if (item.palette)
+            {
+                text << "\nPalette: " << size_cast(*item.palette) << " colors";
+                for (int index = 0; index < size_cast(*item.palette); ++index)
+                {
+                    const RgbColor &color = (*item.palette)[index];
+                    text << "\n[" << index << "] RGB " << color.red() << '/' << color.green() << '/' << color.blue();
+                }
+            }
+        }
+    }
+    return text.str();
 }
 
 namespace

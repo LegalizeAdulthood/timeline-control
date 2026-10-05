@@ -2,7 +2,7 @@
 
 #include <wxTimeline/config.h>
 
-#include <timeline/size_cast.h>
+#include <timelineViewer/format_inspector.h>
 
 #include <timelineParAnimator/TimelineJson.h>
 
@@ -18,6 +18,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
@@ -34,78 +35,6 @@ constexpr const char VIEWER_TITLE[] = "Timeline Viewer";
 wxString to_wx_string(std::string_view value)
 {
     return wxString(value.data(), value.size());
-}
-
-wxString document_summary(const timeline::Document &document)
-{
-    wxString text;
-    const timeline::StringTable &strings = document.strings();
-    const auto draw_line = [&text](const wxString &line)
-    {
-        text += line + "\n";
-    };
-    wxString title = to_wx_string(strings.lookup(document.metadata().title()));
-    if (title.empty())
-    {
-        title = "Untitled timeline";
-    }
-
-    draw_line("Title: " + title);
-    draw_line(document.is_valid() ? "Valid: yes" : "Valid: no");
-    draw_line(
-        wxString::Format("Ticks per second: %lld", static_cast<long long>(document.timebase().ticks_per_second())));
-    if (document.frame_grid())
-    {
-        const timeline::FrameGrid &frame_grid = *document.frame_grid();
-        draw_line(wxString::Format("Frames: %lld", static_cast<long long>(frame_grid.frame_count())));
-        draw_line(wxString::Format("Frame rate: %lld/%lld fps",
-            static_cast<long long>(frame_grid.frames_per_second_numerator()),
-            static_cast<long long>(frame_grid.frames_per_second_denominator())));
-    }
-    if (document.source_summary())
-    {
-        const timeline::SourceSummary &summary = *document.source_summary();
-        draw_line("Schema: " + to_wx_string(strings.lookup(summary.schema())) +
-            wxString::Format(" v%d", summary.schema_version()));
-        draw_line(wxString::Format("Features: %d", summary.feature_count()));
-        draw_line(wxString::Format("Events: %d", summary.event_count()));
-        if (summary.generation_summary())
-        {
-            const timeline::GenerationSummary &generation = *summary.generation_summary();
-            draw_line("Generator: " + to_wx_string(strings.lookup(generation.generator_name())) + " " +
-                to_wx_string(strings.lookup(generation.generator_version())));
-            draw_line(wxString::Format("Inputs: %d", timeline::size_cast(generation.source_references())));
-            if (!generation.target_counts().empty())
-            {
-                draw_line(
-                    wxString::Format("Generated target groups: %d", timeline::size_cast(generation.target_counts())));
-            }
-            if (!generation.source_counts().empty())
-            {
-                draw_line(wxString::Format("Music source groups: %d", timeline::size_cast(generation.source_counts())));
-            }
-        }
-        if (summary.first_frame())
-        {
-            draw_line(wxString::Format("Frame extent: %lld to %lld", static_cast<long long>(*summary.first_frame()),
-                static_cast<long long>(*summary.last_frame())));
-        }
-        if (summary.first_time())
-        {
-            draw_line(wxString::Format("Time extent: %.6f to %.6f seconds",
-                document.timebase().seconds(*summary.first_time()), document.timebase().seconds(*summary.last_time())));
-        }
-        if (summary.frame_offset())
-        {
-            draw_line(
-                wxString::Format("Frame offset: %.6f seconds", document.timebase().seconds(*summary.frame_offset())));
-        }
-    }
-    draw_line(wxString::Format("Tracks: %d", document.track_count()));
-    draw_line(wxString::Format("Keyframes: %d", document.keyframe_count()));
-    draw_line(wxString::Format("Lanes: %d", document.lane_count()));
-    draw_line("Source: " + to_wx_string(strings.lookup(document.metadata().description())));
-    return text;
 }
 
 } // namespace
@@ -218,136 +147,14 @@ TimelineViewerFrame::TimelineViewerFrame() :
 
 void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 {
-    const std::optional<timeline::Document> &document = m_timeline_control->document();
-    const std::optional<timeline::HitResult> &hit = m_timeline_control->hit_result();
-    wxString text("Hit: none\n");
-    if (hit)
+    const std::string text =
+        timeline_viewer::format_inspector(m_timeline_control->document(), m_timeline_control->hit_result(),
+            m_timeline_control->interaction(), m_timeline_control->inspection(), m_mappings);
+    m_inspector->SetValue(wxString(text.data(), text.size()));
+    if (m_timeline_control->inspection())
     {
-        text = "Hit: " + to_wx_string(timeline::to_string(hit->style)) + "\n";
-        if (!hit->id.lane_id.empty() && document)
-        {
-            text += "Lane: " + to_wx_string(document->strings().lookup(hit->id.lane_id)) + "\n";
-        }
-        if (!hit->id.item_id.empty())
-        {
-            text += "Item: " + to_wx_string(document->strings().lookup(hit->id.item_id)) + "\n";
-        }
+        SetStatusText(wxString::Format("Frame %lld", static_cast<long long>(m_timeline_control->inspection()->frame)));
     }
-    if (document)
-    {
-        text += "\n" + document_summary(*document);
-    }
-    for (const timeline_par_animator::BeatKeysMapping &mapping : m_mappings)
-    {
-        const timeline::Document &source = mapping.source_document();
-        text += "\nMusic input: " + to_wx_string(source.strings().lookup(source.metadata().description())) + "\n";
-        text += "Output: " + mapping.output().mode + " / " + mapping.output().namespace_name + "\n";
-        text += wxString::Format("Mapping recipes: %d\n", timeline::size_cast(mapping.recipes()));
-        for (const timeline_par_animator::MappingRecipe &recipe : mapping.recipes())
-        {
-            text += recipe.source + " -> " + recipe.target + " (" + recipe.operation + ")\n";
-            text += wxString::Format(
-                "Scale: %g  Offset: %g  Decay: %g seconds\n", recipe.scale, recipe.offset, recipe.decay_seconds);
-            if (recipe.clamp)
-            {
-                text += wxString::Format("Clamp: %g to %g\n", recipe.clamp->first, recipe.clamp->second);
-            }
-        }
-    }
-    const std::optional<timeline::Interaction> &interaction = m_timeline_control->interaction();
-    if (interaction)
-    {
-        if (interaction->playhead())
-        {
-            text += wxString::Format("\nPlayhead: %.6f seconds\n",
-                m_timeline_control->document()->timebase().seconds(*interaction->playhead()));
-        }
-        if (interaction->playhead_frame())
-        {
-            text += wxString::Format("Playhead frame: %lld\n", static_cast<long long>(*interaction->playhead_frame()));
-        }
-        if (interaction->selected_lane())
-        {
-            text += "Selected lane: " + to_wx_string(document->strings().lookup(*interaction->selected_lane())) + "\n";
-        }
-        for (const timeline::DisplayId &id : interaction->selected_items())
-        {
-            text += "Selected item: " + to_wx_string(document->strings().lookup(id.lane_id)) + "/" +
-                to_wx_string(document->strings().lookup(id.item_id)) + "\n";
-        }
-        if (interaction->selected_range())
-        {
-            const timeline::TimeRange &range = *interaction->selected_range();
-            const timeline::Timebase &timebase = m_timeline_control->document()->timebase();
-            text += wxString::Format("Selected range: %.6f to %.6f seconds\n", timebase.seconds(range.start()),
-                timebase.seconds(range.end()));
-        }
-        if (interaction->selected_frames())
-        {
-            const timeline::FrameRange frames = *interaction->selected_frames();
-            text += wxString::Format("Selected frames: %lld to %lld\n", static_cast<long long>(frames.first()),
-                static_cast<long long>(frames.last()));
-        }
-    }
-    const std::optional<timeline::FrameInspection> &inspection = m_timeline_control->inspection();
-    if (!inspection)
-    {
-        m_inspector->SetValue(text + "\nNo frame inspection.");
-        return;
-    }
-
-    text += wxString::Format("\nFrame: %lld\nTime: %.6f seconds\n", static_cast<long long>(inspection->frame),
-        m_timeline_control->document()->timebase().seconds(inspection->time));
-    for (const timeline::LaneInspection &lane : inspection->lanes)
-    {
-        text += "\n" + to_wx_string(document->strings().lookup(lane.label)) + " [" +
-            to_wx_string(document->strings().lookup(lane.kind)) + "]";
-        text += wxString::Format("\n  Source items: %d", lane.item_count);
-        if (lane.value)
-        {
-            text += wxString::Format("\n  Frame value: %.6f", *lane.value);
-        }
-        if (lane.output_value)
-        {
-            text += wxString::Format("\n  Parameter output: %.6f", *lane.output_value);
-        }
-        if (lane.items.empty())
-        {
-            text += "\n  No activity";
-            continue;
-        }
-        for (const timeline::InspectionItem &item : lane.items)
-        {
-            text += "\n  " + to_wx_string(timeline::to_string(item.type)) + " " +
-                to_wx_string(document->strings().lookup(item.id)) + " (" +
-                to_wx_string(timeline::to_string(item.role)) + ")";
-            if (item.value)
-            {
-                text += wxString::Format(": %.6f", *item.value);
-            }
-            for (const timeline::Attribute &attribute : item.attributes.values())
-            {
-                const std::string_view name = document->strings().lookup(attribute.key());
-                const std::string_view value = document->strings().lookup(attribute.value());
-                if (!value.empty())
-                {
-                    text += "\n    " + to_wx_string(name) + ": " + to_wx_string(value);
-                }
-            }
-            if (item.palette)
-            {
-                text += wxString::Format("\n    Palette: %d colors", timeline::size_cast(*item.palette));
-                for (int index = 0; index < timeline::size_cast(*item.palette); ++index)
-                {
-                    const timeline::RgbColor &color = (*item.palette)[index];
-                    text +=
-                        wxString::Format("\n      [%d] RGB %d/%d/%d", index, color.red(), color.green(), color.blue());
-                }
-            }
-        }
-    }
-    m_inspector->SetValue(text);
-    SetStatusText(wxString::Format("Frame %lld", static_cast<long long>(inspection->frame)));
 }
 
 void TimelineViewerFrame::on_open(wxCommandEvent &)

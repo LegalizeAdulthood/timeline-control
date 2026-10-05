@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <stdexcept>
+#include <string>
 
 using namespace timeline;
 
@@ -108,6 +109,20 @@ TEST(Document, preservesMetadata)
 
     EXPECT_EQ("Demo", document.strings().lookup(document.metadata().title()));
     EXPECT_EQ("Empty timeline", document.strings().lookup(document.metadata().description()));
+}
+
+TEST(Document, formatsItsCanonicalText)
+{
+    StringTableBuilder strings;
+    const Metadata metadata(strings.intern("Demo"), strings.intern("Test source"));
+    DocumentBuilder builder(Document(FrameGrid(Timebase(100), 3, 10, 1), 2, 4, metadata), std::move(strings).build());
+    const Document document = std::move(builder).build();
+
+    const std::string text = to_string(document);
+
+    EXPECT_EQ("Title: Demo\nValid: yes\nTicks per second: 100\nFrames: 3\nFrame rate: 10/1 fps\nTracks: "
+              "2\nKeyframes: 4\nLanes: 0\nSource: Test source",
+        text);
 }
 
 TEST(Document, reportsZeroLanes)

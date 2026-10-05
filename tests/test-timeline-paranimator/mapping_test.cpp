@@ -122,6 +122,20 @@ TEST(BeatKeysMapping, retainsRecipesAndRebuildsDisposableDisplayData)
     EXPECT_NE(std::string::npos, timeline::render_snapshot(layout.display_list()).find("RMS"));
 }
 
+TEST(BeatKeysMapping, formatsItsSourceOutputAndRecipes)
+{
+    const JsonImportResult result = import_timeline_json(fixture("rms.beat-keys.json"));
+    ASSERT_TRUE(result.mapping);
+
+    const std::string text = to_string(*result.mapping);
+
+    EXPECT_NE(std::string::npos, text.find("Music input:"));
+    EXPECT_NE(std::string::npos, text.find("Output: overlay / music"));
+    EXPECT_NE(std::string::npos, text.find("Mapping recipes: 3"));
+    EXPECT_NE(std::string::npos, text.find("music.rms -> camera.zoom (replace)"));
+    EXPECT_NE(std::string::npos, text.find("Clamp: 0 to 0.875"));
+}
+
 TEST(BeatKeysMapping, rejectsUnknownBindingsAndMissingRelativeInputs)
 {
     for (const std::string &name : {"invalid-binding.beat-keys.json", "missing-input.beat-keys.json"})

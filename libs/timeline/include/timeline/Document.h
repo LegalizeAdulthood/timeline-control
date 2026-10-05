@@ -5,6 +5,7 @@
 #include <timeline/StringTable.h>
 
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -313,6 +314,9 @@ private:
     Document m_document;
     StringTableBuilder m_strings;
 };
+
+/// Formats document metadata, source provenance, and content counts.
+std::string to_string(const Document &document);
 
 /// Combines compatible framed documents without changing source item times.
 /// Addition lane IDs are made unique; item IDs remain local to their lanes.

@@ -2,7 +2,7 @@
 
 add_library(imgui-viewer-core STATIC Viewer.h Viewer.cpp)
 target_include_directories(imgui-viewer-core PUBLIC .)
-target_link_libraries(imgui-viewer-core PUBLIC timeline-imgui timeline-paranimator)
+target_link_libraries(imgui-viewer-core PUBLIC timeline-imgui timeline-paranimator timeline-viewer-formatter)
 target_folder(imgui-viewer-core "Libraries")
 
 find_package(SDL3 CONFIG REQUIRED)

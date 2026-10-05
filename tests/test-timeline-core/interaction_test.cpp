@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <stdexcept>
+#include <string>
 
 using namespace timeline;
 
@@ -45,6 +46,21 @@ TEST(Interaction, snapsPlayheadAndClampsFrameMovement)
     EXPECT_EQ(at(50), *interaction.playhead());
     interaction.move_playhead(at(1000));
     EXPECT_EQ(at(140), *interaction.playhead());
+}
+
+TEST(Interaction, formatsPopulatedStateWithDocumentContext)
+{
+    const Document document = framed_document();
+    Interaction interaction(document);
+    interaction.move_playhead_frame(1);
+    interaction.select_range(at(60), at(80));
+
+    const std::string text = to_string(document, interaction);
+
+    EXPECT_NE(std::string::npos, text.find("Playhead: 0.6 seconds"));
+    EXPECT_NE(std::string::npos, text.find("Playhead frame: 1"));
+    EXPECT_NE(std::string::npos, text.find("Selected range: 0.6 to 0.8 seconds"));
+    EXPECT_NE(std::string::npos, text.find("Selected frames: 1 to 3"));
 }
 
 TEST(Interaction, handlesFramelessAndEmptyDocuments)

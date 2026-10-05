@@ -89,4 +89,7 @@ private:
     std::filesystem::path m_config_path;
 };
 
+/// Formats a mapping's source, output policy, and recipes.
+std::string to_string(const BeatKeysMapping &mapping);
+
 } // namespace timeline_par_animator

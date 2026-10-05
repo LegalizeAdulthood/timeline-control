@@ -6,6 +6,7 @@
 #include <timeline/Document.h>
 
 #include <optional>
+#include <string>
 
 namespace timeline
 {
@@ -148,6 +149,9 @@ struct HitResult
     StyleRole style;
     DisplayId id;
 };
+
+/// Formats a hit using text resolved through its document.
+std::string to_string(const Document &document, const HitResult &hit);
 
 inline bool operator==(const HitResult &lhs, const HitResult &rhs)
 {

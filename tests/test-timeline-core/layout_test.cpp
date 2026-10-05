@@ -6,10 +6,25 @@
 #include <gtest/gtest.h>
 
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <variant>
 
 using namespace timeline;
+
+TEST(HitResult, formatsResolvedDocumentText)
+{
+    StringTableBuilder strings;
+    const StringId lane_id = strings.intern("music");
+    const StringId item_id = strings.intern("beat-1");
+    DocumentBuilder builder(Document(100), std::move(strings).build());
+    const Document document = std::move(builder).build();
+    const HitResult hit{StyleRole::INSTANT_MARKER, DisplayId{lane_id, item_id}};
+
+    const std::string text = to_string(document, hit);
+
+    EXPECT_EQ("Hit lane: music\nHit item: beat-1", text);
+}
 
 TEST(Layout, samplesGeometricKeyframeSegmentsAtGridBoundaries)
 {

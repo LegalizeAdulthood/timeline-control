@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 
@@ -355,6 +356,14 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
 }
 
 } // namespace
+
+std::string to_string(const Document &document, const HitResult &hit)
+{
+    std::ostringstream text;
+    text << "Hit lane: " << document.strings().lookup(hit.id.lane_id)
+         << "\nHit item: " << document.strings().lookup(hit.id.item_id);
+    return text.str();
+}
 
 Viewport::Viewport(int width, int height, Time start, Time end) :
     Viewport(width, height, start, end, 0)

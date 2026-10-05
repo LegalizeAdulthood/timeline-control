@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <locale>
 #include <map>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 
@@ -117,6 +119,28 @@ std::map<timeline::Ticks, double> recipe_values(
 }
 
 } // namespace
+
+std::string to_string(const BeatKeysMapping &mapping)
+{
+    std::ostringstream text;
+    text.imbue(std::locale::classic());
+    const timeline::Document &source = mapping.source_document();
+    text << "Music input: " << source.strings().lookup(source.metadata().description())
+         << "\nOutput: " << mapping.output().mode << " / " << mapping.output().namespace_name
+         << "\nMapping recipes: " << timeline::size_cast(mapping.recipes());
+    for (const MappingRecipe &recipe : mapping.recipes())
+    {
+        text << '\n'
+             << recipe.source << " -> " << recipe.target << " (" << recipe.operation << ')'
+             << "\nScale: " << recipe.scale << " Offset: " << recipe.offset << " Decay: " << recipe.decay_seconds
+             << " seconds";
+        if (recipe.clamp)
+        {
+            text << "\nClamp: " << recipe.clamp->first << " to " << recipe.clamp->second;
+        }
+    }
+    return text.str();
+}
 
 BeatKeysMapping::BeatKeysMapping(timeline::Document source_document, std::vector<MappingRecipe> recipes,
     std::vector<MappingInput> inputs, MappingOutput output, std::filesystem::path config_path) :

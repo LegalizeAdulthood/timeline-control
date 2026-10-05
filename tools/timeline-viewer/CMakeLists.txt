@@ -10,6 +10,7 @@ add_executable(wx-timeline-viewer WIN32 main.cpp)
 target_link_libraries(wx-timeline-viewer
     PRIVATE
         timeline-paranimator
+        timeline-viewer-formatter
         timeline-wx
 )
 configure_timeline_viewer(wx-timeline-viewer OFF)
@@ -20,6 +21,7 @@ if(TIMELINE_CONTROL_WITH_CAIRO)
     target_link_libraries(cairo-timeline-viewer
         PRIVATE
             timeline-paranimator
+            timeline-viewer-formatter
             timeline-wx
     )
     configure_timeline_viewer(cairo-timeline-viewer ON)

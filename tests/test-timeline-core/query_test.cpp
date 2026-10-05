@@ -90,6 +90,20 @@ TEST(InspectionItemRole, convertsEveryValueToString)
     EXPECT_EQ("exact", to_string(InspectionItemRole::EXACT));
 }
 
+TEST(FrameInspection, formatsResolvedItemsAndTypedValues)
+{
+    const Document document = mixed_document();
+    const std::optional<FrameInspection> inspection = inspect_frame(document, 1);
+    ASSERT_TRUE(inspection);
+
+    const std::string text = to_string(document, *inspection);
+
+    EXPECT_NE(std::string::npos, text.find("Frame: 1\nTime: 1 seconds"));
+    EXPECT_NE(std::string::npos, text.find("Events [events]\nSource items: 2"));
+    EXPECT_NE(std::string::npos, text.find("Item: beat-10 [beat] (active)"));
+    EXPECT_NE(std::string::npos, text.find("Frame value: 1"));
+}
+
 TEST(Query, inspectsMixedDocumentAtFrame)
 {
     const Document document = mixed_document();

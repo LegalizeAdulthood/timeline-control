@@ -4,6 +4,8 @@
 
 #include <timeline/Layout.h>
 
+#include <string>
+
 namespace timeline
 {
 
@@ -90,5 +92,8 @@ private:
     std::optional<TimeRange> m_selected_range;
     std::optional<Time> m_range_anchor;
 };
+
+/// Formats populated interaction state using text resolved through its document.
+std::string to_string(const Document &document, const Interaction &interaction);
 
 } // namespace timeline

@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <limits>
+#include <locale>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -75,6 +77,63 @@ void validate_document_strings(const Document &document, const StringTableBuilde
 }
 
 } // namespace
+
+std::string to_string(const Document &document)
+{
+    std::ostringstream text;
+    text.imbue(std::locale::classic());
+    text << "Title: " << document.strings().lookup(document.metadata().title())
+         << "\nValid: " << (document.is_valid() ? "yes" : "no")
+         << "\nTicks per second: " << document.timebase().ticks_per_second();
+    if (document.frame_grid())
+    {
+        const FrameGrid &grid = *document.frame_grid();
+        text << "\nFrames: " << grid.frame_count() << "\nFrame rate: " << grid.frames_per_second_numerator() << '/'
+             << grid.frames_per_second_denominator() << " fps";
+    }
+    if (document.source_summary())
+    {
+        const SourceSummary &source = *document.source_summary();
+        text << "\nSchema: " << document.strings().lookup(source.schema()) << " v" << source.schema_version()
+             << "\nFeatures: " << source.feature_count() << "\nEvents: " << source.event_count();
+        if (source.generation_summary())
+        {
+            const GenerationSummary &generation = *source.generation_summary();
+            text << "\nGenerator: " << document.strings().lookup(generation.generator_name()) << ' '
+                 << document.strings().lookup(generation.generator_version());
+            for (const SourceReference &input : generation.source_references())
+            {
+                text << "\nInput " << document.strings().lookup(input.role()) << ": "
+                     << document.strings().lookup(input.location());
+            }
+            for (const NamedCount &count : generation.target_counts())
+            {
+                text << "\nTarget " << document.strings().lookup(count.name()) << ": " << count.count();
+            }
+            for (const NamedCount &count : generation.source_counts())
+            {
+                text << "\nSource " << document.strings().lookup(count.name()) << ": " << count.count();
+            }
+        }
+        if (source.first_frame())
+        {
+            text << "\nFrame extent: " << *source.first_frame() << " to " << *source.last_frame();
+        }
+        if (source.first_time())
+        {
+            text << "\nTime extent: " << document.timebase().seconds(*source.first_time()) << " to "
+                 << document.timebase().seconds(*source.last_time()) << " seconds";
+        }
+        if (source.frame_offset())
+        {
+            text << "\nFrame offset: " << document.timebase().seconds(*source.frame_offset()) << " seconds";
+        }
+    }
+    text << "\nTracks: " << document.track_count() << "\nKeyframes: " << document.keyframe_count()
+         << "\nLanes: " << document.lane_count()
+         << "\nSource: " << document.strings().lookup(document.metadata().description());
+    return text.str();
+}
 
 Metadata::Metadata(StringId title, StringId description) :
     m_title(title),

@@ -87,6 +87,9 @@ struct FrameInspection
     std::vector<LaneInspection> lanes;
 };
 
+/// Formats a frame inspection using text resolved through its document.
+std::string to_string(const Document &document, const FrameInspection &inspection);
+
 /// Read-only snapshot of one inclusive time range across every document lane.
 ///
 /// Matching items retain their stable IDs and are grouped by lane.
