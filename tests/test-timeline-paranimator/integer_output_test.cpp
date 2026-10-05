@@ -6,37 +6,272 @@
 
 #include <timeline/Layout.h>
 #include <timeline/Query.h>
+#include <timeline/size_cast.h>
 
 #include <gtest/gtest.h>
 
-#include <array>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iterator>
+#include <optional>
+#include <ostream>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <variant>
+#include <vector>
 
 using namespace timeline_par_animator;
 
 namespace
 {
 
+/// One integer-valued lane and its expected midpoint values.
+///
+struct RoundedLaneCase
+{
+    std::string name;
+    int lane;
+    std::string parameter;
+    int component;
+    double fractional;
+    double rounded;
+};
+
+/// One tick adjacent to a positive or negative halfway boundary.
+///
+struct RoundingTickCase
+{
+    std::string name;
+    int lane;
+    timeline::Ticks adjustment;
+    double expected;
+};
+
+/// One integer-output extrapolation or interpolation policy.
+///
+struct PolicyCase
+{
+    std::string name;
+    int lane;
+    std::string parameter;
+};
+
+/// One fractional policy value and its rounded output.
+///
+struct PolicyRoundingCase
+{
+    std::string name;
+    int lane;
+    double fractional;
+    double rounded;
+};
+
+/// One output sampled at a specific fixture frame.
+///
+struct FrameOutputCase
+{
+    std::string name;
+    int lane;
+    int frame;
+    std::optional<double> expected;
+};
+
+/// Relative position of a source-computed value around a halfway boundary.
+///
+enum class HalfwaySide
+{
+    BELOW,
+    ABOVE
+};
+
+/// One source arithmetic boundary and its rounded output.
+///
+struct ArithmeticBoundaryCase
+{
+    std::string name;
+    int lane;
+    std::string parameter;
+    HalfwaySide side;
+    double halfway;
+    double rounded;
+};
+
+/// One held enum value sampled at a source frame.
+///
+struct EnumFrameCase
+{
+    std::string name;
+    int frame;
+    std::string value;
+};
+
+/// One independently diagnosed malformed integer-output track.
+///
+struct DiagnosticCase
+{
+    std::string name;
+    int index;
+    std::string message;
+};
+
+const std::vector<RoundedLaneCase> ROUNDED_LANE_CASES{
+    {"Maxiter", 0, "maxiter", 0, 100.5, 101.0},
+    {"Negative", 1, "negative", 0, -2.5, -3.0},
+    {"Choice", 2, "choice", 0, -2.5, -3.0},
+    {"TupleFirst", 3, "tuple", 0, 100.5, 101.0},
+    {"TupleSecond", 4, "tuple", 1, -2.5, -3.0},
+};
+
+const std::vector<RoundingTickCase> ROUNDING_TICK_CASES{
+    {"PositiveBeforeHalf", 0, -1, 100.0},
+    {"PositiveAfterHalf", 0, 1, 101.0},
+    {"NegativeBeforeHalf", 1, -1, -3.0},
+    {"NegativeAfterHalf", 1, 1, -2.0},
+};
+
+const std::vector<PolicyCase> POLICY_CASES{
+    {"Base", 0, "base"},
+    {"Omit", 1, "omit"},
+    {"Cycle", 2, "cycle"},
+    {"PingPong", 3, "ping"},
+    {"Hold", 4, "hold"},
+    {"Step", 5, "step"},
+};
+
+const std::vector<PolicyRoundingCase> POLICY_ROUNDING_CASES{
+    {"Cycle", 2, 101.5, 102.0},
+    {"PingPong", 3, -1.5, -2.0},
+};
+
+const std::vector<FrameOutputCase> GAP_CASES{
+    {"BeforeFirstKey", 1, 0, std::nullopt},
+    {"AfterLastKey", 1, 6, std::nullopt},
+};
+
+const std::vector<FrameOutputCase> BASE_CASES{
+    {"BeforeFirstKey", 0, 0, 678.0},
+    {"AfterLastKey", 0, 6, 678.0},
+};
+
+const std::vector<FrameOutputCase> EXTRAPOLATED_CASES{
+    {"CycleBeforeFirstKey", 2, 0, 103.0},
+    {"CycleAfterLastKey", 2, 6, 100.0},
+    {"PingPongBeforeFirstKey", 3, 0, -2.0},
+    {"PingPongAfterLastKey", 3, 6, -1.0},
+};
+
+const std::vector<FrameOutputCase> HELD_CASES{
+    {"HoldBetweenKeys", 4, 3, -3.0},
+    {"HoldAfterLastKey", 4, 8, 0.0},
+    {"StepBetweenKeys", 5, 3, 100.0},
+    {"StepAfterLastKey", 5, 8, 103.0},
+};
+
+const std::vector<ArithmeticBoundaryCase> ARITHMETIC_BOUNDARY_CASES{
+    {"Positive", 0, "choice", HalfwaySide::BELOW, 7.5, 7.0},
+    {"Negative", 1, "negative", HalfwaySide::ABOVE, -7.5, -7.0},
+};
+
+const std::vector<EnumFrameCase> ENUM_FRAME_CASES{
+    {"FrameOne", 0, "a"},
+    {"FrameTwo", 1, "a"},
+    {"FrameThree", 2, "a"},
+    {"FrameFour", 3, "a"},
+    {"FrameFive", 4, "a"},
+    {"FrameSix", 5, "a"},
+    {"FrameSeven", 6, "b"},
+};
+
+const std::vector<DiagnosticCase> DIAGNOSTIC_CASES{
+    {"IntegralScalar", 0, "integral"},
+    {"IntegerRange", 1, "int range"},
+    {"CurvePolicy", 2, "curves"},
+    {"IntegralComponent", 3, "integral"},
+    {"TupleArity", 4, "arity"},
+    {"CatalogBounds", 5, "bounds"},
+};
+
+void PrintTo(const RoundedLaneCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const RoundingTickCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const PolicyCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const PolicyRoundingCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const FrameOutputCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const ArithmeticBoundaryCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const EnumFrameCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+void PrintTo(const DiagnosticCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+template <typename Case>
+std::string case_name(const testing::TestParamInfo<Case> &information)
+{
+    return information.param.name;
+}
+
+std::string read_text(const std::filesystem::path &path)
+{
+    std::ifstream input(path);
+    if (!input)
+    {
+        throw std::runtime_error("cannot read test fixture");
+    }
+    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
 std::string golden_entry(const std::string &golden, int frame)
 {
     std::ostringstream name_builder;
     name_builder << "frame-" << std::setfill('0') << std::setw(4) << frame + 1 << " {";
     const std::string name = name_builder.str();
-    const std::size_t start = golden.find(name);
+    const std::string::size_type start = golden.find(name);
     if (start == std::string::npos)
     {
-        return {};
+        throw std::runtime_error("golden frame entry is missing");
     }
-    return golden.substr(start, golden.find('}', start) - start);
+    const std::string::size_type end = golden.find('}', start);
+    if (end == std::string::npos)
+    {
+        throw std::runtime_error("golden frame entry is incomplete");
+    }
+    return golden.substr(start, end - start);
 }
 
-std::optional<double> golden_value(const std::string &entry, const std::string &parameter, int component)
+std::optional<double> golden_value(const std::string &entry, std::string_view parameter, int component)
 {
-    const std::string name = "\n    " + parameter + "=";
-    std::size_t start = entry.find(name);
+    const std::string name = "\n    " + std::string(parameter) + "=";
+    std::string::size_type start = entry.find(name);
     if (start == std::string::npos)
     {
         return std::nullopt;
@@ -44,85 +279,115 @@ std::optional<double> golden_value(const std::string &entry, const std::string &
     start += name.size();
     for (int index = 0; index < component; ++index)
     {
-        start = entry.find('/', start) + 1;
+        const std::string::size_type separator = entry.find('/', start);
+        if (separator == std::string::npos)
+        {
+            throw std::runtime_error("golden tuple component is missing");
+        }
+        start = separator + 1;
     }
     return std::stod(entry.substr(start));
 }
 
-} // namespace
-
-TEST(IntegerOutput, retainsFractionalCurveAndDeclaresOutputRounding)
+JsonImportResult import_clean_result(const std::filesystem::path &path)
 {
-    const JsonImportResult imported = import_timeline_json("fixtures/integer-output.json");
-    ASSERT_TRUE(imported.succeeded());
-    ASSERT_TRUE(imported.diagnostics.empty());
-    ASSERT_EQ(7, imported.document->lane_count());
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(*imported.document, 1);
-    EXPECT_DOUBLE_EQ(100.5, *inspection.lanes[0].value);
-    EXPECT_DOUBLE_EQ(-2.5, *inspection.lanes[1].value);
-    EXPECT_DOUBLE_EQ(-2.5, *inspection.lanes[2].value);
-    EXPECT_DOUBLE_EQ(100.5, *inspection.lanes[3].value);
-    EXPECT_DOUBLE_EQ(-2.5, *inspection.lanes[4].value);
-    EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[5].value);
-    for (int lane = 0; lane < 5; ++lane)
+    JsonImportResult result = import_timeline_json(path);
+    if (!result.succeeded() || !result.diagnostics.empty())
     {
-        EXPECT_EQ(
-            1, resolved_attributes(imported, inspection.lanes[lane].items[0].attributes).count("output-rounding"));
-        EXPECT_EQ("nearest-half-away-from-zero",
-            resolved_attributes(imported, inspection.lanes[lane].items[0].attributes).at("output-rounding"));
+        throw std::runtime_error("test fixture failed to import cleanly");
     }
-    EXPECT_DOUBLE_EQ(101, *inspection.lanes[0].output_value);
-    EXPECT_DOUBLE_EQ(-3, *inspection.lanes[1].output_value);
-    EXPECT_DOUBLE_EQ(-3, *inspection.lanes[2].output_value);
-    EXPECT_DOUBLE_EQ(101, *inspection.lanes[3].output_value);
-    EXPECT_DOUBLE_EQ(-3, *inspection.lanes[4].output_value);
-    EXPECT_FALSE(inspection.lanes[5].output_value);
-    EXPECT_FALSE(inspection.lanes[6].output_value);
-    const timeline::Time half = imported.document->frame_grid()->frame_start(1);
-    const timeline::Lane &positive = imported.document->lanes()[0];
-    const timeline::Lane &negative = imported.document->lanes()[1];
-    EXPECT_DOUBLE_EQ(100, *positive.evaluate_keyframe_output(timeline::Time::from_ticks(half.ticks() - 1)));
-    EXPECT_DOUBLE_EQ(101, *positive.evaluate_keyframe_output(timeline::Time::from_ticks(half.ticks() + 1)));
-    EXPECT_DOUBLE_EQ(-3, *negative.evaluate_keyframe_output(timeline::Time::from_ticks(half.ticks() - 1)));
-    EXPECT_DOUBLE_EQ(-2, *negative.evaluate_keyframe_output(timeline::Time::from_ticks(half.ticks() + 1)));
-    EXPECT_FALSE(import_timeline_json("fixtures/integer-output-invalid.json").succeeded());
+    return result;
 }
 
-TEST(IntegerOutput, matchesSourceGoldenAndSurvivesCopyingComparisonAndLayout)
+timeline::Document import_clean_document(const std::filesystem::path &path)
 {
-    JsonImportResult imported = import_timeline_json("fixtures/integer-output.json");
-    ASSERT_TRUE(imported.succeeded());
-    const timeline::Document document = *imported.document;
-    imported.document.reset();
-    std::ifstream input("fixtures/gold-integer-output.par");
-    ASSERT_TRUE(input);
-    const std::string golden{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-    const std::array<std::string, 5> parameters{"maxiter", "negative", "choice", "tuple", "tuple"};
+    return *import_clean_result(path).document;
+}
+
+timeline::Document import_partial_document(const std::filesystem::path &path)
+{
+    const JsonImportResult result = import_timeline_json(path);
+    if (!result.succeeded())
+    {
+        throw std::runtime_error("partial test fixture did not produce a document");
+    }
+    return *result.document;
+}
+
+timeline::FrameInspection inspect_at(const timeline::Document &document, int frame)
+{
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+    if (!inspection)
+    {
+        throw std::out_of_range("test frame is outside the document");
+    }
+    return *inspection;
+}
+
+std::vector<std::optional<double>> golden_values(
+    const std::filesystem::path &path, std::string_view parameter, int component, int frame_count)
+{
+    const std::string golden = read_text(path);
+    std::vector<std::optional<double>> result;
+    for (int frame = 0; frame < frame_count; ++frame)
+    {
+        result.push_back(golden_value(golden_entry(golden, frame), parameter, component));
+    }
+    return result;
+}
+
+std::vector<std::optional<double>> lane_values(const timeline::Document &document, int lane)
+{
+    std::vector<std::optional<double>> result;
     for (int frame = 0; frame < document.frame_grid()->frame_count(); ++frame)
     {
-        const std::string entry = golden_entry(golden, frame);
-        ASSERT_FALSE(entry.empty());
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
-        for (int lane = 0; lane < 5; ++lane)
-        {
-            SCOPED_TRACE(parameters[lane] + " frame " + std::to_string(frame));
-            EXPECT_EQ(golden_value(entry, parameters[lane], lane == 4 ? 1 : 0), inspection.lanes[lane].output_value);
-        }
-        EXPECT_EQ(golden_value(entry, "bailout", 0), inspection.lanes[5].value);
-        EXPECT_FALSE(inspection.lanes[5].output_value);
-        EXPECT_FALSE(inspection.lanes[6].value);
-        EXPECT_EQ(
-            frame == 6 ? "b" : "a", resolved_attributes(document, inspection.lanes[6].items[0].attributes).at("value"));
+        result.push_back(inspect_at(document, frame).lanes[lane].value);
     }
-    const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
-    ASSERT_TRUE(music.succeeded());
-    const timeline::Document combined = timeline::combine_documents(document, *music.document);
-    ASSERT_EQ(11, combined.lane_count());
-    EXPECT_DOUBLE_EQ(101, *timeline::inspect_frame(combined, 1)->lanes[0].output_value);
-    const timeline::Layout layout(combined,
-        timeline::Viewport(600, 400, document.frame_grid()->offset(), document.frame_grid()->end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
-    bool hit = false;
+    return result;
+}
+
+std::vector<std::optional<double>> lane_output_values(const timeline::Document &document, int lane)
+{
+    std::vector<std::optional<double>> result;
+    for (int frame = 0; frame < document.frame_grid()->frame_count(); ++frame)
+    {
+        result.push_back(inspect_at(document, frame).lanes[lane].output_value);
+    }
+    return result;
+}
+
+const std::string &diagnostic_at(const JsonImportResult &result, int index)
+{
+    if (index < 0 || timeline::size_cast(result.diagnostics) <= index)
+    {
+        throw std::out_of_range("test diagnostic index is out of range");
+    }
+    return result.diagnostics[index];
+}
+
+timeline::Document integer_document()
+{
+    return import_clean_document("fixtures/integer-output.json");
+}
+
+timeline::Document policy_document()
+{
+    return import_clean_document("fixtures/integer-output-policies.json");
+}
+
+timeline::Document boundary_document()
+{
+    return import_clean_document("fixtures/integer-output-boundary.json");
+}
+
+timeline::Document combine_with_music(const timeline::Document &document)
+{
+    const timeline::Document music = import_clean_document("fixtures/beat-keys/rms.beat-keys.json");
+    return timeline::combine_documents(document, music);
+}
+
+timeline::HitResult animation_zero_hit(const timeline::Layout &layout)
+{
     for (const timeline::Primitive &primitive : layout.display_list().primitives())
     {
         if (std::holds_alternative<timeline::Polyline>(primitive))
@@ -131,85 +396,485 @@ TEST(IntegerOutput, matchesSourceGoldenAndSurvivesCopyingComparisonAndLayout)
             if (layout.display_list().strings().lookup(line.id.lane_id) == "animation-0")
             {
                 const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
-                ASSERT_TRUE(result);
-                EXPECT_EQ("animation-0", layout.display_list().strings().lookup(result->id.lane_id));
-                EXPECT_EQ("animation-0-key-0", layout.display_list().strings().lookup(result->id.item_id));
-                hit = true;
+                if (result)
+                {
+                    return *result;
+                }
             }
         }
     }
-    EXPECT_TRUE(hit);
+    throw std::runtime_error("integer-output curve is not hit-testable");
 }
 
-TEST(IntegerOutput, roundsAfterExtrapolationAndRetainsGapsAndHeldValues)
+/// Exercises one integer-valued output lane.
+///
+class RoundedIntegerLaneTest : public testing::TestWithParam<RoundedLaneCase>
 {
-    const JsonImportResult imported = import_timeline_json("fixtures/integer-output-policies.json");
-    ASSERT_TRUE(imported.succeeded());
-    ASSERT_TRUE(imported.diagnostics.empty());
-    ASSERT_EQ(6, imported.document->lane_count());
-    std::ifstream input("fixtures/gold-integer-output-policies.par");
-    ASSERT_TRUE(input);
-    const std::string golden{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-    const std::array<std::string, 6> parameters{"base", "omit", "cycle", "ping", "hold", "step"};
-    for (int frame = 0; frame < imported.document->frame_grid()->frame_count(); ++frame)
-    {
-        const std::string entry = golden_entry(golden, frame);
-        ASSERT_FALSE(entry.empty());
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(*imported.document, frame);
-        for (int lane = 0; lane < 6; ++lane)
-        {
-            SCOPED_TRACE(parameters[lane] + " frame " + std::to_string(frame));
-            EXPECT_EQ(golden_value(entry, parameters[lane], 0), inspection.lanes[lane].output_value);
-        }
-    }
-    const timeline::FrameInspection middle = *timeline::inspect_frame(*imported.document, 3);
-    EXPECT_DOUBLE_EQ(101.5, *middle.lanes[2].value);
-    EXPECT_DOUBLE_EQ(102, *middle.lanes[2].output_value);
-    EXPECT_DOUBLE_EQ(-1.5, *middle.lanes[3].value);
-    EXPECT_DOUBLE_EQ(-2, *middle.lanes[3].output_value);
-    EXPECT_FALSE(timeline::inspect_frame(*imported.document, 0)->lanes[1].output_value);
-    EXPECT_DOUBLE_EQ(678, *timeline::inspect_frame(*imported.document, 0)->lanes[0].output_value);
+};
+
+/// Exercises one tick adjacent to a halfway rounding boundary.
+///
+class IntegerRoundingTickTest : public testing::TestWithParam<RoundingTickCase>
+{
+};
+
+/// Exercises one extrapolation or interpolation policy.
+///
+class IntegerPolicyTest : public testing::TestWithParam<PolicyCase>
+{
+};
+
+/// Exercises rounding of one fractional policy value.
+///
+class IntegerPolicyRoundingTest : public testing::TestWithParam<PolicyRoundingCase>
+{
+};
+
+/// Exercises an omitted output outside its authored key range.
+///
+class IntegerGapTest : public testing::TestWithParam<FrameOutputCase>
+{
+};
+
+/// Exercises source-value extrapolation outside its authored key range.
+///
+class IntegerBaseTest : public testing::TestWithParam<FrameOutputCase>
+{
+};
+
+/// Exercises repeated and reflected output beyond the authored key range.
+///
+class IntegerExtrapolationTest : public testing::TestWithParam<FrameOutputCase>
+{
+};
+
+/// Exercises hold and step output values.
+///
+class IntegerHeldValueTest : public testing::TestWithParam<FrameOutputCase>
+{
+};
+
+/// Exercises source arithmetic near a halfway rounding boundary.
+///
+class IntegerArithmeticBoundaryTest : public testing::TestWithParam<ArithmeticBoundaryCase>
+{
+};
+
+/// Exercises one frame of a held categorical value.
+///
+class IntegerEnumFrameTest : public testing::TestWithParam<EnumFrameCase>
+{
+};
+
+/// Exercises one malformed integer-output track and its diagnostic.
+///
+class IntegerOutputDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+{
+};
+
+} // namespace
+
+TEST_P(RoundedIntegerLaneTest, retainsFractionalCurveValue)
+{
+    const RoundedLaneCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+
+    const std::optional<double> value = inspect_at(document, 1).lanes[definition.lane].value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(definition.fractional, *value);
 }
 
-TEST(IntegerOutput, diagnosesInvalidKeysTransactionally)
+TEST_P(RoundedIntegerLaneTest, declaresOutputRounding)
 {
-    const JsonImportResult imported = import_timeline_json("fixtures/integer-output-partial.json");
-    ASSERT_TRUE(imported.succeeded());
-    ASSERT_EQ(6, imported.diagnostics.size());
-    ASSERT_EQ(1, imported.document->lane_count());
-    EXPECT_EQ("animation-6", imported.document->strings().lookup(imported.document->lanes()[0].id()));
-    for (int index = 0; index < 6; ++index)
-    {
-        EXPECT_NE(std::string::npos, imported.diagnostics[index].find("animation-" + std::to_string(index) + ":"));
-    }
-    EXPECT_NE(std::string::npos, imported.diagnostics[0].find("integral"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[1].find("int range"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[2].find("curves"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[3].find("integral"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[4].find("arity"));
-    EXPECT_NE(std::string::npos, imported.diagnostics[5].find("bounds"));
-    EXPECT_FALSE(timeline::inspect_frame(*imported.document, 1)->lanes[0].output_value);
+    const RoundedLaneCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+    const timeline::FrameInspection inspection = inspect_at(document, 1);
+
+    const int count =
+        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes).count("output-rounding");
+
+    EXPECT_EQ(1, count);
 }
 
-TEST(IntegerOutput, preservesSourceArithmeticOrderNearHalfwayBoundaries)
+TEST_P(RoundedIntegerLaneTest, namesOutputRoundingPolicy)
 {
-    const JsonImportResult imported = import_timeline_json("fixtures/integer-output-boundary.json");
-    ASSERT_TRUE(imported.succeeded());
-    std::ifstream input("fixtures/gold-integer-output-boundary.par");
-    ASSERT_TRUE(input);
-    const std::string golden{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-    for (int frame = 0; frame < 23; ++frame)
-    {
-        SCOPED_TRACE(frame);
-        const std::string entry = golden_entry(golden, frame);
-        ASSERT_FALSE(entry.empty());
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(*imported.document, frame);
-        EXPECT_EQ(golden_value(entry, "choice", 0), inspection.lanes[0].output_value);
-        EXPECT_EQ(golden_value(entry, "negative", 0), inspection.lanes[1].output_value);
-    }
-    const timeline::FrameInspection boundary = *timeline::inspect_frame(*imported.document, 15);
-    EXPECT_LT(*boundary.lanes[0].value, 7.5);
-    EXPECT_GT(*boundary.lanes[1].value, -7.5);
-    EXPECT_DOUBLE_EQ(7, *boundary.lanes[0].output_value);
-    EXPECT_DOUBLE_EQ(-7, *boundary.lanes[1].output_value);
+    const RoundedLaneCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+    const timeline::FrameInspection inspection = inspect_at(document, 1);
+
+    const std::string_view policy =
+        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes).at("output-rounding");
+
+    EXPECT_EQ("nearest-half-away-from-zero", policy);
 }
+
+TEST_P(RoundedIntegerLaneTest, roundsOutputHalfAwayFromZero)
+{
+    const RoundedLaneCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+
+    const std::optional<double> value = inspect_at(document, 1).lanes[definition.lane].output_value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(definition.rounded, *value);
+}
+
+TEST_P(RoundedIntegerLaneTest, matchesSourceGolden)
+{
+    const RoundedLaneCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+    const int frame_count = document.frame_grid()->frame_count();
+
+    const std::vector<std::optional<double>> actual = lane_output_values(document, definition.lane);
+    const std::vector<std::optional<double>> expected =
+        golden_values("fixtures/gold-integer-output.par", definition.parameter, definition.component, frame_count);
+
+    EXPECT_EQ(expected, actual);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    RoundedLanes, RoundedIntegerLaneTest, testing::ValuesIn(ROUNDED_LANE_CASES), case_name<RoundedLaneCase>);
+
+TEST_P(IntegerRoundingTickTest, roundsAtExpectedSideOfHalfway)
+{
+    const RoundingTickCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+    const timeline::Time half = document.frame_grid()->frame_start(1);
+    const timeline::Time time = timeline::Time::from_ticks(half.ticks() + definition.adjustment);
+
+    const std::optional<double> value = document.lanes()[definition.lane].evaluate_keyframe_output(time);
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(definition.expected, *value);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AdjacentTicks, IntegerRoundingTickTest, testing::ValuesIn(ROUNDING_TICK_CASES), case_name<RoundingTickCase>);
+
+TEST(IntegerOutputDouble, retainsFractionalCurveValue)
+{
+    const timeline::Document document = integer_document();
+
+    const std::optional<double> value = inspect_at(document, 1).lanes[5].value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(1.5, *value);
+}
+
+TEST(IntegerOutputDouble, omitsRoundedOutput)
+{
+    const timeline::Document document = integer_document();
+
+    const std::vector<std::optional<double>> outputs = lane_output_values(document, 5);
+
+    for (const std::optional<double> &value : outputs)
+    {
+        EXPECT_FALSE(value);
+    }
+}
+
+TEST(IntegerOutputDouble, matchesSourceGolden)
+{
+    const timeline::Document document = integer_document();
+    const int frame_count = document.frame_grid()->frame_count();
+
+    const std::vector<std::optional<double>> actual = lane_values(document, 5);
+    const std::vector<std::optional<double>> expected =
+        golden_values("fixtures/gold-integer-output.par", "bailout", 0, frame_count);
+
+    EXPECT_EQ(expected, actual);
+}
+
+TEST(IntegerOutputEnum, omitsNumericValue)
+{
+    const timeline::Document document = integer_document();
+
+    const std::vector<std::optional<double>> values = lane_values(document, 6);
+
+    for (const std::optional<double> &value : values)
+    {
+        EXPECT_FALSE(value);
+    }
+}
+
+TEST(IntegerOutputEnum, omitsRoundedOutput)
+{
+    const timeline::Document document = integer_document();
+
+    const std::vector<std::optional<double>> outputs = lane_output_values(document, 6);
+
+    for (const std::optional<double> &value : outputs)
+    {
+        EXPECT_FALSE(value);
+    }
+}
+
+TEST_P(IntegerEnumFrameTest, preservesHeldSourceValue)
+{
+    const EnumFrameCase &definition = GetParam();
+    const timeline::Document document = integer_document();
+    const timeline::FrameInspection inspection = inspect_at(document, definition.frame);
+
+    const std::string_view value = resolved_attributes(document, inspection.lanes[6].items[0].attributes).at("value");
+
+    EXPECT_EQ(definition.value, value);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    EnumFrames, IntegerEnumFrameTest, testing::ValuesIn(ENUM_FRAME_CASES), case_name<EnumFrameCase>);
+
+TEST(IntegerOutputCopy, survivesImportResultRelease)
+{
+    JsonImportResult imported = import_clean_result("fixtures/integer-output.json");
+    const timeline::Document document = *imported.document;
+
+    imported.document.reset();
+    const std::optional<double> value = inspect_at(document, 1).lanes[0].output_value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(101, *value);
+}
+
+TEST(IntegerOutputComposition, combinesWithMusicDocument)
+{
+    const timeline::Document document = integer_document();
+
+    const timeline::Document combined = combine_with_music(document);
+
+    EXPECT_EQ(11, combined.lane_count());
+}
+
+TEST(IntegerOutputComposition, preservesRoundedOutput)
+{
+    const timeline::Document document = integer_document();
+
+    const timeline::Document combined = combine_with_music(document);
+    const std::optional<double> value = inspect_at(combined, 1).lanes[0].output_value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(101, *value);
+}
+
+TEST(IntegerOutputLayout, hitTestsLaneIdentity)
+{
+    const timeline::Document document = combine_with_music(integer_document());
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Layout layout(document, timeline::Viewport(600, 400, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 40, 4));
+
+    const timeline::HitResult hit = animation_zero_hit(layout);
+    const std::string_view identity = layout.display_list().strings().lookup(hit.id.lane_id);
+
+    EXPECT_EQ("animation-0", identity);
+}
+
+TEST(IntegerOutputLayout, hitTestsKeyIdentity)
+{
+    const timeline::Document document = combine_with_music(integer_document());
+    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Layout layout(document, timeline::Viewport(600, 400, grid.offset(), grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 40, 4));
+
+    const timeline::HitResult hit = animation_zero_hit(layout);
+    const std::string_view identity = layout.display_list().strings().lookup(hit.id.item_id);
+
+    EXPECT_EQ("animation-0-key-0", identity);
+}
+
+TEST(IntegerOutput, rejectsFractionalIntegerKeys)
+{
+    const std::filesystem::path fixture("fixtures/integer-output-invalid.json");
+
+    const JsonImportResult result = import_timeline_json(fixture);
+
+    EXPECT_FALSE(result.succeeded());
+}
+
+TEST_P(IntegerPolicyTest, matchesSourceGolden)
+{
+    const PolicyCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+    const int frame_count = document.frame_grid()->frame_count();
+
+    const std::vector<std::optional<double>> actual = lane_output_values(document, definition.lane);
+    const std::vector<std::optional<double>> expected =
+        golden_values("fixtures/gold-integer-output-policies.par", definition.parameter, 0, frame_count);
+
+    EXPECT_EQ(expected, actual);
+}
+
+INSTANTIATE_TEST_SUITE_P(Policies, IntegerPolicyTest, testing::ValuesIn(POLICY_CASES), case_name<PolicyCase>);
+
+TEST_P(IntegerPolicyRoundingTest, retainsFractionalValue)
+{
+    const PolicyRoundingCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+
+    const std::optional<double> value = inspect_at(document, 3).lanes[definition.lane].value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(definition.fractional, *value);
+}
+
+TEST_P(IntegerPolicyRoundingTest, roundsOutput)
+{
+    const PolicyRoundingCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+
+    const std::optional<double> value = inspect_at(document, 3).lanes[definition.lane].output_value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(definition.rounded, *value);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    PolicyRounding, IntegerPolicyRoundingTest, testing::ValuesIn(POLICY_ROUNDING_CASES), case_name<PolicyRoundingCase>);
+
+TEST_P(IntegerGapTest, omitsOutputOutsideKeyRange)
+{
+    const FrameOutputCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+
+    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+
+    EXPECT_EQ(definition.expected, value);
+}
+
+INSTANTIATE_TEST_SUITE_P(Gaps, IntegerGapTest, testing::ValuesIn(GAP_CASES), case_name<FrameOutputCase>);
+
+TEST_P(IntegerBaseTest, restoresSourceOutputOutsideKeyRange)
+{
+    const FrameOutputCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+
+    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+
+    EXPECT_EQ(definition.expected, value);
+}
+
+INSTANTIATE_TEST_SUITE_P(BaseValues, IntegerBaseTest, testing::ValuesIn(BASE_CASES), case_name<FrameOutputCase>);
+
+TEST_P(IntegerExtrapolationTest, producesExpectedOutputOutsideKeyRange)
+{
+    const FrameOutputCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+
+    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+
+    EXPECT_EQ(definition.expected, value);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ExtrapolatedValues, IntegerExtrapolationTest, testing::ValuesIn(EXTRAPOLATED_CASES), case_name<FrameOutputCase>);
+
+TEST_P(IntegerHeldValueTest, preservesHeldOutput)
+{
+    const FrameOutputCase &definition = GetParam();
+    const timeline::Document document = policy_document();
+
+    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+
+    EXPECT_EQ(definition.expected, value);
+}
+
+INSTANTIATE_TEST_SUITE_P(HeldValues, IntegerHeldValueTest, testing::ValuesIn(HELD_CASES), case_name<FrameOutputCase>);
+
+TEST(IntegerOutputDiagnostics, reportsEveryMalformedTrack)
+{
+    const JsonImportResult result = import_timeline_json("fixtures/integer-output-partial.json");
+
+    const int count = timeline::size_cast(result.diagnostics);
+
+    EXPECT_EQ(6, count);
+}
+
+TEST(IntegerOutputDiagnostics, retainsOnlyValidTrack)
+{
+    const timeline::Document document = import_partial_document("fixtures/integer-output-partial.json");
+
+    const int count = document.lane_count();
+
+    EXPECT_EQ(1, count);
+}
+
+TEST(IntegerOutputDiagnostics, retainsExpectedValidTrack)
+{
+    const timeline::Document document = import_partial_document("fixtures/integer-output-partial.json");
+    if (document.lane_count() != 1)
+    {
+        throw std::runtime_error("partial fixture has an unexpected lane count");
+    }
+
+    const std::string_view identity = document.strings().lookup(document.lanes()[0].id());
+
+    EXPECT_EQ("animation-6", identity);
+}
+
+TEST(IntegerOutputDiagnostics, leavesValidDoubleOutputUnrounded)
+{
+    const timeline::Document document = import_partial_document("fixtures/integer-output-partial.json");
+
+    const std::optional<double> output = inspect_at(document, 1).lanes[0].output_value;
+
+    EXPECT_FALSE(output);
+}
+
+TEST_P(IntegerOutputDiagnosticTest, identifiesMalformedForm)
+{
+    const DiagnosticCase &definition = GetParam();
+    const JsonImportResult result = import_timeline_json("fixtures/integer-output-partial.json");
+
+    const std::string &diagnostic = diagnostic_at(result, definition.index);
+
+    EXPECT_NE(std::string::npos, diagnostic.find("animation-" + std::to_string(definition.index) + ":"));
+    EXPECT_NE(std::string::npos, diagnostic.find(definition.message));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MalformedTracks, IntegerOutputDiagnosticTest, testing::ValuesIn(DIAGNOSTIC_CASES), case_name<DiagnosticCase>);
+
+TEST_P(IntegerArithmeticBoundaryTest, matchesSourceGolden)
+{
+    const ArithmeticBoundaryCase &definition = GetParam();
+    const timeline::Document document = boundary_document();
+    const int frame_count = document.frame_grid()->frame_count();
+
+    const std::vector<std::optional<double>> actual = lane_output_values(document, definition.lane);
+    const std::vector<std::optional<double>> expected =
+        golden_values("fixtures/gold-integer-output-boundary.par", definition.parameter, 0, frame_count);
+
+    EXPECT_EQ(expected, actual);
+}
+
+TEST_P(IntegerArithmeticBoundaryTest, preservesSourceSideOfHalfway)
+{
+    const ArithmeticBoundaryCase &definition = GetParam();
+    const timeline::Document document = boundary_document();
+
+    const std::optional<double> value = inspect_at(document, 15).lanes[definition.lane].value;
+
+    ASSERT_TRUE(value);
+    if (definition.side == HalfwaySide::BELOW)
+    {
+        EXPECT_LT(*value, definition.halfway);
+    }
+    else
+    {
+        EXPECT_GT(*value, definition.halfway);
+    }
+}
+
+TEST_P(IntegerArithmeticBoundaryTest, roundsSourceComputedValue)
+{
+    const ArithmeticBoundaryCase &definition = GetParam();
+    const timeline::Document document = boundary_document();
+
+    const std::optional<double> value = inspect_at(document, 15).lanes[definition.lane].output_value;
+
+    ASSERT_TRUE(value);
+    EXPECT_DOUBLE_EQ(definition.rounded, *value);
+}
+
+INSTANTIATE_TEST_SUITE_P(Boundaries, IntegerArithmeticBoundaryTest, testing::ValuesIn(ARITHMETIC_BOUNDARY_CASES),
+    case_name<ArithmeticBoundaryCase>);
