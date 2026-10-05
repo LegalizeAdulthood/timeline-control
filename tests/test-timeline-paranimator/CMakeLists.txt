@@ -540,6 +540,7 @@ target_link_libraries(test-timeline-paranimator
         nlohmann_json::nlohmann_json
         GTest::gtest_main
 )
+target_include_directories(test-timeline-paranimator PRIVATE .)
 target_folder(test-timeline-paranimator "Tests")
 source_group("Fixtures" FILES ${TIMELINE_PARANIMATOR_TEST_FIXTURES})
 

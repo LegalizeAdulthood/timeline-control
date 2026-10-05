@@ -300,6 +300,14 @@ void DocumentBuilder::add_lane(Lane lane)
                         throw std::invalid_argument("timeline item label is not present in the document string table");
                     }
                 }
+                for (const Attribute &attribute : value.attributes().values())
+                {
+                    if (!m_strings.contains(attribute.key()) || !m_strings.contains(attribute.value()))
+                    {
+                        throw std::invalid_argument(
+                            "timeline item attribute is not present in the document string table");
+                    }
+                }
             },
             item);
     }
@@ -308,26 +316,38 @@ void DocumentBuilder::add_lane(Lane lane)
 
 void DocumentBuilder::append(const Lane &lane, const StringTable &strings, StringId id)
 {
+    const auto remap_attributes = [this, &strings](const Attributes &attributes)
+    {
+        std::vector<Attribute> remapped;
+        for (const Attribute &attribute : attributes.values())
+        {
+            remapped.emplace_back(intern(strings.lookup(attribute.key())), intern(strings.lookup(attribute.value())));
+        }
+        return Attributes(std::move(remapped));
+    };
     std::vector<Item> items;
     for (const Item &item : lane.items())
     {
         items.push_back(std::visit(
-            [this, &strings](const auto &value) -> Item
+            [this, &strings, &remap_attributes](const auto &value) -> Item
             {
                 using Value = std::decay_t<decltype(value)>;
                 const StringId item_id = intern(strings.lookup(value.id()));
                 if constexpr (std::is_same_v<Value, Keyframe>)
                 {
-                    return value.with_id(item_id);
+                    return value.with_id(item_id).with_attributes(remap_attributes(value.attributes()));
                 }
                 else if constexpr (std::is_same_v<Value, PaletteCurve>)
                 {
-                    return value.with_id(item_id).with_kind(intern(strings.lookup(value.kind())));
+                    return value.with_id(item_id)
+                        .with_kind(intern(strings.lookup(value.kind())))
+                        .with_attributes(remap_attributes(value.attributes()));
                 }
                 else
                 {
-                    return value.with_id(item_id).with_strings(
-                        intern(strings.lookup(value.kind())), intern(strings.lookup(value.label())));
+                    return value.with_id(item_id)
+                        .with_strings(intern(strings.lookup(value.kind())), intern(strings.lookup(value.label())))
+                        .with_attributes(remap_attributes(value.attributes()));
                 }
             },
             item));

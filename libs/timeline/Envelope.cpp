@@ -77,6 +77,13 @@ Envelope Envelope::with_strings(StringId kind, StringId label) const
     return result;
 }
 
+Envelope Envelope::with_attributes(Attributes attributes) const
+{
+    Envelope result(*this);
+    result.m_attributes = std::move(attributes);
+    return result;
+}
+
 Time Envelope::end() const
 {
     return m_start + Duration::from_ticks(phase_ticks(m_attack) + phase_ticks(m_sustain) + phase_ticks(m_decay));

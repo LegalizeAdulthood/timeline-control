@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -72,7 +74,7 @@ TEST(MaskedColorMap, matchesSourceMapsWithOwnedDefinitionsAndWorkingComparison)
             if (document.strings().lookup(lane.kind()) == "palette")
             {
                 const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
-                const std::string output = curve.attributes().at("output");
+                const std::string output(resolved_attributes(document, curve.attributes()).at("output"));
                 const std::string prefix = output.substr(0, output.find('%'));
                 for (int frame = 0; frame < grid.frame_count(); ++frame)
                 {
@@ -100,9 +102,9 @@ TEST(MaskedColorMap, matchesSourceMapsWithOwnedDefinitionsAndWorkingComparison)
             else
             {
                 const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
-                EXPECT_EQ("amount", key.attributes().at("member"));
-                EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
-                EXPECT_NE(std::string::npos, key.attributes().at("effect").find("kind"));
+                EXPECT_EQ("amount", resolved_attributes(document, key.attributes()).at("member"));
+                EXPECT_NE(std::string::npos, resolved_attributes(document, key.attributes()).at("signal").find("keys"));
+                EXPECT_NE(std::string::npos, resolved_attributes(document, key.attributes()).at("effect").find("kind"));
             }
         }
         const JsonImportResult imported = import_timeline_json("fixtures/color-map-masked-" + fixture + ".json");
@@ -210,7 +212,7 @@ TEST(MaskedColorMap, blendsOverlapsOnceAndPreservesPartialHoldAndEffectOrder)
     }
     const timeline::Keyframe &key = std::get<timeline::Keyframe>(held.items()[0]);
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, key.interpolation());
-    EXPECT_EQ("step", key.attributes().at("outgoing-curve"));
+    EXPECT_EQ("step", resolved_attributes(document, key.attributes()).at("outgoing-curve"));
     const timeline::PaletteCurve &forward = std::get<timeline::PaletteCurve>(document.lanes()[10].items()[0]);
     const timeline::PaletteCurve &reverse = std::get<timeline::PaletteCurve>(document.lanes()[13].items()[0]);
     EXPECT_NE(forward.sample(grid.frame_start(2))[4], reverse.sample(grid.frame_start(2))[4]);
@@ -264,7 +266,7 @@ TEST(IndexedColorMap, matchesSourceMapsAndPreservesOwnedOffsetDefinitions)
             if (document.strings().lookup(lane.kind()) == "palette")
             {
                 const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
-                const std::string output = curve.attributes().at("output");
+                const std::string output(resolved_attributes(document, curve.attributes()).at("output"));
                 const std::string prefix = output.substr(0, output.find('%'));
                 for (int frame = 0; frame < grid.frame_count(); ++frame)
                 {
@@ -281,13 +283,14 @@ TEST(IndexedColorMap, matchesSourceMapsAndPreservesOwnedOffsetDefinitions)
             else
             {
                 const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
-                const std::string member = key.attributes().at("member");
+                const std::string member(resolved_attributes(document, key.attributes()).at("member"));
                 EXPECT_TRUE(member == "offset" || member == "amount");
-                EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
-                EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("effects"));
+                EXPECT_NE(std::string::npos, resolved_attributes(document, key.attributes()).at("signal").find("keys"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, key.attributes()).at("color-map").find("effects"));
                 if (member == "offset")
                 {
-                    EXPECT_EQ("ping-pong", key.attributes().at("effect-kind"));
+                    EXPECT_EQ("ping-pong", resolved_attributes(document, key.attributes()).at("effect-kind"));
                     EXPECT_NE(std::string::npos, document.strings().lookup(lane.id()).find("-offset"));
                 }
             }
@@ -322,8 +325,8 @@ TEST(IndexedColorMap, roundsOffsetsAwayFromZeroAndRetainsUnroundedSignals)
     }
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(held.items()[0]);
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
-    EXPECT_EQ("geometric", first.attributes().at("curve"));
-    EXPECT_EQ("step", first.attributes().at("outgoing-curve"));
+    EXPECT_EQ("geometric", resolved_attributes(variants, first.attributes()).at("curve"));
+    EXPECT_EQ("step", resolved_attributes(variants, first.attributes()).at("outgoing-curve"));
 }
 
 TEST(IndexedColorMap, rendersComparesAndHitsPaletteAndOffsetLanes)
@@ -412,7 +415,7 @@ TEST(ColorMapEffects, matchesSourceMapsAndExposesOwnedAmountSignals)
             {
                 ++palettes;
                 const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(lane.items()[0]);
-                const std::string output = curve.attributes().at("output");
+                const std::string output(resolved_attributes(document, curve.attributes()).at("output"));
                 const std::string prefix = output.substr(0, output.find('%'));
                 for (int frame = 0; frame < grid.frame_count(); ++frame)
                 {
@@ -426,9 +429,10 @@ TEST(ColorMapEffects, matchesSourceMapsAndExposesOwnedAmountSignals)
             {
                 ASSERT_EQ(2, lane.item_count());
                 const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
-                EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("effects"));
-                EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
-                EXPECT_EQ("amount", key.attributes().at("member"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, key.attributes()).at("color-map").find("effects"));
+                EXPECT_NE(std::string::npos, resolved_attributes(document, key.attributes()).at("signal").find("keys"));
+                EXPECT_EQ("amount", resolved_attributes(document, key.attributes()).at("member"));
                 EXPECT_NE(std::string::npos, document.strings().lookup(lane.id()).find("-effect-"));
             }
         }
@@ -479,12 +483,12 @@ TEST(ColorMapEffects, samplesNestedAmountsContinuouslyWithDestinationKeyInterpol
     }
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(signal.items()[0]);
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
-    EXPECT_EQ("linear", first.attributes().at("curve"));
-    EXPECT_EQ("step", first.attributes().at("outgoing-curve"));
+    EXPECT_EQ("linear", resolved_attributes(held, first.attributes()).at("curve"));
+    EXPECT_EQ("step", resolved_attributes(held, first.attributes()).at("outgoing-curve"));
     const JsonImportResult variants = import_timeline_json("fixtures/color-map-effects-variants.json");
     ASSERT_TRUE(variants.succeeded());
     const timeline::Keyframe &ignored = std::get<timeline::Keyframe>(variants.document->lanes()[1].items()[0]);
-    EXPECT_EQ("geometric", ignored.attributes().at("curve"));
+    EXPECT_EQ("geometric", resolved_attributes(variants, ignored.attributes()).at("curve"));
     EXPECT_EQ(timeline::KeyframeInterpolation::LINEAR, ignored.interpolation());
 }
 
@@ -572,8 +576,8 @@ TEST(ColorMapImport, matchesSourceEvaluatorAndPreservesStructuredOwnedValues)
         const timeline::PaletteCurve &curve = std::get<timeline::PaletteCurve>(document.lanes()[0].items().front());
         EXPECT_EQ("animation-0-palette", document.strings().lookup(curve.id()));
         EXPECT_EQ(256, curve.color_count());
-        EXPECT_EQ("colors", curve.attributes().at("parameter"));
-        EXPECT_NE(std::string::npos, curve.attributes().at("color-map").find("at-file"));
+        EXPECT_EQ("colors", resolved_attributes(document, curve.attributes()).at("parameter"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, curve.attributes()).at("color-map").find("at-file"));
         for (int frame = 0; frame < grid.frame_count(); ++frame)
         {
             const std::string golden = fixture == "gradient"
@@ -602,8 +606,8 @@ TEST(ColorMapImport, matchesSourceEvaluatorAndPreservesStructuredOwnedValues)
         {
             EXPECT_EQ("animation-0-keys", document.strings().lookup(document.lanes()[1].id()));
             const timeline::Instant &key = std::get<timeline::Instant>(document.lanes()[1].items()[0]);
-            EXPECT_EQ("input/warm.map", key.attributes().at("value"));
-            EXPECT_NE(std::string::npos, key.attributes().at("color-map").find("keys"));
+            EXPECT_EQ("input/warm.map", resolved_attributes(document, key.attributes()).at("value"));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, key.attributes()).at("color-map").find("keys"));
         }
     }
 }
@@ -641,8 +645,8 @@ TEST(ColorMapImport, preservesLayerIdentityAndIndependentDefinitions)
     EXPECT_EQ("animation-layer-1-0", imported.document->strings().lookup(imported.document->lanes()[2].id()));
     const timeline::PaletteCurve &first = std::get<timeline::PaletteCurve>(imported.document->lanes()[0].items()[0]);
     const timeline::PaletteCurve &second = std::get<timeline::PaletteCurve>(imported.document->lanes()[2].items()[0]);
-    EXPECT_EQ("palette", first.attributes().at("layer"));
-    EXPECT_EQ("constant", second.attributes().at("layer"));
+    EXPECT_EQ("palette", resolved_attributes(imported, first.attributes()).at("layer"));
+    EXPECT_EQ("constant", resolved_attributes(imported, second.attributes()).at("layer"));
     EXPECT_NE(first.sample(imported.document->frame_grid()->frame_start(1)),
         second.sample(imported.document->frame_grid()->frame_start(1)));
 }

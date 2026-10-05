@@ -64,6 +64,13 @@ PaletteCurve PaletteCurve::with_kind(StringId kind) const
     return result;
 }
 
+PaletteCurve PaletteCurve::with_attributes(Attributes attributes) const
+{
+    PaletteCurve result(*this);
+    result.m_attributes = std::move(attributes);
+    return result;
+}
+
 Palette PaletteCurve::sample(Time time) const
 {
     Palette result = m_evaluate(std::clamp(time, m_start, m_end));

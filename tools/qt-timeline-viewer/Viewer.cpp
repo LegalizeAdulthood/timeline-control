@@ -313,9 +313,11 @@ std::string Viewer::inspector_text() const
             {
                 text << " Value: " << *item.value;
             }
-            for (const auto &[name, value] : item.attributes)
+            for (const timeline::Attribute &attribute : item.attributes.values())
             {
-                text << '\n' << name << ": " << value;
+                text << '\n'
+                     << document.strings().lookup(attribute.key()) << ": "
+                     << document.strings().lookup(attribute.value());
             }
             if (item.palette)
             {

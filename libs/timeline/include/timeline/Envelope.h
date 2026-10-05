@@ -23,6 +23,8 @@ public:
     Envelope with_id(StringId id) const;
     /// Return a copy with the supplied kind and label identities.
     Envelope with_strings(StringId kind, StringId label) const;
+    /// Return a copy with the supplied attributes.
+    Envelope with_attributes(Attributes attributes) const;
     StringId id() const
     {
         return m_id;

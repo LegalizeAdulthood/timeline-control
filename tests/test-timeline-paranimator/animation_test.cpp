@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -33,7 +35,8 @@ TEST(AnimationImport, preservesSourceFunctionsInPwmOutputLikeParanimator)
         const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
         ASSERT_TRUE(inspection);
         ASSERT_EQ(1, timeline::size_cast(inspection->lanes[0].items));
-        const timeline::Attributes &attributes = inspection->lanes[0].items.front().attributes;
+        const ResolvedAttributes attributes =
+            resolved_attributes(result, inspection->lanes[0].items.front().attributes);
         EXPECT_EQ(values[frame], attributes.at("value"));
         EXPECT_EQ("1", attributes.at("slot"));
         EXPECT_EQ("sin/cos", attributes.at("source-value"));
@@ -72,9 +75,10 @@ TEST(AnimationImport, retainsOtherPwmSlotsAndFillsMissingSlotsWithIdent)
     {
         const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
         ASSERT_TRUE(inspection);
-        EXPECT_EQ(values[frame], inspection->lanes[0].items.front().attributes.at("value"));
+        EXPECT_EQ(
+            values[frame], resolved_attributes(document, inspection->lanes[0].items.front().attributes).at("value"));
         EXPECT_EQ(frame < 2 ? "sin/cos/ident/tan" : "sin/cos/ident/log",
-            inspection->lanes[2].items.front().attributes.at("value"));
+            resolved_attributes(document, inspection->lanes[2].items.front().attributes).at("value"));
     }
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());
@@ -82,7 +86,7 @@ TEST(AnimationImport, retainsOtherPwmSlotsAndFillsMissingSlotsWithIdent)
     ASSERT_EQ(8, combined.lane_count());
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 2);
     ASSERT_TRUE(inspection);
-    EXPECT_EQ("log/cos", inspection->lanes[4].items.front().attributes.at("value"));
+    EXPECT_EQ("log/cos", resolved_attributes(combined, inspection->lanes[4].items.front().attributes).at("value"));
 }
 
 TEST(AnimationImport, diagnosesInvalidPwmFunctionSlotsAndEndpoints)
@@ -98,7 +102,7 @@ TEST(AnimationImport, diagnosesInvalidPwmFunctionSlotsAndEndpoints)
     EXPECT_EQ("animation-6", result.document->strings().lookup(result.document->lanes().front().id()));
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
     ASSERT_TRUE(inspection);
-    EXPECT_EQ("sin/log", inspection->lanes.front().items.front().attributes.at("value"));
+    EXPECT_EQ("sin/log", resolved_attributes(result, inspection->lanes.front().items.front().attributes).at("value"));
 }
 
 TEST(AnimationImport, resolvesLayerSourcesAndCatalogFunctionSlotsWithIndexedErrors)
@@ -114,11 +118,13 @@ TEST(AnimationImport, resolvesLayerSourcesAndCatalogFunctionSlotsWithIndexedErro
     EXPECT_NE(std::string::npos, result.diagnostics[3].find("unterminated PAR source entry"));
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
     ASSERT_TRUE(inspection);
-    EXPECT_EQ("log/exp", inspection->lanes[0].items.front().attributes.at("value"));
-    EXPECT_EQ("fractal", inspection->lanes[0].items.front().attributes.at("layer"));
-    EXPECT_EQ("ident/ident/log", inspection->lanes[2].items.front().attributes.at("value"));
-    EXPECT_EQ("sin/log/exp", inspection->lanes[4].items.front().attributes.at("value"));
-    EXPECT_EQ("sin/cos/exp", inspection->lanes[4].items.front().attributes.at("source-value"));
+    EXPECT_EQ("log/exp", resolved_attributes(result, inspection->lanes[0].items.front().attributes).at("value"));
+    EXPECT_EQ("fractal", resolved_attributes(result, inspection->lanes[0].items.front().attributes).at("layer"));
+    EXPECT_EQ(
+        "ident/ident/log", resolved_attributes(result, inspection->lanes[2].items.front().attributes).at("value"));
+    EXPECT_EQ("sin/log/exp", resolved_attributes(result, inspection->lanes[4].items.front().attributes).at("value"));
+    EXPECT_EQ(
+        "sin/cos/exp", resolved_attributes(result, inspection->lanes[4].items.front().attributes).at("source-value"));
 }
 
 TEST(AnimationImport, displaysPwmMixAndFrameAlignedOutputLikeParanimator)
@@ -142,9 +148,9 @@ TEST(AnimationImport, displaysPwmMixAndFrameAlignedOutputLikeParanimator)
         const timeline::InspectionItem &item = inspection->lanes[0].items.front();
         EXPECT_EQ(timeline::InspectionItemType::INTERVAL, item.type);
         EXPECT_FALSE(item.value);
-        EXPECT_EQ(values[frame], item.attributes.at("value"));
-        EXPECT_EQ("pwm", item.attributes.at("mode"));
-        EXPECT_NE(std::string::npos, item.attributes.at("pwm").find("duty"));
+        EXPECT_EQ(values[frame], resolved_attributes(result, item.attributes).at("value"));
+        EXPECT_EQ("pwm", resolved_attributes(result, item.attributes).at("mode"));
+        EXPECT_NE(std::string::npos, resolved_attributes(result, item.attributes).at("pwm").find("duty"));
         ASSERT_TRUE(inspection->lanes[1].value);
         EXPECT_DOUBLE_EQ(frame / 3.0, *inspection->lanes[1].value);
         const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
@@ -194,7 +200,8 @@ TEST(AnimationImport, preservesPwmRoundingAliasesAndCategoricalWindowBoundaries)
         for (int track = 0; track < 4; ++track)
         {
             ASSERT_EQ(1, timeline::size_cast(inspection->lanes[2 * track].items));
-            EXPECT_EQ(values[track][frame], inspection->lanes[2 * track].items.front().attributes.at("value"));
+            EXPECT_EQ(values[track][frame],
+                resolved_attributes(document, inspection->lanes[2 * track].items.front().attributes).at("value"));
         }
     }
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
@@ -203,7 +210,7 @@ TEST(AnimationImport, preservesPwmRoundingAliasesAndCategoricalWindowBoundaries)
     ASSERT_EQ(12, combined.lane_count());
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 2);
     ASSERT_TRUE(inspection);
-    EXPECT_EQ("1", inspection->lanes[4].items.front().attributes.at("value"));
+    EXPECT_EQ("1", resolved_attributes(combined, inspection->lanes[4].items.front().attributes).at("value"));
 }
 
 TEST(AnimationImport, diagnosesInvalidPwmRecipesAndRetainsValidOutput)
@@ -220,7 +227,7 @@ TEST(AnimationImport, diagnosesInvalidPwmRecipesAndRetainsValidOutput)
     EXPECT_EQ("animation-14", result.document->strings().lookup(result.document->lanes().front().id()));
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
     ASSERT_TRUE(inspection);
-    EXPECT_EQ("yes", inspection->lanes.front().items.front().attributes.at("value"));
+    EXPECT_EQ("yes", resolved_attributes(result, inspection->lanes.front().items.front().attributes).at("value"));
 }
 
 TEST(AnimationImport, samplesAnalyticCatmullRomLikeParanimatorAcrossSegments)
@@ -249,11 +256,11 @@ TEST(AnimationImport, samplesAnalyticCatmullRomLikeParanimatorAcrossSegments)
             ASSERT_TRUE(item.value);
             EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *item.value);
             EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, item.role);
-            EXPECT_EQ("params.c", item.attributes.at("parameter"));
-            EXPECT_EQ("animation-0", item.attributes.at("track"));
-            EXPECT_EQ(std::to_string(component), item.attributes.at("component"));
+            EXPECT_EQ("params.c", resolved_attributes(result, item.attributes).at("parameter"));
+            EXPECT_EQ("animation-0", resolved_attributes(result, item.attributes).at("track"));
+            EXPECT_EQ(std::to_string(component), resolved_attributes(result, item.attributes).at("component"));
             EXPECT_EQ("{\"control-points\":[\"0/0\",\"1/2\",\"3/2\",\"4/0\"],\"kind\":\"catmull-rom\"}",
-                item.attributes.at("path"));
+                resolved_attributes(result, item.attributes).at("path"));
         }
         const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
         ASSERT_NE(std::string::npos, start);
@@ -351,7 +358,9 @@ TEST(AnimationImport, diagnosesMalformedCatmullRomRecipesWithoutLosingValidTrack
     }
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("at least four control points"));
     EXPECT_EQ("animation-7[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
-    EXPECT_EQ("true", std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes().at("normalize"));
+    EXPECT_EQ("true",
+        resolved_attributes(result, std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes())
+            .at("normalize"));
     EXPECT_EQ("animation-11[0]", result.document->strings().lookup(result.document->lanes()[2].id()));
     const timeline::Curve &curve = std::get<timeline::Curve>(result.document->lanes()[3].items().front());
     EXPECT_DOUBLE_EQ(2.25, curve.sample(result.document->frame_grid()->frame_start(3)));
@@ -388,11 +397,12 @@ TEST(AnimationImport, samplesAnalyticBezierLikeParanimatorAndPreservesControlPoi
             ASSERT_TRUE(lane.items.front().value);
             EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *lane.items.front().value);
             EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, lane.items.front().role);
-            EXPECT_EQ("params.c", lane.items.front().attributes.at("parameter"));
-            EXPECT_EQ("animation-0", lane.items.front().attributes.at("track"));
-            EXPECT_EQ(std::to_string(component), lane.items.front().attributes.at("component"));
+            EXPECT_EQ("params.c", resolved_attributes(result, lane.items.front().attributes).at("parameter"));
+            EXPECT_EQ("animation-0", resolved_attributes(result, lane.items.front().attributes).at("track"));
+            EXPECT_EQ(
+                std::to_string(component), resolved_attributes(result, lane.items.front().attributes).at("component"));
             EXPECT_EQ("{\"control-points\":[\"0/0\",\"2/4\",\"4/0\"],\"kind\":\"bezier\"}",
-                lane.items.front().attributes.at("path"));
+                resolved_attributes(result, lane.items.front().attributes).at("path"));
         }
         const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
         ASSERT_NE(std::string::npos, start);
@@ -448,7 +458,8 @@ TEST(AnimationImport, ownsBezierTupleDefinitionsAcrossDegreesAndComparison)
         const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[index].items().front());
         EXPECT_DOUBLE_EQ(midpoint[index], curve.sample(grid.frame_start(2)));
         EXPECT_EQ(0, curve.sample_count());
-        EXPECT_NE(std::string::npos, curve.attributes().at("path").find("control-points"));
+        EXPECT_NE(
+            std::string::npos, resolved_attributes(document, curve.attributes()).at("path").find("control-points"));
     }
     EXPECT_EQ("animation-5", document.strings().lookup(document.lanes()[14].id()));
     const timeline::Curve &quartic = std::get<timeline::Curve>(document.lanes()[10].items().front());
@@ -461,7 +472,8 @@ TEST(AnimationImport, ownsBezierTupleDefinitionsAcrossDegreesAndComparison)
     ASSERT_EQ(19, combined.lane_count());
     const timeline::Curve &copy = std::get<timeline::Curve>(combined.lanes()[14].items().front());
     EXPECT_DOUBLE_EQ(1.0, copy.sample(grid.frame_start(2)));
-    EXPECT_EQ(quartic.attributes(), copy.attributes());
+    EXPECT_EQ(resolved_attributes(document, quartic.attributes()).values(),
+        resolved_attributes(combined, copy.attributes()).values());
 }
 
 TEST(AnimationImport, diagnosesMalformedBezierPointsAndUnsupportedTargets)
@@ -479,7 +491,9 @@ TEST(AnimationImport, diagnosesMalformedBezierPointsAndUnsupportedTargets)
         }
     }
     EXPECT_EQ("animation-7[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
-    EXPECT_EQ("true", std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes().at("normalize"));
+    EXPECT_EQ("true",
+        resolved_attributes(result, std::get<timeline::Curve>(result.document->lanes()[0].items()[0]).attributes())
+            .at("normalize"));
     EXPECT_EQ("animation-11[0]", result.document->strings().lookup(result.document->lanes()[2].id()));
     const timeline::FrameGrid &grid = *result.document->frame_grid();
     const timeline::Curve &constant = std::get<timeline::Curve>(result.document->lanes()[2].items().front());
@@ -519,11 +533,12 @@ TEST(AnimationImport, samplesAnalyticSpiralsLikeParanimatorAndPreservesTheRecipe
             ASSERT_TRUE(lane.items.front().value);
             EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *lane.items.front().value);
             EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, lane.items.front().role);
-            EXPECT_EQ("params.c", lane.items.front().attributes.at("parameter"));
-            EXPECT_EQ("animation-0", lane.items.front().attributes.at("track"));
-            EXPECT_EQ(std::to_string(component), lane.items.front().attributes.at("component"));
+            EXPECT_EQ("params.c", resolved_attributes(result, lane.items.front().attributes).at("parameter"));
+            EXPECT_EQ("animation-0", resolved_attributes(result, lane.items.front().attributes).at("track"));
+            EXPECT_EQ(
+                std::to_string(component), resolved_attributes(result, lane.items.front().attributes).at("component"));
             EXPECT_EQ("{\"center\":\"0/0\",\"from-radius\":1,\"kind\":\"spiral\",\"to-radius\":3,\"turns\":1}",
-                lane.items.front().attributes.at("path"));
+                resolved_attributes(result, lane.items.front().attributes).at("path"));
         }
         const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
         ASSERT_NE(std::string::npos, start);
@@ -601,7 +616,8 @@ TEST(AnimationImport, keepsReverseShrinkingSpiralsAndConstantRadiusDefinitionsOw
     ASSERT_EQ(8, combined.lane_count());
     const timeline::Curve &copy = std::get<timeline::Curve>(combined.lanes()[4].items().front());
     EXPECT_DOUBLE_EQ(3.0, copy.sample(grid.frame_start(2)));
-    EXPECT_EQ(x.attributes(), copy.attributes());
+    EXPECT_EQ(resolved_attributes(document, x.attributes()).values(),
+        resolved_attributes(combined, copy.attributes()).values());
 }
 
 TEST(AnimationImport, diagnosesInvalidSpiralRecipesAndKeepsDefaultsAndZeroRadii)
@@ -657,12 +673,13 @@ TEST(AnimationImport, samplesLissajousLikeParanimatorAndPreservesTheRecipe)
             ASSERT_TRUE(lane.items.front().value);
             EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *lane.items.front().value);
             EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, lane.items.front().role);
-            EXPECT_EQ("params.c", lane.items.front().attributes.at("parameter"));
-            EXPECT_EQ("animation-0", lane.items.front().attributes.at("track"));
-            EXPECT_EQ(std::to_string(component), lane.items.front().attributes.at("component"));
+            EXPECT_EQ("params.c", resolved_attributes(result, lane.items.front().attributes).at("parameter"));
+            EXPECT_EQ("animation-0", resolved_attributes(result, lane.items.front().attributes).at("track"));
+            EXPECT_EQ(
+                std::to_string(component), resolved_attributes(result, lane.items.front().attributes).at("component"));
             EXPECT_EQ("{\"center\":\"0/0\",\"kind\":\"lissajous\",\"x-frequency\":1,\"x-radius\":2,"
                       "\"y-frequency\":1,\"y-radius\":1}",
-                lane.items.front().attributes.at("path"));
+                resolved_attributes(result, lane.items.front().attributes).at("path"));
         }
         const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
         ASSERT_NE(std::string::npos, start);
@@ -726,7 +743,8 @@ TEST(AnimationImport, keepsLissajousFrequenciesIndependentAndPhaseOnXOnly)
     ASSERT_EQ(6, combined.lane_count());
     const timeline::Curve &copy = std::get<timeline::Curve>(combined.lanes()[4].items().front());
     EXPECT_NEAR(1.0 - std::sqrt(3.0), copy.sample(grid.frame_start(2)), 1e-12);
-    EXPECT_EQ(x.attributes(), copy.attributes());
+    EXPECT_EQ(resolved_attributes(document, x.attributes()).values(),
+        resolved_attributes(combined, copy.attributes()).values());
 }
 
 TEST(AnimationImport, diagnosesInvalidLissajousRecipesAndAcceptsZeroRadii)
@@ -772,7 +790,8 @@ TEST(AnimationImport, preservesAndSamplesAnalyticEllipseRecipes)
             ASSERT_TRUE(lane.items.front().value);
             EXPECT_DOUBLE_EQ(component == 0 ? x[frame] : y[frame], *lane.items.front().value);
             EXPECT_EQ(timeline::InspectionItemRole::SAMPLED, lane.items.front().role);
-            EXPECT_NE(std::string::npos, lane.items.front().attributes.at("path").find("ellipse"));
+            EXPECT_NE(std::string::npos,
+                resolved_attributes(result, lane.items.front().attributes).at("path").find("ellipse"));
         }
         const std::size_t start = golden.find("frame-000" + std::to_string(frame + 1) + " {");
         ASSERT_NE(std::string::npos, start);
@@ -833,7 +852,8 @@ TEST(AnimationImport, honorsCirclePhaseReverseTurnsAndDocumentOwnership)
     ASSERT_EQ(6, combined.lane_count());
     const timeline::Curve &copy = std::get<timeline::Curve>(combined.lanes()[4].items().front());
     EXPECT_DOUBLE_EQ(3.0, copy.sample(grid.frame_start(2)));
-    EXPECT_EQ(x.attributes(), copy.attributes());
+    EXPECT_EQ(resolved_attributes(document, x.attributes()).values(),
+        resolved_attributes(combined, copy.attributes()).values());
 }
 
 TEST(AnimationImport, diagnosesInvalidPlanarPathsAndKeepsZeroRadiusDefaults)
@@ -890,12 +910,14 @@ TEST(AnimationImport, samplesConstantAndLinePathsLikeParanimator)
             grid.frame_start(0) + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2)));
     const timeline::Keyframe &constant = std::get<timeline::Keyframe>(result.document->lanes()[0].items().front());
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, constant.interpolation());
-    EXPECT_EQ("{\"kind\":\"constant\",\"value\":\"321\"}", constant.attributes().at("path"));
+    EXPECT_EQ(
+        "{\"kind\":\"constant\",\"value\":\"321\"}", resolved_attributes(result, constant.attributes()).at("path"));
     for (const timeline::Item &item : line.items())
     {
         const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
-        EXPECT_EQ("{\"from\":\"0/1\",\"kind\":\"line\",\"to\":\"2/3\"}", key.attributes().at("path"));
-        EXPECT_EQ("params.c", key.attributes().at("parameter"));
+        EXPECT_EQ("{\"from\":\"0/1\",\"kind\":\"line\",\"to\":\"2/3\"}",
+            resolved_attributes(result, key.attributes()).at("path"));
+        EXPECT_EQ("params.c", resolved_attributes(result, key.attributes()).at("parameter"));
     }
     const timeline::Layout layout(*result.document, timeline::Viewport(400, 160, grid.offset(), grid.end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
@@ -919,7 +941,8 @@ TEST(AnimationImport, diagnosesInvalidPathsWithoutDiscardingAValidConstant)
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 1);
     ASSERT_TRUE(inspection);
     ASSERT_EQ(1, timeline::size_cast(inspection->lanes.front().items));
-    const timeline::Attributes &attributes = inspection->lanes.front().items.front().attributes;
+    const ResolvedAttributes attributes =
+        resolved_attributes(result, inspection->lanes.front().items.front().attributes);
     EXPECT_EQ("bof60", attributes.at("value"));
     EXPECT_EQ("{\"kind\":\"constant\",\"value\":\"bof60\"}", attributes.at("path"));
 }
@@ -943,7 +966,7 @@ TEST(AnimationImport, translatesDestinationCurveToOutgoingSegment)
     ASSERT_EQ(2, lane.item_count());
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(lane.items().front());
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
-    EXPECT_EQ("step", first.attributes().at("outgoing-curve"));
+    EXPECT_EQ("step", resolved_attributes(result, first.attributes()).at("outgoing-curve"));
     EXPECT_DOUBLE_EQ(100.0, *lane.evaluate_keyframes(grid.frame_start(2)));
     EXPECT_DOUBLE_EQ(200.0, *lane.evaluate_keyframes(grid.frame_start(3)));
 }
@@ -961,9 +984,9 @@ TEST(AnimationImport, splitsCompoundParametersWithoutLosingAuthoredValues)
     EXPECT_EQ("center-mag[2]", result.document->strings().lookup(magnification.label()));
     EXPECT_NEAR(std::sqrt(10.0), *magnification.evaluate_keyframes(grid.frame_start(1)), 1e-12);
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(magnification.items().front());
-    EXPECT_EQ("-0.5/0/1", first.attributes().at("value"));
-    EXPECT_EQ("center-mag", first.attributes().at("parameter"));
-    EXPECT_EQ("geometric", first.attributes().at("outgoing-curve"));
+    EXPECT_EQ("-0.5/0/1", resolved_attributes(result, first.attributes()).at("value"));
+    EXPECT_EQ("center-mag", resolved_attributes(result, first.attributes()).at("parameter"));
+    EXPECT_EQ("geometric", resolved_attributes(result, first.attributes()).at("outgoing-curve"));
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 1);
     ASSERT_TRUE(inspection);
     ASSERT_TRUE(inspection->lanes[2].value);
@@ -978,7 +1001,7 @@ TEST(AnimationImport, retainsLayerIdentityAndDrivesDisplayAndInspection)
     const timeline::Lane &lane = result.document->lanes().front();
     EXPECT_EQ("base / maxiter", result.document->strings().lookup(lane.label()));
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(lane.items().front());
-    EXPECT_EQ("base", first.attributes().at("layer"));
+    EXPECT_EQ("base", resolved_attributes(result, first.attributes()).at("layer"));
     const timeline::FrameGrid &grid = *result.document->frame_grid();
     const timeline::Layout layout(*result.document, timeline::Viewport(400, 120, grid.offset(), grid.end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
@@ -989,7 +1012,7 @@ TEST(AnimationImport, retainsLayerIdentityAndDrivesDisplayAndInspection)
     ASSERT_TRUE(inspection);
     ASSERT_EQ(1, timeline::size_cast(inspection->lanes));
     ASSERT_FALSE(inspection->lanes.front().items.empty());
-    EXPECT_EQ("base", inspection->lanes.front().items.front().attributes.at("layer"));
+    EXPECT_EQ("base", resolved_attributes(result, inspection->lanes.front().items.front().attributes).at("layer"));
     EXPECT_DOUBLE_EQ(150.0, *lane.evaluate_keyframes(grid.frame_start(1)));
 }
 
@@ -1050,13 +1073,13 @@ TEST(AnimationImport, preservesCategoricalValuesAsHeldSpansAndKeyInstants)
     ASSERT_EQ(1, timeline::size_cast(inspection->lanes.front().items));
     const timeline::InspectionItem &held = inspection->lanes.front().items.front();
     EXPECT_FALSE(held.value);
-    EXPECT_EQ("bof60", held.attributes.at("value"));
-    EXPECT_EQ("hold", held.attributes.at("outgoing-curve"));
+    EXPECT_EQ("bof60", resolved_attributes(result, held.attributes).at("value"));
+    EXPECT_EQ("hold", resolved_attributes(result, held.attributes).at("outgoing-curve"));
     const std::optional<timeline::FrameInspection> final = timeline::inspect_frame(*result.document, 2);
     ASSERT_TRUE(final);
     for (const timeline::InspectionItem &item : final->lanes.front().items)
     {
-        EXPECT_EQ("zmag", item.attributes.at("value"));
+        EXPECT_EQ("zmag", resolved_attributes(result, item.attributes).at("value"));
     }
 }
 

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -66,10 +68,12 @@ TEST(NormalizedVector, matchesExtremeSourceOutputAtFramesAndBetweenFrames)
             SCOPED_TRACE(index);
             const timeline::Lane &lane = imported.document->lanes()[index];
             const bool keyed = std::holds_alternative<timeline::Keyframe>(lane.items()[0]);
-            const timeline::Attributes &attributes = keyed ? std::get<timeline::Keyframe>(lane.items()[0]).attributes()
-                                                           : std::get<timeline::Curve>(lane.items()[0]).attributes();
-            const double expected =
-                vector_golden_component(entry, attributes.at("parameter"), std::stoi(attributes.at("component")));
+            const timeline::Attributes &stored_attributes = keyed
+                ? std::get<timeline::Keyframe>(lane.items()[0]).attributes()
+                : std::get<timeline::Curve>(lane.items()[0]).attributes();
+            const ResolvedAttributes attributes = resolved_attributes(imported, stored_attributes);
+            const double expected = vector_golden_component(
+                entry, std::string(attributes.at("parameter")), std::stoi(std::string(attributes.at("component"))));
             const double actual =
                 keyed ? *lane.evaluate_keyframe_output(time) : std::get<timeline::Curve>(lane.items()[0]).sample(time);
             EXPECT_NEAR(expected, actual, std::abs(expected) * 1e-11);
@@ -117,7 +121,8 @@ TEST(NormalizedVector, retainsExtremeAuthoredValuesRecipesBoundsAndHitIdentities
             EXPECT_EQ(std::get<timeline::Keyframe>(document.lanes()[index].items()[0]).attributes(), copy.attributes());
             EXPECT_DOUBLE_EQ(
                 *document.lanes()[index].evaluate_keyframe_output(middle), *lane.evaluate_keyframe_output(middle));
-            EXPECT_NE(std::string::npos, copy.attributes().at("track-definition").find("value"));
+            EXPECT_NE(std::string::npos,
+                resolved_attributes(combined, copy.attributes()).at("track-definition").find("value"));
         }
         else
         {
@@ -125,14 +130,16 @@ TEST(NormalizedVector, retainsExtremeAuthoredValuesRecipesBoundsAndHitIdentities
             EXPECT_EQ(std::get<timeline::Curve>(document.lanes()[index].items()[0]).attributes(), curve.attributes());
             EXPECT_DOUBLE_EQ(-1, *curve.minimum());
             EXPECT_DOUBLE_EQ(1, *curve.maximum());
-            EXPECT_NE(std::string::npos, curve.attributes().at("track-definition").find("control-points"));
+            EXPECT_NE(std::string::npos,
+                resolved_attributes(combined, curve.attributes()).at("track-definition").find("control-points"));
             EXPECT_DOUBLE_EQ(
                 std::get<timeline::Curve>(document.lanes()[index].items()[0]).sample(middle), curve.sample(middle));
         }
     }
     const timeline::Curve &bezier = std::get<timeline::Curve>(combined.lanes()[11].items()[0]);
-    EXPECT_NE(std::string::npos, bezier.attributes().at("path").find("1e200/1"));
-    EXPECT_NE(std::string::npos, bezier.attributes().at("catalog-definition").find("vector2"));
+    EXPECT_NE(std::string::npos, resolved_attributes(combined, bezier.attributes()).at("path").find("1e200/1"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(combined, bezier.attributes()).at("catalog-definition").find("vector2"));
     const timeline::Layout layout(combined, timeline::Viewport(600, 1300, grid.offset(), grid.end_time()),
         timeline::LayoutMetrics(100, 20, 40, 4));
     int found = 0;
@@ -213,8 +220,8 @@ TEST(NormalizedVector, matchesSourceKeyedOutputWithoutCleaningAuthoredComponents
     EXPECT_DOUBLE_EQ(10, *middle.lanes[1].value);
     EXPECT_NEAR(1 / std::sqrt(17.0), *middle.lanes[10].output_value, 1e-14);
     EXPECT_DOUBLE_EQ(5e-13, *middle.lanes[10].value);
-    EXPECT_EQ("true", middle.lanes[0].items[0].attributes.at("normalize"));
-    EXPECT_EQ("0", middle.lanes[0].items[0].attributes.at("component"));
+    EXPECT_EQ("true", resolved_attributes(imported, middle.lanes[0].items[0].attributes).at("normalize"));
+    EXPECT_EQ("0", resolved_attributes(imported, middle.lanes[0].items[0].attributes).at("component"));
 }
 
 TEST(NormalizedVector, retainsKeyedOutputAfterCopyingComparisonAndLayout)
@@ -230,8 +237,10 @@ TEST(NormalizedVector, retainsKeyedOutputAfterCopyingComparisonAndLayout)
     EXPECT_NEAR(8.75 / std::sqrt(8.75 * 8.75 + 2.5 * 2.5), *lane.evaluate_keyframe_output(half), 1e-14);
     const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
     EXPECT_DOUBLE_EQ(10, key.value());
-    EXPECT_NE(std::string::npos, key.attributes().at("track-definition").find("direction2"));
-    EXPECT_NE(std::string::npos, key.attributes().at("catalog-definition").find("vector2"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(document, key.attributes()).at("track-definition").find("direction2"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(document, key.attributes()).at("catalog-definition").find("vector2"));
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());
     const timeline::Document combined = timeline::combine_documents(document, *music.document);
@@ -338,12 +347,14 @@ TEST(NormalizedVector, ownsRecipesBoundsAndHitIdentityAcrossCopyingAndComparison
     EXPECT_EQ(0, curve.sample_count());
     EXPECT_DOUBLE_EQ(-1, *curve.minimum());
     EXPECT_DOUBLE_EQ(1, *curve.maximum());
-    EXPECT_EQ("true", curve.attributes().at("normalize"));
-    EXPECT_NE(std::string::npos, curve.attributes().at("path").find("10/0"));
-    EXPECT_NE(std::string::npos, curve.attributes().at("catalog-definition").find("vector2"));
-    EXPECT_NE(std::string::npos, curve.attributes().at("track-definition").find("direction2"));
-    EXPECT_EQ("0", curve.attributes().at("component"));
-    EXPECT_EQ("animation-0", curve.attributes().at("track"));
+    EXPECT_EQ("true", resolved_attributes(document, curve.attributes()).at("normalize"));
+    EXPECT_NE(std::string::npos, resolved_attributes(document, curve.attributes()).at("path").find("10/0"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(document, curve.attributes()).at("catalog-definition").find("vector2"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(document, curve.attributes()).at("track-definition").find("direction2"));
+    EXPECT_EQ("0", resolved_attributes(document, curve.attributes()).at("component"));
+    EXPECT_EQ("animation-0", resolved_attributes(document, curve.attributes()).at("track"));
     EXPECT_NEAR(1 / std::sqrt(5.0), curve.sample(grid.frame_start(2)), 1e-14);
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());
@@ -395,7 +406,9 @@ TEST(NormalizedVector, normalizesAfterInterpolationAndSourceCleanupAtFractionalT
     }
     EXPECT_DOUBLE_EQ(
         1.5, std::get<timeline::Curve>(imported.document->lanes()[5].items()[0]).sample(grid.frame_start(2)));
-    EXPECT_FALSE(std::get<timeline::Curve>(imported.document->lanes()[5].items()[0]).attributes().count("normalize"));
+    EXPECT_FALSE(
+        resolved_attributes(imported, std::get<timeline::Curve>(imported.document->lanes()[5].items()[0]).attributes())
+            .count("normalize"));
 }
 
 TEST(NormalizedVector, rejectsSingularIntervalsAndMalformedTargetsWithoutPartialLanes)

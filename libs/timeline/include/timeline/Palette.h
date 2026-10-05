@@ -65,6 +65,8 @@ public:
     PaletteCurve with_id(StringId id) const;
     /// Return a copy with the supplied kind identity.
     PaletteCurve with_kind(StringId kind) const;
+    /// Return a copy with the supplied attributes.
+    PaletteCurve with_attributes(Attributes attributes) const;
     StringId id() const
     {
         return m_id;

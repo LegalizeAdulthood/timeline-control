@@ -321,11 +321,13 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
             {
                 text += wxString::Format(": %.6f", *item.value);
             }
-            for (const auto &[name, value] : item.attributes)
+            for (const timeline::Attribute &attribute : item.attributes.values())
             {
+                const std::string_view name = document->strings().lookup(attribute.key());
+                const std::string_view value = document->strings().lookup(attribute.value());
                 if (!value.empty())
                 {
-                    text += "\n    " + name + ": " + value;
+                    text += "\n    " + to_wx_string(name) + ": " + to_wx_string(value);
                 }
             }
             if (item.palette)

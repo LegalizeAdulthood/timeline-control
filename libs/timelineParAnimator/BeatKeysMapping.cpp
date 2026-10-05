@@ -2,6 +2,8 @@
 
 #include <timelineParAnimator/BeatKeysMapping.h>
 
+#include <AttributeStrings.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -201,7 +203,8 @@ timeline::Document BeatKeysMapping::materialize() const
         {
             lane.add(timeline::Keyframe(builder.intern(id + "-" + std::to_string(frame)), grid.frame_start(frame),
                 value, timeline::KeyframeInterpolation::HOLD,
-                {{"source", recipe.source}, {"target", recipe.target}, {"op", recipe.operation}}));
+                detail::intern_attributes(
+                    {{"source", recipe.source}, {"target", recipe.target}, {"op", recipe.operation}}, builder)));
         }
         builder.add_lane(std::move(lane));
     }

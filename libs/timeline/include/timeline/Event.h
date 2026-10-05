@@ -2,19 +2,13 @@
 
 #pragma once
 
-#include <timeline/StringTable.h>
+#include <timeline/Attributes.h>
 #include <timeline/Time.h>
 
-#include <map>
 #include <optional>
-#include <string>
 
 namespace timeline
 {
-
-/// String-valued metadata attached to generic timeline content.
-///
-using Attributes = std::map<std::string, std::string>;
 
 /// An event occurring at one exact timeline time.
 ///
@@ -32,6 +26,8 @@ public:
     Instant with_id(StringId id) const;
     /// Return a copy with the supplied kind and label identities.
     Instant with_strings(StringId kind, StringId label) const;
+    /// Return a copy with the supplied attributes.
+    Instant with_attributes(Attributes attributes) const;
     StringId id() const
     {
         return m_id;

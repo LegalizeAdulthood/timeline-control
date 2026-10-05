@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -99,12 +101,16 @@ TEST_F(CatalogLoading, resolvesFormulaKnobsAndFunctionsInBothNameForms)
     const timeline::Document copy = *result.document;
     const timeline::FrameInspection inspection = *timeline::inspect_frame(copy, 1);
     EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[0].value);
-    EXPECT_EQ("params", inspection.lanes[0].items[0].attributes.at("output-parameter"));
-    EXPECT_EQ("[0,1]", inspection.lanes[0].items[0].attributes.at("slots"));
-    EXPECT_EQ("double", Json::parse(inspection.lanes[2].items[0].attributes.at("catalog-definition")).at("type"));
-    EXPECT_EQ("sin/cos", inspection.lanes[3].items[0].attributes.at("value"));
-    EXPECT_EQ("real", Json::parse(inspection.lanes[2].items[0].attributes.at("catalog-source-definition")).at("type"));
-    EXPECT_EQ("sin/cos", inspection.lanes[4].items[0].attributes.at("value"));
+    EXPECT_EQ("params", resolved_attributes(copy, inspection.lanes[0].items[0].attributes).at("output-parameter"));
+    EXPECT_EQ("[0,1]", resolved_attributes(copy, inspection.lanes[0].items[0].attributes).at("slots"));
+    EXPECT_EQ("double",
+        Json::parse(resolved_attributes(copy, inspection.lanes[2].items[0].attributes).at("catalog-definition"))
+            .at("type"));
+    EXPECT_EQ("sin/cos", resolved_attributes(copy, inspection.lanes[3].items[0].attributes).at("value"));
+    EXPECT_EQ("real",
+        Json::parse(resolved_attributes(copy, inspection.lanes[2].items[0].attributes).at("catalog-source-definition"))
+            .at("type"));
+    EXPECT_EQ("sin/cos", resolved_attributes(copy, inspection.lanes[4].items[0].attributes).at("value"));
 }
 
 TEST(TargetResolution, preservesDeclaredTargetsOwnedMetadataAndInspection)
@@ -117,14 +123,18 @@ TEST(TargetResolution, preservesDeclaredTargetsOwnedMetadataAndInspection)
     const timeline::FrameInspection inspection = *timeline::inspect_frame(copy, 1);
     EXPECT_DOUBLE_EQ(101, *inspection.lanes[0].value);
     EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[1].value);
-    EXPECT_EQ("sin/sin", inspection.lanes[4].items[0].attributes.at("value"));
-    EXPECT_EQ("1", inspection.lanes[5].items[0].attributes.at("value"));
-    EXPECT_EQ("no", inspection.lanes[15].items[0].attributes.at("value"));
-    EXPECT_EQ("sin/cos", inspection.lanes[16].items[0].attributes.at("value"));
-    EXPECT_EQ("params", inspection.lanes[1].items[0].attributes.at("output-parameter"));
-    EXPECT_EQ("[0,1]", inspection.lanes[1].items[0].attributes.at("slots"));
-    EXPECT_EQ("complex", Json::parse(inspection.lanes[1].items[0].attributes.at("catalog-definition")).at("type"));
-    EXPECT_EQ("params.c", Json::parse(inspection.lanes[1].items[0].attributes.at("track-definition")).at("parameter"));
+    EXPECT_EQ("sin/sin", resolved_attributes(copy, inspection.lanes[4].items[0].attributes).at("value"));
+    EXPECT_EQ("1", resolved_attributes(copy, inspection.lanes[5].items[0].attributes).at("value"));
+    EXPECT_EQ("no", resolved_attributes(copy, inspection.lanes[15].items[0].attributes).at("value"));
+    EXPECT_EQ("sin/cos", resolved_attributes(copy, inspection.lanes[16].items[0].attributes).at("value"));
+    EXPECT_EQ("params", resolved_attributes(copy, inspection.lanes[1].items[0].attributes).at("output-parameter"));
+    EXPECT_EQ("[0,1]", resolved_attributes(copy, inspection.lanes[1].items[0].attributes).at("slots"));
+    EXPECT_EQ("complex",
+        Json::parse(resolved_attributes(copy, inspection.lanes[1].items[0].attributes).at("catalog-definition"))
+            .at("type"));
+    EXPECT_EQ("params.c",
+        Json::parse(resolved_attributes(copy, inspection.lanes[1].items[0].attributes).at("track-definition"))
+            .at("parameter"));
 }
 
 TEST_F(CatalogLoading, requiresSourceValuesAndDefaultsEvenWithExplicitCurves)
@@ -182,7 +192,7 @@ TEST_F(CatalogLoading, suppliesCenterMagOptionalFieldsWithoutChangingAuthoredVal
     EXPECT_NEAR(2, *inspection.lanes[9].value, 1e-12);
     EXPECT_DOUBLE_EQ(1, *inspection.lanes[10].value);
     EXPECT_DOUBLE_EQ(22.5, *inspection.lanes[11].value);
-    EXPECT_EQ("0/0/1", inspection.lanes[9].items[0].attributes.at("value"));
+    EXPECT_EQ("0/0/1", resolved_attributes(result, inspection.lanes[9].items[0].attributes).at("value"));
 }
 
 TEST(TargetResolution, matchesReferenceFramesAndRetainsComparisonHitIdentities)
@@ -231,7 +241,8 @@ TEST(TargetResolution, matchesReferenceFramesAndRetainsComparisonHitIdentities)
         }
         else if (discrete.count(name))
         {
-            EXPECT_EQ(value, inspection.lanes[discrete.at(name)].items[0].attributes.at("value"));
+            EXPECT_EQ(value,
+                resolved_attributes(comparison, inspection.lanes[discrete.at(name)].items[0].attributes).at("value"));
             ++checks;
         }
     }
@@ -420,7 +431,8 @@ TEST_F(CatalogLoading, composesDistinctValidCatalogsWithoutChangingOwnedMetadata
     ASSERT_EQ(9, result.document->lane_count());
     const timeline::Document copy = *result.document;
     const Json metadata =
-        Json::parse(timeline::inspect_frame(copy, 1)->lanes[0].items[0].attributes.at("catalog-definition"));
+        Json::parse(resolved_attributes(copy, timeline::inspect_frame(copy, 1)->lanes[0].items[0].attributes)
+                .at("catalog-definition"));
     EXPECT_EQ(m_catalog.at("parameters").at("position"), metadata);
     EXPECT_DOUBLE_EQ(2, *timeline::inspect_frame(copy, 1)->lanes[0].value);
 }
@@ -494,13 +506,14 @@ TEST(CatalogCompatibility, retainsComponentMetadataAndOwnedDefinitions)
     {
         SCOPED_TRACE(index);
         EXPECT_DOUBLE_EQ(values[index], *inspection.lanes[index].value);
-        const timeline::Attributes &attributes = inspection.lanes[index].items[0].attributes;
+        const ResolvedAttributes attributes =
+            resolved_attributes(document, inspection.lanes[index].items[0].attributes);
         EXPECT_EQ(std::to_string(components[index]), attributes.at("component"));
         EXPECT_EQ(std::to_string(arities[index]), attributes.at("arity"));
         const Json catalog = Json::parse(attributes.at("catalog-definition"));
         EXPECT_TRUE(catalog.contains("type"));
         const Json track = Json::parse(attributes.at("track-definition"));
-        EXPECT_EQ(attributes.at("parameter"), track.at("parameter"));
+        EXPECT_EQ(attributes.at("parameter"), track.at("parameter").get<std::string>());
     }
     EXPECT_DOUBLE_EQ(101, *inspection.lanes[8].output_value);
     EXPECT_FALSE(inspection.lanes[0].output_value);

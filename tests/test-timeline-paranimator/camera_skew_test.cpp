@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -89,16 +91,17 @@ TEST(CameraSkew, matchesSourceGoldenAndPreservesOwnedDefinitions)
                 EXPECT_TRUE(curve.samples().empty());
                 EXPECT_EQ("animation-0-" + output + "[" + std::to_string(component) + "]-camera",
                     document.strings().lookup(curve.id()));
-                EXPECT_NE(std::string::npos, curve.attributes().at("camera2d").find("skew"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, curve.attributes()).at("camera2d").find("skew"));
             }
         }
         EXPECT_EQ(grid.frame_count(), frame);
         if (fixture == "center-mag" || fixture == "corners")
         {
             const timeline::Keyframe &skew = std::get<timeline::Keyframe>(document.lanes()[11].items().front());
-            EXPECT_EQ("camera.skew", skew.attributes().at("parameter"));
+            EXPECT_EQ("camera.skew", resolved_attributes(document, skew.attributes()).at("parameter"));
             EXPECT_EQ(timeline::KeyframeInterpolation::LINEAR, skew.interpolation());
-            EXPECT_NE(std::string::npos, skew.attributes().at("signal").find("keys"));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, skew.attributes()).at("signal").find("keys"));
             const timeline::Time half_frame =
                 grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
             const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[0].items().front());
@@ -156,8 +159,9 @@ TEST(CameraSkew, evaluatesInterpolationAndComposesWithAnalyticEye)
         }
         const timeline::Lane &input = copy.lanes()[11];
         EXPECT_EQ("animation-0-skew", copy.strings().lookup(input.id()));
-        std::visit(
-            [](const auto &item) { EXPECT_FALSE(item.attributes().at("signal").empty()); }, input.items().front());
+        std::visit([&copy](const auto &item)
+            { EXPECT_FALSE(resolved_attributes(copy, item.attributes()).at("signal").empty()); },
+            input.items().front());
         if (variant == "hold" || variant == "step")
         {
             const timeline::Keyframe &key = std::get<timeline::Keyframe>(input.items().front());

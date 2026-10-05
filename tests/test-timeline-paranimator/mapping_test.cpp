@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -57,8 +59,9 @@ void expect_golden(const std::string &mapping_file, const std::string &golden_fi
                     expected.at("frame").get<timeline::Ticks>() == frame)
                 {
                     EXPECT_DOUBLE_EQ(expected.at("value").get<double>(), key.value());
-                    EXPECT_EQ(expected.at("op").get<std::string>(), key.attributes().at("op"));
-                    EXPECT_EQ(recipe.source, key.attributes().at("source"));
+                    EXPECT_EQ(
+                        expected.at("op").get<std::string>(), resolved_attributes(result, key.attributes()).at("op"));
+                    EXPECT_EQ(recipe.source, resolved_attributes(result, key.attributes()).at("source"));
                     found = true;
                 }
             }

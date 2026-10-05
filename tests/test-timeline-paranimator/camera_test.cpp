@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -72,7 +74,7 @@ TEST(CameraImport, preservesKeyedNestedSignalsAndSourceEyePrecedence)
         const timeline::Curve &magnification = std::get<timeline::Curve>(document.lanes()[2].items().front());
         EXPECT_TRUE(magnification.samples().empty());
         const timeline::Keyframe &height = std::get<timeline::Keyframe>(document.lanes()[10].items().front());
-        EXPECT_FALSE(height.attributes().at("signal").empty());
+        EXPECT_FALSE(resolved_attributes(document, height.attributes()).at("signal").empty());
         for (int sixth_frame = 0; sixth_frame <= 24; ++sixth_frame)
         {
             const timeline::Time time =
@@ -89,8 +91,8 @@ TEST(CameraImport, preservesKeyedNestedSignalsAndSourceEyePrecedence)
             const timeline::Lane &authored = document.lanes()[13];
             ASSERT_EQ("keyframes", document.strings().lookup(authored.kind()));
             const timeline::Keyframe &key = std::get<timeline::Keyframe>(authored.items().front());
-            EXPECT_EQ("false", key.attributes().at("used-by-camera"));
-            EXPECT_NE(std::string::npos, key.attributes().at("signal").find("keys"));
+            EXPECT_EQ("false", resolved_attributes(document, key.attributes()).at("used-by-camera"));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, key.attributes()).at("signal").find("keys"));
             const timeline::Time crossing =
                 grid.offset() + timeline::Duration::from_ticks(3 * (grid.frame_start(4) - grid.offset()).ticks() / 10);
             EXPECT_NEAR(0, *authored.evaluate_keyframes(crossing), 1e-12);
@@ -209,7 +211,7 @@ TEST(CameraImport, samplesOwnedMovingLookCompositionsLikeParanimator)
         EXPECT_EQ(kind == "bezier-catmull" || kind == "ellipse-lissajous" ? 4 : 6, document.keyframe_count());
         const timeline::Curve &up_x = std::get<timeline::Curve>(document.lanes()[11].items().front());
         const timeline::Curve &up_y = std::get<timeline::Curve>(document.lanes()[12].items().front());
-        EXPECT_EQ("eye-look-at", up_x.attributes().at("derived-from"));
+        EXPECT_EQ("eye-look-at", resolved_attributes(document, up_x.attributes()).at("derived-from"));
         EXPECT_TRUE(up_x.samples().empty());
         for (int component = 6; component < 10; ++component)
         {
@@ -218,12 +220,15 @@ TEST(CameraImport, samplesOwnedMovingLookCompositionsLikeParanimator)
             {
                 const timeline::Curve &curve = std::get<timeline::Curve>(item);
                 EXPECT_TRUE(curve.samples().empty());
-                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("path"));
-                EXPECT_FALSE(curve.attributes().at("path").empty());
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, curve.attributes()).at("signal").find("path"));
+                EXPECT_FALSE(resolved_attributes(document, curve.attributes()).at("path").empty());
             }
             else
             {
-                EXPECT_FALSE(std::get<timeline::Keyframe>(item).attributes().at("signal").empty());
+                EXPECT_FALSE(resolved_attributes(document, std::get<timeline::Keyframe>(item).attributes())
+                        .at("signal")
+                        .empty());
             }
         }
         for (int sixth_frame = 0; sixth_frame <= 24; ++sixth_frame)
@@ -335,8 +340,8 @@ TEST(CameraImport, samplesOwnedRemainingEyePathsLikeParanimator)
         EXPECT_TRUE(eye_x.samples().empty());
         EXPECT_TRUE(up_x.samples().empty());
         const std::string path_kind = kind.find("lissajous") == 0 ? "lissajous" : kind;
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("path").find(path_kind));
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("signal").find(path_kind));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("path").find(path_kind));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("signal").find(path_kind));
         for (int sixth_frame = 0; sixth_frame <= 24; ++sixth_frame)
         {
             const timeline::Time time =
@@ -448,11 +453,11 @@ TEST(CameraImport, samplesOwnedEqualFrequencyLissajousEyesLikeParanimator)
         const timeline::Curve &up_y = std::get<timeline::Curve>(document.lanes()[12].items().front());
         EXPECT_TRUE(eye_x.samples().empty());
         EXPECT_TRUE(up_x.samples().empty());
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("path").find("x-frequency"));
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("signal").find("lissajous"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("path").find("x-frequency"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("signal").find("lissajous"));
         if (kind == "phase")
         {
-            EXPECT_NE(std::string::npos, eye_x.attributes().at("path").find("phase"));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("path").find("phase"));
             EXPECT_NEAR(1 - std::sqrt(2.0), eye_x.sample(grid.frame_start(1)), 1e-12);
             EXPECT_NEAR(-1, eye_y.sample(grid.frame_start(1)), 1e-12);
         }
@@ -556,8 +561,8 @@ TEST(CameraImport, samplesOwnedSpiralEyesLikeParanimator)
         const timeline::Curve &up_y = std::get<timeline::Curve>(document.lanes()[12].items().front());
         EXPECT_TRUE(eye_x.samples().empty());
         EXPECT_TRUE(up_x.samples().empty());
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("path").find("from-radius"));
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("signal").find("spiral"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("path").find("from-radius"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("signal").find("spiral"));
         for (int half_frame = 0; half_frame <= 8; ++half_frame)
         {
             const timeline::Time time =
@@ -654,7 +659,7 @@ TEST(CameraImport, evaluatesOwnedOffsetEyeOrbitsLikeParanimator)
         const timeline::Curve &up_y = std::get<timeline::Curve>(document.lanes()[12].items().front());
         EXPECT_TRUE(eye_x.samples().empty());
         EXPECT_TRUE(up_x.samples().empty());
-        EXPECT_NE(std::string::npos, eye_x.attributes().at("signal").find("path"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, eye_x.attributes()).at("signal").find("path"));
         for (int half_frame = 0; half_frame <= 8; ++half_frame)
         {
             const timeline::Time time =
@@ -755,8 +760,8 @@ TEST(CameraImport, samplesOwnedCurvedLookAtLikeParanimatorWithFullPathBounds)
             EXPECT_EQ(look.maximum(), center.maximum());
             ASSERT_TRUE(center.minimum());
             ASSERT_TRUE(center.maximum());
-            EXPECT_NE(std::string::npos, look.attributes().at("path").find(kind));
-            EXPECT_NE(std::string::npos, look.attributes().at("signal").find(kind));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, look.attributes()).at("path").find(kind));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, look.attributes()).at("signal").find(kind));
             const timeline::Time between =
                 grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
             EXPECT_DOUBLE_EQ(look.sample(between), center.sample(between));
@@ -839,8 +844,8 @@ TEST(CameraImport, composesStraightPathsLikeParanimatorAndOwnsTheirRecipes)
         }
         EXPECT_EQ(5, frame);
         const timeline::Keyframe &look = std::get<timeline::Keyframe>(document.lanes()[6].items().front());
-        EXPECT_NE(std::string::npos, look.attributes().at("path").find("line"));
-        EXPECT_NE(std::string::npos, look.attributes().at("signal").find("path"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, look.attributes()).at("path").find("line"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, look.attributes()).at("signal").find("path"));
         EXPECT_EQ("animation-0-look-at-key-0", document.strings().lookup(look.id()));
         const timeline::Time between =
             grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
@@ -848,7 +853,7 @@ TEST(CameraImport, composesStraightPathsLikeParanimatorAndOwnsTheirRecipes)
         if (fixture != fixtures.front())
         {
             const timeline::Keyframe &eye = std::get<timeline::Keyframe>(document.lanes()[8].items().front());
-            EXPECT_NE(std::string::npos, eye.attributes().at("path").find("constant"));
+            EXPECT_NE(std::string::npos, resolved_attributes(document, eye.attributes()).at("path").find("constant"));
             EXPECT_DOUBLE_EQ(0, *document.lanes()[8].evaluate_keyframes(between));
         }
         const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
@@ -928,9 +933,9 @@ TEST(CameraImport, derivesDirectionFromAnalyticEyeLikeParanimator)
     const timeline::Curve &eye = std::get<timeline::Curve>(result.document->lanes()[8].items().front());
     EXPECT_TRUE(eye.samples().empty());
     EXPECT_EQ("animation-0-eye[0]", result.document->strings().lookup(result.document->lanes()[8].id()));
-    EXPECT_NE(std::string::npos, eye.attributes().at("path").find("circle"));
+    EXPECT_NE(std::string::npos, resolved_attributes(result, eye.attributes()).at("path").find("circle"));
     const timeline::Curve &up = std::get<timeline::Curve>(result.document->lanes()[11].items().front());
-    EXPECT_EQ("eye-look-at", up.attributes().at("derived-from"));
+    EXPECT_EQ("eye-look-at", resolved_attributes(result, up.attributes()).at("derived-from"));
     EXPECT_DOUBLE_EQ(-1, up.sample(grid.frame_start(1)));
     const timeline::Time between = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
     EXPECT_NEAR(-std::sqrt(0.5), eye.sample(between), 1e-12);
@@ -959,11 +964,11 @@ TEST(CameraImport, preservesEyePrecedenceAndOwnedOrbitsAndKeyedMotion)
     EXPECT_DOUBLE_EQ(90, rotation.sample(grid.frame_start(1)));
     const timeline::Curve &eye = std::get<timeline::Curve>(document.lanes()[8].items().front());
     EXPECT_DOUBLE_EQ(4, eye.sample(grid.frame_start(1)));
-    EXPECT_EQ("orbit.eye", eye.attributes().at("parameter"));
+    EXPECT_EQ("orbit.eye", resolved_attributes(document, eye.attributes()).at("parameter"));
     const timeline::Keyframe &authored_up = std::get<timeline::Keyframe>(document.lanes()[13].items().front());
     EXPECT_DOUBLE_EQ(0, *document.lanes()[13].evaluate_keyframes(grid.frame_start(1)));
     EXPECT_DOUBLE_EQ(2, *document.lanes()[14].evaluate_keyframes(grid.frame_start(1)));
-    EXPECT_EQ("orbit.view-up", authored_up.attributes().at("parameter"));
+    EXPECT_EQ("orbit.view-up", resolved_attributes(document, authored_up.attributes()).at("parameter"));
     const timeline::Curve &moving_rotation = std::get<timeline::Curve>(document.lanes()[19].items().front());
     EXPECT_DOUBLE_EQ(0, moving_rotation.sample(grid.frame_start(2)));
     const timeline::Curve &moving_up = std::get<timeline::Curve>(document.lanes()[26].items().front());
@@ -1033,10 +1038,11 @@ TEST(CameraImport, evaluatesCenterMagAndNestedKeysLikeParanimator)
     EXPECT_EQ(timeline::CurveInterpolation::ANALYTIC, magnification.interpolation());
     EXPECT_TRUE(magnification.samples().empty());
     EXPECT_EQ(grid.frame_start(2), magnification.end());
-    EXPECT_EQ("center-mag", magnification.attributes().at("parameter"));
-    EXPECT_EQ("magnification", magnification.attributes().at("component"));
-    EXPECT_EQ("Mandel_Demo", magnification.attributes().at("source-entry"));
-    EXPECT_NE(std::string::npos, magnification.attributes().at("camera2d").find("geometric"));
+    EXPECT_EQ("center-mag", resolved_attributes(result, magnification.attributes()).at("parameter"));
+    EXPECT_EQ("magnification", resolved_attributes(result, magnification.attributes()).at("component"));
+    EXPECT_EQ("Mandel_Demo", resolved_attributes(result, magnification.attributes()).at("source-entry"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(result, magnification.attributes()).at("camera2d").find("geometric"));
     EXPECT_EQ("animation-0-look-at[0]", result.document->strings().lookup(result.document->lanes()[6].id()));
     const timeline::Layout layout(*result.document, timeline::Viewport(500, 380, grid.offset(), grid.end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
@@ -1077,7 +1083,7 @@ TEST(CameraImport, normalizesInterpolatedViewUpAndPreservesSourceStretch)
     EXPECT_DOUBLE_EQ(1, held.sample(grid.frame_start(2)));
     const timeline::Time between = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
     EXPECT_NEAR(18.43494882292201, rotation.sample(between), 1e-12);
-    EXPECT_NE(std::string::npos, up_x.attributes().at("signal").find("0/2"));
+    EXPECT_NE(std::string::npos, resolved_attributes(document, up_x.attributes()).at("signal").find("0/2"));
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());
     const timeline::Document combined = timeline::combine_documents(*music.document, document);
@@ -1115,10 +1121,10 @@ TEST(CameraImport, resolvesLayerViewsAndDiagnosesUnusableSourceEntries)
     const timeline::FrameGrid &grid = *result.document->frame_grid();
     const timeline::Curve &stretch = std::get<timeline::Curve>(result.document->lanes()[3].items().front());
     EXPECT_DOUBLE_EQ(-2, stretch.sample(grid.offset()));
-    EXPECT_EQ("camera-0", stretch.attributes().at("layer"));
+    EXPECT_EQ("camera-0", resolved_attributes(result, stretch.attributes()).at("layer"));
     const timeline::Curve &default_stretch = std::get<timeline::Curve>(result.document->lanes()[14].items().front());
     EXPECT_DOUBLE_EQ(1, default_stretch.sample(grid.offset()));
     const timeline::Curve &magnification = std::get<timeline::Curve>(result.document->lanes()[13].items().front());
     EXPECT_NEAR(std::sqrt(2.0), magnification.sample(grid.frame_start(1)), 1e-12);
-    EXPECT_EQ("Zero_Demo", magnification.attributes().at("source-entry"));
+    EXPECT_EQ("Zero_Demo", resolved_attributes(result, magnification.attributes()).at("source-entry"));
 }

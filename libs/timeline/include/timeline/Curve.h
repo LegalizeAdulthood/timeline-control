@@ -77,6 +77,8 @@ public:
     Curve with_id(StringId id) const;
     /// Return a copy with the supplied kind and label identities.
     Curve with_strings(StringId kind, StringId label) const;
+    /// Return a copy with the supplied attributes.
+    Curve with_attributes(Attributes attributes) const;
     StringId id() const
     {
         return m_id;

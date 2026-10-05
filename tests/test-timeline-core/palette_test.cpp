@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 using namespace timeline;
 
@@ -51,10 +52,10 @@ TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
         DocumentBuilder builder(Document(FrameGrid(Timebase(30), 3, 30, 1), 0, 0));
         Lane lane(
             builder.intern("colors"), builder.intern("Colors"), builder.intern("palette"), Time{}, Time::from_ticks(3));
+        const Attributes attributes(std::vector<Attribute>{{builder.intern("recipe"), builder.intern("owned")}});
         lane.add(PaletteCurve(
             builder.intern("palette"), builder.intern("color-map"), Time{}, Time::from_ticks(3),
-            [](Time time) { return Palette{RgbColor(static_cast<int>(time.ticks()) * 20, 0, 255)}; },
-            Attributes{{"recipe", "owned"}}));
+            [](Time time) { return Palette{RgbColor(static_cast<int>(time.ticks()) * 20, 0, 255)}; }, attributes));
         builder.add_lane(std::move(lane));
         return std::move(builder).build();
     }();
@@ -67,7 +68,7 @@ TEST(Palette, queriesSamplesWithoutScalarSubstitutionAndSurvivesCopying)
     EXPECT_FALSE(item.value);
     ASSERT_TRUE(item.palette);
     EXPECT_EQ(RgbColor(20, 0, 255), item.palette->front());
-    EXPECT_EQ("owned", item.attributes.at("recipe"));
+    EXPECT_EQ(document.strings().find("owned"), item.attributes.find(*document.strings().find("recipe")));
     const RangeInspection range = inspect_range(document, Time{}, Time::from_ticks(3));
     EXPECT_FALSE(range.lanes[0].items[0].palette);
 }

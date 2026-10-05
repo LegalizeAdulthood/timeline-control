@@ -154,6 +154,13 @@ Curve Curve::with_strings(StringId kind, StringId label) const
     return result;
 }
 
+Curve Curve::with_attributes(Attributes attributes) const
+{
+    Curve result(*this);
+    result.m_attributes = std::move(attributes);
+    return result;
+}
+
 double Curve::sample(Time time) const
 {
     if (m_evaluator)

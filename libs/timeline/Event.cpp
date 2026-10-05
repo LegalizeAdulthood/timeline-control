@@ -56,4 +56,11 @@ Instant Instant::with_strings(StringId kind, StringId label) const
     return result;
 }
 
+Instant Instant::with_attributes(Attributes attributes) const
+{
+    Instant result(*this);
+    result.m_attributes = std::move(attributes);
+    return result;
+}
+
 } // namespace timeline

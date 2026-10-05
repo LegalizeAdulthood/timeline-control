@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -82,9 +84,9 @@ TEST(CameraCorners, samplesOwnedAffineComponentsLikeParanimator)
                 EXPECT_EQ(lane_name, document.strings().lookup(lane.id()));
                 const timeline::Curve &curve = std::get<timeline::Curve>(lane.items().front());
                 EXPECT_EQ(lane_name + "-camera", document.strings().lookup(curve.id()));
-                EXPECT_EQ("corners", curve.attributes().at("parameter"));
-                EXPECT_EQ(components[component], curve.attributes().at("component"));
-                EXPECT_FALSE(curve.attributes().at("camera2d").empty());
+                EXPECT_EQ("corners", resolved_attributes(document, curve.attributes()).at("parameter"));
+                EXPECT_EQ(components[component], resolved_attributes(document, curve.attributes()).at("component"));
+                EXPECT_FALSE(resolved_attributes(document, curve.attributes()).at("camera2d").empty());
                 EXPECT_TRUE(curve.samples().empty());
                 EXPECT_EQ(grid.offset(), curve.start());
                 EXPECT_EQ(grid.frame_start(grid.frame_count() - 1), curve.end());
@@ -106,7 +108,7 @@ TEST(CameraCorners, samplesOwnedAffineComponentsLikeParanimator)
             }
         }
         const timeline::Keyframe &height = std::get<timeline::Keyframe>(document.lanes()[10].items().front());
-        EXPECT_FALSE(height.attributes().at("signal").empty());
+        EXPECT_FALSE(resolved_attributes(document, height.attributes()).at("signal").empty());
         const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
         ASSERT_TRUE(music.succeeded());
         const JsonImportResult comparison = import_timeline_json("fixtures/" + fixture + ".json");
@@ -125,7 +127,8 @@ TEST(CameraCorners, samplesOwnedAffineComponentsLikeParanimator)
         const double expected_aspect = fixture == "camera2d-corners-rotated-source" ? 2
             : fixture == "camera2d-corners-reversed-source"                         ? 1.5
                                                                                     : 0.5;
-        EXPECT_DOUBLE_EQ(expected_aspect, std::stod(first.attributes().at("aspect")));
+        EXPECT_DOUBLE_EQ(
+            expected_aspect, std::stod(std::string(resolved_attributes(document, first.attributes()).at("aspect"))));
     }
 }
 

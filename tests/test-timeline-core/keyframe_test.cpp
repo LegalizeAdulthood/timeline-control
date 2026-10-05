@@ -10,6 +10,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <vector>
 
 using namespace timeline;
 
@@ -35,14 +36,14 @@ TEST(KeyframeInterpolation, convertsEveryValueToString)
 
 TEST(Keyframe, storesNumericValueAndInterpolation)
 {
-    const Keyframe keyframe(
-        StringId{1}, at(10), 1.5, KeyframeInterpolation::LINEAR, {{"operation", "replace"}, {"source", "music.rms"}});
+    const Keyframe keyframe(StringId{1}, at(10), 1.5, KeyframeInterpolation::LINEAR,
+        Attributes(std::vector<Attribute>{{StringId{2}, StringId{3}}, {StringId{4}, StringId{5}}}));
 
     EXPECT_EQ(StringId{1}, keyframe.id());
     EXPECT_EQ(10, keyframe.time().ticks());
     EXPECT_DOUBLE_EQ(1.5, keyframe.value());
     EXPECT_EQ(KeyframeInterpolation::LINEAR, keyframe.interpolation());
-    EXPECT_EQ("replace", keyframe.attributes().at("operation"));
+    EXPECT_EQ(StringId{3}, keyframe.attributes().find(StringId{2}));
 }
 
 TEST(Lane, ownsOptionalKeyframeEvaluationAndRejectsInvalidRecipes)

@@ -39,6 +39,8 @@ public:
 
     /// Return a copy with the supplied identity.
     Keyframe with_id(StringId id) const;
+    /// Return a copy with the supplied attributes.
+    Keyframe with_attributes(Attributes attributes) const;
     StringId id() const
     {
         return m_id;

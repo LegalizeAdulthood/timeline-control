@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Query.h>
@@ -86,8 +88,9 @@ TEST(CameraNormalization, samplesSourceArithmeticAfterInterpolationWithOwnedBoun
                     EXPECT_TRUE(curve.samples().empty());
                     EXPECT_EQ("animation-0-view-up[" + std::to_string(axis) + "]",
                         document.strings().lookup(document.lanes()[12 + axis].id()));
-                    EXPECT_EQ("true", curve.attributes().at("normalize"));
-                    EXPECT_EQ(keys.dump(), Json::parse(curve.attributes().at("signal")).at("keys").dump());
+                    EXPECT_EQ("true", resolved_attributes(document, curve.attributes()).at("normalize"));
+                    EXPECT_EQ(keys.dump(),
+                        Json::parse(resolved_attributes(document, curve.attributes()).at("signal")).at("keys").dump());
                 }
             }
             if (variant == "subnormal" || variant == "range-hold")

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -31,8 +33,9 @@ TEST(Extrapolation, matchesSourceOutputAndPreservesOwnedKeysInComparison)
         const timeline::Lane &lane = document.lanes()[0];
         ASSERT_EQ(2, lane.item_count());
         const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane.items()[0]);
-        EXPECT_EQ(policy, key.attributes().at("extrapolate"));
-        EXPECT_NE(std::string::npos, key.attributes().at("track-definition").find("keys"));
+        EXPECT_EQ(policy, resolved_attributes(document, key.attributes()).at("extrapolate"));
+        EXPECT_NE(
+            std::string::npos, resolved_attributes(document, key.attributes()).at("track-definition").find("keys"));
         EXPECT_EQ(4004, key.time().ticks());
         const timeline::FrameGrid &grid = *document.frame_grid();
         std::ifstream input("fixtures/gold-maxiter-" + policy + ".par");
@@ -175,9 +178,10 @@ TEST(Extrapolation, matchesSourceDoubleIntegerOrEnumAndHoldEvaluation)
     }
     const timeline::Lane &base = document.lanes()[1];
     const timeline::Keyframe &key = std::get<timeline::Keyframe>(base.items()[0]);
-    EXPECT_EQ("1.25", key.attributes().at("source-value"));
-    EXPECT_EQ("Bailout_Demo", key.attributes().at("source-entry"));
-    EXPECT_NE(std::string::npos, key.attributes().at("catalog-definition").find("double"));
+    EXPECT_EQ("1.25", resolved_attributes(document, key.attributes()).at("source-value"));
+    EXPECT_EQ("Bailout_Demo", resolved_attributes(document, key.attributes()).at("source-entry"));
+    EXPECT_NE(
+        std::string::npos, resolved_attributes(document, key.attributes()).at("catalog-definition").find("double"));
     const timeline::Time half = timeline::Time::from_ticks(grid.frame_duration().ticks() * 3 / 2);
     EXPECT_DOUBLE_EQ(2, *base.evaluate_keyframes(half));
     EXPECT_DOUBLE_EQ(100, *document.lanes()[0].evaluate_keyframes(half));

@@ -23,6 +23,8 @@ public:
     Interval with_id(StringId id) const;
     /// Return a copy with the supplied kind and label identities.
     Interval with_strings(StringId kind, StringId label) const;
+    /// Return a copy with the supplied attributes.
+    Interval with_attributes(Attributes attributes) const;
     StringId id() const
     {
         return m_id;

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -86,20 +88,22 @@ TEST(Id3DView, matchesSourceGoldenAndPreservesOwnedRecipes)
             for (int component = 0; component < outputs; ++component)
             {
                 const timeline::Lane &lane = document.lanes()[component];
-                const timeline::Attributes attributes =
+                const timeline::Attributes stored_attributes =
                     std::visit([](const auto &item) { return item.attributes(); }, lane.items().front());
+                const ResolvedAttributes attributes = resolved_attributes(document, stored_attributes);
                 EXPECT_EQ("view", attributes.at("view-name"));
                 EXPECT_NE(std::string::npos, attributes.at("id-3d-view").find("outputs"));
-                std::string value = frames[frame].at(attributes.at("parameter"));
+                std::string value = frames[frame].at(std::string(attributes.at("parameter")));
                 if (attributes.at("parameter") == "sphere")
                 {
-                    EXPECT_EQ(value, inspected.lanes[component].items.front().attributes.at("value"));
+                    EXPECT_EQ(value,
+                        resolved_attributes(document, inspected.lanes[component].items.front().attributes).at("value"));
                     continue;
                 }
                 std::replace(value.begin(), value.end(), '/', ' ');
                 std::istringstream values(value);
                 double source = 0;
-                const int index = std::stoi(attributes.at("component"));
+                const int index = std::stoi(std::string(attributes.at("component")));
                 for (int scalar = 0; scalar <= index; ++scalar)
                 {
                     ASSERT_TRUE(values >> source);
@@ -141,9 +145,9 @@ TEST(Id3DView, samplesContinuouslyWithIntegerRoundingAndEndpointHolds)
     const timeline::Curve &distance = std::get<timeline::Curve>(camera.document->lanes()[3].items().front());
     EXPECT_DOUBLE_EQ(8, distance.sample(half_frame));
     const timeline::Keyframe &eye = std::get<timeline::Keyframe>(camera.document->lanes()[6].items().front());
-    EXPECT_EQ("view.eye", eye.attributes().at("parameter"));
-    EXPECT_NE(std::string::npos, eye.attributes().at("signal").find("keys"));
-    EXPECT_EQ("0", eye.attributes().at("component"));
+    EXPECT_EQ("view.eye", resolved_attributes(camera, eye.attributes()).at("parameter"));
+    EXPECT_NE(std::string::npos, resolved_attributes(camera, eye.attributes()).at("signal").find("keys"));
+    EXPECT_EQ("0", resolved_attributes(camera, eye.attributes()).at("component"));
 
     const JsonImportResult keyed = import_timeline_json("fixtures/id-3d-view-keyed.json");
     ASSERT_TRUE(keyed.succeeded());
@@ -197,8 +201,8 @@ TEST(Id3DView, normalizesTiltedHintsAfterInterpolationWithOwnedRecipes)
                 EXPECT_LE(*up.minimum(), up.sample(time));
                 EXPECT_GE(*up.maximum(), up.sample(time));
                 EXPECT_TRUE(up.samples().empty());
-                EXPECT_EQ("true", up.attributes().at("normalize"));
-                EXPECT_NE(std::string::npos, up.attributes().at("signal").find("-1"));
+                EXPECT_EQ("true", resolved_attributes(document, up.attributes()).at("normalize"));
+                EXPECT_NE(std::string::npos, resolved_attributes(document, up.attributes()).at("signal").find("-1"));
             }
         }
     }
@@ -256,8 +260,9 @@ TEST(Id3DView, samplesOwnedObliqueHintsAndOutputsContinuously)
                 EXPECT_LE(*curve.minimum(), curve.sample(time));
                 EXPECT_GE(*curve.maximum(), curve.sample(time));
                 EXPECT_TRUE(curve.samples().empty());
-                EXPECT_EQ("true", curve.attributes().at("normalize"));
-                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("keys"));
+                EXPECT_EQ("true", resolved_attributes(document, curve.attributes()).at("normalize"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, curve.attributes()).at("signal").find("keys"));
             }
             const double horizontal = 5 + 5 * fraction;
             const double y = 10 - 5 * fraction;
@@ -323,8 +328,9 @@ TEST(Id3DView, holdsOwnedCameraPlanesUntilTheExactDestinationKey)
                 EXPECT_LE(*curve.minimum(), curve.sample(time));
                 EXPECT_GE(*curve.maximum(), curve.sample(time));
                 EXPECT_TRUE(curve.samples().empty());
-                EXPECT_EQ("true", curve.attributes().at("normalize"));
-                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("curve"));
+                EXPECT_EQ("true", resolved_attributes(document, curve.attributes()).at("normalize"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, curve.attributes()).at("signal").find("curve"));
             }
             const timeline::Curve &pitch = std::get<timeline::Curve>(document.lanes()[0].items().front());
             const timeline::Curve &yaw = std::get<timeline::Curve>(document.lanes()[1].items().front());
@@ -382,8 +388,9 @@ TEST(Id3DView, samplesOwnedMovingAzimuthAndTiltedHintsBetweenFrames)
                 EXPECT_LE(*curve.minimum(), curve.sample(time));
                 EXPECT_GE(*curve.maximum(), curve.sample(time));
                 EXPECT_TRUE(curve.samples().empty());
-                EXPECT_EQ("true", curve.attributes().at("normalize"));
-                EXPECT_NE(std::string::npos, curve.attributes().at("signal").find("keys"));
+                EXPECT_EQ("true", resolved_attributes(document, curve.attributes()).at("normalize"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, curve.attributes()).at("signal").find("keys"));
             }
             const double horizontal = std::hypot(eye[0], eye[2]);
             const timeline::Curve &pitch = std::get<timeline::Curve>(document.lanes()[0].items().front());
@@ -436,8 +443,9 @@ TEST(Id3DView, validatesToleranceBoundariesContinuouslyWithOwnedHints)
                 EXPECT_LE(*hint.minimum(), value);
                 EXPECT_GE(*hint.maximum(), value);
                 EXPECT_TRUE(hint.samples().empty());
-                EXPECT_EQ("true", hint.attributes().at("normalize"));
-                EXPECT_NE(std::string::npos, hint.attributes().at("signal").find("keys"));
+                EXPECT_EQ("true", resolved_attributes(document, hint.attributes()).at("normalize"));
+                EXPECT_NE(
+                    std::string::npos, resolved_attributes(document, hint.attributes()).at("signal").find("keys"));
             }
             EXPECT_NEAR(1, squared, 1e-12);
             for (int component = 0; component < 6; ++component)
@@ -541,17 +549,17 @@ TEST(Id3DView, preservesLayerSourcesAliasesAndUnusedCameraInputs)
     const timeline::FrameGrid &grid = *document.frame_grid();
     const timeline::Curve &pitch = std::get<timeline::Curve>(document.lanes()[0].items().front());
     EXPECT_EQ("animation-layer-0-0-rotation[0]", document.strings().lookup(document.lanes()[0].id()));
-    EXPECT_EQ("view-rotation", pitch.attributes().at("parameter"));
-    EXPECT_EQ("pitched", pitch.attributes().at("layer"));
-    EXPECT_EQ("Mandel_Demo", pitch.attributes().at("source-entry"));
+    EXPECT_EQ("view-rotation", resolved_attributes(document, pitch.attributes()).at("parameter"));
+    EXPECT_EQ("pitched", resolved_attributes(document, pitch.attributes()).at("layer"));
+    EXPECT_EQ("Mandel_Demo", resolved_attributes(document, pitch.attributes()).at("source-entry"));
     EXPECT_NEAR(35.264389682754654, pitch.sample(grid.frame_start(1)), 1e-12);
     const timeline::Curve &up = std::get<timeline::Curve>(document.lanes()[13].items().front());
     EXPECT_DOUBLE_EQ(1, up.sample(grid.frame_start(1)));
-    EXPECT_EQ("true", up.attributes().at("normalize"));
+    EXPECT_EQ("true", resolved_attributes(document, up.attributes()).at("normalize"));
     const timeline::Keyframe &override = std::get<timeline::Keyframe>(document.lanes()[15].items().front());
-    EXPECT_EQ("Julia_Demo", override.attributes().at("source-entry"));
+    EXPECT_EQ("Julia_Demo", resolved_attributes(document, override.attributes()).at("source-entry"));
     const timeline::Keyframe &unused = std::get<timeline::Keyframe>(document.lanes()[28].items().front());
-    EXPECT_EQ("false", unused.attributes().at("used-by-camera"));
+    EXPECT_EQ("false", resolved_attributes(document, unused.attributes()).at("used-by-camera"));
     EXPECT_DOUBLE_EQ(0, unused.value());
     for (int step = 0; step <= 100; ++step)
     {

@@ -60,4 +60,11 @@ Keyframe Keyframe::with_id(StringId id) const
     return result;
 }
 
+Keyframe Keyframe::with_attributes(Attributes attributes) const
+{
+    Keyframe result(*this);
+    result.m_attributes = std::move(attributes);
+    return result;
+}
+
 } // namespace timeline

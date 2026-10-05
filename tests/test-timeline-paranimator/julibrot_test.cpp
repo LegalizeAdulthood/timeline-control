@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -84,21 +86,22 @@ TEST(JulibrotView, matchesSourceGoldenAndPreservesOwnedRecipes)
             for (int component = 0; component < outputs; ++component)
             {
                 const timeline::Lane &lane = document.lanes()[component];
-                const timeline::Attributes attributes =
+                const timeline::Attributes stored_attributes =
                     std::visit([](const auto &item) { return item.attributes(); }, lane.items().front());
+                const ResolvedAttributes attributes = resolved_attributes(document, stored_attributes);
                 EXPECT_EQ("view", attributes.at("view-name"));
                 EXPECT_NE(std::string::npos, attributes.at("julibrot-view").find("outputs"));
-                std::string value = frames[frame].at(attributes.at("parameter"));
+                std::string value = frames[frame].at(std::string(attributes.at("parameter")));
                 const timeline::LaneInspection &sample = inspected.lanes[component];
                 if (attributes.at("member") == "mode")
                 {
-                    EXPECT_EQ(value, sample.items.front().attributes.at("value"));
+                    EXPECT_EQ(value, resolved_attributes(document, sample.items.front().attributes).at("value"));
                     continue;
                 }
                 std::replace(value.begin(), value.end(), '/', ' ');
                 std::istringstream values(value);
                 double expected = 0;
-                for (int scalar = 0; scalar <= std::stoi(attributes.at("component")); ++scalar)
+                for (int scalar = 0; scalar <= std::stoi(std::string(attributes.at("component"))); ++scalar)
                 {
                     ASSERT_TRUE(values >> expected);
                 }
@@ -141,8 +144,8 @@ TEST(JulibrotView, samplesFractionalDistanceAndNormalizesAfterInterpolation)
         const timeline::Curve &up = std::get<timeline::Curve>(document.lanes()[12 + component].items().front());
         const double expected = component == 0 ? 0 : component == 1 ? 1.75 : 0.25;
         EXPECT_NEAR(expected / std::sqrt(1.75 * 1.75 + 0.25 * 0.25), up.sample(half), 1e-12);
-        EXPECT_EQ("true", up.attributes().at("normalize"));
-        EXPECT_NE(std::string::npos, up.attributes().at("signal").find("0/2/1"));
+        EXPECT_EQ("true", resolved_attributes(document, up.attributes()).at("normalize"));
+        EXPECT_NE(std::string::npos, resolved_attributes(document, up.attributes()).at("signal").find("0/2/1"));
         for (int index = 0; index <= 100; ++index)
         {
             const timeline::Time time = grid.offset() +
@@ -154,8 +157,12 @@ TEST(JulibrotView, samplesFractionalDistanceAndNormalizesAfterInterpolation)
     const JsonImportResult keyed = import_timeline_json("fixtures/julibrot-view-keyed.json");
     ASSERT_TRUE(keyed.succeeded());
     EXPECT_DOUBLE_EQ(0.8125, *keyed.document->lanes()[7].evaluate_keyframes(half));
-    EXPECT_EQ("monocular", timeline::inspect_frame(*keyed.document, 1)->lanes[0].items.front().attributes.at("value"));
-    EXPECT_EQ("red-blue", timeline::inspect_frame(*keyed.document, 2)->lanes[0].items.front().attributes.at("value"));
+    EXPECT_EQ("monocular",
+        resolved_attributes(keyed, timeline::inspect_frame(*keyed.document, 1)->lanes[0].items.front().attributes)
+            .at("value"));
+    EXPECT_EQ("red-blue",
+        resolved_attributes(keyed, timeline::inspect_frame(*keyed.document, 2)->lanes[0].items.front().attributes)
+            .at("value"));
 }
 
 TEST(JulibrotView, evaluatesNearAxisDistanceAndSignedHintsContinuously)
@@ -193,10 +200,10 @@ TEST(JulibrotView, evaluatesNearAxisDistanceAndSignedHintsContinuously)
                 EXPECT_GE(hint.sample(time), hint.minimum());
                 EXPECT_LE(hint.sample(time), hint.maximum());
                 EXPECT_TRUE(hint.samples().empty());
-                EXPECT_EQ("true", hint.attributes().at("used-by-camera"));
+                EXPECT_EQ("true", resolved_attributes(document, hint.attributes()).at("used-by-camera"));
             }
         }
-        EXPECT_EQ("128/8/8/7/10/24", distance.attributes().at("source-value"));
+        EXPECT_EQ("128/8/8/7/10/24", resolved_attributes(document, distance.attributes()).at("source-value"));
         const timeline::Curve &up_x = std::get<timeline::Curve>(document.lanes()[12].items().front());
         EXPECT_LT(up_x.sample(grid.frame_start(2)), 0);
         const double expected_x = fixture == "near-axis-tolerance" ? -9.99999e-10 : -4e-10 / std::sqrt(5.0);
@@ -233,7 +240,7 @@ TEST(JulibrotView, rejectsNearAxisBoundariesAndOffGridDepartures)
     EXPECT_DOUBLE_EQ(18.5, *partial.document->lanes()[20].evaluate_keyframes(middle));
     const timeline::Keyframe &raw_eye = std::get<timeline::Keyframe>(partial.document->lanes()[21].items().front());
     EXPECT_DOUBLE_EQ(1, raw_eye.value());
-    EXPECT_EQ("false", raw_eye.attributes().at("used-by-camera"));
+    EXPECT_EQ("false", resolved_attributes(partial, raw_eye.attributes()).at("used-by-camera"));
 }
 
 TEST(JulibrotView, preservesLayerBaseGeometryAliasesAndUnusedCamera)
@@ -250,17 +257,17 @@ TEST(JulibrotView, preservesLayerBaseGeometryAliasesAndUnusedCamera)
     ASSERT_EQ(30, document.lane_count());
     const timeline::Curve &width = std::get<timeline::Curve>(document.lanes()[4].items().front());
     EXPECT_DOUBLE_EQ(6, width.sample(document.frame_grid()->frame_start(1)));
-    EXPECT_EQ("geometry-alias", width.attributes().at("parameter"));
-    EXPECT_EQ("Aliased", width.attributes().at("source-entry"));
-    EXPECT_EQ("aliased", width.attributes().at("layer"));
-    EXPECT_EQ("64/3/4/5/6/99", width.attributes().at("source-value"));
+    EXPECT_EQ("geometry-alias", resolved_attributes(document, width.attributes()).at("parameter"));
+    EXPECT_EQ("Aliased", resolved_attributes(document, width.attributes()).at("source-entry"));
+    EXPECT_EQ("aliased", resolved_attributes(document, width.attributes()).at("layer"));
+    EXPECT_EQ("64/3/4/5/6/99", resolved_attributes(document, width.attributes()).at("source-value"));
     EXPECT_EQ("animation-layer-0-0-geometry[4]", document.strings().lookup(document.lanes()[4].id()));
     const timeline::Lane &overridden = document.lanes()[20];
     EXPECT_DOUBLE_EQ(18.5, *overridden.evaluate_keyframes(document.frame_grid()->frame_start(1)));
     const timeline::Keyframe &up = std::get<timeline::Keyframe>(document.lanes()[28].items().front());
     EXPECT_DOUBLE_EQ(0, up.value());
-    EXPECT_EQ("false", up.attributes().at("used-by-camera"));
-    EXPECT_EQ("overridden", up.attributes().at("layer"));
+    EXPECT_EQ("false", resolved_attributes(document, up.attributes()).at("used-by-camera"));
+    EXPECT_EQ("overridden", resolved_attributes(document, up.attributes()).at("layer"));
 }
 
 TEST(JulibrotView, rejectsInvalidTracksTransactionallyWithIndexedDiagnostics)

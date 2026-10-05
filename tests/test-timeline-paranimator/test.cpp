@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Interaction.h>
@@ -177,7 +179,7 @@ TEST(TimelineJson, importsCompleteMusicTimeline)
     EXPECT_EQ(36, document.lanes()[0].item_count());
     const auto &event = std::get<timeline::Instant>(document.lanes()[0].items()[0]);
     EXPECT_EQ(8520, event.time().ticks());
-    EXPECT_EQ("12", event.attributes().at("row"));
+    EXPECT_EQ("12", resolved_attributes(document, event.attributes()).at("row"));
     const auto &curve = std::get<timeline::Curve>(document.lanes()[1].items()[0]);
     EXPECT_EQ(4, curve.sample_count());
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, 15);
@@ -204,7 +206,7 @@ TEST(TimelineJson, retainsValidRecordsWithIndexedDiagnostics)
     const auto &event = std::get<timeline::Instant>(events.items()[1]);
     EXPECT_EQ("event-4", document.strings().lookup(event.id()));
     EXPECT_EQ(240000, event.time().ticks());
-    EXPECT_EQ("125", event.attributes().at("parameter"));
+    EXPECT_EQ("125", resolved_attributes(document, event.attributes()).at("parameter"));
     EXPECT_LT(event.time(), events.end());
     const auto &curve = std::get<timeline::Curve>(document.lanes()[1].items()[0]);
     EXPECT_EQ(3, curve.sample_count());
@@ -440,8 +442,8 @@ TEST(TimelineJson, importsRmsOverlaySummary)
     EXPECT_EQ(0, first.time().ticks());
     EXPECT_DOUBLE_EQ(0.25, first.value());
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, first.interpolation());
-    EXPECT_EQ("replace", first.attributes().at("operation"));
-    EXPECT_EQ("music.rms", first.attributes().at("source"));
+    EXPECT_EQ("replace", resolved_attributes(result, first.attributes()).at("operation"));
+    EXPECT_EQ("music.rms", resolved_attributes(result, first.attributes()).at("source"));
     EXPECT_DOUBLE_EQ(0.25, *zoom.evaluate_keyframes(result.document->frame_grid()->frame_start(1)));
     EXPECT_TRUE(result.diagnostics.empty());
 }

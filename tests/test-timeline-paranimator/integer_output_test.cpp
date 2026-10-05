@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
+#include <ResolvedAttributes.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Layout.h>
@@ -64,8 +66,10 @@ TEST(IntegerOutput, retainsFractionalCurveAndDeclaresOutputRounding)
     EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[5].value);
     for (int lane = 0; lane < 5; ++lane)
     {
-        EXPECT_EQ(1, inspection.lanes[lane].items[0].attributes.count("output-rounding"));
-        EXPECT_EQ("nearest-half-away-from-zero", inspection.lanes[lane].items[0].attributes.at("output-rounding"));
+        EXPECT_EQ(
+            1, resolved_attributes(imported, inspection.lanes[lane].items[0].attributes).count("output-rounding"));
+        EXPECT_EQ("nearest-half-away-from-zero",
+            resolved_attributes(imported, inspection.lanes[lane].items[0].attributes).at("output-rounding"));
     }
     EXPECT_DOUBLE_EQ(101, *inspection.lanes[0].output_value);
     EXPECT_DOUBLE_EQ(-3, *inspection.lanes[1].output_value);
@@ -107,7 +111,8 @@ TEST(IntegerOutput, matchesSourceGoldenAndSurvivesCopyingComparisonAndLayout)
         EXPECT_EQ(golden_value(entry, "bailout", 0), inspection.lanes[5].value);
         EXPECT_FALSE(inspection.lanes[5].output_value);
         EXPECT_FALSE(inspection.lanes[6].value);
-        EXPECT_EQ(frame == 6 ? "b" : "a", inspection.lanes[6].items[0].attributes.at("value"));
+        EXPECT_EQ(
+            frame == 6 ? "b" : "a", resolved_attributes(document, inspection.lanes[6].items[0].attributes).at("value"));
     }
     const JsonImportResult music = import_timeline_json("fixtures/beat-keys/rms.beat-keys.json");
     ASSERT_TRUE(music.succeeded());

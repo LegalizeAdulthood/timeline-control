@@ -61,4 +61,11 @@ Interval Interval::with_strings(StringId kind, StringId label) const
     return result;
 }
 
+Interval Interval::with_attributes(Attributes attributes) const
+{
+    Interval result(*this);
+    result.m_attributes = std::move(attributes);
+    return result;
+}
+
 } // namespace timeline

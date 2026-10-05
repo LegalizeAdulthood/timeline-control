@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <variant>
+#include <vector>
 
 using namespace timeline;
 
@@ -37,7 +38,8 @@ constexpr StringId PULSE_LABEL{17};
 TEST(Lane, preservesMixedItemsInInsertionOrder)
 {
     Lane lane(StringId{1}, LANE_LABEL, LANE_KIND, at(0), at(100));
-    lane.add(Instant(StringId{2}, BEAT_KIND, at(10), BEAT_LABEL, 0.75, {{"channel", "1"}}));
+    lane.add(Instant(StringId{2}, BEAT_KIND, at(10), BEAT_LABEL, 0.75,
+        Attributes(std::vector<Attribute>{{StringId{18}, StringId{19}}})));
     lane.add(Interval(StringId{3}, PHRASE_KIND, at(20), at(50), PHRASE_LABEL, std::nullopt, {}));
     lane.add(Envelope(
         StringId{4}, PULSE_KIND, at(60), lasting(10), lasting(20), lasting(10), PULSE_LABEL, std::nullopt, {}));
@@ -53,7 +55,7 @@ TEST(Lane, preservesMixedItemsInInsertionOrder)
     EXPECT_EQ(BEAT_KIND, instant.kind());
     EXPECT_EQ(BEAT_LABEL, instant.label());
     EXPECT_DOUBLE_EQ(0.75, *instant.strength());
-    EXPECT_EQ("1", instant.attributes().at("channel"));
+    EXPECT_EQ(StringId{19}, instant.attributes().find(StringId{18}));
 
     const auto &interval = std::get<Interval>(lane.items()[1]);
     EXPECT_EQ(30, interval.duration().ticks());

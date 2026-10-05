@@ -2,6 +2,7 @@
 
 #include <ColorMap.h>
 #include <NamedColors.h>
+#include <AttributeStrings.h>
 
 #include <timeline/size_cast.h>
 
@@ -318,7 +319,7 @@ timeline::RgbColor adjusted_color(const timeline::RgbColor &color, const std::st
 
 timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, const std::string &member,
     const std::string &id, const std::string &label, const timeline::FrameGrid &grid,
-    const timeline::Attributes &attributes, timeline::StringTableBuilder &strings)
+    const AttributeStrings &attributes, timeline::StringTableBuilder &strings)
 {
     if (!effect.contains(member))
     {
@@ -385,7 +386,7 @@ timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, c
         strings.intern(id), strings.intern(label), strings.intern("keyframes"), grid.offset(), grid.end_time());
     for (int index = 0; index < 2; ++index)
     {
-        timeline::Attributes key_attributes = attributes;
+        AttributeStrings key_attributes = attributes;
         key_attributes["signal"] = signal.dump();
         key_attributes["source-key"] = keys[index].dump();
         key_attributes["value"] = keys[index].at("value").dump();
@@ -395,7 +396,8 @@ timeline::Lane effect_signal_lane(const Json &effect, const std::string &kind, c
             ? timeline::KeyframeInterpolation::LINEAR
             : timeline::KeyframeInterpolation::HOLD;
         lane.add(timeline::Keyframe(strings.intern(id + "-key-" + std::to_string(index)),
-            grid.frame_start(index == 0 ? first : last), values[index], interpolation, std::move(key_attributes)));
+            grid.frame_start(index == 0 ? first : last), values[index], interpolation,
+            intern_attributes(key_attributes, strings)));
     }
     return lane;
 }
@@ -550,7 +552,7 @@ timeline::Palette ping_pong_palette(const timeline::Palette &colors, int first, 
 }
 
 std::vector<PaletteTransform> palette_effects(const Json &effects, const std::string &id, const std::string &label,
-    const std::filesystem::path &source_path, const timeline::FrameGrid &grid, const timeline::Attributes &attributes,
+    const std::filesystem::path &source_path, const timeline::FrameGrid &grid, const AttributeStrings &attributes,
     timeline::StringTableBuilder &strings, std::vector<timeline::Lane> &lanes)
 {
     if (!effects.is_array() || effects.empty())
@@ -626,7 +628,7 @@ std::vector<PaletteTransform> palette_effects(const Json &effects, const std::st
                 continue;
             }
             const std::string member = kind == "ping-pong" ? "offset" : "amount";
-            timeline::Attributes effect_attributes = attributes;
+            AttributeStrings effect_attributes = attributes;
             effect_attributes["effect"] = effect.dump();
             effect_attributes["effect-kind"] = kind;
             effect_attributes["effect-index"] = std::to_string(index);
@@ -705,7 +707,7 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
         throw std::invalid_argument("color-map parameter must not be empty");
     }
     const std::string label = layer.empty() ? parameter : layer + " / " + parameter;
-    timeline::Attributes attributes{{"parameter", parameter}, {"layer", layer}, {"color-map", track.dump()},
+    AttributeStrings attributes{{"parameter", parameter}, {"layer", layer}, {"color-map", track.dump()},
         {"format", "at-file"}, {"output", output}};
     timeline::PaletteCurve::Evaluator evaluator;
     std::vector<timeline::Lane> staged;
@@ -763,7 +765,7 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
             strings.intern("keyframe"), grid.offset(), grid.end_time());
         for (int index = 0; index < 2; ++index)
         {
-            timeline::Attributes key_attributes = attributes;
+            AttributeStrings key_attributes = attributes;
             const std::string filename = keys[index].at("value").get<std::string>();
             key_attributes["value"] = filename;
             key_attributes["curve"] = key_curve(keys[index]);
@@ -771,10 +773,10 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
             const std::string key_id = id + "-key-" + std::to_string(index);
             const timeline::Time time = index == 0 ? start : end;
             definitions.add(timeline::Instant(strings.intern(key_id), strings.intern("keyframe"), time,
-                strings.intern(filename), std::nullopt, key_attributes));
+                strings.intern(filename), std::nullopt, intern_attributes(key_attributes, strings)));
             definitions.add(timeline::Interval(strings.intern(key_id + "-hold"), strings.intern("keyframe-value"),
                 index == 0 ? grid.offset() : end, index == 0 ? end : grid.end_time(), strings.intern(filename),
-                std::nullopt, key_attributes));
+                std::nullopt, intern_attributes(key_attributes, strings)));
         }
         staged.push_back(std::move(definitions));
     }
@@ -795,7 +797,7 @@ void color_map_lanes(const nlohmann::json &track, const std::filesystem::path &s
     timeline::Lane palette(
         strings.intern(id), strings.intern(label), strings.intern("palette"), grid.offset(), grid.end_time());
     palette.add(timeline::PaletteCurve(strings.intern(id + "-palette"), strings.intern("color-map"), grid.offset(),
-        grid.end_time(), std::move(evaluator), std::move(attributes)));
+        grid.end_time(), std::move(evaluator), intern_attributes(attributes, strings)));
     lanes.push_back(std::move(palette));
     for (timeline::Lane &lane : staged)
     {
