@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <ostream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -39,6 +41,22 @@ Document framed_document()
     return std::move(builder).build();
 }
 
+struct ImportCase
+{
+    const char *name;
+    const char *path;
+};
+
+void PrintTo(const ImportCase &value, std::ostream *stream)
+{
+    *stream << value.name;
+}
+
+std::string import_case_name(const testing::TestParamInfo<ImportCase> &info)
+{
+    return info.param.name;
+}
+
 /// Backend-free ImGui frame host that drives the adapter through real IO.
 ///
 class ImGuiControl : public testing::Test
@@ -61,6 +79,10 @@ protected:
     ImVec2 m_origin;
     bool m_allow_window_scroll{false};
     float m_host_scroll{0.0F};
+};
+
+class ImGuiImportedFixture : public ImGuiControl, public testing::WithParamInterface<ImportCase>
+{
 };
 
 void ImGuiControl::SetUp()
@@ -137,72 +159,131 @@ void ImGuiControl::mouse_button(Control &control, bool down)
     frame(control);
 }
 
-TEST_F(ImGuiControl, handlesMissingEmptyFramelessAndTinyDocuments)
+TEST_F(ImGuiControl, leavesMissingDocumentUnlaidOut)
 {
     Control control;
+
     frame(control);
+
     EXPECT_FALSE(control.document());
     EXPECT_FALSE(control.layout());
-    control.set_document(Document(100));
+}
+
+TEST_F(ImGuiControl, leavesEmptyDocumentUnlaidOut)
+{
+    Control control(Document(100));
+
     frame(control);
+
     EXPECT_FALSE(control.layout());
-    control.set_document(framed_document());
+}
+
+TEST_F(ImGuiControl, leavesTinyItemUnlaidOut)
+{
+    Control control(framed_document());
+
     frame(control, ImVec2(1.0F, 1.0F));
+
     EXPECT_FALSE(control.layout());
+}
+
+TEST_F(ImGuiControl, supportsFramelessDocumentsWithoutFrameInspection)
+{
     DocumentBuilder builder(Document(100));
     builder.add_lane(
         Lane(builder.intern("continuous"), builder.intern("Continuous"), builder.intern("signal"), at(0), at(100)));
-    control.set_document(std::move(builder).build());
+    Control control(std::move(builder).build());
     prime(control);
-    ASSERT_TRUE(control.layout());
+
     move_mouse(control, ImVec2(m_origin.x + 250.0F, m_origin.y + 10.0F));
     mouse_button(control, true);
     mouse_button(control, false);
+
+    ASSERT_TRUE(control.layout());
     ASSERT_TRUE(control.interaction()->playhead());
     EXPECT_FALSE(control.interaction()->playhead_frame());
     EXPECT_FALSE(control.inspection());
 }
 
-TEST_F(ImGuiControl, delegatesLayoutAndHoverToCoreGeometry)
+TEST_F(ImGuiControl, delegatesLayoutToCoreGeometry)
 {
     Control control(framed_document());
+
     prime(control);
+
     ASSERT_TRUE(control.layout());
     const Layout expected(*control.document(), *control.viewport(), *control.layout_metrics(), *control.interaction());
     EXPECT_EQ(render_snapshot(expected.display_list()), render_snapshot(control.layout()->display_list()));
     EXPECT_GT(ImGui::GetDrawData()->TotalVtxCount, 0);
+}
+
+TEST_F(ImGuiControl, delegatesHoverAndInspectionToCoreGeometry)
+{
+    Control control(framed_document());
+    prime(control);
+
     move_mouse(control, frame_point(control, 3, 0));
+
     ASSERT_TRUE(control.hit_result());
     EXPECT_EQ("lane-0", control.document()->strings().lookup(control.hit_result()->id.lane_id));
     EXPECT_EQ(*control.document()->strings().find("pulse"), control.hit_result()->id.item_id);
     ASSERT_TRUE(control.inspection());
     EXPECT_EQ(3, control.inspection()->frame);
     EXPECT_EQ(0, *control.interaction()->playhead_frame());
+}
+
+TEST_F(ImGuiControl, clearsHoverOutsideTheItem)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 3, 0));
+
     move_mouse(control, ImVec2(790.0F, 590.0F));
+
     EXPECT_FALSE(control.hit_result());
 }
 
-TEST_F(ImGuiControl, selectsLaneQualifiedItemsAndSnapsDraggedRanges)
+TEST_F(ImGuiControl, selectsLaneQualifiedItems)
+{
+    Control control(framed_document());
+    prime(control);
+
+    move_mouse(control, frame_point(control, 3, 0));
+    mouse_button(control, true);
+    mouse_button(control, false);
+
+    ASSERT_TRUE(control.interaction());
+    EXPECT_EQ(3, *control.interaction()->playhead_frame());
+    EXPECT_TRUE(control.interaction()->is_selected(
+        DisplayId{control.document()->lanes().front().id(), *control.document()->strings().find("pulse")}));
+}
+
+TEST_F(ImGuiControl, addsSelectedItemsWithCtrl)
 {
     Control control(framed_document());
     prime(control);
     move_mouse(control, frame_point(control, 3, 0));
     mouse_button(control, true);
     mouse_button(control, false);
-    ASSERT_TRUE(control.interaction());
-    EXPECT_EQ(3, *control.interaction()->playhead_frame());
-    EXPECT_TRUE(control.interaction()->is_selected(
-        DisplayId{control.document()->lanes().front().id(), *control.document()->strings().find("pulse")}));
+
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
     move_mouse(control, frame_point(control, 5, 1));
     mouse_button(control, true);
     mouse_button(control, false);
+
     EXPECT_EQ(2, size_cast(control.interaction()->selected_items()));
-    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);
+}
+
+TEST_F(ImGuiControl, snapsDraggedRangesToFrames)
+{
+    Control control(framed_document());
+    prime(control);
+
     move_mouse(control, frame_point(control, 3, 0));
     mouse_button(control, true);
     move_mouse(control, frame_point(control, 6, 0));
     mouse_button(control, false);
+
     ASSERT_TRUE(control.interaction()->selected_frames());
     EXPECT_EQ(3, control.interaction()->selected_frames()->first());
     EXPECT_EQ(6, control.interaction()->selected_frames()->last());
@@ -210,23 +291,33 @@ TEST_F(ImGuiControl, selectsLaneQualifiedItemsAndSnapsDraggedRanges)
     EXPECT_EQ(6, control.inspection()->frame);
 }
 
-TEST_F(ImGuiControl, keepsDraggingOutsideTheItemAndCancelsOnFocusLoss)
+TEST_F(ImGuiControl, keepsDraggingOutsideTheItem)
+{
+    Control control(framed_document());
+    prime(control);
+
+    move_mouse(control, frame_point(control, 3, 0));
+    mouse_button(control, true);
+    move_mouse(control, ImVec2(0.0F, 0.0F));
+    mouse_button(control, false);
+
+    ASSERT_TRUE(control.interaction()->selected_frames());
+    EXPECT_EQ(0, control.interaction()->selected_frames()->first());
+    EXPECT_EQ(3, control.interaction()->selected_frames()->last());
+}
+
+TEST_F(ImGuiControl, cancelsDraggingOnFocusLoss)
 {
     Control control(framed_document());
     prime(control);
     move_mouse(control, frame_point(control, 3, 0));
     mouse_button(control, true);
-    move_mouse(control, ImVec2(0.0F, 0.0F));
-    mouse_button(control, false);
-    ASSERT_TRUE(control.interaction()->selected_frames());
-    EXPECT_EQ(0, control.interaction()->selected_frames()->first());
-    EXPECT_EQ(3, control.interaction()->selected_frames()->last());
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
+
     ImGui::GetIO().AddFocusEvent(false);
     frame(control);
     ImGui::GetIO().AddFocusEvent(true);
     move_mouse(control, frame_point(control, 7, 0));
+
     EXPECT_FALSE(control.interaction()->selected_frames());
     EXPECT_EQ(3, *control.interaction()->playhead_frame());
 }
@@ -235,17 +326,73 @@ TEST_F(ImGuiControl, releasesARangeBeyondTheRightEdgeWithoutJumpingLeft)
 {
     Control control(framed_document());
     prime(control);
+
     move_mouse(control, frame_point(control, 3, 0));
     mouse_button(control, true);
     move_mouse(control, ImVec2(790.0F, 590.0F));
     mouse_button(control, false);
+
     ASSERT_TRUE(control.interaction()->selected_frames());
     EXPECT_EQ(3, control.interaction()->selected_frames()->first());
     EXPECT_EQ(9, control.interaction()->selected_frames()->last());
     EXPECT_EQ(9, *control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, ownsKeyboardNavigationWithoutInterceptingOtherItems)
+TEST_F(ImGuiControl, ownsKeyboardNavigation)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 3, 0));
+    mouse_button(control, true);
+    mouse_button(control, false);
+    move_mouse(control, ImVec2(790.0F, 590.0F));
+
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
+    frame(control);
+
+    EXPECT_EQ(4, *control.interaction()->playhead_frame());
+}
+
+TEST_F(ImGuiControl, extendsKeyboardRangeWithShift)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 4, 0));
+    mouse_button(control, true);
+    mouse_button(control, false);
+
+    ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
+    frame(control);
+
+    ASSERT_TRUE(control.interaction()->selected_frames());
+    EXPECT_EQ(4, control.interaction()->selected_frames()->first());
+    EXPECT_EQ(5, control.interaction()->selected_frames()->last());
+}
+
+TEST_F(ImGuiControl, clearsKeyboardSelectionWithEscape)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 4, 0));
+    mouse_button(control, true);
+    mouse_button(control, false);
+    ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
+    frame(control);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
+    ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, false);
+    frame(control);
+
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
+    frame(control);
+
+    EXPECT_FALSE(control.interaction()->selected_lane());
+    EXPECT_FALSE(control.interaction()->selected_frames());
+    EXPECT_TRUE(control.interaction()->selected_items().empty());
+}
+
+TEST_F(ImGuiControl, doesNotInterceptKeyboardNavigationForOtherItems)
 {
     Control control(framed_document());
     prime(control);
@@ -255,24 +402,19 @@ TEST_F(ImGuiControl, ownsKeyboardNavigationWithoutInterceptingOtherItems)
     move_mouse(control, ImVec2(790.0F, 590.0F));
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
     frame(control);
-    EXPECT_EQ(4, *control.interaction()->playhead_frame());
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
     frame(control);
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
     frame(control);
-    ASSERT_TRUE(control.interaction()->selected_frames());
-    EXPECT_EQ(4, control.interaction()->selected_frames()->first());
-    EXPECT_EQ(5, control.interaction()->selected_frames()->last());
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, false);
     frame(control);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
     frame(control);
-    EXPECT_FALSE(control.interaction()->selected_lane());
-    EXPECT_FALSE(control.interaction()->selected_frames());
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, false);
     frame(control);
+
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Tab, true);
     begin_frame();
     timeline_imgui::draw_timeline("timeline", control, ImVec2(400.0F, 130.0F));
@@ -283,66 +425,123 @@ TEST_F(ImGuiControl, ownsKeyboardNavigationWithoutInterceptingOtherItems)
     begin_frame();
     timeline_imgui::draw_timeline("timeline", control, ImVec2(400.0F, 130.0F));
     ImGui::Button("Other item");
-    EXPECT_TRUE(ImGui::IsItemFocused());
+    const bool other_item_focused = ImGui::IsItemFocused();
     ImGui::End();
     ImGui::Render();
     ImGui::GetIO().AddKeyEvent(ImGuiKey_LeftArrow, true);
     frame(control);
+
+    EXPECT_TRUE(other_item_focused);
     EXPECT_EQ(5, *control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, translatesWheelZoomHorizontalPanAndLaneScroll)
+TEST_F(ImGuiControl, translatesCtrlWheelToZoom)
 {
     Control control(framed_document());
     prime(control);
     move_mouse(control, frame_point(control, 5, 0));
+
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
     ImGui::GetIO().AddMouseWheelEvent(0.0F, 1.0F);
     frame(control);
+
     ASSERT_TRUE(control.viewport());
     EXPECT_EQ(80, control.viewport()->end().ticks() - control.viewport()->start().ticks());
+}
+
+TEST_F(ImGuiControl, translatesShiftWheelToHorizontalPan)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 5, 0));
+    control.zoom_in();
+    frame(control);
     const Ticks start = control.viewport()->start().ticks();
-    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);
+
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -1.0F);
     frame(control);
+
     EXPECT_GT(control.viewport()->start().ticks(), start);
-    ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, false);
+}
+
+TEST_F(ImGuiControl, translatesWheelToLaneScroll)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 5, 0));
+
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -2.0F);
     frame(control);
+
     EXPECT_EQ(2, control.viewport()->first_lane());
+}
+
+TEST_F(ImGuiControl, fitViewRestoresTheCompleteTimeline)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 5, 0));
+    control.zoom_in();
+    ImGui::GetIO().AddMouseWheelEvent(0.0F, -2.0F);
+    frame(control);
+
     control.fit_view();
     frame(control);
+
     EXPECT_EQ(at(0), control.viewport()->start());
     EXPECT_EQ(at(100), control.viewport()->end());
     EXPECT_EQ(0, control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, ownsDocumentsAndResetsAllStateOnReplacement)
+TEST_F(ImGuiControl, ownsItsDocument)
 {
     Document source = framed_document();
     Control control(source);
     DocumentBuilder builder(std::move(source));
+
     builder.add_lane(Lane(builder.intern("extra"), builder.intern("Extra"), builder.intern("events"), at(0), at(100)));
     source = std::move(builder).build();
+
     EXPECT_EQ(12, control.document()->lane_count());
+    EXPECT_EQ(13, source.lane_count());
+}
+
+TEST_F(ImGuiControl, resetsStateOnDocumentReplacement)
+{
+    Control control(framed_document());
     prime(control);
     move_mouse(control, frame_point(control, 3, 0));
     mouse_button(control, true);
+    mouse_button(control, false);
     control.zoom_in();
     frame(control);
+
     control.set_document(framed_document());
+
     EXPECT_FALSE(control.layout());
     EXPECT_FALSE(control.hit_result());
     ASSERT_TRUE(control.interaction());
     EXPECT_TRUE(control.interaction()->selected_items().empty());
     EXPECT_EQ(0, *control.interaction()->playhead_frame());
     EXPECT_EQ(0, control.inspection()->frame);
+}
+
+TEST_F(ImGuiControl, cancelsDraggingOnDocumentReplacement)
+{
+    Control control(framed_document());
+    prime(control);
+    move_mouse(control, frame_point(control, 3, 0));
+    mouse_button(control, true);
+
+    control.set_document(framed_document());
     move_mouse(control, ImVec2(790.0F, 590.0F));
     mouse_button(control, false);
+
     EXPECT_EQ(at(0), control.viewport()->start());
     EXPECT_EQ(at(100), control.viewport()->end());
     EXPECT_EQ(0, *control.interaction()->playhead_frame());
+    EXPECT_FALSE(control.interaction()->selected_frames());
 }
 
 TEST_F(ImGuiControl, ownsWheelInputWithoutScrollingTheHostWindow)
@@ -350,52 +549,98 @@ TEST_F(ImGuiControl, ownsWheelInputWithoutScrollingTheHostWindow)
     m_allow_window_scroll = true;
     Control control(framed_document());
     prime(control);
+
     move_mouse(control, frame_point(control, 5, 0));
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -1.0F);
     frame(control);
     frame(control);
+
     EXPECT_FLOAT_EQ(0.0F, m_host_scroll);
     EXPECT_EQ(1, control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, updatesGeometryAndClampsLaneScrollAfterResize)
+TEST_F(ImGuiControl, updatesGeometryAfterResize)
+{
+    Control control(framed_document());
+    prime(control);
+
+    frame(control, ImVec2(600.0F, 480.0F));
+
+    EXPECT_EQ(600, control.viewport()->width());
+    EXPECT_EQ(480, control.viewport()->height());
+}
+
+TEST_F(ImGuiControl, clampsLaneScrollAfterResize)
 {
     Control control(framed_document());
     prime(control);
     move_mouse(control, frame_point(control, 5, 0));
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -8.0F);
     frame(control);
-    EXPECT_GT(control.viewport()->first_lane(), 0);
+    ASSERT_GT(control.viewport()->first_lane(), 0);
+
     frame(control, ImVec2(600.0F, 480.0F));
+
     EXPECT_EQ(0, control.viewport()->first_lane());
-    EXPECT_EQ(600, control.viewport()->width());
-    EXPECT_EQ(480, control.viewport()->height());
+}
+
+TEST_F(ImGuiControl, zoomInNarrowsTheViewport)
+{
+    Control control(framed_document());
+    prime(control);
+
     control.zoom_in();
     frame(control);
+
     EXPECT_EQ(80, control.viewport()->end().ticks() - control.viewport()->start().ticks());
+}
+
+TEST_F(ImGuiControl, zoomOutRestoresTheViewport)
+{
+    Control control(framed_document());
+    prime(control);
+    control.zoom_in();
+    frame(control);
+
     control.zoom_out();
     frame(control);
+
     EXPECT_EQ(100, control.viewport()->end().ticks() - control.viewport()->start().ticks());
 }
 
-TEST_F(ImGuiControl, submitsMultipleIndependentItemsAndTheAvailableSizeOverload)
+TEST_F(ImGuiControl, submitsMultipleIndependentItems)
 {
     Control first(framed_document());
     Control second(framed_document());
+
     begin_frame();
     timeline_imgui::draw_timeline("first", first, ImVec2(400.0F, 130.0F));
     const ImGuiID first_id = ImGui::GetItemID();
-    timeline_imgui::draw_timeline("second", second);
+    timeline_imgui::draw_timeline("second", second, ImVec2(400.0F, 130.0F));
     const ImGuiID second_id = ImGui::GetItemID();
     ImGui::End();
     ImGui::Render();
+    first.set_document(Document(100));
+
     EXPECT_NE(first_id, second_id);
+    EXPECT_FALSE(first.layout());
+    EXPECT_TRUE(second.layout());
+}
+
+TEST_F(ImGuiControl, usesTheAvailableSizeOverload)
+{
+    Control first(framed_document());
+    Control second(framed_document());
+
+    begin_frame();
+    timeline_imgui::draw_timeline("first", first, ImVec2(400.0F, 130.0F));
+    timeline_imgui::draw_timeline("second", second);
+    ImGui::End();
+    ImGui::Render();
+
     ASSERT_TRUE(first.layout());
     ASSERT_TRUE(second.layout());
     EXPECT_GT(second.viewport()->height(), first.viewport()->height());
-    first.set_document(Document(100));
-    EXPECT_FALSE(first.layout());
-    EXPECT_TRUE(second.layout());
 }
 
 TEST_F(ImGuiControl, delegatesEveryPrimitiveToMatchingImguiMeshOperations)
@@ -412,6 +657,7 @@ TEST_F(ImGuiControl, delegatesEveryPrimitiveToMatchingImguiMeshOperations)
     list.add(Polyline{{{0, 20}, {10, 25}, {20, 20}}, StyleRole::CURVE, {}});
     list.add(Swatch{0, 30, 20, 5, RgbColor(7, 11, 19), StyleRole::SELECTED_ITEM, {}});
     list.add(Text{0, 40, text, StyleRole::RULER_LABEL, {}});
+
     const int first_vertex = draw_list.VtxBuffer.Size;
     const int first_index = draw_list.IdxBuffer.Size;
     timeline_imgui::draw_display_list(draw_list, list, m_origin, style, true, 80);
@@ -439,6 +685,7 @@ TEST_F(ImGuiControl, delegatesEveryPrimitiveToMatchingImguiMeshOperations)
     const int reference_indices = draw_list.IdxBuffer.Size - reference_index;
     ImGui::End();
     ImGui::Render();
+
     ASSERT_EQ(expected.size(), actual.size());
     EXPECT_EQ(reference_indices, actual_indices);
     for (int index = 0; index < size_cast(actual); ++index)
@@ -461,12 +708,14 @@ TEST_F(ImGuiControl, clipsLongLaneLabelsWithoutChangingTheDrawListClipStack)
     const StringId text = strings.intern("A very long lane label which cannot fit");
     DisplayList list(std::move(strings).build());
     list.add(Text{0, 0, text, StyleRole::LANE_LABEL, {}});
+
     timeline_imgui::draw_display_list(draw_list, list, m_origin, ImGui::GetStyle(), false, 40);
     const std::vector<ImDrawVert> vertices(
         draw_list.VtxBuffer.Data + first_vertex, draw_list.VtxBuffer.Data + draw_list.VtxBuffer.Size);
     const ImVec2 after = draw_list.GetClipRectMax();
     ImGui::End();
     ImGui::Render();
+
     EXPECT_FALSE(vertices.empty());
     for (const ImDrawVert &vertex : vertices)
     {
@@ -476,27 +725,29 @@ TEST_F(ImGuiControl, clipsLongLaneLabelsWithoutChangingTheDrawListClipStack)
     EXPECT_FLOAT_EQ(clip.y, after.y);
 }
 
-TEST_F(ImGuiControl, importsSharedWxFixturesWithoutChangingTimelineSemantics)
+TEST_P(ImGuiImportedFixture, preservesTimelineSemantics)
 {
     const std::filesystem::path fixtures(TIMELINE_TEST_FIXTURE_DIR);
-    for (const std::filesystem::path &source : {std::filesystem::path("beat-keys/timeline-events.json"),
-             std::filesystem::path("par-beatdown/gold-write-windowed-features.json"),
-             std::filesystem::path("beat-keys/gold-write-row-pulses.json")})
-    {
-        timeline_par_animator::JsonImportOptions options{};
-        options.beat_keys_config_path = fixtures / "beat-keys/adapter.beat-keys.json";
-        const timeline_par_animator::JsonImportResult imported =
-            timeline_par_animator::import_timeline_json(fixtures / source, options);
-        ASSERT_TRUE(imported.succeeded());
-        ASSERT_TRUE(imported.diagnostics.empty());
-        Control control(*imported.document);
-        prime(control);
-        ASSERT_TRUE(control.layout());
-        const Layout expected(
-            *control.document(), *control.viewport(), *control.layout_metrics(), *control.interaction());
-        EXPECT_EQ(render_snapshot(expected.display_list()), render_snapshot(control.layout()->display_list()));
-        EXPECT_EQ(inspect_frame(*control.document(), 0)->lanes.size(), control.inspection()->lanes.size());
-    }
+    timeline_par_animator::JsonImportOptions options{};
+    options.beat_keys_config_path = fixtures / "beat-keys/adapter.beat-keys.json";
+    const timeline_par_animator::JsonImportResult imported =
+        timeline_par_animator::import_timeline_json(fixtures / GetParam().path, options);
+    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(imported.diagnostics.empty());
+    Control control(*imported.document);
+
+    prime(control);
+
+    ASSERT_TRUE(control.layout());
+    const Layout expected(*control.document(), *control.viewport(), *control.layout_metrics(), *control.interaction());
+    EXPECT_EQ(render_snapshot(expected.display_list()), render_snapshot(control.layout()->display_list()));
+    EXPECT_EQ(inspect_frame(*control.document(), 0)->lanes.size(), control.inspection()->lanes.size());
 }
+
+INSTANTIATE_TEST_SUITE_P(SharedWxFixtures, ImGuiImportedFixture,
+    testing::Values(ImportCase{"TimelineEvents", "beat-keys/timeline-events.json"},
+        ImportCase{"WindowedFeatures", "par-beatdown/gold-write-windowed-features.json"},
+        ImportCase{"RowPulses", "beat-keys/gold-write-row-pulses.json"}),
+    import_case_name);
 
 } // namespace
