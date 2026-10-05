@@ -5,6 +5,7 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
+#include <timeline/size_cast.h>
 #include <timeline/Snapshot.h>
 
 #include <gtest/gtest.h>

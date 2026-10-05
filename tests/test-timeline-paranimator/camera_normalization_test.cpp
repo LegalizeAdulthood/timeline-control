@@ -3,6 +3,7 @@
 #include <timelineParAnimator/TimelineJson.h>
 
 #include <timeline/Query.h>
+#include <timeline/size_cast.h>
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

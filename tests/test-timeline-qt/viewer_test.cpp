@@ -2,6 +2,8 @@
 
 #include <Viewer.h>
 
+#include <timeline/size_cast.h>
+
 #include <gtest/gtest.h>
 
 #include <QAction>

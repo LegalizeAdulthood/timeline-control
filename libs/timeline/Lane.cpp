@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
 #include <timeline/Lane.h>
+#include <timeline/size_cast.h>
 
 #include <cmath>
 #include <stdexcept>

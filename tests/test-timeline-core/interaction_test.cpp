@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Richard Thomson
 
 #include <timeline/Interaction.h>
+#include <timeline/size_cast.h>
 
 #include <gtest/gtest.h>
 

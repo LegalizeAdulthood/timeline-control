@@ -1,6 +1,7 @@
 #pragma once
 
 #include <timeline/Lane.h>
+#include <timeline/size_cast.h>
 #include <timeline/StringTable.h>
 
 #include <optional>

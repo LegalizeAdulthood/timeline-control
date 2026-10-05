@@ -2,6 +2,8 @@
 
 #include <wxTimeline/config.h>
 
+#include <timeline/size_cast.h>
+
 #include <timelineParAnimator/TimelineJson.h>
 
 #ifdef TIMELINE_CONTROL_WITH_CAIRO

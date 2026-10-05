@@ -4,6 +4,8 @@
 
 #include <timelineParAnimator/TimelineJson.h>
 
+#include <timeline/size_cast.h>
+
 #include <QAction>
 #include <QFileDialog>
 #include <QMenu>
