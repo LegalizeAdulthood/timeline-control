@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include <timelineParAnimator/TimelineJson.h>
+#include <timelineParAnimator/BeatKeysMapping.h>
 
 #include <imguiTimeline/TimelineControl.h>
+
+#include <filesystem>
+#include <string>
+#include <vector>
 
 namespace timeline_imgui_viewer
 {

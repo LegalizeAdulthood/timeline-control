@@ -3,12 +3,12 @@
 #include <Viewer.h>
 
 #include <timelineViewer/format_inspector.h>
+#include <timelineViewer/load_timeline.h>
+#include <timelineViewer/write_snapshot.h>
 
 #include <timeline/Snapshot.h>
 
 #include <algorithm>
-#include <fstream>
-#include <system_error>
 #include <utility>
 
 namespace timeline_imgui_viewer
@@ -16,52 +16,20 @@ namespace timeline_imgui_viewer
 
 bool Viewer::load_file(const std::filesystem::path &path, bool append)
 {
-    timeline_par_animator::JsonImportOptions options{};
-    if (append && m_control.document() && m_control.document()->frame_grid())
+    timeline_viewer::LoadResult result = timeline_viewer::load_timeline(path, append, m_control.document(), m_mappings);
+    m_diagnostics = std::move(result.diagnostics);
+    if (!result.succeeded())
     {
-        const timeline::FrameGrid &grid = *m_control.document()->frame_grid();
-        options.ticks_per_second = grid.timebase().ticks_per_second();
-        options.frames_per_second_numerator = grid.frames_per_second_numerator();
-        options.frames_per_second_denominator = grid.frames_per_second_denominator();
-    }
-    const std::filesystem::path companion = path.parent_path() / "adapter.beat-keys.json";
-    std::error_code error{};
-    if (std::filesystem::is_regular_file(companion, error))
-    {
-        options.beat_keys_config_path = companion;
-    }
-    timeline_par_animator::JsonImportResult imported = timeline_par_animator::import_timeline_json(path, options);
-    m_diagnostics = imported.diagnostics;
-    if (!imported.succeeded())
-    {
-        m_status = "Timeline import failed";
+        m_status = result.outcome == timeline_viewer::LoadOutcome::COMPOSITION_FAILED ? "Unable to add timeline"
+                                                                                      : "Timeline import failed";
         return false;
     }
-    if (append && m_control.document())
-    {
-        try
-        {
-            imported.document = timeline::combine_documents(*m_control.document(), *imported.document);
-        }
-        catch (const std::exception &exception)
-        {
-            m_diagnostics.push_back(exception.what());
-            m_status = "Unable to add timeline";
-            return false;
-        }
-    }
-    else
-    {
-        m_mappings.clear();
-    }
-    if (imported.mapping)
-    {
-        m_mappings.push_back(std::move(*imported.mapping));
-    }
-    m_control.set_document(std::move(*imported.document));
+    m_mappings = std::move(result.mappings);
+    m_control.set_document(std::move(*result.document));
     m_status = "Loaded " + path.filename().u8string();
     return true;
 }
+
 bool Viewer::export_snapshot(const std::filesystem::path &path)
 {
     m_diagnostics.clear();
@@ -70,18 +38,18 @@ bool Viewer::export_snapshot(const std::filesystem::path &path)
         m_diagnostics.emplace_back("No timeline layout is available to export.");
         return false;
     }
-    std::ofstream output(path);
-    output << timeline::render_snapshot(m_control.layout()->display_list());
-    output.close();
-    if (!output)
+    const std::string snapshot = timeline::render_snapshot(m_control.layout()->display_list());
+    timeline_viewer::SnapshotWriteResult result = timeline_viewer::write_snapshot(path, snapshot);
+    m_diagnostics = std::move(result.diagnostics);
+    if (!result.succeeded())
     {
-        m_diagnostics.emplace_back("Unable to write the timeline snapshot.");
         m_status = "Snapshot export failed";
         return false;
     }
     m_status = "Exported " + path.filename().u8string();
     return true;
 }
+
 std::string Viewer::inspector_text() const
 {
     return timeline_viewer::format_inspector(
