@@ -224,16 +224,6 @@ timeline::Document import_clean_document(const std::filesystem::path &path)
     return import_clean_document(path, JsonImportOptions{});
 }
 
-timeline::Document import_partial_document(const std::filesystem::path &path)
-{
-    const JsonImportResult result = import_timeline_json(path);
-    if (!result.succeeded())
-    {
-        throw std::runtime_error("partial test fixture did not produce a document");
-    }
-    return *result.document;
-}
-
 const std::string &diagnostic_at(const JsonImportResult &result, int index)
 {
     if (index < 0 || timeline::size_cast(result.diagnostics) <= index)
@@ -309,50 +299,168 @@ const timeline::Polyline &curve_line(const timeline::Layout &layout, timeline::S
     throw std::runtime_error("extrapolation curve line is missing");
 }
 
+/// Owns the policy document selected by a parameterized fixture case.
+///
+template <typename Case>
+class PolicyDocumentTest : public testing::TestWithParam<Case>
+{
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(policy_document(this->GetParam().policy));
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
+};
+
 /// Exercises behavior shared by each non-clamping extrapolation policy.
 ///
-class ExtrapolationPolicyTest : public testing::TestWithParam<PolicyCase>
+class ExtrapolationPolicyTest : public PolicyDocumentTest<PolicyCase>
 {
+};
+
+/// Owns a policy document composed with the music document.
+///
+class ExtrapolationPolicyCompositionTest : public PolicyDocumentTest<PolicyCase>
+{
+protected:
+    void SetUp() override
+    {
+        PolicyDocumentTest<PolicyCase>::SetUp();
+        m_combined_document.emplace(combine_with_music(document()));
+    }
+    const timeline::Document &combined_document() const
+    {
+        return *m_combined_document;
+    }
+
+private:
+    std::optional<timeline::Document> m_combined_document;
 };
 
 /// Exercises one extrapolation policy at one exact rational frame position.
 ///
-class ExtrapolationValueTest : public testing::TestWithParam<ValueCase>
+class ExtrapolationValueTest : public PolicyDocumentTest<ValueCase>
 {
 };
 
 /// Exercises overflow-safe extrapolation at timeline tick limits.
 ///
-class ExtrapolationExtremeTest : public testing::TestWithParam<ExtremeCase>
+class ExtrapolationExtremeTest : public PolicyDocumentTest<ExtremeCase>
 {
 };
 
-/// Exercises source comparison for each supported scalar type.
+/// Owns the variant document used for parameterized source comparison.
 ///
 class ExtrapolationVariantTest : public testing::TestWithParam<VariantCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document("fixtures/extrapolation-variants.json"));
+    }
+    const VariantCase &definition() const
+    {
+        return GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
 };
 
-/// Exercises one malformed extrapolation form and its diagnostic.
+/// Owns the fixed extrapolation-variants document.
+///
+class ExtrapolationVariantsTest : public testing::Test
+{
+protected:
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *m_document.frame_grid();
+    }
+
+private:
+    timeline::Document m_document{import_clean_document("fixtures/extrapolation-variants.json")};
+};
+
+/// Owns one partial extrapolation import and its retained document.
+///
+class ExtrapolationPartialImportTest : public testing::Test
+{
+protected:
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+
+private:
+    JsonImportResult m_result{import_timeline_json("fixtures/extrapolation-partial.json")};
+};
+
+/// Owns the partial import used for one parameterized diagnostic check.
 ///
 class ExtrapolationDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_result = import_timeline_json("fixtures/extrapolation-partial.json");
+    }
+    const DiagnosticCase &definition() const
+    {
+        return GetParam();
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
 } // namespace
 
 TEST_P(ExtrapolationPolicyTest, matchesSourceOutput)
 {
-    const PolicyCase &definition = GetParam();
+    const PolicyCase &test_case = definition();
     JsonImportOptions options;
     options.frames_per_second_numerator = 30000;
     options.frames_per_second_denominator = 1001;
-    const timeline::Document document = import_clean_document(policy_fixture(definition.policy), options);
+    const timeline::Document document = import_clean_document(policy_fixture(test_case.policy), options);
     const timeline::FrameGrid &grid = *document.frame_grid();
 
     const std::vector<std::optional<double>> actual = lane_values(document, 0, grid);
     const std::vector<std::optional<double>> expected =
-        golden_values(policy_golden(definition.policy), "maxiter", grid.frame_count());
+        golden_values(policy_golden(test_case.policy), "maxiter", grid.frame_count());
 
     ASSERT_EQ(timeline::size_cast(expected), timeline::size_cast(actual));
     for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
@@ -367,20 +475,20 @@ TEST_P(ExtrapolationPolicyTest, matchesSourceOutput)
 
 TEST_P(ExtrapolationPolicyTest, ownsPolicyMetadataAfterImportResultRelease)
 {
-    const PolicyCase &definition = GetParam();
-    JsonImportResult imported = import_clean_result(policy_fixture(definition.policy));
+    const PolicyCase &test_case = definition();
+    JsonImportResult imported = import_clean_result(policy_fixture(test_case.policy));
     const timeline::Document document = *imported.document;
 
     imported.document.reset();
     const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 0).attributes());
 
-    EXPECT_EQ(definition.policy, attributes.at("extrapolate"));
+    EXPECT_EQ(test_case.policy, attributes.at("extrapolate"));
 }
 
 TEST_P(ExtrapolationPolicyTest, ownsTrackDefinitionAfterImportResultRelease)
 {
-    const PolicyCase &definition = GetParam();
-    JsonImportResult imported = import_clean_result(policy_fixture(definition.policy));
+    const PolicyCase &test_case = definition();
+    JsonImportResult imported = import_clean_result(policy_fixture(test_case.policy));
     const timeline::Document document = *imported.document;
 
     imported.document.reset();
@@ -391,12 +499,12 @@ TEST_P(ExtrapolationPolicyTest, ownsTrackDefinitionAfterImportResultRelease)
 
 TEST_P(ExtrapolationPolicyTest, placesFirstKeyAtSourceFrame)
 {
-    const PolicyCase &definition = GetParam();
+    const PolicyCase &test_case = definition();
     JsonImportOptions options;
     options.frames_per_second_numerator = 30000;
     options.frames_per_second_denominator = 1001;
 
-    const timeline::Document document = import_clean_document(policy_fixture(definition.policy), options);
+    const timeline::Document document = import_clean_document(policy_fixture(test_case.policy), options);
     const timeline::Time time = first_key(document, 0).time();
 
     EXPECT_EQ(4004, time.ticks());
@@ -404,47 +512,33 @@ TEST_P(ExtrapolationPolicyTest, placesFirstKeyAtSourceFrame)
 
 TEST_P(ExtrapolationPolicyTest, matchesFrameInspection)
 {
-    const PolicyCase &definition = GetParam();
-    const timeline::Document document = policy_document(definition.policy);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<std::optional<double>> evaluated = lane_values(document, 0, grid);
-    const std::vector<std::optional<double>> inspected = inspection_values(document, 0, grid);
+    const std::vector<std::optional<double>> evaluated = lane_values(document(), 0, frame_grid());
+    const std::vector<std::optional<double>> inspected = inspection_values(document(), 0, frame_grid());
 
     EXPECT_EQ(evaluated, inspected);
 }
 
-TEST_P(ExtrapolationPolicyTest, combinesWithMusicDocument)
+TEST_P(ExtrapolationPolicyCompositionTest, combinesWithMusicDocument)
 {
-    const PolicyCase &definition = GetParam();
-    const timeline::Document document = policy_document(definition.policy);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(5, combined.lane_count());
+    EXPECT_EQ(5, combined_document().lane_count());
 }
 
-TEST_P(ExtrapolationPolicyTest, preservesInitialValueWhenCombined)
+TEST_P(ExtrapolationPolicyCompositionTest, preservesInitialValueWhenCombined)
 {
-    const PolicyCase &definition = GetParam();
-    const timeline::Document document = policy_document(definition.policy);
-    const std::optional<double> expected = document.lanes()[0].evaluate_keyframes(timeline::Time{});
+    const std::optional<double> expected = document().lanes()[0].evaluate_keyframes(timeline::Time{});
 
-    const timeline::Document combined = combine_with_music(document);
-    const std::optional<double> actual = combined.lanes()[0].evaluate_keyframes(timeline::Time{});
+    const std::optional<double> actual = combined_document().lanes()[0].evaluate_keyframes(timeline::Time{});
 
     EXPECT_EQ(expected, actual);
 }
 
-TEST_P(ExtrapolationPolicyTest, rendersCurveWithinLaneBand)
+TEST_P(ExtrapolationPolicyCompositionTest, rendersCurveWithinLaneBand)
 {
-    const PolicyCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(policy_document(definition.policy));
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(600, 300, grid.offset(), grid.end_time()),
+    const timeline::Layout layout(combined_document(),
+        timeline::Viewport(600, 300, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 40, 4));
 
-    const timeline::Polyline &line = curve_line(layout, document.lanes()[0].id());
+    const timeline::Polyline &line = curve_line(layout, combined_document().lanes()[0].id());
 
     for (const timeline::Point &point : line.points)
     {
@@ -453,37 +547,36 @@ TEST_P(ExtrapolationPolicyTest, rendersCurveWithinLaneBand)
     }
 }
 
-TEST_P(ExtrapolationPolicyTest, hitTestsCurveIdentity)
+TEST_P(ExtrapolationPolicyCompositionTest, hitTestsCurveIdentity)
 {
-    const PolicyCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(policy_document(definition.policy));
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(600, 300, grid.offset(), grid.end_time()),
+    const timeline::Layout layout(combined_document(),
+        timeline::Viewport(600, 300, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 40, 4));
-    const timeline::Polyline &line = curve_line(layout, document.lanes()[0].id());
+    const timeline::Polyline &line = curve_line(layout, combined_document().lanes()[0].id());
 
     const std::optional<timeline::HitResult> result = layout.hit_test(line.points.front(), 0);
 
     ASSERT_TRUE(result);
-    EXPECT_EQ(document.lanes()[0].id(), result->id.lane_id);
+    EXPECT_EQ(combined_document().lanes()[0].id(), result->id.lane_id);
 }
 
 INSTANTIATE_TEST_SUITE_P(Policies, ExtrapolationPolicyTest, testing::ValuesIn(POLICY_CASES), case_name<PolicyCase>);
+INSTANTIATE_TEST_SUITE_P(
+    Policies, ExtrapolationPolicyCompositionTest, testing::ValuesIn(POLICY_CASES), case_name<PolicyCase>);
 
 TEST_P(ExtrapolationValueTest, evaluatesExpectedValue)
 {
-    const ValueCase &definition = GetParam();
-    const timeline::Document document = policy_document(definition.policy);
-    const timeline::Ticks width = document.frame_grid()->frame_duration().ticks();
+    const ValueCase &test_case = definition();
+    const timeline::Ticks width = frame_grid().frame_duration().ticks();
     const timeline::Ticks ticks =
-        width * definition.frame_numerator / definition.frame_denominator + definition.tick_adjustment;
+        width * test_case.frame_numerator / test_case.frame_denominator + test_case.tick_adjustment;
 
-    const std::optional<double> actual = document.lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(ticks));
+    const std::optional<double> actual = document().lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(ticks));
 
-    ASSERT_EQ(definition.expected.has_value(), actual.has_value());
-    if (definition.expected)
+    ASSERT_EQ(test_case.expected.has_value(), actual.has_value());
+    if (test_case.expected)
     {
-        EXPECT_DOUBLE_EQ(*definition.expected, *actual);
+        EXPECT_DOUBLE_EQ(*test_case.expected, *actual);
     }
 }
 
@@ -491,11 +584,10 @@ INSTANTIATE_TEST_SUITE_P(Values, ExtrapolationValueTest, testing::ValuesIn(VALUE
 
 TEST_P(ExtrapolationExtremeTest, evaluatesWithoutTickOverflow)
 {
-    const ExtremeCase &definition = GetParam();
-    const timeline::Document document = policy_document(definition.policy);
+    const ExtremeCase &test_case = definition();
 
     const std::optional<double> value =
-        document.lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(definition.ticks));
+        document().lanes()[0].evaluate_keyframes(timeline::Time::from_ticks(test_case.ticks));
 
     EXPECT_TRUE(value);
 }
@@ -505,13 +597,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(ExtrapolationVariantTest, matchesSourceOutput)
 {
-    const VariantCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    const VariantCase &test_case = definition();
 
-    const std::vector<std::optional<double>> actual = lane_values(document, definition.lane, grid);
+    const std::vector<std::optional<double>> actual = lane_values(document(), test_case.lane, frame_grid());
     const std::vector<std::optional<double>> expected =
-        golden_values("fixtures/gold-extrapolation-variants.par", definition.parameter, grid.frame_count());
+        golden_values("fixtures/gold-extrapolation-variants.par", test_case.parameter, frame_grid().frame_count());
 
     ASSERT_EQ(timeline::size_cast(expected), timeline::size_cast(actual));
     for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
@@ -525,104 +615,83 @@ TEST_P(ExtrapolationVariantTest, matchesSourceOutput)
 INSTANTIATE_TEST_SUITE_P(
     ScalarTypes, ExtrapolationVariantTest, testing::ValuesIn(VARIANT_CASES), case_name<VariantCase>);
 
-TEST(ExtrapolationVariants, importsEveryScalarType)
+TEST_F(ExtrapolationVariantsTest, importsEveryScalarType)
 {
-    const std::filesystem::path fixture("fixtures/extrapolation-variants.json");
-
-    const timeline::Document document = import_clean_document(fixture);
-
-    EXPECT_EQ(3, document.lane_count());
+    EXPECT_EQ(3, document().lane_count());
 }
 
-TEST(ExtrapolationVariants, preservesDoubleSourceValue)
+TEST_F(ExtrapolationVariantsTest, preservesDoubleSourceValue)
 {
-    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 1).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), first_key(document(), 1).attributes());
 
     EXPECT_EQ("1.25", attributes.at("source-value"));
 }
 
-TEST(ExtrapolationVariants, preservesDoubleSourceEntry)
+TEST_F(ExtrapolationVariantsTest, preservesDoubleSourceEntry)
 {
-    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 1).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), first_key(document(), 1).attributes());
 
     EXPECT_EQ("Bailout_Demo", attributes.at("source-entry"));
 }
 
-TEST(ExtrapolationVariants, preservesDoubleCatalogDefinition)
+TEST_F(ExtrapolationVariantsTest, preservesDoubleCatalogDefinition)
 {
-    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, first_key(document, 1).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), first_key(document(), 1).attributes());
 
     EXPECT_NE(std::string_view::npos, attributes.at("catalog-definition").find("double"));
 }
 
-TEST(ExtrapolationVariants, interpolatesDoubleBetweenKeys)
+TEST_F(ExtrapolationVariantsTest, interpolatesDoubleBetweenKeys)
 {
-    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
-    const timeline::Ticks width = document.frame_grid()->frame_duration().ticks();
+    const timeline::Ticks width = frame_grid().frame_duration().ticks();
     const timeline::Time half = timeline::Time::from_ticks(width * 3 / 2);
 
-    const std::optional<double> value = document.lanes()[1].evaluate_keyframes(half);
+    const std::optional<double> value = document().lanes()[1].evaluate_keyframes(half);
 
     ASSERT_TRUE(value);
     EXPECT_DOUBLE_EQ(2, *value);
 }
 
-TEST(ExtrapolationVariants, holdsIntegerBetweenKeys)
+TEST_F(ExtrapolationVariantsTest, holdsIntegerBetweenKeys)
 {
-    const timeline::Document document = import_clean_document("fixtures/extrapolation-variants.json");
-    const timeline::Ticks width = document.frame_grid()->frame_duration().ticks();
+    const timeline::Ticks width = frame_grid().frame_duration().ticks();
     const timeline::Time half = timeline::Time::from_ticks(width * 3 / 2);
 
-    const std::optional<double> value = document.lanes()[0].evaluate_keyframes(half);
+    const std::optional<double> value = document().lanes()[0].evaluate_keyframes(half);
 
     ASSERT_TRUE(value);
     EXPECT_DOUBLE_EQ(100, *value);
 }
 
-TEST(ExtrapolationDiagnostics, reportsEveryMalformedTrack)
+TEST_F(ExtrapolationPartialImportTest, reportsEveryMalformedTrack)
 {
-    const std::filesystem::path fixture("fixtures/extrapolation-partial.json");
+    const int count = timeline::size_cast(import_result().diagnostics);
 
-    const JsonImportResult result = import_timeline_json(fixture);
-
-    EXPECT_EQ(6, timeline::size_cast(result.diagnostics));
+    EXPECT_EQ(6, count);
 }
 
-TEST(ExtrapolationDiagnostics, retainsOnlyValidTrackAfterMalformedTracks)
+TEST_F(ExtrapolationPartialImportTest, retainsOnlyValidTrackAfterMalformedTracks)
 {
-    const std::filesystem::path fixture("fixtures/extrapolation-partial.json");
-
-    const timeline::Document document = import_partial_document(fixture);
-
-    EXPECT_EQ(1, document.lane_count());
+    EXPECT_EQ(1, document().lane_count());
 }
 
-TEST(ExtrapolationDiagnostics, retainsExpectedValidTrackAfterMalformedTracks)
+TEST_F(ExtrapolationPartialImportTest, retainsExpectedValidTrackAfterMalformedTracks)
 {
-    const std::filesystem::path fixture("fixtures/extrapolation-partial.json");
+    ASSERT_EQ(1, document().lane_count());
 
-    const timeline::Document document = import_partial_document(fixture);
-    ASSERT_EQ(1, document.lane_count());
-    const std::string_view identity = document.strings().lookup(document.lanes()[0].id());
+    const std::string_view identity = document().strings().lookup(document().lanes()[0].id());
 
     EXPECT_EQ("animation-6", identity);
 }
 
 TEST_P(ExtrapolationDiagnosticTest, identifiesMalformedForm)
 {
-    const DiagnosticCase &definition = GetParam();
-    const JsonImportResult result = import_timeline_json("fixtures/extrapolation-partial.json");
+    const DiagnosticCase &test_case = definition();
 
-    const std::string &diagnostic = diagnostic_at(result, definition.index);
+    const std::string &diagnostic = diagnostic_at(import_result(), test_case.index);
 
-    EXPECT_NE(std::string::npos, diagnostic.find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, diagnostic.find(definition.message));
+    EXPECT_NE(std::string::npos, diagnostic.find("animation-" + std::to_string(test_case.index) + ":"));
+    EXPECT_NE(std::string::npos, diagnostic.find(test_case.message));
 }
 
 INSTANTIATE_TEST_SUITE_P(
