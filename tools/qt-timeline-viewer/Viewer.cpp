@@ -3,8 +3,8 @@
 #include <Viewer.h>
 
 #include <timelineViewer/format_inspector.h>
-
-#include <timelineParAnimator/TimelineJson.h>
+#include <timelineViewer/load_timeline.h>
+#include <timelineViewer/write_snapshot.h>
 
 #include <timeline/size_cast.h>
 
@@ -17,9 +17,8 @@
 #include <QSplitter>
 #include <QStatusBar>
 
-#include <fstream>
 #include <string_view>
-#include <system_error>
+#include <utility>
 
 namespace timeline_qt_viewer
 {
@@ -47,6 +46,7 @@ Viewer::Viewer() :
     Viewer(std::filesystem::path{})
 {
 }
+
 Viewer::Viewer(const std::filesystem::path &startup_path) :
     m_control(*new QTimelineWidget(*this)),
     m_inspector(*new QPlainTextEdit(this)),
@@ -105,51 +105,20 @@ Viewer::Viewer(const std::filesystem::path &startup_path) :
         load_file(startup_path);
     }
 }
+
 bool Viewer::load_file(const std::filesystem::path &path, bool append)
 {
-    timeline_par_animator::JsonImportOptions options;
-    if (append && m_control.document() && m_control.document()->frame_grid())
+    timeline_viewer::LoadResult result = timeline_viewer::load_timeline(path, append, m_control.document(), m_mappings);
+    m_diagnostics = std::move(result.diagnostics);
+    if (!result.succeeded())
     {
-        const timeline::FrameGrid &grid = *m_control.document()->frame_grid();
-        options.ticks_per_second = grid.timebase().ticks_per_second();
-        options.frames_per_second_numerator = grid.frames_per_second_numerator();
-        options.frames_per_second_denominator = grid.frames_per_second_denominator();
-    }
-    const std::filesystem::path companion = path.parent_path() / "adapter.beat-keys.json";
-    std::error_code error;
-    if (std::filesystem::is_regular_file(companion, error))
-    {
-        options.beat_keys_config_path = companion;
-    }
-    timeline_par_animator::JsonImportResult imported = timeline_par_animator::import_timeline_json(path, options);
-    m_diagnostics = std::move(imported.diagnostics);
-    if (!imported.succeeded())
-    {
-        statusBar()->showMessage(QStringLiteral("Timeline import failed"));
+        statusBar()->showMessage(result.outcome == timeline_viewer::LoadOutcome::COMPOSITION_FAILED
+                ? QStringLiteral("Unable to add timeline")
+                : QStringLiteral("Timeline import failed"));
         return false;
     }
-    if (append && m_control.document())
-    {
-        try
-        {
-            imported.document = timeline::combine_documents(*m_control.document(), *imported.document);
-        }
-        catch (const std::exception &exception)
-        {
-            m_diagnostics.emplace_back(exception.what());
-            statusBar()->showMessage(QStringLiteral("Unable to add timeline"));
-            return false;
-        }
-    }
-    else
-    {
-        m_mappings.clear();
-    }
-    if (imported.mapping)
-    {
-        m_mappings.push_back(std::move(*imported.mapping));
-    }
-    m_control.set_document(std::move(*imported.document));
+    m_mappings = std::move(result.mappings);
+    m_control.set_document(std::move(*result.document));
     const QString name = QString::fromStdString(path.filename().u8string());
     const timeline::Document &document = *m_control.document();
     setWindowTitle(
@@ -157,6 +126,7 @@ bool Viewer::load_file(const std::filesystem::path &path, bool append)
     statusBar()->showMessage(QStringLiteral("Loaded ") + name);
     return true;
 }
+
 bool Viewer::export_snapshot(const std::filesystem::path &path)
 {
     m_diagnostics.clear();
@@ -166,23 +136,23 @@ bool Viewer::export_snapshot(const std::filesystem::path &path)
         statusBar()->showMessage(QStringLiteral("Snapshot export failed"));
         return false;
     }
-    std::ofstream output(path, std::ios::binary);
-    output << m_control.snapshot();
-    output.close();
-    if (!output)
+    timeline_viewer::SnapshotWriteResult result = timeline_viewer::write_snapshot(path, m_control.snapshot());
+    m_diagnostics = std::move(result.diagnostics);
+    if (!result.succeeded())
     {
-        m_diagnostics.emplace_back("Unable to write the timeline snapshot.");
         statusBar()->showMessage(QStringLiteral("Snapshot export failed"));
         return false;
     }
     statusBar()->showMessage(QStringLiteral("Exported ") + QString::fromStdString(path.filename().u8string()));
     return true;
 }
+
 std::string Viewer::inspector_text() const
 {
     return timeline_viewer::format_inspector(
         m_control.document(), m_control.hit_result(), m_control.interaction(), m_control.inspection(), m_mappings);
 }
+
 void Viewer::choose_file(bool append)
 {
     const QString path = QFileDialog::getOpenFileName(this,
@@ -195,6 +165,7 @@ void Viewer::choose_file(bool append)
     load_file(native_path(path), append);
     show_diagnostics(QStringLiteral("Import diagnostics"));
 }
+
 void Viewer::choose_export()
 {
     const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("Export timeline snapshot"),
@@ -205,6 +176,7 @@ void Viewer::choose_export()
         show_diagnostics(QStringLiteral("Snapshot diagnostics"));
     }
 }
+
 void Viewer::show_diagnostics(const QString &title)
 {
     if (!m_diagnostics.empty())
@@ -217,6 +189,7 @@ void Viewer::show_diagnostics(const QString &title)
         QMessageBox::warning(this, title, messages.join('\n'));
     }
 }
+
 void Viewer::update_inspector()
 {
     m_add.setEnabled(m_control.document().has_value());

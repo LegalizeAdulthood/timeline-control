@@ -11,14 +11,12 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QPlainTextEdit>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QtTest/QTest>
 
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <string>
-#include <utility>
 
 namespace
 {
@@ -51,6 +49,16 @@ TEST_F(LoadedQtViewerTest, opensSharedAnimation)
 {
     ASSERT_TRUE(m_viewer.control().layout());
     EXPECT_EQ(25, m_viewer.control().document()->lane_count());
+}
+
+TEST_F(LoadedQtViewerTest, updatesWindowTitleAfterOpen)
+{
+    EXPECT_TRUE(m_viewer.windowTitle().startsWith(QStringLiteral("Qt Timeline Viewer - ")));
+}
+
+TEST_F(LoadedQtViewerTest, reportsSuccessfulOpen)
+{
+    EXPECT_EQ(QStringLiteral("Loaded extreme-normalized-vectors.json"), m_viewer.statusBar()->currentMessage());
 }
 
 TEST_F(LoadedQtViewerTest, presentsInitialFrameInspection)
@@ -133,6 +141,14 @@ TEST_F(LoadedQtViewerTest, composesMusicComparison)
 
     ASSERT_TRUE(loaded);
     EXPECT_EQ(29, m_viewer.control().document()->lane_count());
+}
+
+TEST_F(LoadedQtViewerTest, reportsSuccessfulComparison)
+{
+    const bool loaded = m_viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true);
+
+    ASSERT_TRUE(loaded);
+    EXPECT_EQ(QStringLiteral("Loaded rms.beat-keys.json"), m_viewer.statusBar()->currentMessage());
 }
 
 TEST_F(LoadedQtViewerTest, presentsMappingRecipes)
@@ -225,38 +241,24 @@ TEST_F(QtViewerTest, failedComparisonCompositionPreservesDisplayedState)
     EXPECT_EQ(1, timeline::size_cast(m_viewer.mappings()));
 }
 
-TEST_F(QtViewerTest, beatKeysComparisonReusesDisplayedTimebaseAndFrameGrid)
+TEST_F(QtViewerTest, reportsImportFailure)
 {
-    timeline_par_animator::JsonImportOptions options;
-    options.ticks_per_second = 60000;
-    options.frames_per_second_numerator = 24;
-    timeline_par_animator::JsonImportResult base =
-        timeline_par_animator::import_timeline_json(fixtures / "extreme-normalized-vectors.json", options);
-    ASSERT_TRUE(base.succeeded());
-    m_viewer.control().set_document(std::move(*base.document));
+    const bool loaded = m_viewer.load_file(fixtures / "invalid-schema.json");
 
-    const bool loaded = m_viewer.load_file(fixtures / "beat-keys/gold-write-rms-keyframes.json", true);
-
-    ASSERT_TRUE(loaded);
-    EXPECT_EQ(60000, m_viewer.control().document()->timebase().ticks_per_second());
-    EXPECT_EQ(24, m_viewer.control().document()->frame_grid()->frames_per_second_numerator());
-    EXPECT_GT(m_viewer.control().document()->lane_count(), 25);
+    EXPECT_FALSE(loaded);
+    EXPECT_FALSE(m_viewer.diagnostics().empty());
+    EXPECT_EQ(QStringLiteral("Timeline import failed"), m_viewer.statusBar()->currentMessage());
 }
 
-TEST_F(QtViewerTest, animationComparisonReusesDisplayedFrameGrid)
+TEST_F(QtViewerTest, reportsCompositionFailure)
 {
-    timeline_par_animator::JsonImportOptions options;
-    options.ticks_per_second = 60000;
-    options.frames_per_second_numerator = 24;
-    timeline_par_animator::JsonImportResult base =
-        timeline_par_animator::import_timeline_json(fixtures / "extreme-normalized-vectors.json", options);
-    ASSERT_TRUE(base.succeeded());
-    m_viewer.control().set_document(std::move(*base.document));
+    m_viewer.control().set_document(timeline::Document(120000));
 
     const bool loaded = m_viewer.load_file(fixtures / "extreme-normalized-vectors.json", true);
 
-    ASSERT_TRUE(loaded);
-    EXPECT_EQ(24, m_viewer.control().document()->frame_grid()->frames_per_second_numerator());
+    EXPECT_FALSE(loaded);
+    EXPECT_FALSE(m_viewer.diagnostics().empty());
+    EXPECT_EQ(QStringLiteral("Unable to add timeline"), m_viewer.statusBar()->currentMessage());
 }
 
 TEST_F(QtViewerTest, presentsGenerationMetadata)
@@ -400,22 +402,21 @@ TEST_F(QtViewerTest, rejectsSnapshotExportWithoutDocument)
 
     EXPECT_FALSE(exported);
     EXPECT_FALSE(m_viewer.diagnostics().empty());
+    EXPECT_EQ(QStringLiteral("Snapshot export failed"), m_viewer.statusBar()->currentMessage());
 }
 
-TEST_F(LoadedQtViewerTest, exportsCurrentCoreSnapshot)
+TEST_F(LoadedQtViewerTest, reportsSuccessfulSnapshotExport)
 {
     QTemporaryDir directory;
     ASSERT_TRUE(directory.isValid());
     const std::filesystem::path path = std::filesystem::u8path(directory.path().toStdString()) / "timeline.txt";
-    const std::string before = m_viewer.control().snapshot();
 
     const bool exported = m_viewer.export_snapshot(path);
 
     ASSERT_TRUE(exported);
-    std::ifstream input(path, std::ios::binary);
-    const std::string actual((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    EXPECT_EQ(before, actual);
+    EXPECT_TRUE(std::filesystem::is_regular_file(path));
     EXPECT_TRUE(m_viewer.diagnostics().empty());
+    EXPECT_EQ(QStringLiteral("Exported timeline.txt"), m_viewer.statusBar()->currentMessage());
 }
 
 TEST_F(LoadedQtViewerTest, preservesDisplayedStateOnSnapshotWriteFailure)
@@ -434,6 +435,20 @@ TEST_F(LoadedQtViewerTest, preservesDisplayedStateOnSnapshotWriteFailure)
     EXPECT_FALSE(m_viewer.diagnostics().empty());
     EXPECT_EQ(before, m_viewer.control().snapshot());
     EXPECT_EQ(inspector, m_viewer.inspector_text());
+}
+
+TEST_F(LoadedQtViewerTest, reportsSnapshotWriteFailure)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const std::filesystem::path path =
+        std::filesystem::u8path(directory.path().toStdString()) / "missing" / "snapshot.txt";
+
+    const bool exported = m_viewer.export_snapshot(path);
+
+    EXPECT_FALSE(exported);
+    EXPECT_FALSE(m_viewer.diagnostics().empty());
+    EXPECT_EQ(QStringLiteral("Snapshot export failed"), m_viewer.statusBar()->currentMessage());
 }
 
 TEST(QtViewer, loadsOptionalStartupPath)

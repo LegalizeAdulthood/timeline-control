@@ -2,7 +2,11 @@
 
 add_library(qt-viewer-core STATIC Viewer.h Viewer.cpp)
 target_include_directories(qt-viewer-core PUBLIC .)
-target_link_libraries(qt-viewer-core PUBLIC timeline-qt timeline-paranimator timeline-viewer-formatter)
+target_link_libraries(qt-viewer-core PUBLIC
+    timeline-qt
+    timeline-paranimator
+    timeline-viewer-formatter
+    timeline-viewer-io)
 target_folder(qt-viewer-core "Libraries")
 qt_add_executable(qt-timeline-viewer WIN32 main.cpp)
 target_link_libraries(qt-timeline-viewer PRIVATE qt-viewer-core)

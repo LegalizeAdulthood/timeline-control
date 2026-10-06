@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <timelineParAnimator/TimelineJson.h>
+#include <timelineParAnimator/BeatKeysMapping.h>
 
 #include <qtTimeline/QTimelineWidget.h>
 #include <QMainWindow>
