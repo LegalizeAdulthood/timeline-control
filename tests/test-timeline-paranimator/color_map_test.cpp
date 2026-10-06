@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -379,9 +380,92 @@ timeline::Palette sparkle_palette(const timeline::Document &document, const Rand
     return result;
 }
 
+/// Owns a source-rate document selected by a parameterized fixture case.
+///
+template <typename Case>
+class SourceDocumentTest : public testing::TestWithParam<Case>
+{
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_source_document(this->GetParam().fixture));
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
+};
+
+/// Owns a parameter-selected document composed with the music document.
+///
+template <typename Case>
+class MusicCompositionTest : public testing::TestWithParam<Case>
+{
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(combine_with_music(import_clean_document(this->GetParam().fixture)));
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
+};
+
+/// Owns one partial-import result for parameterized diagnostic checks.
+///
+class DiagnosticResultTest : public testing::TestWithParam<DiagnosticCase>
+{
+protected:
+    explicit DiagnosticResultTest(std::filesystem::path fixture) :
+        m_fixture(std::move(fixture))
+    {
+    }
+    void SetUp() override
+    {
+        m_result = import_timeline_json(m_fixture);
+    }
+    const DiagnosticCase &definition() const
+    {
+        return GetParam();
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    std::filesystem::path m_fixture;
+    JsonImportResult m_result;
+};
+
 /// Exercises masked color-map fixtures independently.
 ///
-class MaskedColorMapFixtureTest : public testing::TestWithParam<FixtureCase>
+class MaskedColorMapFixtureTest : public SourceDocumentTest<FixtureCase>
+{
+};
+
+/// Exercises masked color-map composition independently.
+///
+class MaskedColorMapCompositionTest : public MusicCompositionTest<FixtureCase>
 {
 };
 
@@ -389,85 +473,129 @@ class MaskedColorMapFixtureTest : public testing::TestWithParam<FixtureCase>
 ///
 class MaskedRandomTest : public testing::TestWithParam<RandomCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document("fixtures/color-map-masked-variants.json"));
+    }
+    const RandomCase &definition() const
+    {
+        return GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
 };
 
 /// Exercises masked color-map diagnostics independently.
 ///
-class MaskedDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+class MaskedDiagnosticTest : public DiagnosticResultTest
 {
+protected:
+    MaskedDiagnosticTest() :
+        DiagnosticResultTest("fixtures/color-map-masked-partial.json")
+    {
+    }
 };
 
 /// Exercises indexed color-map fixtures independently.
 ///
-class IndexedColorMapFixtureTest : public testing::TestWithParam<FixtureCase>
+class IndexedColorMapFixtureTest : public SourceDocumentTest<FixtureCase>
 {
 };
 
 /// Exercises indexed color-map diagnostics independently.
 ///
-class IndexedDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+class IndexedDiagnosticTest : public DiagnosticResultTest
 {
+protected:
+    IndexedDiagnosticTest() :
+        DiagnosticResultTest("fixtures/color-map-indexed-partial.json")
+    {
+    }
 };
 
 /// Exercises color-map effect fixtures independently.
 ///
-class ColorMapEffectFixtureTest : public testing::TestWithParam<FixtureCase>
+class ColorMapEffectFixtureTest : public SourceDocumentTest<FixtureCase>
+{
+};
+
+/// Exercises color-map effect composition independently.
+///
+class ColorMapEffectCompositionTest : public MusicCompositionTest<FixtureCase>
 {
 };
 
 /// Exercises color-map effect diagnostics independently.
 ///
-class ColorMapEffectDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+class ColorMapEffectDiagnosticTest : public DiagnosticResultTest
 {
+protected:
+    ColorMapEffectDiagnosticTest() :
+        DiagnosticResultTest("fixtures/color-map-effects-partial.json")
+    {
+    }
 };
 
 /// Exercises basic color-map fixtures independently.
 ///
-class ColorMapFixtureTest : public testing::TestWithParam<ColorMapCase>
+class ColorMapFixtureTest : public SourceDocumentTest<ColorMapCase>
+{
+};
+
+/// Exercises basic color-map composition independently.
+///
+class ColorMapCompositionTest : public MusicCompositionTest<ColorMapCase>
 {
 };
 
 /// Exercises keyed color-map metadata independently.
 ///
-class KeyedColorMapFixtureTest : public testing::TestWithParam<ColorMapCase>
+class KeyedColorMapFixtureTest : public SourceDocumentTest<ColorMapCase>
 {
 };
 
 /// Exercises basic color-map diagnostics independently.
 ///
-class ColorMapDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+class ColorMapDiagnosticTest : public DiagnosticResultTest
 {
+protected:
+    ColorMapDiagnosticTest() :
+        DiagnosticResultTest("fixtures/partial-color-map.json")
+    {
+    }
 };
 
 } // namespace
 
 TEST_P(MaskedColorMapFixtureTest, importsExpectedDocumentShape)
 {
-    const FixtureCase &definition = GetParam();
-
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    EXPECT_EQ(definition.lanes, document.lane_count());
-    EXPECT_EQ(4004, document.frame_grid()->frame_duration().ticks());
+    EXPECT_EQ(definition().lanes, document().lane_count());
+    EXPECT_EQ(4004, frame_grid().frame_duration().ticks());
 }
 
 TEST_P(MaskedColorMapFixtureTest, matchesSourceMaps)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     ASSERT_FALSE(lanes.empty());
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        const std::string prefix = output_prefix(document, curve);
-        for (int frame = 0; frame < grid.frame_count(); ++frame)
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        const std::string prefix = output_prefix(document(), curve);
+        for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
         {
             const timeline::Palette expected = golden_palette(numbered_golden("gold-" + prefix, frame));
-            const timeline::Palette actual = curve.sample(grid.frame_start(frame));
+            const timeline::Palette actual = curve.sample(frame_grid().frame_start(frame));
             for (int index = 0; index < 256; ++index)
             {
 #ifndef _MSVC_STL_VERSION
@@ -485,85 +613,66 @@ TEST_P(MaskedColorMapFixtureTest, matchesSourceMaps)
 
 TEST_P(MaskedColorMapFixtureTest, exposesSampledPalettesToInspection)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        for (int frame = 0; frame < grid.frame_count(); ++frame)
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
         {
-            const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
+            const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), frame);
             ASSERT_TRUE(inspection.lanes[lane].items[0].palette);
-            EXPECT_EQ(curve.sample(grid.frame_start(frame)), *inspection.lanes[lane].items[0].palette);
+            EXPECT_EQ(curve.sample(frame_grid().frame_start(frame)), *inspection.lanes[lane].items[0].palette);
         }
     }
 }
 
 TEST_P(MaskedColorMapFixtureTest, clampsSamplingAtDocumentEnd)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        EXPECT_EQ(curve.sample(grid.frame_start(grid.frame_count() - 1)), curve.sample(grid.end_time()));
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        EXPECT_EQ(curve.sample(frame_grid().frame_start(frame_grid().frame_count() - 1)),
+            curve.sample(frame_grid().end_time()));
     }
 }
 
 TEST_P(MaskedColorMapFixtureTest, preservesPaletteOutputDefinitions)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const ResolvedAttributes attributes = resolved_attributes(document, palette_curve(document, lane).attributes());
+        const ResolvedAttributes attributes =
+            resolved_attributes(document(), palette_curve(document(), lane).attributes());
         EXPECT_FALSE(attributes.at("output").empty());
     }
 }
 
 TEST_P(MaskedColorMapFixtureTest, preservesAmountDefinitions)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const std::vector<int> lanes = signal_lanes(document);
+    const std::vector<int> lanes = signal_lanes(document());
 
     for (int lane : lanes)
     {
-        const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, lane).attributes());
+        const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), lane).attributes());
         EXPECT_EQ("amount", attributes.at("member"));
         EXPECT_NE(std::string::npos, attributes.at("signal").find("keys"));
         EXPECT_NE(std::string::npos, attributes.at("effect").find("kind"));
     }
 }
 
-TEST_P(MaskedColorMapFixtureTest, composesWithMusicDocument)
+TEST_P(MaskedColorMapCompositionTest, composesWithMusicDocument)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(definition.lanes + 4, combined.lane_count());
+    EXPECT_EQ(definition().lanes + 4, document().lane_count());
 }
 
-TEST_P(MaskedColorMapFixtureTest, rendersPaletteSwatches)
+TEST_P(MaskedColorMapCompositionTest, rendersPaletteSwatches)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(650, 1000, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(650, 1000, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(240, 20, 40, 4));
 
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
@@ -571,12 +680,10 @@ TEST_P(MaskedColorMapFixtureTest, rendersPaletteSwatches)
     EXPECT_NE(std::string::npos, snapshot.find("swatch PALETTE"));
 }
 
-TEST_P(MaskedColorMapFixtureTest, rendersAmountKeys)
+TEST_P(MaskedColorMapCompositionTest, rendersAmountKeys)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(650, 1000, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(650, 1000, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(240, 20, 40, 4));
 
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
@@ -584,12 +691,10 @@ TEST_P(MaskedColorMapFixtureTest, rendersAmountKeys)
     EXPECT_NE(std::string::npos, snapshot.find("amount-key-0"));
 }
 
-TEST_P(MaskedColorMapFixtureTest, hitTestsPaletteIdentity)
+TEST_P(MaskedColorMapCompositionTest, hitTestsPaletteIdentity)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(650, 1000, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(650, 1000, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(240, 20, 40, 4));
 
     const std::optional<timeline::DisplayId> hit = first_swatch_hit(layout);
@@ -597,12 +702,10 @@ TEST_P(MaskedColorMapFixtureTest, hitTestsPaletteIdentity)
     EXPECT_TRUE(hit);
 }
 
-TEST_P(MaskedColorMapFixtureTest, hitTestsAmountIdentity)
+TEST_P(MaskedColorMapCompositionTest, hitTestsAmountIdentity)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(650, 1000, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(650, 1000, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(240, 20, 40, 4));
     std::optional<timeline::DisplayId> hit;
     for (const timeline::Primitive &primitive : layout.display_list().primitives())
@@ -629,30 +732,29 @@ TEST_P(MaskedColorMapFixtureTest, hitTestsAmountIdentity)
 INSTANTIATE_TEST_SUITE_P(
     MaskedFixtures, MaskedColorMapFixtureTest, testing::ValuesIn(MASKED_FIXTURES), case_name<FixtureCase>);
 
+INSTANTIATE_TEST_SUITE_P(
+    MaskedFixtures, MaskedColorMapCompositionTest, testing::ValuesIn(MASKED_FIXTURES), case_name<FixtureCase>);
+
 TEST_P(MaskedRandomTest, drawsRgbInSourceOrder)
 {
-    const RandomCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const std::vector<timeline::Ticks> ticks{249, 250, 251, grid.frame_start(1).ticks(), grid.frame_start(4).ticks()};
+    const std::vector<timeline::Ticks> ticks{
+        249, 250, 251, frame_grid().frame_start(1).ticks(), frame_grid().frame_start(4).ticks()};
 
     for (timeline::Ticks value : ticks)
     {
         const timeline::Time time = timeline::Time::from_ticks(value);
-        EXPECT_EQ(sparkle_palette(document, definition, time), palette_curve(document, definition.lane).sample(time));
+        EXPECT_EQ(
+            sparkle_palette(document(), definition(), time), palette_curve(document(), definition().lane).sample(time));
     }
 }
 
 TEST_P(MaskedRandomTest, resetsSourceEngineForEverySample)
 {
-    const RandomCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
     const timeline::Time time = timeline::Time::from_ticks(250);
-    const timeline::Palette expected = sparkle_palette(document, definition, time);
-    const timeline::PaletteCurve &curve = palette_curve(document, definition.lane);
+    const timeline::Palette expected = sparkle_palette(document(), definition(), time);
+    const timeline::PaletteCurve &curve = palette_curve(document(), definition().lane);
 
-    static_cast<void>(curve.sample(grid.frame_start(2)));
+    static_cast<void>(curve.sample(frame_grid().frame_start(2)));
     const timeline::Palette actual = curve.sample(time);
 
     EXPECT_EQ(expected, actual);
@@ -660,13 +762,11 @@ TEST_P(MaskedRandomTest, resetsSourceEngineForEverySample)
 
 TEST_P(MaskedRandomTest, ownsEvaluatorAfterDocumentCopy)
 {
-    const RandomCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
     const timeline::Time time = timeline::Time::from_ticks(250);
-    const timeline::Palette expected = sparkle_palette(document, definition, time);
+    const timeline::Palette expected = sparkle_palette(document(), definition(), time);
 
-    const timeline::Document copy = document;
-    const timeline::Palette actual = palette_curve(copy, definition.lane).sample(time);
+    const timeline::Document copy = document();
+    const timeline::Palette actual = palette_curve(copy, definition().lane).sample(time);
 
     EXPECT_EQ(expected, actual);
 }
@@ -774,14 +874,10 @@ TEST(MaskedColorMap, retainsOnlyValidAnimationAfterFailures)
 
 TEST_P(MaskedDiagnosticTest, identifiesFailureClass)
 {
-    const DiagnosticCase &definition = GetParam();
-
-    const JsonImportResult result = import_timeline_json("fixtures/color-map-masked-partial.json");
-
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.index);
+    ASSERT_GT(timeline::size_cast(import_result().diagnostics), definition().index);
     EXPECT_NE(std::string::npos,
-        result.diagnostics[definition.index].find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.index].find(definition.message));
+        import_result().diagnostics[definition().index].find("animation-" + std::to_string(definition().index) + ":"));
+    EXPECT_NE(std::string::npos, import_result().diagnostics[definition().index].find(definition().message));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -797,47 +893,36 @@ TEST(MaskedColorMap, rejectsInvalidDocument)
 
 TEST_P(IndexedColorMapFixtureTest, importsExpectedDocumentShape)
 {
-    const FixtureCase &definition = GetParam();
-
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    EXPECT_EQ(definition.lanes, document.lane_count());
-    EXPECT_EQ(4004, document.frame_grid()->frame_duration().ticks());
+    EXPECT_EQ(definition().lanes, document().lane_count());
+    EXPECT_EQ(4004, frame_grid().frame_duration().ticks());
 }
 
 TEST_P(IndexedColorMapFixtureTest, matchesSourceMaps)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        const std::string prefix = output_prefix(document, curve);
-        for (int frame = 0; frame < grid.frame_count(); ++frame)
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        const std::string prefix = output_prefix(document(), curve);
+        for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
         {
-            EXPECT_EQ(golden_palette(numbered_golden("gold-" + prefix, frame)), curve.sample(grid.frame_start(frame)));
+            EXPECT_EQ(golden_palette(numbered_golden("gold-" + prefix, frame)),
+                curve.sample(frame_grid().frame_start(frame)));
         }
     }
 }
 
 TEST_P(IndexedColorMapFixtureTest, exposesSampledPalettesToInspection)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        for (int frame = 0; frame < grid.frame_count(); ++frame)
+        for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
         {
-            const timeline::Palette expected = palette_curve(document, lane).sample(grid.frame_start(frame));
-            const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
+            const timeline::Palette expected = palette_curve(document(), lane).sample(frame_grid().frame_start(frame));
+            const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), frame);
             ASSERT_TRUE(inspection.lanes[lane].items[0].palette);
             EXPECT_EQ(expected, *inspection.lanes[lane].items[0].palette);
         }
@@ -846,29 +931,22 @@ TEST_P(IndexedColorMapFixtureTest, exposesSampledPalettesToInspection)
 
 TEST_P(IndexedColorMapFixtureTest, clampsSamplingAtDocumentEnd)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        EXPECT_EQ(curve.sample(grid.frame_start(4)), curve.sample(grid.end_time()));
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        EXPECT_EQ(curve.sample(frame_grid().frame_start(4)), curve.sample(frame_grid().end_time()));
     }
 }
 
 TEST_P(IndexedColorMapFixtureTest, preservesSignalDefinitions)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const std::vector<int> lanes = signal_lanes(document);
+    const std::vector<int> lanes = signal_lanes(document());
 
     for (int lane : lanes)
     {
-        const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, lane).attributes());
+        const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), lane).attributes());
         const std::string_view member = attributes.at("member");
         EXPECT_TRUE(member == "offset" || member == "amount");
         EXPECT_NE(std::string::npos, attributes.at("signal").find("keys"));
@@ -878,19 +956,16 @@ TEST_P(IndexedColorMapFixtureTest, preservesSignalDefinitions)
 
 TEST_P(IndexedColorMapFixtureTest, preservesOffsetDefinitions)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const std::vector<int> lanes = signal_lanes(document);
+    const std::vector<int> lanes = signal_lanes(document());
     int offsets = 0;
     for (int lane : lanes)
     {
-        const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, lane).attributes());
+        const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), lane).attributes());
         if (attributes.at("member") == "offset")
         {
             ++offsets;
             EXPECT_EQ("ping-pong", attributes.at("effect-kind"));
-            EXPECT_NE(std::string::npos, document.strings().lookup(document.lanes()[lane].id()).find("-offset"));
+            EXPECT_NE(std::string::npos, document().strings().lookup(document().lanes()[lane].id()).find("-offset"));
         }
     }
     EXPECT_GT(offsets, 0);
@@ -1053,14 +1128,10 @@ TEST(IndexedColorMap, retainsOnlyValidAnimationAfterFailures)
 
 TEST_P(IndexedDiagnosticTest, identifiesFailureClass)
 {
-    const DiagnosticCase &definition = GetParam();
-
-    const JsonImportResult result = import_timeline_json("fixtures/color-map-indexed-partial.json");
-
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.index);
+    ASSERT_GT(timeline::size_cast(import_result().diagnostics), definition().index);
     EXPECT_NE(std::string::npos,
-        result.diagnostics[definition.index].find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.index].find(definition.message));
+        import_result().diagnostics[definition().index].find("animation-" + std::to_string(definition().index) + ":"));
+    EXPECT_NE(std::string::npos, import_result().diagnostics[definition().index].find(definition().message));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1076,106 +1147,80 @@ TEST(IndexedColorMap, rejectsInvalidDocument)
 
 TEST_P(ColorMapEffectFixtureTest, importsExpectedDocumentShape)
 {
-    const FixtureCase &definition = GetParam();
-
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    EXPECT_EQ(definition.lanes, document.lane_count());
-    EXPECT_EQ(4004, document.frame_grid()->frame_duration().ticks());
+    EXPECT_EQ(definition().lanes, document().lane_count());
+    EXPECT_EQ(4004, frame_grid().frame_duration().ticks());
 }
 
 TEST_P(ColorMapEffectFixtureTest, matchesSourceMaps)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        const std::string prefix = output_prefix(document, curve);
-        for (int frame = 0; frame < grid.frame_count(); ++frame)
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        const std::string prefix = output_prefix(document(), curve);
+        for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
         {
             EXPECT_EQ(golden_palette(numbered_golden("gold-effects-" + prefix, frame)),
-                curve.sample(grid.frame_start(frame)));
+                curve.sample(frame_grid().frame_start(frame)));
         }
     }
 }
 
 TEST_P(ColorMapEffectFixtureTest, preservesExpectedPaletteCount)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const int expected = definition.name == "Variants" ? 5 : definition.name == "Order" ? 2 : 1;
+    const int expected = definition().name == "Variants" ? 5 : definition().name == "Order" ? 2 : 1;
 
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     EXPECT_EQ(expected, timeline::size_cast(lanes));
 }
 
 TEST_P(ColorMapEffectFixtureTest, clampsSamplingAtDocumentEnd)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const std::vector<int> lanes = palette_lanes(document);
+    const std::vector<int> lanes = palette_lanes(document());
 
     for (int lane : lanes)
     {
-        const timeline::PaletteCurve &curve = palette_curve(document, lane);
-        EXPECT_EQ(curve.sample(grid.frame_start(grid.frame_count() - 1)), curve.sample(grid.end_time()));
+        const timeline::PaletteCurve &curve = palette_curve(document(), lane);
+        EXPECT_EQ(curve.sample(frame_grid().frame_start(frame_grid().frame_count() - 1)),
+            curve.sample(frame_grid().end_time()));
     }
 }
 
 TEST_P(ColorMapEffectFixtureTest, preservesAmountDefinitions)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const std::vector<int> lanes = signal_lanes(document);
+    const std::vector<int> lanes = signal_lanes(document());
 
     for (int lane : lanes)
     {
-        ASSERT_EQ(2, document.lanes()[lane].item_count());
-        const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, lane).attributes());
+        ASSERT_EQ(2, document().lanes()[lane].item_count());
+        const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), lane).attributes());
         EXPECT_NE(std::string::npos, attributes.at("color-map").find("effects"));
         EXPECT_NE(std::string::npos, attributes.at("signal").find("keys"));
         EXPECT_EQ("amount", attributes.at("member"));
-        EXPECT_NE(std::string::npos, document.strings().lookup(document.lanes()[lane].id()).find("-effect-"));
+        EXPECT_NE(std::string::npos, document().strings().lookup(document().lanes()[lane].id()).find("-effect-"));
     }
 }
 
 TEST_P(ColorMapEffectFixtureTest, exposesPaletteAndAmountInspection)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     ASSERT_TRUE(inspection.lanes[0].items[0].palette);
     EXPECT_FALSE(inspection.lanes[0].items[0].value);
     EXPECT_TRUE(inspection.lanes[1].value);
 }
 
-TEST_P(ColorMapEffectFixtureTest, composesWithMusicDocument)
+TEST_P(ColorMapEffectCompositionTest, composesWithMusicDocument)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(definition.lanes + 4, combined.lane_count());
+    EXPECT_EQ(definition().lanes + 4, document().lane_count());
 }
 
-TEST_P(ColorMapEffectFixtureTest, rendersPaletteSwatches)
+TEST_P(ColorMapEffectCompositionTest, rendersPaletteSwatches)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 600, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(600, 600, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(140, 20, 40, 4));
 
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
@@ -1183,12 +1228,10 @@ TEST_P(ColorMapEffectFixtureTest, rendersPaletteSwatches)
     EXPECT_NE(std::string::npos, snapshot.find("swatch PALETTE"));
 }
 
-TEST_P(ColorMapEffectFixtureTest, rendersAmountKeys)
+TEST_P(ColorMapEffectCompositionTest, rendersAmountKeys)
 {
-    const FixtureCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 600, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(600, 600, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(140, 20, 40, 4));
 
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
@@ -1198,6 +1241,9 @@ TEST_P(ColorMapEffectFixtureTest, rendersAmountKeys)
 
 INSTANTIATE_TEST_SUITE_P(
     EffectFixtures, ColorMapEffectFixtureTest, testing::ValuesIn(EFFECT_FIXTURES), case_name<FixtureCase>);
+
+INSTANTIATE_TEST_SUITE_P(
+    EffectFixtures, ColorMapEffectCompositionTest, testing::ValuesIn(EFFECT_FIXTURES), case_name<FixtureCase>);
 
 TEST(ColorMapEffects, samplesBrightnessContinuously)
 {
@@ -1326,14 +1372,10 @@ TEST(ColorMapEffects, retainsOnlyValidAnimationAfterFailures)
 
 TEST_P(ColorMapEffectDiagnosticTest, identifiesFailureClass)
 {
-    const DiagnosticCase &definition = GetParam();
-
-    const JsonImportResult result = import_timeline_json("fixtures/color-map-effects-partial.json");
-
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.index);
+    ASSERT_GT(timeline::size_cast(import_result().diagnostics), definition().index);
     EXPECT_NE(std::string::npos,
-        result.diagnostics[definition.index].find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.index].find(definition.message));
+        import_result().diagnostics[definition().index].find("animation-" + std::to_string(definition().index) + ":"));
+    EXPECT_NE(std::string::npos, import_result().diagnostics[definition().index].find(definition().message));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1349,31 +1391,21 @@ TEST(ColorMapEffects, rejectsInvalidDocument)
 
 TEST_P(ColorMapFixtureTest, importsExpectedDocumentShape)
 {
-    const ColorMapCase &definition = GetParam();
-
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    EXPECT_EQ(definition.lanes, document.lane_count());
-    EXPECT_EQ(4004, document.frame_grid()->frame_duration().ticks());
+    EXPECT_EQ(definition().lanes, document().lane_count());
+    EXPECT_EQ(4004, frame_grid().frame_duration().ticks());
 }
 
 TEST_P(ColorMapFixtureTest, preservesPaletteIdentity)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
+    const timeline::PaletteCurve &curve = palette_curve(document(), 0);
 
-    const timeline::PaletteCurve &curve = palette_curve(document, 0);
-
-    EXPECT_EQ("animation-0-palette", document.strings().lookup(curve.id()));
+    EXPECT_EQ("animation-0-palette", document().strings().lookup(curve.id()));
     EXPECT_EQ(256, curve.color_count());
 }
 
 TEST_P(ColorMapFixtureTest, preservesPaletteDefinition)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    const ResolvedAttributes attributes = resolved_attributes(document, palette_curve(document, 0).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), palette_curve(document(), 0).attributes());
 
     EXPECT_EQ("colors", attributes.at("parameter"));
     EXPECT_NE(std::string::npos, attributes.at("color-map").find("at-file"));
@@ -1381,61 +1413,44 @@ TEST_P(ColorMapFixtureTest, preservesPaletteDefinition)
 
 TEST_P(ColorMapFixtureTest, matchesSourceMaps)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::PaletteCurve &curve = palette_curve(document, 0);
+    const timeline::PaletteCurve &curve = palette_curve(document(), 0);
 
-    for (int frame = 0; frame < grid.frame_count(); ++frame)
+    for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
     {
-        EXPECT_EQ(golden_palette(basic_golden(definition, frame)), curve.sample(grid.frame_start(frame)));
+        EXPECT_EQ(golden_palette(basic_golden(definition(), frame)), curve.sample(frame_grid().frame_start(frame)));
     }
 }
 
 TEST_P(ColorMapFixtureTest, exposesPaletteOnlyInspection)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    for (int frame = 0; frame < grid.frame_count(); ++frame)
+    for (int frame = 0; frame < frame_grid().frame_count(); ++frame)
     {
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), frame);
         const timeline::InspectionItem &item = inspection.lanes[0].items[0];
         EXPECT_FALSE(item.value);
         ASSERT_TRUE(item.palette);
-        EXPECT_EQ(golden_palette(basic_golden(definition, frame)), *item.palette);
+        EXPECT_EQ(golden_palette(basic_golden(definition(), frame)), *item.palette);
     }
 }
 
 TEST_P(ColorMapFixtureTest, clampsSamplingAtDocumentEnd)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::PaletteCurve &curve = palette_curve(document, 0);
+    const timeline::PaletteCurve &curve = palette_curve(document(), 0);
 
-    const timeline::Palette last = curve.sample(grid.frame_start(grid.frame_count() - 1));
+    const timeline::Palette last = curve.sample(frame_grid().frame_start(frame_grid().frame_count() - 1));
 
-    EXPECT_EQ(last, curve.sample(grid.end_time()));
+    EXPECT_EQ(last, curve.sample(frame_grid().end_time()));
 }
 
-TEST_P(ColorMapFixtureTest, composesWithMusicDocument)
+TEST_P(ColorMapCompositionTest, composesWithMusicDocument)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(definition.lanes + 4, combined.lane_count());
+    EXPECT_EQ(definition().lanes + 4, document().lane_count());
 }
 
-TEST_P(ColorMapFixtureTest, rendersPaletteSwatch)
+TEST_P(ColorMapCompositionTest, rendersPaletteSwatch)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = combine_with_music(import_clean_document(definition.fixture));
-    const timeline::Layout layout(document,
-        timeline::Viewport(550, 240, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(550, 240, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(110, 20, 40, 4));
 
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
@@ -1446,32 +1461,28 @@ TEST_P(ColorMapFixtureTest, rendersPaletteSwatch)
 INSTANTIATE_TEST_SUITE_P(
     ColorMapFixtures, ColorMapFixtureTest, testing::ValuesIn(COLOR_MAP_FIXTURES), case_name<ColorMapCase>);
 
+INSTANTIATE_TEST_SUITE_P(
+    ColorMapFixtures, ColorMapCompositionTest, testing::ValuesIn(COLOR_MAP_FIXTURES), case_name<ColorMapCase>);
+
 TEST_P(KeyedColorMapFixtureTest, preservesKeyLaneIdentity)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-
-    EXPECT_EQ("animation-0-keys", document.strings().lookup(document.lanes()[1].id()));
+    EXPECT_EQ("animation-0-keys", document().strings().lookup(document().lanes()[1].id()));
 }
 
 TEST_P(KeyedColorMapFixtureTest, preservesKeyValue)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::Instant &key = std::get<timeline::Instant>(document.lanes()[1].items()[0]);
+    const timeline::Instant &key = std::get<timeline::Instant>(document().lanes()[1].items()[0]);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, key.attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), key.attributes());
 
     EXPECT_EQ("input/warm.map", attributes.at("value"));
 }
 
 TEST_P(KeyedColorMapFixtureTest, preservesKeyDefinition)
 {
-    const ColorMapCase &definition = GetParam();
-    const timeline::Document document = import_source_document(definition.fixture);
-    const timeline::Instant &key = std::get<timeline::Instant>(document.lanes()[1].items()[0]);
+    const timeline::Instant &key = std::get<timeline::Instant>(document().lanes()[1].items()[0]);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, key.attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), key.attributes());
 
     EXPECT_NE(std::string::npos, attributes.at("color-map").find("keys"));
 }
@@ -1595,14 +1606,10 @@ TEST(ColorMapImport, retainsOnlyValidAnimationAfterFailures)
 
 TEST_P(ColorMapDiagnosticTest, identifiesFailureClass)
 {
-    const DiagnosticCase &definition = GetParam();
-
-    const JsonImportResult result = import_timeline_json("fixtures/partial-color-map.json");
-
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.index);
+    ASSERT_GT(timeline::size_cast(import_result().diagnostics), definition().index);
     EXPECT_NE(std::string::npos,
-        result.diagnostics[definition.index].find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.index].find(definition.message));
+        import_result().diagnostics[definition().index].find("animation-" + std::to_string(definition().index) + ":"));
+    EXPECT_NE(std::string::npos, import_result().diagnostics[definition().index].find(definition().message));
 }
 
 INSTANTIATE_TEST_SUITE_P(
