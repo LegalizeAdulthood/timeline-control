@@ -85,6 +85,26 @@ class ImGuiImportedFixture : public ImGuiControl, public testing::WithParamInter
 {
 };
 
+/// Standard framed timeline control with fresh adapter state.
+///
+class FramedImGuiControlTest : public ImGuiControl
+{
+protected:
+    Control m_control{framed_document()};
+};
+
+/// Standard framed timeline control submitted through its initial frames.
+///
+class PrimedImGuiControlTest : public FramedImGuiControlTest
+{
+protected:
+    void SetUp() override
+    {
+        FramedImGuiControlTest::SetUp();
+        prime(m_control);
+    }
+};
+
 void ImGuiControl::SetUp()
 {
     m_context = ImGui::CreateContext();
@@ -205,293 +225,254 @@ TEST_F(ImGuiControl, supportsFramelessDocumentsWithoutFrameInspection)
     EXPECT_FALSE(control.inspection());
 }
 
-TEST_F(ImGuiControl, delegatesLayoutToCoreGeometry)
+TEST_F(PrimedImGuiControlTest, delegatesLayoutToCoreGeometry)
 {
-    Control control(framed_document());
+    ASSERT_TRUE(m_control.layout());
+    const Layout expected(
+        *m_control.document(), *m_control.viewport(), *m_control.layout_metrics(), *m_control.interaction());
 
-    prime(control);
-
-    ASSERT_TRUE(control.layout());
-    const Layout expected(*control.document(), *control.viewport(), *control.layout_metrics(), *control.interaction());
-    EXPECT_EQ(render_snapshot(expected.display_list()), render_snapshot(control.layout()->display_list()));
+    EXPECT_EQ(render_snapshot(expected.display_list()), render_snapshot(m_control.layout()->display_list()));
     EXPECT_GT(ImGui::GetDrawData()->TotalVtxCount, 0);
 }
 
-TEST_F(ImGuiControl, delegatesHoverAndInspectionToCoreGeometry)
+TEST_F(PrimedImGuiControlTest, delegatesHoverAndInspectionToCoreGeometry)
 {
-    Control control(framed_document());
-    prime(control);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
 
-    move_mouse(control, frame_point(control, 3, 0));
-
-    ASSERT_TRUE(control.hit_result());
-    EXPECT_EQ("lane-0", control.document()->strings().lookup(control.hit_result()->id.lane_id));
-    EXPECT_EQ(*control.document()->strings().find("pulse"), control.hit_result()->id.item_id);
-    ASSERT_TRUE(control.inspection());
-    EXPECT_EQ(3, control.inspection()->frame);
-    EXPECT_EQ(0, *control.interaction()->playhead_frame());
+    ASSERT_TRUE(m_control.hit_result());
+    EXPECT_EQ("lane-0", m_control.document()->strings().lookup(m_control.hit_result()->id.lane_id));
+    EXPECT_EQ(*m_control.document()->strings().find("pulse"), m_control.hit_result()->id.item_id);
+    ASSERT_TRUE(m_control.inspection());
+    EXPECT_EQ(3, m_control.inspection()->frame);
+    EXPECT_EQ(0, *m_control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, clearsHoverOutsideTheItem)
+TEST_F(PrimedImGuiControlTest, clearsHoverOutsideTheItem)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 3, 0));
+    move_mouse(m_control, frame_point(m_control, 3, 0));
 
-    move_mouse(control, ImVec2(790.0F, 590.0F));
+    move_mouse(m_control, ImVec2(790.0F, 590.0F));
 
-    EXPECT_FALSE(control.hit_result());
+    EXPECT_FALSE(m_control.hit_result());
 }
 
-TEST_F(ImGuiControl, selectsLaneQualifiedItems)
+TEST_F(PrimedImGuiControlTest, selectsLaneQualifiedItems)
 {
-    Control control(framed_document());
-    prime(control);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
 
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    mouse_button(control, false);
-
-    ASSERT_TRUE(control.interaction());
-    EXPECT_EQ(3, *control.interaction()->playhead_frame());
-    EXPECT_TRUE(control.interaction()->is_selected(
-        DisplayId{control.document()->lanes().front().id(), *control.document()->strings().find("pulse")}));
+    ASSERT_TRUE(m_control.interaction());
+    EXPECT_EQ(3, *m_control.interaction()->playhead_frame());
+    EXPECT_TRUE(m_control.interaction()->is_selected(
+        DisplayId{m_control.document()->lanes().front().id(), *m_control.document()->strings().find("pulse")}));
 }
 
-TEST_F(ImGuiControl, addsSelectedItemsWithCtrl)
+TEST_F(PrimedImGuiControlTest, addsSelectedItemsWithCtrl)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    mouse_button(control, false);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
 
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
-    move_mouse(control, frame_point(control, 5, 1));
-    mouse_button(control, true);
-    mouse_button(control, false);
+    move_mouse(m_control, frame_point(m_control, 5, 1));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
 
-    EXPECT_EQ(2, size_cast(control.interaction()->selected_items()));
+    EXPECT_EQ(2, size_cast(m_control.interaction()->selected_items()));
 }
 
-TEST_F(ImGuiControl, snapsDraggedRangesToFrames)
+TEST_F(PrimedImGuiControlTest, snapsDraggedRangesToFrames)
 {
-    Control control(framed_document());
-    prime(control);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    move_mouse(m_control, frame_point(m_control, 6, 0));
+    mouse_button(m_control, false);
 
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    move_mouse(control, frame_point(control, 6, 0));
-    mouse_button(control, false);
-
-    ASSERT_TRUE(control.interaction()->selected_frames());
-    EXPECT_EQ(3, control.interaction()->selected_frames()->first());
-    EXPECT_EQ(6, control.interaction()->selected_frames()->last());
-    EXPECT_TRUE(control.interaction()->selected_items().empty());
-    EXPECT_EQ(6, control.inspection()->frame);
+    ASSERT_TRUE(m_control.interaction()->selected_frames());
+    EXPECT_EQ(3, m_control.interaction()->selected_frames()->first());
+    EXPECT_EQ(6, m_control.interaction()->selected_frames()->last());
+    EXPECT_TRUE(m_control.interaction()->selected_items().empty());
+    EXPECT_EQ(6, m_control.inspection()->frame);
 }
 
-TEST_F(ImGuiControl, keepsDraggingOutsideTheItem)
+TEST_F(PrimedImGuiControlTest, keepsDraggingOutsideTheItem)
 {
-    Control control(framed_document());
-    prime(control);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    move_mouse(m_control, ImVec2(0.0F, 0.0F));
+    mouse_button(m_control, false);
 
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    move_mouse(control, ImVec2(0.0F, 0.0F));
-    mouse_button(control, false);
-
-    ASSERT_TRUE(control.interaction()->selected_frames());
-    EXPECT_EQ(0, control.interaction()->selected_frames()->first());
-    EXPECT_EQ(3, control.interaction()->selected_frames()->last());
+    ASSERT_TRUE(m_control.interaction()->selected_frames());
+    EXPECT_EQ(0, m_control.interaction()->selected_frames()->first());
+    EXPECT_EQ(3, m_control.interaction()->selected_frames()->last());
 }
 
-TEST_F(ImGuiControl, cancelsDraggingOnFocusLoss)
+TEST_F(PrimedImGuiControlTest, cancelsDraggingOnFocusLoss)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
 
     ImGui::GetIO().AddFocusEvent(false);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddFocusEvent(true);
-    move_mouse(control, frame_point(control, 7, 0));
+    move_mouse(m_control, frame_point(m_control, 7, 0));
 
-    EXPECT_FALSE(control.interaction()->selected_frames());
-    EXPECT_EQ(3, *control.interaction()->playhead_frame());
+    EXPECT_FALSE(m_control.interaction()->selected_frames());
+    EXPECT_EQ(3, *m_control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, releasesARangeBeyondTheRightEdgeWithoutJumpingLeft)
+TEST_F(PrimedImGuiControlTest, releasesARangeBeyondTheRightEdgeWithoutJumpingLeft)
 {
-    Control control(framed_document());
-    prime(control);
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    move_mouse(m_control, ImVec2(790.0F, 590.0F));
+    mouse_button(m_control, false);
 
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    move_mouse(control, ImVec2(790.0F, 590.0F));
-    mouse_button(control, false);
-
-    ASSERT_TRUE(control.interaction()->selected_frames());
-    EXPECT_EQ(3, control.interaction()->selected_frames()->first());
-    EXPECT_EQ(9, control.interaction()->selected_frames()->last());
-    EXPECT_EQ(9, *control.interaction()->playhead_frame());
+    ASSERT_TRUE(m_control.interaction()->selected_frames());
+    EXPECT_EQ(3, m_control.interaction()->selected_frames()->first());
+    EXPECT_EQ(9, m_control.interaction()->selected_frames()->last());
+    EXPECT_EQ(9, *m_control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, ownsKeyboardNavigation)
+TEST_F(PrimedImGuiControlTest, ownsKeyboardNavigation)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    mouse_button(control, false);
-    move_mouse(control, ImVec2(790.0F, 590.0F));
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
+    move_mouse(m_control, ImVec2(790.0F, 590.0F));
 
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
-    frame(control);
+    frame(m_control);
 
-    EXPECT_EQ(4, *control.interaction()->playhead_frame());
+    EXPECT_EQ(4, *m_control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, extendsKeyboardRangeWithShift)
+TEST_F(PrimedImGuiControlTest, extendsKeyboardRangeWithShift)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 4, 0));
-    mouse_button(control, true);
-    mouse_button(control, false);
+    move_mouse(m_control, frame_point(m_control, 4, 0));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
 
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
-    frame(control);
+    frame(m_control);
 
-    ASSERT_TRUE(control.interaction()->selected_frames());
-    EXPECT_EQ(4, control.interaction()->selected_frames()->first());
-    EXPECT_EQ(5, control.interaction()->selected_frames()->last());
+    ASSERT_TRUE(m_control.interaction()->selected_frames());
+    EXPECT_EQ(4, m_control.interaction()->selected_frames()->first());
+    EXPECT_EQ(5, m_control.interaction()->selected_frames()->last());
 }
 
-TEST_F(ImGuiControl, clearsKeyboardSelectionWithEscape)
+TEST_F(PrimedImGuiControlTest, clearsKeyboardSelectionWithEscape)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 4, 0));
-    mouse_button(control, true);
-    mouse_button(control, false);
+    move_mouse(m_control, frame_point(m_control, 4, 0));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, false);
-    frame(control);
+    frame(m_control);
 
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
-    frame(control);
+    frame(m_control);
 
-    EXPECT_FALSE(control.interaction()->selected_lane());
-    EXPECT_FALSE(control.interaction()->selected_frames());
-    EXPECT_TRUE(control.interaction()->selected_items().empty());
+    EXPECT_FALSE(m_control.interaction()->selected_lane());
+    EXPECT_FALSE(m_control.interaction()->selected_frames());
+    EXPECT_TRUE(m_control.interaction()->selected_items().empty());
 }
 
-TEST_F(ImGuiControl, doesNotInterceptKeyboardNavigationForOtherItems)
+TEST_F(PrimedImGuiControlTest, doesNotInterceptKeyboardNavigationForOtherItems)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 3, 0));
-    mouse_button(control, true);
-    mouse_button(control, false);
-    move_mouse(control, ImVec2(790.0F, 590.0F));
+    move_mouse(m_control, frame_point(m_control, 3, 0));
+    mouse_button(m_control, true);
+    mouse_button(m_control, false);
+    move_mouse(m_control, ImVec2(790.0F, 590.0F));
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, false);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
-    frame(control);
+    frame(m_control);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, false);
-    frame(control);
+    frame(m_control);
 
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Tab, true);
     begin_frame();
-    timeline_imgui::draw_timeline("timeline", control, ImVec2(400.0F, 130.0F));
+    timeline_imgui::draw_timeline("timeline", m_control, ImVec2(400.0F, 130.0F));
     ImGui::Button("Other item");
     ImGui::End();
     ImGui::Render();
     ImGui::GetIO().AddKeyEvent(ImGuiKey_Tab, false);
     begin_frame();
-    timeline_imgui::draw_timeline("timeline", control, ImVec2(400.0F, 130.0F));
+    timeline_imgui::draw_timeline("timeline", m_control, ImVec2(400.0F, 130.0F));
     ImGui::Button("Other item");
     const bool other_item_focused = ImGui::IsItemFocused();
     ImGui::End();
     ImGui::Render();
     ImGui::GetIO().AddKeyEvent(ImGuiKey_LeftArrow, true);
-    frame(control);
+    frame(m_control);
 
     EXPECT_TRUE(other_item_focused);
-    EXPECT_EQ(5, *control.interaction()->playhead_frame());
+    EXPECT_EQ(5, *m_control.interaction()->playhead_frame());
 }
 
-TEST_F(ImGuiControl, translatesCtrlWheelToZoom)
+TEST_F(PrimedImGuiControlTest, translatesCtrlWheelToZoom)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 5, 0));
+    move_mouse(m_control, frame_point(m_control, 5, 0));
 
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
     ImGui::GetIO().AddMouseWheelEvent(0.0F, 1.0F);
-    frame(control);
+    frame(m_control);
 
-    ASSERT_TRUE(control.viewport());
-    EXPECT_EQ(80, control.viewport()->end().ticks() - control.viewport()->start().ticks());
+    ASSERT_TRUE(m_control.viewport());
+    EXPECT_EQ(80, m_control.viewport()->end().ticks() - m_control.viewport()->start().ticks());
 }
 
-TEST_F(ImGuiControl, translatesShiftWheelToHorizontalPan)
+TEST_F(PrimedImGuiControlTest, translatesShiftWheelToHorizontalPan)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 5, 0));
-    control.zoom_in();
-    frame(control);
-    const Ticks start = control.viewport()->start().ticks();
+    move_mouse(m_control, frame_point(m_control, 5, 0));
+    m_control.zoom_in();
+    frame(m_control);
+    const Ticks start = m_control.viewport()->start().ticks();
 
     ImGui::GetIO().AddKeyEvent(ImGuiMod_Shift, true);
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -1.0F);
-    frame(control);
+    frame(m_control);
 
-    EXPECT_GT(control.viewport()->start().ticks(), start);
+    EXPECT_GT(m_control.viewport()->start().ticks(), start);
 }
 
-TEST_F(ImGuiControl, translatesWheelToLaneScroll)
+TEST_F(PrimedImGuiControlTest, translatesWheelToLaneScroll)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 5, 0));
+    move_mouse(m_control, frame_point(m_control, 5, 0));
 
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -2.0F);
-    frame(control);
+    frame(m_control);
 
-    EXPECT_EQ(2, control.viewport()->first_lane());
+    EXPECT_EQ(2, m_control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, fitViewRestoresTheCompleteTimeline)
+TEST_F(PrimedImGuiControlTest, fitViewRestoresTheCompleteTimeline)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 5, 0));
-    control.zoom_in();
+    move_mouse(m_control, frame_point(m_control, 5, 0));
+    m_control.zoom_in();
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -2.0F);
-    frame(control);
+    frame(m_control);
 
-    control.fit_view();
-    frame(control);
+    m_control.fit_view();
+    frame(m_control);
 
-    EXPECT_EQ(at(0), control.viewport()->start());
-    EXPECT_EQ(at(100), control.viewport()->end());
-    EXPECT_EQ(0, control.viewport()->first_lane());
+    EXPECT_EQ(at(0), m_control.viewport()->start());
+    EXPECT_EQ(at(100), m_control.viewport()->end());
+    EXPECT_EQ(0, m_control.viewport()->first_lane());
 }
 
 TEST_F(ImGuiControl, ownsItsDocument)
@@ -544,68 +525,57 @@ TEST_F(ImGuiControl, cancelsDraggingOnDocumentReplacement)
     EXPECT_FALSE(control.interaction()->selected_frames());
 }
 
-TEST_F(ImGuiControl, ownsWheelInputWithoutScrollingTheHostWindow)
+TEST_F(FramedImGuiControlTest, ownsWheelInputWithoutScrollingTheHostWindow)
 {
     m_allow_window_scroll = true;
-    Control control(framed_document());
-    prime(control);
+    prime(m_control);
 
-    move_mouse(control, frame_point(control, 5, 0));
+    move_mouse(m_control, frame_point(m_control, 5, 0));
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -1.0F);
-    frame(control);
-    frame(control);
+    frame(m_control);
+    frame(m_control);
 
     EXPECT_FLOAT_EQ(0.0F, m_host_scroll);
-    EXPECT_EQ(1, control.viewport()->first_lane());
+    EXPECT_EQ(1, m_control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, updatesGeometryAfterResize)
+TEST_F(PrimedImGuiControlTest, updatesGeometryAfterResize)
 {
-    Control control(framed_document());
-    prime(control);
+    frame(m_control, ImVec2(600.0F, 480.0F));
 
-    frame(control, ImVec2(600.0F, 480.0F));
-
-    EXPECT_EQ(600, control.viewport()->width());
-    EXPECT_EQ(480, control.viewport()->height());
+    EXPECT_EQ(600, m_control.viewport()->width());
+    EXPECT_EQ(480, m_control.viewport()->height());
 }
 
-TEST_F(ImGuiControl, clampsLaneScrollAfterResize)
+TEST_F(PrimedImGuiControlTest, clampsLaneScrollAfterResize)
 {
-    Control control(framed_document());
-    prime(control);
-    move_mouse(control, frame_point(control, 5, 0));
+    move_mouse(m_control, frame_point(m_control, 5, 0));
     ImGui::GetIO().AddMouseWheelEvent(0.0F, -8.0F);
-    frame(control);
-    ASSERT_GT(control.viewport()->first_lane(), 0);
+    frame(m_control);
+    ASSERT_GT(m_control.viewport()->first_lane(), 0);
 
-    frame(control, ImVec2(600.0F, 480.0F));
+    frame(m_control, ImVec2(600.0F, 480.0F));
 
-    EXPECT_EQ(0, control.viewport()->first_lane());
+    EXPECT_EQ(0, m_control.viewport()->first_lane());
 }
 
-TEST_F(ImGuiControl, zoomInNarrowsTheViewport)
+TEST_F(PrimedImGuiControlTest, zoomInNarrowsTheViewport)
 {
-    Control control(framed_document());
-    prime(control);
+    m_control.zoom_in();
+    frame(m_control);
 
-    control.zoom_in();
-    frame(control);
-
-    EXPECT_EQ(80, control.viewport()->end().ticks() - control.viewport()->start().ticks());
+    EXPECT_EQ(80, m_control.viewport()->end().ticks() - m_control.viewport()->start().ticks());
 }
 
-TEST_F(ImGuiControl, zoomOutRestoresTheViewport)
+TEST_F(PrimedImGuiControlTest, zoomOutRestoresTheViewport)
 {
-    Control control(framed_document());
-    prime(control);
-    control.zoom_in();
-    frame(control);
+    m_control.zoom_in();
+    frame(m_control);
 
-    control.zoom_out();
-    frame(control);
+    m_control.zoom_out();
+    frame(m_control);
 
-    EXPECT_EQ(100, control.viewport()->end().ticks() - control.viewport()->start().ticks());
+    EXPECT_EQ(100, m_control.viewport()->end().ticks() - m_control.viewport()->start().ticks());
 }
 
 TEST_F(ImGuiControl, submitsMultipleIndependentItems)
