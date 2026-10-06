@@ -575,6 +575,133 @@ protected:
     }
 };
 
+/// Owns one fixed clean document for a related family of checks.
+///
+class FixedDocumentTest : public testing::Test
+{
+protected:
+    explicit FixedDocumentTest(const std::filesystem::path &fixture) :
+        m_document(import_clean_document(fixture))
+    {
+    }
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *m_document.frame_grid();
+    }
+
+private:
+    timeline::Document m_document;
+};
+
+/// Owns the fixed masked-variants document.
+///
+class MaskedVariantsTest : public FixedDocumentTest
+{
+protected:
+    MaskedVariantsTest() :
+        FixedDocumentTest("fixtures/color-map-masked-variants.json")
+    {
+    }
+};
+
+/// Owns the fixed indexed-variants document.
+///
+class IndexedVariantsTest : public FixedDocumentTest
+{
+protected:
+    IndexedVariantsTest() :
+        FixedDocumentTest("fixtures/color-map-indexed-variants.json")
+    {
+    }
+};
+
+/// Owns the fixed indexed-effects document.
+///
+class IndexedEffectsTest : public FixedDocumentTest
+{
+protected:
+    IndexedEffectsTest() :
+        FixedDocumentTest("fixtures/color-map-indexed-effects.json")
+    {
+    }
+};
+
+/// Owns indexed effects composed with the music document.
+///
+class IndexedEffectsCompositionTest : public IndexedEffectsTest
+{
+protected:
+    IndexedEffectsCompositionTest() :
+        m_combined_document(combine_with_music(document()))
+    {
+    }
+    const timeline::Document &combined_document() const
+    {
+        return m_combined_document;
+    }
+
+private:
+    timeline::Document m_combined_document;
+};
+
+/// Owns the shared indexed-effects comparison layout.
+///
+class IndexedEffectsLayoutTest : public IndexedEffectsCompositionTest
+{
+protected:
+    IndexedEffectsLayoutTest() :
+        m_layout(combined_document(),
+            timeline::Viewport(
+                600, 400, combined_document().frame_grid()->offset(), combined_document().frame_grid()->end_time()),
+            timeline::LayoutMetrics(140, 20, 40, 4))
+    {
+    }
+    const timeline::Layout &layout() const
+    {
+        return m_layout;
+    }
+
+private:
+    timeline::Layout m_layout;
+};
+
+/// Owns the fixed amount-hold effects document.
+///
+class AmountHoldEffectsTest : public FixedDocumentTest
+{
+protected:
+    AmountHoldEffectsTest() :
+        FixedDocumentTest("fixtures/color-map-effects-amount-hold.json")
+    {
+    }
+};
+
+/// Owns the fixed effect-order document.
+///
+class EffectOrderTest : public FixedDocumentTest
+{
+protected:
+    EffectOrderTest() :
+        FixedDocumentTest("fixtures/color-map-effects-order.json")
+    {
+    }
+};
+
+/// Owns the fixed layered color-map document.
+///
+class ColorMapLayersTest : public FixedDocumentTest
+{
+protected:
+    ColorMapLayersTest() :
+        FixedDocumentTest("fixtures/color-map-layers.json")
+    {
+    }
+};
+
 } // namespace
 
 TEST_P(MaskedColorMapFixtureTest, importsExpectedDocumentShape)
@@ -773,22 +900,20 @@ TEST_P(MaskedRandomTest, ownsEvaluatorAfterDocumentCopy)
 
 INSTANTIATE_TEST_SUITE_P(RandomEffects, MaskedRandomTest, testing::ValuesIn(RANDOM_CASES), case_name<RandomCase>);
 
-TEST(MaskedColorMap, samplesOverlapAmountContinuously)
+TEST_F(MaskedVariantsTest, samplesOverlapAmountContinuously)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    const timeline::Time half =
+        frame_grid().offset() + timeline::Duration::from_ticks(frame_grid().frame_duration().ticks() / 2);
 
-    const double amount = *document.lanes()[1].evaluate_keyframes(half);
+    const double amount = *document().lanes()[1].evaluate_keyframes(half);
 
     EXPECT_DOUBLE_EQ(0.125, amount);
 }
 
-TEST(MaskedColorMap, blendsOverlapOnce)
+TEST_F(MaskedVariantsTest, blendsOverlapOnce)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    const timeline::Time half =
+        frame_grid().offset() + timeline::Duration::from_ticks(frame_grid().frame_duration().ticks() / 2);
     const timeline::Palette input = golden_palette("input/indexed.map");
     const timeline::Palette mask = golden_palette("input/warm.map");
     const timeline::RgbColor &from = input[4];
@@ -797,60 +922,52 @@ TEST(MaskedColorMap, blendsOverlapOnce)
         static_cast<int>(std::lround(from.green() + 0.125 * (to.green() - from.green()))),
         static_cast<int>(std::lround(from.blue() + 0.125 * (to.blue() - from.blue()))));
 
-    const timeline::RgbColor actual = palette_curve(document, 0).sample(half)[4];
+    const timeline::RgbColor actual = palette_curve(document(), 0).sample(half)[4];
 
     EXPECT_EQ(expected, actual);
 }
 
-TEST(MaskedColorMap, preservesColorsOutsideOverlappingRanges)
+TEST_F(MaskedVariantsTest, preservesColorsOutsideOverlappingRanges)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    const timeline::Time half =
+        frame_grid().offset() + timeline::Duration::from_ticks(frame_grid().frame_duration().ticks() / 2);
     const timeline::Palette input = golden_palette("input/indexed.map");
 
-    const timeline::Palette actual = palette_curve(document, 0).sample(half);
+    const timeline::Palette actual = palette_curve(document(), 0).sample(half);
 
     EXPECT_EQ(input[1], actual[1]);
     EXPECT_EQ(input[8], actual[8]);
 }
 
-TEST(MaskedColorMap, holdsPartialAmountAtKeyBoundaries)
+TEST_F(MaskedVariantsTest, holdsPartialAmountAtKeyBoundaries)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
     for (int frame = 0; frame < 5; ++frame)
     {
-        EXPECT_DOUBLE_EQ(frame < 3 ? 0.25 : 0.75, *document.lanes()[9].evaluate_keyframes(grid.frame_start(frame)));
+        EXPECT_DOUBLE_EQ(
+            frame < 3 ? 0.25 : 0.75, *document().lanes()[9].evaluate_keyframes(frame_grid().frame_start(frame)));
     }
 }
 
-TEST(MaskedColorMap, importsPartialAmountAsHold)
+TEST_F(MaskedVariantsTest, importsPartialAmountAsHold)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-
-    const timeline::Keyframe &key = keyframe(document, 9);
+    const timeline::Keyframe &key = keyframe(document(), 9);
 
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, key.interpolation());
 }
 
-TEST(MaskedColorMap, recordsPartialAmountOutgoingStep)
+TEST_F(MaskedVariantsTest, recordsPartialAmountOutgoingStep)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 9).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 9).attributes());
 
     EXPECT_EQ("step", attributes.at("outgoing-curve"));
 }
 
-TEST(MaskedColorMap, preservesEffectOrder)
+TEST_F(MaskedVariantsTest, preservesEffectOrder)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-masked-variants.json");
-    const timeline::Time time = document.frame_grid()->frame_start(2);
+    const timeline::Time time = frame_grid().frame_start(2);
 
-    const timeline::RgbColor forward = palette_curve(document, 10).sample(time)[4];
-    const timeline::RgbColor reverse = palette_curve(document, 13).sample(time)[4];
+    const timeline::RgbColor forward = palette_curve(document(), 10).sample(time)[4];
+    const timeline::RgbColor reverse = palette_curve(document(), 13).sample(time)[4];
 
     EXPECT_NE(forward, reverse);
 }
@@ -974,23 +1091,21 @@ TEST_P(IndexedColorMapFixtureTest, preservesOffsetDefinitions)
 INSTANTIATE_TEST_SUITE_P(
     IndexedFixtures, IndexedColorMapFixtureTest, testing::ValuesIn(INDEXED_FIXTURES), case_name<FixtureCase>);
 
-TEST(IndexedColorMap, retainsUnroundedOffsetSignal)
+TEST_F(IndexedEffectsTest, retainsUnroundedOffsetSignal)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-effects.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
+    const timeline::Time half =
+        frame_grid().offset() + timeline::Duration::from_ticks(frame_grid().frame_duration().ticks() / 2);
 
-    const double value = *document.lanes()[1].evaluate_keyframes(half);
+    const double value = *document().lanes()[1].evaluate_keyframes(half);
 
     EXPECT_DOUBLE_EQ(0.5, value);
 }
 
-TEST(IndexedColorMap, roundsOffsetsAwayFromZero)
+TEST_F(IndexedEffectsTest, roundsOffsetsAwayFromZero)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-effects.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
-    const timeline::PaletteCurve &curve = palette_curve(document, 0);
+    const timeline::Time half =
+        frame_grid().offset() + timeline::Duration::from_ticks(frame_grid().frame_duration().ticks() / 2);
+    const timeline::PaletteCurve &curve = palette_curve(document(), 0);
 
     const timeline::RgbColor before = curve.sample(half + timeline::Duration::from_ticks(-1))[2];
     const timeline::RgbColor at = curve.sample(half)[2];
@@ -1001,110 +1116,72 @@ TEST(IndexedColorMap, roundsOffsetsAwayFromZero)
     EXPECT_EQ(timeline::RgbColor(6, 249, 6), curve.sample(half)[6]);
 }
 
-TEST(IndexedColorMap, holdsFractionalOffsetsAtKeyBoundaries)
+TEST_F(IndexedVariantsTest, holdsFractionalOffsetsAtKeyBoundaries)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
     for (int frame = 0; frame < 5; ++frame)
     {
-        EXPECT_DOUBLE_EQ(frame < 3 ? -0.5 : 6.5, *document.lanes()[9].evaluate_keyframes(grid.frame_start(frame)));
+        EXPECT_DOUBLE_EQ(
+            frame < 3 ? -0.5 : 6.5, *document().lanes()[9].evaluate_keyframes(frame_grid().frame_start(frame)));
     }
 }
 
-TEST(IndexedColorMap, appliesHeldRoundedOffset)
+TEST_F(IndexedVariantsTest, appliesHeldRoundedOffset)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
     for (int frame = 0; frame < 5; ++frame)
     {
-        EXPECT_EQ(timeline::RgbColor(5, 250, 5), palette_curve(document, 8).sample(grid.frame_start(frame))[2]);
+        EXPECT_EQ(
+            timeline::RgbColor(5, 250, 5), palette_curve(document(), 8).sample(frame_grid().frame_start(frame))[2]);
     }
 }
 
-TEST(IndexedColorMap, importsOffsetAsHold)
+TEST_F(IndexedVariantsTest, importsOffsetAsHold)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-variants.json");
-
-    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, keyframe(document, 9).interpolation());
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, keyframe(document(), 9).interpolation());
 }
 
-TEST(IndexedColorMap, preservesAuthoredOffsetCurve)
+TEST_F(IndexedVariantsTest, preservesAuthoredOffsetCurve)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 9).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 9).attributes());
 
     EXPECT_EQ("geometric", attributes.at("curve"));
 }
 
-TEST(IndexedColorMap, recordsOffsetOutgoingStep)
+TEST_F(IndexedVariantsTest, recordsOffsetOutgoingStep)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 9).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 9).attributes());
 
     EXPECT_EQ("step", attributes.at("outgoing-curve"));
 }
 
-TEST(IndexedColorMap, composesWithMusicDocument)
+TEST_F(IndexedEffectsCompositionTest, composesWithMusicDocument)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-indexed-effects.json");
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(6, combined.lane_count());
+    EXPECT_EQ(6, combined_document().lane_count());
 }
 
-TEST(IndexedColorMap, rendersPaletteSwatch)
+TEST_F(IndexedEffectsLayoutTest, rendersPaletteSwatch)
 {
-    const timeline::Document document =
-        combine_with_music(import_clean_document("fixtures/color-map-indexed-effects.json"));
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 400, document.frame_grid()->offset(), document.frame_grid()->end_time()),
-        timeline::LayoutMetrics(140, 20, 40, 4));
-
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("swatch PALETTE"));
 }
 
-TEST(IndexedColorMap, rendersOffsetKey)
+TEST_F(IndexedEffectsLayoutTest, rendersOffsetKey)
 {
-    const timeline::Document document =
-        combine_with_music(import_clean_document("fixtures/color-map-indexed-effects.json"));
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 400, document.frame_grid()->offset(), document.frame_grid()->end_time()),
-        timeline::LayoutMetrics(140, 20, 40, 4));
-
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("animation-0-effect-1-offset-key-0"));
 }
 
-TEST(IndexedColorMap, hitTestsPaletteIdentity)
+TEST_F(IndexedEffectsLayoutTest, hitTestsPaletteIdentity)
 {
-    const timeline::Document document =
-        combine_with_music(import_clean_document("fixtures/color-map-indexed-effects.json"));
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 400, document.frame_grid()->offset(), document.frame_grid()->end_time()),
-        timeline::LayoutMetrics(140, 20, 40, 4));
-
-    const std::optional<timeline::DisplayId> hit = first_swatch_hit(layout);
+    const std::optional<timeline::DisplayId> hit = first_swatch_hit(layout());
 
     EXPECT_TRUE(hit);
 }
 
-TEST(IndexedColorMap, hitTestsOffsetIdentity)
+TEST_F(IndexedEffectsLayoutTest, hitTestsOffsetIdentity)
 {
-    const timeline::Document document =
-        combine_with_music(import_clean_document("fixtures/color-map-indexed-effects.json"));
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 400, document.frame_grid()->offset(), document.frame_grid()->end_time()),
-        timeline::LayoutMetrics(140, 20, 40, 4));
-
-    const std::optional<timeline::DisplayId> hit = marker_hit(layout, "animation-0-effect-1-offset");
+    const std::optional<timeline::DisplayId> hit = marker_hit(layout(), "animation-0-effect-1-offset");
 
     EXPECT_TRUE(hit);
 }
@@ -1267,38 +1344,30 @@ TEST(ColorMapEffects, samplesBrightnessAtDestinationKey)
     EXPECT_EQ(timeline::RgbColor(150, 180, 255), color);
 }
 
-TEST(ColorMapEffects, holdsAmountAtKeyBoundaries)
+TEST_F(AmountHoldEffectsTest, holdsAmountAtKeyBoundaries)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-amount-hold.json");
-
     for (int frame = 0; frame < 5; ++frame)
     {
         EXPECT_DOUBLE_EQ(
-            frame < 3 ? 0.5 : 2, *document.lanes()[1].evaluate_keyframes(document.frame_grid()->frame_start(frame)));
+            frame < 3 ? 0.5 : 2, *document().lanes()[1].evaluate_keyframes(frame_grid().frame_start(frame)));
     }
 }
 
-TEST(ColorMapEffects, importsAmountAsHold)
+TEST_F(AmountHoldEffectsTest, importsAmountAsHold)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-amount-hold.json");
-
-    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, keyframe(document, 1).interpolation());
+    EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, keyframe(document(), 1).interpolation());
 }
 
-TEST(ColorMapEffects, preservesAuthoredAmountCurve)
+TEST_F(AmountHoldEffectsTest, preservesAuthoredAmountCurve)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-amount-hold.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 1).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 1).attributes());
 
     EXPECT_EQ("linear", attributes.at("curve"));
 }
 
-TEST(ColorMapEffects, recordsAmountOutgoingStep)
+TEST_F(AmountHoldEffectsTest, recordsAmountOutgoingStep)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-amount-hold.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 1).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 1).attributes());
 
     EXPECT_EQ("step", attributes.at("outgoing-curve"));
 }
@@ -1319,21 +1388,17 @@ TEST(ColorMapEffects, preservesIgnoredDestinationCurveDefinition)
     EXPECT_EQ("geometric", attributes.at("curve"));
 }
 
-TEST(ColorMapEffects, preservesEffectOrder)
+TEST_F(EffectOrderTest, preservesEffectOrder)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-order.json");
-
-    const timeline::RgbColor first = palette_curve(document, 0).sample(timeline::Time{})[64];
-    const timeline::RgbColor second = palette_curve(document, 3).sample(timeline::Time{})[64];
+    const timeline::RgbColor first = palette_curve(document(), 0).sample(timeline::Time{})[64];
+    const timeline::RgbColor second = palette_curve(document(), 3).sample(timeline::Time{})[64];
 
     EXPECT_NE(first, second);
 }
 
-TEST(ColorMapEffects, hitTestsPaletteIdentity)
+TEST_F(EffectOrderTest, hitTestsPaletteIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-order.json");
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 300, timeline::Time{}, document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(), timeline::Viewport(600, 300, timeline::Time{}, frame_grid().end_time()),
         timeline::LayoutMetrics(140, 20, 40, 4));
 
     const std::optional<timeline::DisplayId> hit = first_swatch_hit(layout);
@@ -1341,11 +1406,9 @@ TEST(ColorMapEffects, hitTestsPaletteIdentity)
     EXPECT_TRUE(hit);
 }
 
-TEST(ColorMapEffects, hitTestsAmountIdentity)
+TEST_F(EffectOrderTest, hitTestsAmountIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-effects-order.json");
-    const timeline::Layout layout(document,
-        timeline::Viewport(600, 300, timeline::Time{}, document.frame_grid()->end_time()),
+    const timeline::Layout layout(document(), timeline::Viewport(600, 300, timeline::Time{}, frame_grid().end_time()),
         timeline::LayoutMetrics(140, 20, 40, 4));
 
     const std::optional<timeline::DisplayId> hit = marker_hit(layout, "animation-0-effect-0-amount");
@@ -1550,39 +1613,32 @@ TEST(ColorMapImport, clampsAfterLastPartialKey)
     EXPECT_EQ(last, after);
 }
 
-TEST(ColorMapImport, importsLayerDocumentShape)
+TEST_F(ColorMapLayersTest, importsLayerDocumentShape)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-layers.json");
-
-    EXPECT_EQ(3, document.lane_count());
+    EXPECT_EQ(3, document().lane_count());
 }
 
-TEST(ColorMapImport, preservesLayerIdentities)
+TEST_F(ColorMapLayersTest, preservesLayerIdentities)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-layers.json");
-
-    EXPECT_EQ("animation-layer-0-0", document.strings().lookup(document.lanes()[0].id()));
-    EXPECT_EQ("animation-layer-1-0", document.strings().lookup(document.lanes()[2].id()));
+    EXPECT_EQ("animation-layer-0-0", document().strings().lookup(document().lanes()[0].id()));
+    EXPECT_EQ("animation-layer-1-0", document().strings().lookup(document().lanes()[2].id()));
 }
 
-TEST(ColorMapImport, preservesLayerDefinitions)
+TEST_F(ColorMapLayersTest, preservesLayerDefinitions)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-layers.json");
-
-    const ResolvedAttributes first = resolved_attributes(document, palette_curve(document, 0).attributes());
-    const ResolvedAttributes second = resolved_attributes(document, palette_curve(document, 2).attributes());
+    const ResolvedAttributes first = resolved_attributes(document(), palette_curve(document(), 0).attributes());
+    const ResolvedAttributes second = resolved_attributes(document(), palette_curve(document(), 2).attributes());
 
     EXPECT_EQ("palette", first.at("layer"));
     EXPECT_EQ("constant", second.at("layer"));
 }
 
-TEST(ColorMapImport, evaluatesLayerDefinitionsIndependently)
+TEST_F(ColorMapLayersTest, evaluatesLayerDefinitionsIndependently)
 {
-    const timeline::Document document = import_clean_document("fixtures/color-map-layers.json");
-    const timeline::Time time = document.frame_grid()->frame_start(1);
+    const timeline::Time time = frame_grid().frame_start(1);
 
-    const timeline::Palette first = palette_curve(document, 0).sample(time);
-    const timeline::Palette second = palette_curve(document, 2).sample(time);
+    const timeline::Palette first = palette_curve(document(), 0).sample(time);
+    const timeline::Palette second = palette_curve(document(), 2).sample(time);
 
     EXPECT_NE(first, second);
 }
