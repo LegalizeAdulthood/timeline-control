@@ -297,7 +297,17 @@ double sample_lane(const timeline::Lane &lane, timeline::Time time)
 {
     if (std::holds_alternative<timeline::Keyframe>(lane.items()[0]))
     {
-        return *lane.evaluate_keyframe_output(time);
+        const std::optional<double> output = lane.evaluate_keyframe_output(time);
+        if (output)
+        {
+            return *output;
+        }
+        const std::optional<double> authored = lane.evaluate_keyframes(time);
+        if (!authored)
+        {
+            throw std::runtime_error("normalized-vector lane has no value at the sampled time");
+        }
+        return *authored;
     }
     return std::get<timeline::Curve>(lane.items()[0]).sample(time);
 }
