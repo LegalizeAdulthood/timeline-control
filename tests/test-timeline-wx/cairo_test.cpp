@@ -22,8 +22,15 @@ namespace
 
 const wxTimelinePalette LIGHT{wxColour(255, 255, 255), wxColour(0, 0, 0), wxColour(0, 100, 200)};
 const wxTimelinePalette DARK{wxColour(24, 24, 24), wxColour(235, 235, 235), wxColour(70, 160, 230)};
-const timeline::Polyline DIAGONAL{
-    {{3, 4}, {27, 22}}, timeline::StyleRole::CURVE, {timeline::StringId{1}, timeline::StringId{2}}};
+
+/// Cairo renderer test with a canonical diagonal curve primitive.
+///
+class DiagonalCairoRendererTest : public testing::Test
+{
+protected:
+    const timeline::Polyline m_diagonal{
+        {{3, 4}, {27, 22}}, timeline::StyleRole::CURVE, {timeline::StringId{1}, timeline::StringId{2}}};
+};
 
 struct AlphaCounts
 {
@@ -117,6 +124,18 @@ timeline::DisplayList presentation_list()
     result.add(timeline::Swatch{8, 48, 12, 12, timeline::RgbColor(12, 34, 56), timeline::StyleRole::PALETTE, {}});
     return result;
 }
+
+/// Cairo renderer test with the canonical presentation inputs.
+///
+class PresentationCairoRendererTest : public testing::Test
+{
+protected:
+    const timeline::DisplayList m_list = presentation_list();
+    const wxTimelinePalette m_palette = LIGHT;
+    const wxFont m_font = *wxNORMAL_FONT;
+    const wxSize m_surface{160, 80};
+    const wxRect m_clip{0, 0, 160, 80};
+};
 
 timeline::DisplayList filled_roles_list()
 {
@@ -294,12 +313,12 @@ bool complete_control_lifetimes(const timeline::Document &document)
 
 } // namespace
 
-TEST(CairoRenderer, drawsNonblankAntialiasedCurvesInLightColours)
+TEST_F(DiagonalCairoRendererTest, drawsNonblankAntialiasedCurvesInLightColours)
 {
-    const wxColour colour = timeline_style_colour(DIAGONAL.style, LIGHT, true);
+    const wxColour colour = timeline_style_colour(m_diagonal.style, LIGHT, true);
 
     const wxImage image =
-        render_cairo_curve(DIAGONAL, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), colour, 1, 1.0);
+        render_cairo_curve(m_diagonal, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), colour, 1, 1.0);
     const AlphaCounts counts = count_alpha(image);
 
     ASSERT_TRUE(image.IsOk());
@@ -310,12 +329,12 @@ TEST(CairoRenderer, drawsNonblankAntialiasedCurvesInLightColours)
     EXPECT_EQ(0, image.GetAlpha(0, 27));
 }
 
-TEST(CairoRenderer, drawsNonblankAntialiasedCurvesInDarkColours)
+TEST_F(DiagonalCairoRendererTest, drawsNonblankAntialiasedCurvesInDarkColours)
 {
-    const wxColour colour = timeline_style_colour(DIAGONAL.style, DARK, true);
+    const wxColour colour = timeline_style_colour(m_diagonal.style, DARK, true);
 
     const wxImage image =
-        render_cairo_curve(DIAGONAL, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), colour, 1, 1.0);
+        render_cairo_curve(m_diagonal, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), colour, 1, 1.0);
     const AlphaCounts counts = count_alpha(image);
 
     ASSERT_TRUE(image.IsOk());
@@ -326,11 +345,11 @@ TEST(CairoRenderer, drawsNonblankAntialiasedCurvesInDarkColours)
     EXPECT_EQ(0, image.GetAlpha(0, 27));
 }
 
-TEST(CairoRenderer, clipsTranslatedCurves)
+TEST_F(DiagonalCairoRendererTest, clipsTranslatedCurves)
 {
     const wxRect clip(10, 8, 12, 10);
 
-    const wxImage image = render_cairo_curve(DIAGONAL, wxSize(32, 28), wxPoint(2, 1), clip, LIGHT.foreground, 1, 1.0);
+    const wxImage image = render_cairo_curve(m_diagonal, wxSize(32, 28), wxPoint(2, 1), clip, LIGHT.foreground, 1, 1.0);
 
     ASSERT_TRUE(image.IsOk());
     EXPECT_GT(count_covered(image), 0);
@@ -346,11 +365,11 @@ TEST(CairoRenderer, clipsTranslatedCurves)
     }
 }
 
-TEST(CairoRenderer, scalesCurveDevicePixels)
+TEST_F(DiagonalCairoRendererTest, scalesCurveDevicePixels)
 {
     const wxRect clip(0, 0, 32, 28);
 
-    const wxImage image = render_cairo_curve(DIAGONAL, wxSize(32, 28), wxPoint(0, 0), clip, LIGHT.foreground, 1, 2.0);
+    const wxImage image = render_cairo_curve(m_diagonal, wxSize(32, 28), wxPoint(0, 0), clip, LIGHT.foreground, 1, 2.0);
 
     ASSERT_TRUE(image.IsOk());
     EXPECT_EQ(64, image.GetWidth());
@@ -370,10 +389,10 @@ TEST(CairoRenderer, keepsSharpJoinsWithinTheStrokeBounds)
     EXPECT_GT(image.GetAlpha(20, 8), 0);
 }
 
-TEST(CairoRenderer, fallsBackToNativeWhenDeviceScaleIsInvalid)
+TEST_F(DiagonalCairoRendererTest, fallsBackToNativeWhenDeviceScaleIsInvalid)
 {
     timeline::DisplayList list;
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
     wxBitmap native(32, 28, 24);
     wxMemoryDC native_dc(native);
     native_dc.SetBackground(wxBrush(LIGHT.background));
@@ -415,11 +434,11 @@ TEST(CairoRenderer, ignoresSinglePointCurves)
     EXPECT_EQ(0, count_covered(image));
 }
 
-TEST(CairoRenderer, preservesPrimitiveOrder)
+TEST_F(DiagonalCairoRendererTest, preservesPrimitiveOrder)
 {
     timeline::DisplayList list;
     list.add(timeline::Rectangle{0, 0, 32, 28, timeline::StyleRole::LANE_BACKGROUND, {}});
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
     list.add(timeline::Marker{14, 11, 6, 6, timeline::StyleRole::KEYFRAME_MARKER, {}});
 
     const wxImage image = render_cairo_display_list(
@@ -429,11 +448,11 @@ TEST(CairoRenderer, preservesPrimitiveOrder)
     EXPECT_EQ(timeline_style_colour(timeline::StyleRole::KEYFRAME_MARKER, LIGHT, true), pixel(image, 16, 13));
 }
 
-TEST(CairoRenderer, blendsAntialiasedCurvesWhenPresenting)
+TEST_F(DiagonalCairoRendererTest, blendsAntialiasedCurvesWhenPresenting)
 {
     timeline::DisplayList list;
     list.add(timeline::Rectangle{0, 0, 32, 28, timeline::StyleRole::LANE_BACKGROUND, {}});
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
     const wxColour background = timeline_style_colour(timeline::StyleRole::LANE_BACKGROUND, LIGHT, true);
     const wxColour curve = timeline_style_colour(timeline::StyleRole::CURVE, LIGHT, true);
 
@@ -717,78 +736,75 @@ TEST(CairoRenderer, partialRepaintsPreserveDevicePixelAlignment)
     EXPECT_TRUE(preserved);
 }
 
-TEST(CairoRenderer, scalesSurfaceDimensions)
+TEST_F(PresentationCairoRendererTest, scalesSurfaceDimensions)
 {
-    const timeline::DisplayList list = presentation_list();
+    const wxSize surface(120, 64);
+    const wxRect clip(0, 0, 120, 64);
 
-    const wxImage image = render_cairo_display_list(
-        list, wxSize(120, 64), wxPoint(0, 0), wxRect(0, 0, 120, 64), LIGHT, 1, true, *wxNORMAL_FONT, 1.5);
+    const wxImage image =
+        render_cairo_display_list(m_list, surface, wxPoint(0, 0), clip, m_palette, 1, true, m_font, 1.5);
 
     ASSERT_TRUE(image.IsOk());
     EXPECT_EQ(180, image.GetWidth());
     EXPECT_EQ(96, image.GetHeight());
 }
 
-TEST(CairoRenderer, appliesChangedTheme)
+TEST_F(PresentationCairoRendererTest, appliesChangedTheme)
 {
-    const timeline::DisplayList list = presentation_list();
-
-    const wxImage image = render_cairo_display_list(
-        list, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), DARK, 1, false, *wxNORMAL_FONT, 1.0);
+    const wxImage image =
+        render_cairo_display_list(m_list, m_surface, wxPoint(0, 0), m_clip, DARK, 1, false, m_font, 1.0);
 
     ASSERT_TRUE(image.IsOk());
     EXPECT_EQ(timeline_style_colour(timeline::StyleRole::LANE_BACKGROUND, DARK, false), pixel(image, 110, 60));
     EXPECT_EQ(wxColour(12, 34, 56), pixel(image, 12, 54));
 }
 
-TEST(CairoRenderer, appliesChangedFont)
+TEST_F(PresentationCairoRendererTest, appliesChangedFont)
 {
     timeline::StringTableBuilder strings;
     const timeline::StringId text = strings.intern("Timeline");
     timeline::DisplayList list(std::move(strings).build());
     list.add(timeline::Text{4, 4, text, timeline::StyleRole::LANE_LABEL, {}});
-    const wxFont font = *wxNORMAL_FONT;
-    wxFont larger_font(font);
-    larger_font.SetFractionalPointSize(font.GetFractionalPointSize() * 1.5);
+    wxFont larger_font(m_font);
+    larger_font.SetFractionalPointSize(m_font.GetFractionalPointSize() * 1.5);
 
-    const wxImage small_image = render_cairo_display_list(
-        list, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, font, 1.0);
-    const wxImage large_image = render_cairo_display_list(
-        list, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, larger_font, 1.0);
+    const wxImage small_image =
+        render_cairo_display_list(list, m_surface, wxPoint(0, 0), m_clip, m_palette, 1, true, m_font, 1.0);
+    const wxImage large_image =
+        render_cairo_display_list(list, m_surface, wxPoint(0, 0), m_clip, m_palette, 1, true, larger_font, 1.0);
 
     ASSERT_TRUE(small_image.IsOk());
     ASSERT_TRUE(large_image.IsOk());
     EXPECT_NE(0, std::memcmp(small_image.GetAlpha(), large_image.GetAlpha(), 160 * 80));
 }
 
-TEST(CairoRenderer, appliesChangedSize)
+TEST_F(PresentationCairoRendererTest, appliesChangedSize)
 {
-    const timeline::DisplayList list = presentation_list();
+    const wxSize surface(120, 64);
+    const wxRect clip(0, 0, 120, 64);
 
-    const wxImage image = render_cairo_display_list(
-        list, wxSize(120, 64), wxPoint(0, 0), wxRect(0, 0, 120, 64), LIGHT, 1, true, *wxNORMAL_FONT, 1.0);
+    const wxImage image =
+        render_cairo_display_list(m_list, surface, wxPoint(0, 0), clip, m_palette, 1, true, m_font, 1.0);
 
     ASSERT_TRUE(image.IsOk());
     EXPECT_EQ(120, image.GetWidth());
     EXPECT_EQ(64, image.GetHeight());
 }
 
-TEST(CairoRenderer, repeatedSurfaceChangesRestoreOriginalPixels)
+TEST_F(PresentationCairoRendererTest, repeatedSurfaceChangesRestoreOriginalPixels)
 {
-    const timeline::DisplayList list = presentation_list();
-    const wxFont font = *wxNORMAL_FONT;
-    const wxImage baseline = render_cairo_display_list(
-        list, wxSize(160, 80), wxPoint(0, 0), wxRect(0, 0, 160, 80), LIGHT, 1, true, font, 1.0);
+    const wxImage baseline =
+        render_cairo_display_list(m_list, m_surface, wxPoint(0, 0), m_clip, m_palette, 1, true, m_font, 1.0);
 
-    const bool restored = repeated_surface_changes_restore(list, font, baseline);
+    const bool restored = repeated_surface_changes_restore(m_list, m_font, baseline);
 
     EXPECT_TRUE(restored);
 }
 
-TEST(CairoRenderer, rejectsNonpositiveDeviceScales)
+TEST_F(DiagonalCairoRendererTest, rejectsNonpositiveDeviceScales)
 {
     timeline::DisplayList list;
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
 
     const wxImage zero = render_cairo_display_list(
         list, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1, true, *wxNORMAL_FONT, 0.0);
@@ -799,10 +815,10 @@ TEST(CairoRenderer, rejectsNonpositiveDeviceScales)
     EXPECT_FALSE(negative.IsOk());
 }
 
-TEST(CairoRenderer, rejectsNonfiniteDeviceScales)
+TEST_F(DiagonalCairoRendererTest, rejectsNonfiniteDeviceScales)
 {
     timeline::DisplayList list;
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
 
     const wxImage infinite = render_cairo_display_list(list, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT,
         1, true, *wxNORMAL_FONT, std::numeric_limits<double>::infinity());
@@ -813,10 +829,10 @@ TEST(CairoRenderer, rejectsNonfiniteDeviceScales)
     EXPECT_FALSE(nan.IsOk());
 }
 
-TEST(CairoRenderer, rejectsOverflowingDeviceScales)
+TEST_F(DiagonalCairoRendererTest, rejectsOverflowingDeviceScales)
 {
     timeline::DisplayList list;
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
 
     const wxImage image = render_cairo_display_list(list, wxSize(32, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1,
         true, *wxNORMAL_FONT, std::numeric_limits<double>::max());
@@ -824,10 +840,10 @@ TEST(CairoRenderer, rejectsOverflowingDeviceScales)
     EXPECT_FALSE(image.IsOk());
 }
 
-TEST(CairoRenderer, rejectsEmptySurfaceSizes)
+TEST_F(DiagonalCairoRendererTest, rejectsEmptySurfaceSizes)
 {
     timeline::DisplayList list;
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
 
     const wxImage image = render_cairo_display_list(
         list, wxSize(0, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1, true, *wxNORMAL_FONT, 1.0);
@@ -835,10 +851,10 @@ TEST(CairoRenderer, rejectsEmptySurfaceSizes)
     EXPECT_FALSE(image.IsOk());
 }
 
-TEST(CairoRenderer, recoversAfterInvalidSurfaceRequest)
+TEST_F(DiagonalCairoRendererTest, recoversAfterInvalidSurfaceRequest)
 {
     timeline::DisplayList list;
-    list.add(DIAGONAL);
+    list.add(m_diagonal);
     const wxImage invalid = render_cairo_display_list(
         list, wxSize(0, 28), wxPoint(0, 0), wxRect(0, 0, 32, 28), LIGHT, 1, true, *wxNORMAL_FONT, 1.0);
 
