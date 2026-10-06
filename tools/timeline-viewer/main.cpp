@@ -3,8 +3,12 @@
 #include <wxTimeline/config.h>
 
 #include <timelineViewer/format_inspector.h>
+#include <timelineViewer/load_timeline.h>
+#include <timelineViewer/write_snapshot.h>
 
-#include <timelineParAnimator/TimelineJson.h>
+#include <timelineParAnimator/BeatKeysMapping.h>
+
+#include <timeline/size_cast.h>
 
 #ifdef TIMELINE_CONTROL_WITH_CAIRO
 #include <wxTimeline/wxCairoTimeline.h>
@@ -16,12 +20,15 @@
 #include <wx/textctrl.h>
 #include <wx/wx.h>
 
+#include <cstdlib>
 #include <filesystem>
-#include <fstream>
+#include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -37,6 +44,22 @@ wxString to_wx_string(std::string_view value)
     return wxString(value.data(), value.size());
 }
 
+std::filesystem::path native_path(const wxString &path)
+{
+    return std::filesystem::path(path.ToStdWstring());
+}
+
+wxString filename(const std::filesystem::path &path)
+{
+    return wxString(path.filename().wstring());
+}
+
+bool smoke_failure(std::string_view message)
+{
+    std::cerr << message << '\n';
+    return false;
+}
+
 } // namespace
 
 /// Main window that composes JSON adapters with the wx timeline control.
@@ -45,24 +68,40 @@ class TimelineViewerFrame : public wxFrame
 {
 public:
     TimelineViewerFrame();
+    bool load_file(const std::filesystem::path &path, bool append);
+    bool export_snapshot(const std::filesystem::path &path);
+    const std::optional<timeline::Document> &document() const
+    {
+        return m_timeline_control->document();
+    }
+    const std::vector<timeline_par_animator::BeatKeysMapping> &mappings() const
+    {
+        return m_mappings;
+    }
+    const std::vector<std::string> &diagnostics() const
+    {
+        return m_diagnostics;
+    }
 
 private:
     void on_inspection_changed(wxCommandEvent &event);
     void on_open(wxCommandEvent &event);
     void on_add(wxCommandEvent &event);
-    void load_file(bool append);
+    void choose_file(bool append);
     void on_export_snapshot(wxCommandEvent &event);
     void on_exit(wxCommandEvent &event);
     void on_zoom_in(wxCommandEvent &event);
     void on_zoom_out(wxCommandEvent &event);
     void on_fit_view(wxCommandEvent &event);
     void on_clear_selection(wxCommandEvent &event);
-    void show_import_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
+    void show_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
     wxPanel *m_content;
     wxTimelineControl *m_timeline_control;
     wxTextCtrl *m_inspector;
     std::vector<timeline_par_animator::BeatKeysMapping> m_mappings;
+    std::vector<std::string> m_diagnostics;
+    timeline_viewer::LoadOutcome m_load_outcome{timeline_viewer::LoadOutcome::IMPORT_FAILED};
 };
 
 /// wxWidgets application for manually exercising the timeline control.
@@ -71,6 +110,17 @@ class TimelineViewerApp : public wxApp
 {
 public:
     bool OnInit() override;
+    int OnRun() override;
+
+private:
+    bool run_smoke_test();
+
+    TimelineViewerFrame *m_frame{};
+    bool m_smoke_test{false};
+    std::filesystem::path m_replacement_path;
+    std::filesystem::path m_comparison_path;
+    std::filesystem::path m_invalid_path;
+    std::filesystem::path m_snapshot_path;
 };
 
 TimelineViewerFrame::TimelineViewerFrame() :
@@ -84,14 +134,14 @@ TimelineViewerFrame::TimelineViewerFrame() :
     m_inspector(new wxTextCtrl(m_content, wxID_ANY, "No frame inspection.", wxDefaultPosition, wxSize(280, -1),
         wxTE_MULTILINE | wxTE_READONLY))
 {
-    auto *file_menu = new wxMenu;
+    wxMenu *file_menu = new wxMenu;
     file_menu->Append(wxID_OPEN, "&Open...\tCtrl+O");
     file_menu->Append(wxID_ADD, "&Add...\tCtrl+Shift+O");
     file_menu->Append(wxID_SAVEAS, "Export &Snapshot...");
     file_menu->AppendSeparator();
     file_menu->Append(wxID_EXIT, "E&xit");
 
-    auto *view_menu = new wxMenu;
+    wxMenu *view_menu = new wxMenu;
     view_menu->Append(wxID_ZOOM_IN, "Zoom &In\tCtrl++");
     view_menu->Append(wxID_ZOOM_OUT, "Zoom &Out\tCtrl+-");
     view_menu->Append(wxID_ZOOM_100, "&Fit\tCtrl+0");
@@ -113,18 +163,18 @@ TimelineViewerFrame::TimelineViewerFrame() :
         { static_cast<wxCairoTimeline &>(*m_timeline_control).set_cairo_enabled(true); }, cairo_renderer);
 #endif
 
-    auto *menu_bar = new wxMenuBar;
+    wxMenuBar *menu_bar = new wxMenuBar;
     menu_bar->Append(file_menu, "&File");
     menu_bar->Append(view_menu, "&View");
     wxFrame::SetMenuBar(menu_bar);
     wxFrame::CreateStatusBar();
     wxFrame::SetStatusText("No timeline loaded");
 
-    auto *content = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer *content = new wxBoxSizer(wxHORIZONTAL);
     content->Add(m_timeline_control, 1, wxEXPAND);
     content->Add(m_inspector, 0, wxEXPAND | wxLEFT, 1);
     m_content->SetSizer(content);
-    auto *frame_content = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *frame_content = new wxBoxSizer(wxVERTICAL);
     frame_content->Add(m_content, 1, wxEXPAND);
     SetSizer(frame_content);
 
@@ -159,15 +209,15 @@ void TimelineViewerFrame::on_inspection_changed(wxCommandEvent &)
 
 void TimelineViewerFrame::on_open(wxCommandEvent &)
 {
-    load_file(false);
+    choose_file(false);
 }
 
 void TimelineViewerFrame::on_add(wxCommandEvent &)
 {
-    load_file(true);
+    choose_file(true);
 }
 
-void TimelineViewerFrame::load_file(bool append)
+void TimelineViewerFrame::choose_file(bool append)
 {
     wxFileDialog dialog(this, append ? "Add timeline JSON" : "Open timeline JSON", wxEmptyString, wxEmptyString,
         "JSON files (*.json)|*.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
@@ -176,58 +226,36 @@ void TimelineViewerFrame::load_file(bool append)
         return;
     }
 
-    const std::filesystem::path source_path(dialog.GetPath().ToStdWstring());
-    timeline_par_animator::JsonImportOptions import_options{};
-    if (append && m_timeline_control->document() && m_timeline_control->document()->frame_grid())
+    if (!load_file(native_path(dialog.GetPath()), append))
     {
-        const timeline::FrameGrid &grid = *m_timeline_control->document()->frame_grid();
-        import_options.ticks_per_second = grid.timebase().ticks_per_second();
-        import_options.frames_per_second_numerator = grid.frames_per_second_numerator();
-        import_options.frames_per_second_denominator = grid.frames_per_second_denominator();
-    }
-    const std::filesystem::path beat_keys_config_path = source_path.parent_path() / "adapter.beat-keys.json";
-    std::error_code filesystem_error{};
-    if (std::filesystem::is_regular_file(beat_keys_config_path, filesystem_error))
-    {
-        import_options.beat_keys_config_path = beat_keys_config_path;
-    }
-
-    timeline_par_animator::JsonImportResult result =
-        timeline_par_animator::import_timeline_json(source_path, import_options);
-    if (!result.succeeded())
-    {
-        show_import_diagnostics(result.diagnostics, "Timeline import failed", wxOK | wxICON_ERROR);
+        const wxString title = m_load_outcome == timeline_viewer::LoadOutcome::COMPOSITION_FAILED
+            ? "Unable to add timeline"
+            : "Timeline import failed";
+        show_diagnostics(m_diagnostics, title, wxOK | wxICON_ERROR);
         return;
     }
+    if (!m_diagnostics.empty())
+    {
+        show_diagnostics(m_diagnostics, "Timeline import diagnostics", wxOK | wxICON_INFORMATION);
+    }
+}
 
-    if (append && m_timeline_control->document())
+bool TimelineViewerFrame::load_file(const std::filesystem::path &path, bool append)
+{
+    timeline_viewer::LoadResult result =
+        timeline_viewer::load_timeline(path, append, m_timeline_control->document(), m_mappings);
+    m_diagnostics = std::move(result.diagnostics);
+    m_load_outcome = result.outcome;
+    if (!result.succeeded())
     {
-        try
-        {
-            result.document = timeline::combine_documents(*m_timeline_control->document(), *result.document);
-        }
-        catch (const std::exception &error)
-        {
-            show_import_diagnostics({error.what()}, "Unable to add timeline", wxOK | wxICON_ERROR);
-            return;
-        }
+        return false;
     }
-    else
-    {
-        m_mappings.clear();
-    }
-    if (result.mapping)
-    {
-        m_mappings.push_back(std::move(*result.mapping));
-    }
+    m_mappings = std::move(result.mappings);
     m_timeline_control->set_document(std::move(*result.document));
     const timeline::Document &document = *m_timeline_control->document();
     SetTitle(wxString(VIEWER_TITLE) + " - " + to_wx_string(document.strings().lookup(document.metadata().title())));
-    SetStatusText("Loaded " + dialog.GetFilename());
-    if (!result.diagnostics.empty())
-    {
-        show_import_diagnostics(result.diagnostics, "Timeline import diagnostics", wxOK | wxICON_INFORMATION);
-    }
+    SetStatusText("Loaded " + filename(path));
+    return true;
 }
 
 void TimelineViewerFrame::on_export_snapshot(wxCommandEvent &)
@@ -239,16 +267,22 @@ void TimelineViewerFrame::on_export_snapshot(wxCommandEvent &)
         return;
     }
 
-    const std::string text = m_timeline_control->snapshot();
-    std::ofstream output(std::filesystem::path(dialog.GetPath().ToStdWstring()), std::ios::binary);
-    output << text;
-    output.close();
-    if (!output)
+    if (!export_snapshot(native_path(dialog.GetPath())))
     {
-        wxMessageBox("Unable to write the timeline snapshot.", "Snapshot export failed", wxOK | wxICON_ERROR, this);
-        return;
+        show_diagnostics(m_diagnostics, "Snapshot export failed", wxOK | wxICON_ERROR);
     }
-    SetStatusText("Exported " + dialog.GetFilename());
+}
+
+bool TimelineViewerFrame::export_snapshot(const std::filesystem::path &path)
+{
+    timeline_viewer::SnapshotWriteResult result = timeline_viewer::write_snapshot(path, m_timeline_control->snapshot());
+    m_diagnostics = std::move(result.diagnostics);
+    if (!result.succeeded())
+    {
+        return false;
+    }
+    SetStatusText("Exported " + filename(path));
+    return true;
 }
 
 void TimelineViewerFrame::on_exit(wxCommandEvent &)
@@ -276,7 +310,7 @@ void TimelineViewerFrame::on_clear_selection(wxCommandEvent &)
     m_timeline_control->clear_selection();
 }
 
-void TimelineViewerFrame::show_import_diagnostics(
+void TimelineViewerFrame::show_diagnostics(
     const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style)
 {
     wxString message{};
@@ -298,9 +332,59 @@ void TimelineViewerFrame::show_import_diagnostics(
 
 bool TimelineViewerApp::OnInit()
 {
-    auto *frame = new TimelineViewerFrame;
-    frame->Show();
+    m_frame = new TimelineViewerFrame;
+    if (argc == 6 && wxString(argv[1]) == "--smoke-test")
+    {
+        m_smoke_test = true;
+        m_replacement_path = native_path(wxString(argv[2]));
+        m_comparison_path = native_path(wxString(argv[3]));
+        m_invalid_path = native_path(wxString(argv[4]));
+        m_snapshot_path = native_path(wxString(argv[5]));
+        return true;
+    }
+    m_frame->Show();
     return true;
+}
+
+int TimelineViewerApp::OnRun()
+{
+    return m_smoke_test ? (run_smoke_test() ? EXIT_SUCCESS : EXIT_FAILURE) : wxApp::OnRun();
+}
+
+bool TimelineViewerApp::run_smoke_test()
+{
+    m_frame->Show();
+    wxYield();
+    std::error_code error;
+    std::filesystem::remove(m_snapshot_path, error);
+    if (!m_frame->load_file(m_replacement_path, false) || !m_frame->document() ||
+        m_frame->document()->lane_count() != 25 || !m_frame->mappings().empty())
+    {
+        return smoke_failure("replacement load failed");
+    }
+    if (!m_frame->load_file(m_comparison_path, true) || !m_frame->document() ||
+        m_frame->document()->lane_count() != 29 || timeline::size_cast(m_frame->mappings()) != 1)
+    {
+        return smoke_failure("comparison load failed");
+    }
+    if (m_frame->load_file(m_invalid_path, false) || m_frame->diagnostics().empty() || !m_frame->document() ||
+        m_frame->document()->lane_count() != 29 || timeline::size_cast(m_frame->mappings()) != 1)
+    {
+        return smoke_failure("failed import changed viewer state");
+    }
+    if (!m_frame->load_file(m_replacement_path, false) || !m_frame->document() ||
+        m_frame->document()->lane_count() != 25 || !m_frame->mappings().empty())
+    {
+        return smoke_failure("replacement reset failed");
+    }
+    if (!m_frame->export_snapshot(m_snapshot_path))
+    {
+        return smoke_failure("snapshot export failed");
+    }
+    error.clear();
+    const bool wrote_snapshot = std::filesystem::is_regular_file(m_snapshot_path, error) && !error;
+    std::filesystem::remove(m_snapshot_path, error);
+    return wrote_snapshot || smoke_failure("snapshot output is missing");
 }
 
 wxIMPLEMENT_APP(TimelineViewerApp);
