@@ -57,70 +57,73 @@ bool contains_style(const Layout &layout, StyleRole style, const DisplayId &id)
     return found;
 }
 
+/// Fresh framed interaction state with canonical layout geometry.
+///
+class FramedInteractionTest : public testing::Test
+{
+protected:
+    Layout make_layout() const
+    {
+        return Layout(m_document, m_viewport, m_metrics, m_interaction);
+    }
+
+    const Document m_document{framed_document()};
+    Interaction m_interaction{m_document};
+    const HitResult m_beat{beat_hit(m_document)};
+    const Viewport m_viewport{400, 100, at(50), at(150)};
+    const LayoutMetrics m_metrics{100, 20, 30, 4};
+};
+
 } // namespace
 
-TEST(Interaction, startsWithoutPlayhead)
+TEST_F(FramedInteractionTest, startsWithoutPlayhead)
 {
-    Interaction interaction(framed_document());
-
-    EXPECT_FALSE(interaction.playhead());
+    EXPECT_FALSE(m_interaction.playhead());
 }
 
-TEST(Interaction, snapsPlayheadToNearestFrame)
+TEST_F(FramedInteractionTest, snapsPlayheadToNearestFrame)
 {
-    Interaction interaction(framed_document());
+    m_interaction.move_playhead(at(86));
 
-    interaction.move_playhead(at(86));
-
-    ASSERT_TRUE(interaction.playhead_frame());
-    EXPECT_EQ(4, *interaction.playhead_frame());
-    EXPECT_EQ(at(90), *interaction.playhead());
+    ASSERT_TRUE(m_interaction.playhead_frame());
+    EXPECT_EQ(4, *m_interaction.playhead_frame());
+    EXPECT_EQ(at(90), *m_interaction.playhead());
 }
 
-TEST(Interaction, clampsPlayheadFrameToFirstFrame)
+TEST_F(FramedInteractionTest, clampsPlayheadFrameToFirstFrame)
 {
-    Interaction interaction(framed_document());
+    m_interaction.move_playhead_frame(-100);
 
-    interaction.move_playhead_frame(-100);
-
-    EXPECT_EQ(0, *interaction.playhead_frame());
+    EXPECT_EQ(0, *m_interaction.playhead_frame());
 }
 
-TEST(Interaction, clampsPlayheadFrameToLastFrame)
+TEST_F(FramedInteractionTest, clampsPlayheadFrameToLastFrame)
 {
-    Interaction interaction(framed_document());
+    m_interaction.move_playhead_frame(100);
 
-    interaction.move_playhead_frame(100);
-
-    EXPECT_EQ(9, *interaction.playhead_frame());
+    EXPECT_EQ(9, *m_interaction.playhead_frame());
 }
 
-TEST(Interaction, clampsPlayheadTimeToFirstFrame)
+TEST_F(FramedInteractionTest, clampsPlayheadTimeToFirstFrame)
 {
-    Interaction interaction(framed_document());
+    m_interaction.move_playhead(at(-100));
 
-    interaction.move_playhead(at(-100));
-
-    EXPECT_EQ(at(50), *interaction.playhead());
+    EXPECT_EQ(at(50), *m_interaction.playhead());
 }
 
-TEST(Interaction, clampsPlayheadTimeToLastFrame)
+TEST_F(FramedInteractionTest, clampsPlayheadTimeToLastFrame)
 {
-    Interaction interaction(framed_document());
+    m_interaction.move_playhead(at(1000));
 
-    interaction.move_playhead(at(1000));
-
-    EXPECT_EQ(at(140), *interaction.playhead());
+    EXPECT_EQ(at(140), *m_interaction.playhead());
 }
 
-TEST(Interaction, formatsPopulatedStateWithDocumentContext)
+TEST_F(FramedInteractionTest, formatsPopulatedStateWithDocumentContext)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.move_playhead_frame(1);
-    interaction.select_range(at(60), at(80));
+    m_interaction.move_playhead_frame(1);
+    m_interaction.select_range(at(60), at(80));
 
-    const std::string text = to_string(document, interaction);
+    const std::string text = to_string(m_document, m_interaction);
 
     EXPECT_NE(std::string::npos, text.find("Playhead: 0.6 seconds"));
     EXPECT_NE(std::string::npos, text.find("Playhead frame: 1"));
@@ -206,180 +209,150 @@ TEST(Interaction, ignoresPlayheadFrameForZeroFrameDocument)
     EXPECT_FALSE(interaction.playhead());
 }
 
-TEST(Interaction, selectsLaneQualifiedItem)
+TEST_F(FramedInteractionTest, selectsLaneQualifiedItem)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
+    m_interaction.select_hit(m_beat, false);
 
-    interaction.select_hit(beat, false);
-
-    EXPECT_EQ(beat.id.lane_id, *interaction.selected_lane());
-    ASSERT_EQ(1, size_cast(interaction.selected_items()));
-    EXPECT_TRUE(interaction.is_selected(beat.id));
+    EXPECT_EQ(m_beat.id.lane_id, *m_interaction.selected_lane());
+    ASSERT_EQ(1, size_cast(m_interaction.selected_items()));
+    EXPECT_TRUE(m_interaction.is_selected(m_beat.id));
 }
 
-TEST(Interaction, selectsItemsAdditivelyAcrossLanes)
+TEST_F(FramedInteractionTest, selectsItemsAdditivelyAcrossLanes)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    const HitResult other{StyleRole::INSTANT_MARKER, DisplayId{document.lanes()[1].id(), beat.id.item_id}};
-    interaction.select_hit(beat, false);
+    const HitResult other{StyleRole::INSTANT_MARKER, DisplayId{m_document.lanes()[1].id(), m_beat.id.item_id}};
+    m_interaction.select_hit(m_beat, false);
 
-    interaction.select_hit(other, true);
+    m_interaction.select_hit(other, true);
 
-    ASSERT_EQ(2, size_cast(interaction.selected_items()));
-    EXPECT_TRUE(interaction.is_selected(beat.id));
-    EXPECT_TRUE(interaction.is_selected(other.id));
+    ASSERT_EQ(2, size_cast(m_interaction.selected_items()));
+    EXPECT_TRUE(m_interaction.is_selected(m_beat.id));
+    EXPECT_TRUE(m_interaction.is_selected(other.id));
 }
 
-TEST(Interaction, togglesAdditiveItemSelection)
+TEST_F(FramedInteractionTest, togglesAdditiveItemSelection)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    const HitResult other{StyleRole::INSTANT_MARKER, DisplayId{document.lanes()[1].id(), beat.id.item_id}};
-    interaction.select_hit(beat, false);
-    interaction.select_hit(other, true);
+    const HitResult other{StyleRole::INSTANT_MARKER, DisplayId{m_document.lanes()[1].id(), m_beat.id.item_id}};
+    m_interaction.select_hit(m_beat, false);
+    m_interaction.select_hit(other, true);
 
-    interaction.select_hit(beat, true);
+    m_interaction.select_hit(m_beat, true);
 
-    EXPECT_FALSE(interaction.is_selected(beat.id));
-    EXPECT_TRUE(interaction.is_selected(other.id));
+    EXPECT_FALSE(m_interaction.is_selected(m_beat.id));
+    EXPECT_TRUE(m_interaction.is_selected(other.id));
 }
 
-TEST(Interaction, selectingLaneClearsItemSelection)
+TEST_F(FramedInteractionTest, selectingLaneClearsItemSelection)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
-    const HitResult lane{StyleRole::LANE_LABEL, DisplayId{beat.id.lane_id, StringId{}}};
+    m_interaction.select_hit(m_beat, false);
+    const HitResult lane{StyleRole::LANE_LABEL, DisplayId{m_beat.id.lane_id, StringId{}}};
 
-    interaction.select_hit(lane, false);
+    m_interaction.select_hit(lane, false);
 
-    EXPECT_TRUE(interaction.selected_items().empty());
-    EXPECT_EQ(beat.id.lane_id, *interaction.selected_lane());
+    EXPECT_TRUE(m_interaction.selected_items().empty());
+    EXPECT_EQ(m_beat.id.lane_id, *m_interaction.selected_lane());
 }
 
-TEST(Interaction, clearsLaneAndItemSelection)
+TEST_F(FramedInteractionTest, clearsLaneAndItemSelection)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
+    m_interaction.select_hit(m_beat, false);
 
-    interaction.clear_selection();
+    m_interaction.clear_selection();
 
-    EXPECT_FALSE(interaction.selected_lane());
-    EXPECT_TRUE(interaction.selected_items().empty());
+    EXPECT_FALSE(m_interaction.selected_lane());
+    EXPECT_TRUE(m_interaction.selected_items().empty());
 }
 
-TEST(Interaction, selectsInclusiveFrameRangeInReverseDirection)
+TEST_F(FramedInteractionTest, selectsInclusiveFrameRangeInReverseDirection)
 {
-    Interaction interaction(framed_document());
+    m_interaction.select_range(at(113), at(66));
 
-    interaction.select_range(at(113), at(66));
-
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(2, interaction.selected_frames()->first());
-    EXPECT_EQ(6, interaction.selected_frames()->last());
-    EXPECT_EQ(at(70), interaction.selected_range()->start());
-    EXPECT_EQ(at(110), interaction.selected_range()->end());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(2, m_interaction.selected_frames()->first());
+    EXPECT_EQ(6, m_interaction.selected_frames()->last());
+    EXPECT_EQ(at(70), m_interaction.selected_range()->start());
+    EXPECT_EQ(at(110), m_interaction.selected_range()->end());
 }
 
-TEST(Interaction, dragsInclusiveFrameRange)
+TEST_F(FramedInteractionTest, dragsInclusiveFrameRange)
 {
-    Interaction interaction(framed_document());
-    interaction.begin_range(at(80));
+    m_interaction.begin_range(at(80));
 
-    interaction.extend_range(at(99));
+    m_interaction.extend_range(at(99));
 
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(3, interaction.selected_frames()->first());
-    EXPECT_EQ(5, interaction.selected_frames()->last());
-    EXPECT_EQ(5, *interaction.playhead_frame());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(3, m_interaction.selected_frames()->first());
+    EXPECT_EQ(5, m_interaction.selected_frames()->last());
+    EXPECT_EQ(5, *m_interaction.playhead_frame());
 }
 
-TEST(Interaction, ignoresRangeExtensionAfterDragEnds)
+TEST_F(FramedInteractionTest, ignoresRangeExtensionAfterDragEnds)
 {
-    Interaction interaction(framed_document());
-    interaction.begin_range(at(80));
-    interaction.extend_range(at(99));
-    interaction.end_range();
+    m_interaction.begin_range(at(80));
+    m_interaction.extend_range(at(99));
+    m_interaction.end_range();
 
-    interaction.extend_range(at(130));
+    m_interaction.extend_range(at(130));
 
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(5, interaction.selected_frames()->last());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(5, m_interaction.selected_frames()->last());
 }
 
-TEST(Interaction, clearsRangeWithoutMovingPlayhead)
+TEST_F(FramedInteractionTest, clearsRangeWithoutMovingPlayhead)
 {
-    Interaction interaction(framed_document());
-    interaction.select_range(at(70), at(110));
-    interaction.move_playhead_frame(5);
+    m_interaction.select_range(at(70), at(110));
+    m_interaction.move_playhead_frame(5);
 
-    interaction.clear_selection();
+    m_interaction.clear_selection();
 
-    EXPECT_FALSE(interaction.selected_range());
-    EXPECT_EQ(5, *interaction.playhead_frame());
+    EXPECT_FALSE(m_interaction.selected_range());
+    EXPECT_EQ(5, *m_interaction.playhead_frame());
 }
 
-TEST(Interaction, preservesClickedItemUntilDragCrossesFrame)
+TEST_F(FramedInteractionTest, preservesClickedItemUntilDragCrossesFrame)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
-    interaction.begin_range(at(80));
+    m_interaction.select_hit(m_beat, false);
+    m_interaction.begin_range(at(80));
 
-    interaction.extend_range(at(84));
+    m_interaction.extend_range(at(84));
 
-    EXPECT_TRUE(interaction.is_selected(beat.id));
-    EXPECT_FALSE(interaction.selected_range());
+    EXPECT_TRUE(m_interaction.is_selected(m_beat.id));
+    EXPECT_FALSE(m_interaction.selected_range());
 }
 
-TEST(Interaction, replacesClickedItemWithRangeAfterCrossingFrame)
+TEST_F(FramedInteractionTest, replacesClickedItemWithRangeAfterCrossingFrame)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.select_hit(beat_hit(document), false);
-    interaction.begin_range(at(80));
+    m_interaction.select_hit(m_beat, false);
+    m_interaction.begin_range(at(80));
 
-    interaction.extend_range(at(86));
+    m_interaction.extend_range(at(86));
 
-    EXPECT_TRUE(interaction.selected_items().empty());
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(3, interaction.selected_frames()->first());
-    EXPECT_EQ(4, interaction.selected_frames()->last());
+    EXPECT_TRUE(m_interaction.selected_items().empty());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(3, m_interaction.selected_frames()->first());
+    EXPECT_EQ(4, m_interaction.selected_frames()->last());
 }
 
-TEST(Interaction, clearsSelectionForEmptyHit)
+TEST_F(FramedInteractionTest, clearsSelectionForEmptyHit)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.select_hit(beat_hit(document), false);
+    m_interaction.select_hit(m_beat, false);
 
-    interaction.select_hit(std::nullopt, false);
+    m_interaction.select_hit(std::nullopt, false);
 
-    EXPECT_FALSE(interaction.selected_lane());
-    EXPECT_TRUE(interaction.selected_items().empty());
+    EXPECT_FALSE(m_interaction.selected_lane());
+    EXPECT_TRUE(m_interaction.selected_items().empty());
 }
 
-TEST(Interaction, resetsStateForReplacementDocument)
+TEST_F(FramedInteractionTest, resetsStateForReplacementDocument)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.select_hit(beat_hit(document), false);
-    interaction.move_playhead_frame(3);
+    m_interaction.select_hit(m_beat, false);
+    m_interaction.move_playhead_frame(3);
 
-    interaction = Interaction(document);
+    m_interaction = Interaction(m_document);
 
-    EXPECT_FALSE(interaction.playhead());
-    EXPECT_FALSE(interaction.selected_lane());
-    EXPECT_TRUE(interaction.selected_items().empty());
+    EXPECT_FALSE(m_interaction.playhead());
+    EXPECT_FALSE(m_interaction.selected_lane());
+    EXPECT_TRUE(m_interaction.selected_items().empty());
 }
 
 TEST(TimeRange, rejectsReversedEndpoints)
@@ -387,121 +360,104 @@ TEST(TimeRange, rejectsReversedEndpoints)
     EXPECT_THROW(TimeRange(at(20), at(10)), std::invalid_argument);
 }
 
-TEST(Interaction, extendsKeyboardRangeForwardFromStableAnchor)
+TEST_F(FramedInteractionTest, extendsKeyboardRangeForwardFromStableAnchor)
 {
-    Interaction interaction(framed_document());
-    interaction.move_playhead_frame(3);
+    m_interaction.move_playhead_frame(3);
 
-    interaction.step_playhead(1, true);
-    interaction.step_playhead(1, true);
+    m_interaction.step_playhead(1, true);
+    m_interaction.step_playhead(1, true);
 
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(3, interaction.selected_frames()->first());
-    EXPECT_EQ(5, interaction.selected_frames()->last());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(3, m_interaction.selected_frames()->first());
+    EXPECT_EQ(5, m_interaction.selected_frames()->last());
 }
 
-TEST(Interaction, extendsKeyboardRangeBackwardFromStableAnchor)
+TEST_F(FramedInteractionTest, extendsKeyboardRangeBackwardFromStableAnchor)
 {
-    Interaction interaction(framed_document());
-    interaction.move_playhead_frame(3);
-    interaction.step_playhead(1, true);
-    interaction.step_playhead(1, true);
+    m_interaction.move_playhead_frame(3);
+    m_interaction.step_playhead(1, true);
+    m_interaction.step_playhead(1, true);
 
-    interaction.step_playhead(-4, true);
+    m_interaction.step_playhead(-4, true);
 
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(1, interaction.selected_frames()->first());
-    EXPECT_EQ(3, interaction.selected_frames()->last());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(1, m_interaction.selected_frames()->first());
+    EXPECT_EQ(3, m_interaction.selected_frames()->last());
 }
 
-TEST(Interaction, reanchorsKeyboardRangeAfterLaneSelection)
+TEST_F(FramedInteractionTest, reanchorsKeyboardRangeAfterLaneSelection)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.move_playhead_frame(1);
-    interaction.select_hit(
-        HitResult{StyleRole::LANE_LABEL, DisplayId{document.lanes().front().id(), StringId{}}}, false);
+    m_interaction.move_playhead_frame(1);
+    m_interaction.select_hit(
+        HitResult{StyleRole::LANE_LABEL, DisplayId{m_document.lanes().front().id(), StringId{}}}, false);
 
-    interaction.step_playhead(1, true);
+    m_interaction.step_playhead(1, true);
 
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(1, interaction.selected_frames()->first());
-    EXPECT_EQ(2, interaction.selected_frames()->last());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(1, m_interaction.selected_frames()->first());
+    EXPECT_EQ(2, m_interaction.selected_frames()->last());
 }
 
-TEST(Interaction, clearsKeyboardRangeWhenSteppingWithoutExtension)
+TEST_F(FramedInteractionTest, clearsKeyboardRangeWhenSteppingWithoutExtension)
 {
-    Interaction interaction(framed_document());
-    interaction.move_playhead_frame(3);
-    interaction.step_playhead(1, true);
+    m_interaction.move_playhead_frame(3);
+    m_interaction.step_playhead(1, true);
 
-    interaction.step_playhead(1, false);
+    m_interaction.step_playhead(1, false);
 
-    EXPECT_EQ(5, *interaction.playhead_frame());
-    EXPECT_FALSE(interaction.selected_range());
+    EXPECT_EQ(5, *m_interaction.playhead_frame());
+    EXPECT_FALSE(m_interaction.selected_range());
 }
 
-TEST(Interaction, clampsKeyboardStepToFirstFrame)
+TEST_F(FramedInteractionTest, clampsKeyboardStepToFirstFrame)
 {
-    Interaction interaction(framed_document());
-    interaction.move_playhead_frame(3);
+    m_interaction.move_playhead_frame(3);
 
-    interaction.step_playhead(-100, false);
+    m_interaction.step_playhead(-100, false);
 
-    EXPECT_EQ(0, *interaction.playhead_frame());
+    EXPECT_EQ(0, *m_interaction.playhead_frame());
 }
 
-TEST(Interaction, clampsKeyboardStepToLastFrame)
+TEST_F(FramedInteractionTest, clampsKeyboardStepToLastFrame)
 {
-    Interaction interaction(framed_document());
-    interaction.move_playhead_frame(3);
+    m_interaction.move_playhead_frame(3);
 
-    interaction.step_playhead(100, false);
+    m_interaction.step_playhead(100, false);
 
-    EXPECT_EQ(9, *interaction.playhead_frame());
+    EXPECT_EQ(9, *m_interaction.playhead_frame());
 }
 
-TEST(Interaction, rendersSelectedItem)
+TEST_F(FramedInteractionTest, rendersSelectedItem)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
+    m_interaction.select_hit(m_beat, false);
 
-    const Layout layout(document, Viewport(400, 100, at(50), at(150)), LayoutMetrics(100, 20, 30, 4), interaction);
+    const Layout layout = make_layout();
 
-    EXPECT_TRUE(contains_style(layout, StyleRole::SELECTED_ITEM, beat.id));
+    EXPECT_TRUE(contains_style(layout, StyleRole::SELECTED_ITEM, m_beat.id));
 }
 
-TEST(Interaction, rendersSelectedLane)
+TEST_F(FramedInteractionTest, rendersSelectedLane)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
+    m_interaction.select_hit(m_beat, false);
 
-    const Layout layout(document, Viewport(400, 100, at(50), at(150)), LayoutMetrics(100, 20, 30, 4), interaction);
+    const Layout layout = make_layout();
 
-    EXPECT_TRUE(contains_style(layout, StyleRole::SELECTED_LANE, DisplayId{beat.id.lane_id, StringId{}}));
+    EXPECT_TRUE(contains_style(layout, StyleRole::SELECTED_LANE, DisplayId{m_beat.id.lane_id, StringId{}}));
 }
 
-TEST(Interaction, rendersPlayhead)
+TEST_F(FramedInteractionTest, rendersPlayhead)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.move_playhead_frame(3);
+    m_interaction.move_playhead_frame(3);
 
-    const Layout layout(document, Viewport(400, 100, at(50), at(150)), LayoutMetrics(100, 20, 30, 4), interaction);
+    const Layout layout = make_layout();
 
     EXPECT_TRUE(contains_style(layout, StyleRole::PLAYHEAD));
 }
 
-TEST(Interaction, hitsPlayheadAtRuler)
+TEST_F(FramedInteractionTest, hitsPlayheadAtRuler)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.move_playhead_frame(3);
-    const Layout layout(document, Viewport(400, 100, at(50), at(150)), LayoutMetrics(100, 20, 30, 4), interaction);
+    m_interaction.move_playhead_frame(3);
+    const Layout layout = make_layout();
 
     const std::optional<HitResult> hit = layout.hit_test(Point{190, 10}, 3);
 
@@ -509,12 +465,10 @@ TEST(Interaction, hitsPlayheadAtRuler)
     EXPECT_EQ(StyleRole::PLAYHEAD, hit->style);
 }
 
-TEST(Interaction, preservesItemHitIdentityUnderSelection)
+TEST_F(FramedInteractionTest, preservesItemHitIdentityUnderSelection)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.select_hit(beat_hit(document), false);
-    const Layout layout(document, Viewport(400, 100, at(50), at(150)), LayoutMetrics(100, 20, 30, 4), interaction);
+    m_interaction.select_hit(m_beat, false);
+    const Layout layout = make_layout();
 
     const std::optional<HitResult> center = layout.hit_test(Point{190, 30}, 0);
     const std::optional<HitResult> edge = layout.hit_test(Point{189, 30}, 0);
@@ -525,65 +479,55 @@ TEST(Interaction, preservesItemHitIdentityUnderSelection)
     EXPECT_EQ(StyleRole::INSTANT_MARKER, edge->style);
 }
 
-TEST(Interaction, keepsSelectionStateThroughZoom)
+TEST_F(FramedInteractionTest, keepsSelectionStateThroughZoom)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
-    interaction.select_range(at(70), at(110));
-    interaction.move_playhead_frame(3);
+    m_interaction.select_hit(m_beat, false);
+    m_interaction.select_range(at(70), at(110));
+    m_interaction.move_playhead_frame(3);
     Navigation navigation(at(50), at(150), 2);
 
     navigation.zoom_by(2.0, at(100));
 
-    ASSERT_TRUE(interaction.selected_lane());
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(beat.id.lane_id, *interaction.selected_lane());
-    EXPECT_EQ(3, *interaction.playhead_frame());
-    EXPECT_EQ(2, interaction.selected_frames()->first());
+    ASSERT_TRUE(m_interaction.selected_lane());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(m_beat.id.lane_id, *m_interaction.selected_lane());
+    EXPECT_EQ(3, *m_interaction.playhead_frame());
+    EXPECT_EQ(2, m_interaction.selected_frames()->first());
 }
 
-TEST(Interaction, keepsSelectionStateThroughLaneScroll)
+TEST_F(FramedInteractionTest, keepsSelectionStateThroughLaneScroll)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    const HitResult beat = beat_hit(document);
-    interaction.select_hit(beat, false);
-    interaction.select_range(at(70), at(110));
-    interaction.move_playhead_frame(3);
+    m_interaction.select_hit(m_beat, false);
+    m_interaction.select_range(at(70), at(110));
+    m_interaction.move_playhead_frame(3);
     Navigation navigation(at(50), at(150), 2);
 
     navigation.scroll_to_lane(1, 1);
 
-    ASSERT_TRUE(interaction.selected_lane());
-    ASSERT_TRUE(interaction.selected_frames());
-    EXPECT_EQ(beat.id.lane_id, *interaction.selected_lane());
-    EXPECT_EQ(3, *interaction.playhead_frame());
-    EXPECT_EQ(2, interaction.selected_frames()->first());
+    ASSERT_TRUE(m_interaction.selected_lane());
+    ASSERT_TRUE(m_interaction.selected_frames());
+    EXPECT_EQ(m_beat.id.lane_id, *m_interaction.selected_lane());
+    EXPECT_EQ(3, *m_interaction.playhead_frame());
+    EXPECT_EQ(2, m_interaction.selected_frames()->first());
 }
 
-TEST(Interaction, rendersSelectedRangeAfterNavigation)
+TEST_F(FramedInteractionTest, rendersSelectedRangeAfterNavigation)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.select_range(at(70), at(110));
+    m_interaction.select_range(at(70), at(110));
     Navigation navigation(at(50), at(150), 2);
     navigation.zoom_by(2.0, at(100));
     navigation.scroll_to_lane(1, 1);
 
-    const Layout layout(document, navigation.viewport(400, 50), LayoutMetrics(100, 20, 30, 4), interaction);
+    const Layout layout(m_document, navigation.viewport(400, 50), m_metrics, m_interaction);
 
     EXPECT_TRUE(contains_style(layout, StyleRole::SELECTED_RANGE));
 }
 
-TEST(Interaction, omitsPlayheadOutsideViewport)
+TEST_F(FramedInteractionTest, omitsPlayheadOutsideViewport)
 {
-    const Document document = framed_document();
-    Interaction interaction(document);
-    interaction.move_playhead_frame(3);
+    m_interaction.move_playhead_frame(3);
 
-    const Layout layout(document, Viewport(400, 50, at(120), at(150), 1), LayoutMetrics(100, 20, 30, 4), interaction);
+    const Layout layout(m_document, Viewport(400, 50, at(120), at(150), 1), m_metrics, m_interaction);
 
     EXPECT_FALSE(contains_style(layout, StyleRole::PLAYHEAD));
 }
