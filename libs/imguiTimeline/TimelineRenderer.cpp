@@ -2,13 +2,14 @@
 
 #include <imguiTimeline/TimelineRenderer.h>
 
+#include <timeline/DisplayListRenderer.h>
 #include <timeline/size_cast.h>
 
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <string_view>
-#include <type_traits>
+#include <vector>
 
 namespace timeline_imgui
 {
@@ -26,6 +27,36 @@ ImVec4 mix(const ImVec4 &first, const ImVec4 &second, float weight)
     return ImVec4(first.x * weight + second.x * (1.0F - weight), first.y * weight + second.y * (1.0F - weight),
         first.z * weight + second.z * (1.0F - weight), 1.0F);
 }
+
+/// Adapts toolkit-neutral display-list operations to an ImGui draw list.
+///
+class ImGuiDisplayListRenderer final : public timeline::DisplayListRenderer
+{
+public:
+    ImGuiDisplayListRenderer(ImDrawList &draw_list, ImVec2 origin, const ImGuiStyle &style,
+        const StyleColors &style_colors, bool focused, int label_width);
+
+    void draw_line(const timeline::Line &line) override;
+    void fill_rectangle(const timeline::Rectangle &rectangle) override;
+    void draw_text(const timeline::Text &text, std::string_view value) override;
+    void draw_marker(const timeline::Marker &marker) override;
+    void draw_polyline(const timeline::Polyline &polyline) override;
+    void draw_swatch(const timeline::Swatch &swatch) override;
+
+private:
+    ImU32 colour(timeline::StyleRole role) const
+    {
+        return style_colour(role, m_style, m_style_colors, m_focused);
+    }
+
+    ImDrawList &m_draw_list;
+    ImVec2 m_origin;
+    const ImGuiStyle &m_style;
+    const StyleColors &m_style_colors;
+    bool m_focused;
+    int m_label_width;
+    float m_stroke_width;
+};
 
 } // namespace
 
@@ -92,6 +123,76 @@ ImU32 style_colour(timeline::StyleRole role, const ImGuiStyle &style, const Styl
     return ImGui::ColorConvertFloat4ToU32(colour);
 }
 
+namespace
+{
+
+ImGuiDisplayListRenderer::ImGuiDisplayListRenderer(ImDrawList &draw_list, ImVec2 origin, const ImGuiStyle &style,
+    const StyleColors &style_colors, bool focused, int label_width) :
+    m_draw_list(draw_list),
+    m_origin(origin),
+    m_style(style),
+    m_style_colors(style_colors),
+    m_focused(focused),
+    m_label_width(label_width),
+    m_stroke_width(std::max(1.0F, ImGui::GetFontSize() / 13.0F))
+{
+}
+
+void ImGuiDisplayListRenderer::draw_line(const timeline::Line &line)
+{
+    m_draw_list.AddLine(screen_point(m_origin, line.x1, line.y1), screen_point(m_origin, line.x2, line.y2),
+        colour(line.style), m_stroke_width);
+}
+
+void ImGuiDisplayListRenderer::fill_rectangle(const timeline::Rectangle &rectangle)
+{
+    m_draw_list.AddRectFilled(screen_point(m_origin, rectangle.x, rectangle.y),
+        screen_point(m_origin, rectangle.x + rectangle.width, rectangle.y + rectangle.height), colour(rectangle.style));
+}
+
+void ImGuiDisplayListRenderer::draw_text(const timeline::Text &text, std::string_view value)
+{
+    const ImVec4 clip(m_origin.x, -FLT_MAX, m_origin.x + static_cast<float>(m_label_width), FLT_MAX);
+    m_draw_list.AddText(ImGui::GetFont(), ImGui::GetFontSize(), screen_point(m_origin, text.x, text.y),
+        colour(text.style), value.data(), value.data() + value.size(), 0.0F,
+        text.style == timeline::StyleRole::LANE_LABEL ? &clip : nullptr);
+}
+
+void ImGuiDisplayListRenderer::draw_marker(const timeline::Marker &marker)
+{
+    m_draw_list.AddRectFilled(screen_point(m_origin, marker.x, marker.y),
+        screen_point(m_origin, marker.x + marker.width, marker.y + marker.height), colour(marker.style));
+}
+
+void ImGuiDisplayListRenderer::draw_polyline(const timeline::Polyline &polyline)
+{
+    std::vector<ImVec2> points;
+    points.reserve(polyline.points.size());
+    for (const timeline::Point &point : polyline.points)
+    {
+        points.push_back(screen_point(m_origin, point.x, point.y));
+    }
+    if (timeline::size_cast(points) >= 2)
+    {
+        m_draw_list.AddPolyline(
+            points.data(), timeline::size_cast(points), colour(polyline.style), 0, 2.0F * m_stroke_width);
+    }
+}
+
+void ImGuiDisplayListRenderer::draw_swatch(const timeline::Swatch &swatch)
+{
+    ImU32 fill = colour(swatch.style);
+    if (m_style_colors.find(swatch.style) == m_style_colors.end())
+    {
+        fill = IM_COL32(swatch.color.red(), swatch.color.green(), swatch.color.blue(),
+            static_cast<int>(std::lround(255.0F * m_style.Alpha)));
+    }
+    m_draw_list.AddRectFilled(screen_point(m_origin, swatch.x, swatch.y),
+        screen_point(m_origin, swatch.x + swatch.width, swatch.y + swatch.height), fill);
+}
+
+} // namespace
+
 void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &display_list, ImVec2 origin,
     const ImGuiStyle &style, bool focused, int label_width)
 {
@@ -101,59 +202,8 @@ void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &displ
 void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &display_list, ImVec2 origin,
     const ImGuiStyle &style, const StyleColors &style_colors, bool focused, int label_width)
 {
-    const float stroke_width = std::max(1.0F, ImGui::GetFontSize() / 13.0F);
-    for (const timeline::Primitive &primitive : display_list.primitives())
-    {
-        std::visit(
-            [&](const auto &value)
-            {
-                using Value = std::decay_t<decltype(value)>;
-                const ImU32 colour = style_colour(value.style, style, style_colors, focused);
-                const bool overridden = style_colors.find(value.style) != style_colors.end();
-                if constexpr (std::is_same_v<Value, timeline::Line>)
-                {
-                    draw_list.AddLine(screen_point(origin, value.x1, value.y1),
-                        screen_point(origin, value.x2, value.y2), colour, stroke_width);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Polyline>)
-                {
-                    std::vector<ImVec2> points;
-                    points.reserve(value.points.size());
-                    for (const timeline::Point &point : value.points)
-                    {
-                        points.push_back(screen_point(origin, point.x, point.y));
-                    }
-                    if (timeline::size_cast(points) >= 2)
-                    {
-                        draw_list.AddPolyline(
-                            points.data(), timeline::size_cast(points), colour, 0, 2.0F * stroke_width);
-                    }
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Text>)
-                {
-                    const std::string_view text = display_list.strings().lookup(value.value);
-                    const ImVec4 clip(origin.x, -FLT_MAX, origin.x + static_cast<float>(label_width), FLT_MAX);
-                    draw_list.AddText(ImGui::GetFont(), ImGui::GetFontSize(), screen_point(origin, value.x, value.y),
-                        colour, text.data(), text.data() + text.size(), 0.0F,
-                        value.style == timeline::StyleRole::LANE_LABEL ? &clip : nullptr);
-                }
-                else
-                {
-                    ImU32 fill = colour;
-                    if constexpr (std::is_same_v<Value, timeline::Swatch>)
-                    {
-                        if (!overridden)
-                        {
-                            fill = IM_COL32(value.color.red(), value.color.green(), value.color.blue(),
-                                static_cast<int>(std::lround(255.0F * style.Alpha)));
-                        }
-                    }
-                    draw_list.AddRectFilled(screen_point(origin, value.x, value.y),
-                        screen_point(origin, value.x + value.width, value.y + value.height), fill);
-                }
-            },
-            primitive);
-    }
+    ImGuiDisplayListRenderer renderer(draw_list, origin, style, style_colors, focused, label_width);
+    timeline::render_display_list(renderer, display_list);
 }
 
 } // namespace timeline_imgui

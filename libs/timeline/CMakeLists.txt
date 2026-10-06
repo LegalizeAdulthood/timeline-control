@@ -4,6 +4,7 @@ add_library(timeline-core
     include/timeline/Curve.h
     include/timeline/Document.h
     include/timeline/DisplayList.h
+    include/timeline/DisplayListRenderer.h
     include/timeline/Envelope.h
     include/timeline/Event.h
     include/timeline/Interval.h
@@ -21,6 +22,7 @@ add_library(timeline-core
     ControlState.cpp
     Curve.cpp
     DisplayList.cpp
+    DisplayListRenderer.cpp
     Document.cpp
     Envelope.cpp
     Event.cpp

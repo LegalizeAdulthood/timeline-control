@@ -117,8 +117,8 @@ needs text.
 Adapters normally construct documents through `DocumentBuilder`. Its
 `StringTableBuilder` interns document descriptions, source summaries, lane
 and item identities, kinds, labels, attribute keys, and attribute values.
-The builder verifies that document and lane string IDs belong to the table.
-`build` seals the strings and lanes into a `Document`.
+The builder verifies that document and lane string IDs belong to the
+table. `build` seals the strings and lanes into a `Document`.
 
 The `with_id`, `with_strings`, `with_kind`, and `with_attributes`
 functions return copies with translated identities and semantic strings.
@@ -142,10 +142,11 @@ dimensions without introducing native GUI types.
 
 `Primitive` is a variant of `Line`, `Rectangle`, `Text`, `Marker`,
 `Polyline`, and `Swatch`. Each primitive has a semantic `StyleRole` and a
-`DisplayId`. GUI adapters map roles to native colors and fonts, then
-delegate each primitive to the toolkit's drawing API. Static `Text`
-content is a `StringId`; the display list owns the immutable string table
-used by renderers to resolve it at the presentation boundary.
+`DisplayId`. `render_display_list` visits these primitives in paint order,
+resolves static text through the display list's immutable string table,
+and sends each operation through the `DisplayListRenderer` port. GUI
+adapters implement that port to map roles to native colors and fonts and
+delegate each primitive to the toolkit's drawing API.
 
 `render_snapshot` serializes a display list into deterministic text. It is
 used for testing and export without depending on a GUI toolkit.
@@ -202,6 +203,7 @@ Output uses locale-independent numbers and LF separators.
 | `Palette.h` | Colors and time-dependent palettes. |
 | `Layout.h` | Navigation, viewports, layout, and hit testing. |
 | `DisplayList.h` | Semantic drawing primitives. |
+| `DisplayListRenderer.h` | Ordered primitive-rendering port. |
 | `Interaction.h` | View-only playhead and selection state. |
 | `Query.h` | Frame and range inspection results. |
 | `Snapshot.h` | Deterministic display-list serialization. |

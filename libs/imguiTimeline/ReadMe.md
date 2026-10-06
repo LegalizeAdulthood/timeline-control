@@ -8,9 +8,9 @@ translates immediate-mode input, sizing, font metrics, focus, and theme
 values into toolkit-neutral core operations, then delegates the resulting
 display list to an `ImDrawList`.
 
-The adapter contains no source-format semantics. Applications construct or
-import a `timeline::Document` elsewhere and give ownership of that document
-to a retained `timeline_imgui::Control`.
+The adapter contains no source-format semantics. Applications construct
+or import a `timeline::Document` elsewhere and give ownership of that
+document to a retained `timeline_imgui::Control`.
 
 ## Data Flow
 
@@ -38,9 +38,9 @@ draw_timeline(id, control, size) each ImGui frame
 Control accessors -> inspection, hit, layout, viewport, and interaction
 ```
 
-Dear ImGui drawing is immediate-mode, but the timeline session is retained.
-The host keeps the `Control` alive between frames; the adapter keeps no
-global timeline state.
+Dear ImGui drawing is immediate-mode, but the timeline session is
+retained. The host keeps the `Control` alive between frames; the adapter
+keeps no global timeline state.
 
 ## Public API
 
@@ -89,8 +89,9 @@ adapter-specific event or callback type.
 ## Per-Frame Submission
 
 `draw_timeline` reserves the requested region with an `InvisibleButton`.
-That item supplies hover, active, focus, navigation, and mouse ownership to
-the adapter without introducing visible ImGui widgets around the timeline.
+That item supplies hover, active, focus, navigation, and mouse ownership
+to the adapter without introducing visible ImGui widgets around the
+timeline.
 
 Each submission performs the following work:
 
@@ -107,8 +108,9 @@ draws the corresponding empty-state text.
 ## Layout
 
 The adapter derives row height, ruler height, padding, and a minimum label
-column from the current ImGui font and `FramePadding`. It expands the label
-column to fit document lane labels and caps it at half the item width.
+column from the current ImGui font and `FramePadding`. It expands the
+label column to fit document lane labels and caps it at half the item
+width.
 
 The current item dimensions and core `Navigation` produce a
 `timeline::Viewport`. The adapter clamps vertical scrolling to the number
@@ -133,12 +135,12 @@ The adapter translates ImGui input into core operations:
 - Shift-wheel or a horizontal wheel scrolls through time.
 - An unmodified vertical wheel moves between lanes.
 
-The hovered item claims wheel and directional-key ownership so these inputs
-operate on the timeline instead of its containing ImGui window. Moving the
-playhead reveals it without changing the current zoom.
+The hovered item claims wheel and directional-key ownership so these
+inputs operate on the timeline instead of its containing ImGui window.
+Moving the playhead reveals it without changing the current zoom.
 
-The `zoom_in`, `zoom_out`, `fit_view`, and `clear_selection` methods expose
-the same operations to host menus and commands.
+The `zoom_in`, `zoom_out`, `fit_view`, and `clear_selection` methods
+expose the same operations to host menus and commands.
 
 ## Inspection And Hits
 
@@ -159,12 +161,14 @@ The `layout` accessor also permits toolkit-neutral snapshot export through
 `style_colour` maps `timeline::StyleRole` values to the current
 `ImGuiStyle`. It uses text, window, plot, header, slider, and navigation
 colors while respecting global style alpha and focus state. Applications
-customize the defaults through `ImGuiStyle::Colors` like other ImGui items.
-`Control::set_style_color` overrides any individual role with an `ImU32`,
-while `Control::style_color` returns the effective override or style
-default.
+customize the defaults through `ImGuiStyle::Colors` like other ImGui
+items. `Control::set_style_color` overrides any individual role with an
+`ImU32`, while `Control::style_color` returns the effective override or
+style default.
 
-`draw_display_list` visits primitives in their original paint order:
+`draw_display_list` implements the core `DisplayListRenderer` port. The
+core traversal resolves text and sends primitives to it in their original
+paint order:
 
 | Core Primitive | ImGui Operation |
 | --- | --- |
