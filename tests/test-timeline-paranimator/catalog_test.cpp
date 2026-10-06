@@ -439,9 +439,6 @@ protected:
         m_directory = std::filesystem::temp_directory_path() /
             ("timeline-catalog-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         std::filesystem::create_directory(m_directory);
-        m_config = read_json("fixtures/catalog-audit.json");
-        m_config["source"]["file"] = std::filesystem::absolute("fixtures/input/catalog-audit-source.par").string();
-        m_catalog = read_json("fixtures/input/catalog-audit.json");
     }
 
     void TearDown() override
@@ -449,19 +446,41 @@ protected:
         std::filesystem::remove_all(m_directory);
     }
 
-    JsonImportResult import_catalogs(const std::vector<Json> &catalogs)
+    JsonImportResult import_catalogs(Json config, const std::vector<Json> &catalogs)
     {
-        m_config["parameter-catalogs"] = Json::array();
+        config["parameter-catalogs"] = Json::array();
         int index = 0;
         for (const Json &catalog : catalogs)
         {
             const std::string name = "catalog-" + std::to_string(index++) + ".json";
             std::ofstream(m_directory / name) << catalog.dump();
-            m_config["parameter-catalogs"].push_back(name);
+            config["parameter-catalogs"].push_back(name);
         }
-        const std::filesystem::path config = m_directory / "animation.json";
-        std::ofstream(config) << m_config.dump();
-        return import_timeline_json(config);
+        const std::filesystem::path config_path = m_directory / "animation.json";
+        std::ofstream(config_path) << config.dump();
+        return import_timeline_json(config_path);
+    }
+
+private:
+    std::filesystem::path m_directory;
+};
+
+/// Supplies the editable catalog-audit configuration to isolated imports.
+///
+class CatalogAuditLoading : public CatalogLoading
+{
+protected:
+    void SetUp() override
+    {
+        CatalogLoading::SetUp();
+        m_config = read_json("fixtures/catalog-audit.json");
+        m_config["source"]["file"] = std::filesystem::absolute("fixtures/input/catalog-audit-source.par").string();
+        m_catalog = read_json("fixtures/input/catalog-audit.json");
+    }
+
+    JsonImportResult import_catalogs(const std::vector<Json> &catalogs)
+    {
+        return CatalogLoading::import_catalogs(m_config, catalogs);
     }
 
     JsonImportResult import_distinct_catalogs()
@@ -469,7 +488,6 @@ protected:
         return import_catalogs({m_catalog, extra_catalog()});
     }
 
-    std::filesystem::path m_directory;
     Json m_config;
     Json m_catalog;
 };
@@ -482,109 +500,216 @@ protected:
     void SetUp() override
     {
         CatalogLoading::SetUp();
-        m_catalog = read_json("fixtures/input/target-resolution-catalog.json");
-        m_config["source"] = {
+        Json catalog = read_json("fixtures/input/target-resolution-catalog.json");
+        Json config = read_json("fixtures/catalog-audit.json");
+        config["source"] = {
             {"file", std::filesystem::absolute("fixtures/input/source.par").string()}, {"name", "Function_Demo"}};
-        m_config["tracks"] = Json::parse(R"([
+        config["tracks"] = Json::parse(R"([
             {"parameter":"Larry.c","keys":[{"frame":0,"value":"1/2"},{"frame":4,"value":"3/4"}]},
             {"parameter":"Larry[\"amount\"]","keys":[{"frame":0,"value":1},{"frame":4,"value":5}]},
             {"parameter":"Larry.fn2","keys":[{"frame":0,"value":"cos"},{"frame":4,"value":"sin"}]},
             {"parameter":"Larry[\"fn2\"]","keys":[{"frame":0,"value":"cos"},{"frame":4,"value":"sin"}]}
         ])");
-    }
-
-    timeline::Document import_formula_document()
-    {
-        JsonImportResult result = import_catalogs({m_catalog});
-        if (!result.succeeded() || !result.diagnostics.empty())
+        m_result = import_catalogs(config, {catalog});
+        if (!m_result.succeeded() || !m_result.diagnostics.empty())
         {
             throw std::runtime_error("formula target import failed");
         }
-        return std::move(*result.document);
     }
+
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+
+private:
+    JsonImportResult m_result;
+};
+
+/// Owns the imported target-resolution document used by focused checks.
+///
+class TargetResolutionDocument : public testing::Test
+{
+protected:
+    TargetResolutionDocument() :
+        m_document(import_clean_document("fixtures/target-resolution.json"))
+    {
+    }
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+
+private:
+    timeline::Document m_document;
+};
+
+/// Owns target-resolution state composed with the music document.
+///
+class TargetMusicComparison : public TargetResolutionDocument
+{
+protected:
+    TargetMusicComparison() :
+        m_comparison_document(combine_with_music(document()))
+    {
+    }
+    const timeline::Document &comparison_document() const
+    {
+        return m_comparison_document;
+    }
+
+private:
+    timeline::Document m_comparison_document;
+};
+
+/// Owns the standard catalog-loading document used by focused checks.
+///
+class CatalogLoadingDocument : public testing::Test
+{
+protected:
+    CatalogLoadingDocument() :
+        m_document(import_clean_document("fixtures/catalog-loading.json"))
+    {
+    }
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+
+private:
+    timeline::Document m_document;
+};
+
+/// Owns catalog-loading state composed with the music document.
+///
+class CatalogMusicComparison : public CatalogLoadingDocument
+{
+protected:
+    CatalogMusicComparison() :
+        m_comparison_document(combine_with_music(document()))
+    {
+    }
+    const timeline::Document &comparison_document() const
+    {
+        return m_comparison_document;
+    }
+
+private:
+    timeline::Document m_comparison_document;
+};
+
+/// Owns the invalid catalog-audit result used by diagnostic checks.
+///
+class CatalogAuditResult : public testing::Test
+{
+protected:
+    CatalogAuditResult() :
+        m_result(import_timeline_json("fixtures/catalog-audit-invalid.json"))
+    {
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
 /// Exercises invalid animated values independently.
 ///
-class InvalidCatalogValueTest : public CatalogLoading, public testing::WithParamInterface<InvalidValueCase>
+class InvalidCatalogValueTest : public CatalogAuditLoading, public testing::WithParamInterface<InvalidValueCase>
 {
 };
 
 /// Exercises named string catalog cases independently.
 ///
-class UnsupportedCatalogTypeTest : public CatalogLoading, public testing::WithParamInterface<NamedStringCase>
+class UnsupportedCatalogTypeTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedStringCase>
 {
 };
 
 /// Exercises malformed unused parameter metadata independently.
 ///
-class MalformedCatalogMetadataTest : public CatalogLoading, public testing::WithParamInterface<NamedJsonCase>
+class MalformedCatalogMetadataTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedJsonCase>
 {
 };
 
 /// Exercises malformed nested catalog metadata independently.
 ///
-class NestedCatalogMetadataTest : public CatalogLoading, public testing::WithParamInterface<NamedJsonCase>
+class NestedCatalogMetadataTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedJsonCase>
 {
 };
 
 /// Exercises duplicate names in catalog sections independently.
 ///
-class DuplicateCatalogSectionTest : public CatalogLoading, public testing::WithParamInterface<NamedStringCase>
+class DuplicateCatalogSectionTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedStringCase>
 {
 };
 
 /// Exercises malformed catalog roots independently.
 ///
-class CatalogRootTest : public CatalogLoading, public testing::WithParamInterface<NamedJsonCase>
+class CatalogRootTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedJsonCase>
 {
 };
 
 /// Exercises accepted unused source types independently.
 ///
-class CatalogSourceTypeTest : public CatalogLoading, public testing::WithParamInterface<NamedStringCase>
+class CatalogSourceTypeTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedStringCase>
 {
 };
 
 /// Exercises required categorical defaults independently.
 ///
-class CategoricalDefaultTest : public CatalogLoading, public testing::WithParamInterface<NamedStringCase>
+class CategoricalDefaultTest : public CatalogAuditLoading, public testing::WithParamInterface<NamedStringCase>
 {
 };
 
 /// Exercises one imported component lane at a time.
 ///
-class CatalogComponentTest : public testing::TestWithParam<ComponentCase>
+class CatalogComponentTest : public CatalogLoadingDocument, public testing::WithParamInterface<ComponentCase>
 {
 };
 
 /// Exercises one invalid source track diagnostic at a time.
 ///
-class CatalogSourceDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
+class CatalogSourceDiagnosticTest : public CatalogAuditResult, public testing::WithParamInterface<DiagnosticCase>
+{
+};
+
+/// Evaluates one numeric target at a time.
+///
+class NumericTargetTest : public TargetResolutionDocument, public testing::WithParamInterface<NumericTargetCase>
 {
 };
 
 /// Compares one numeric target with the reference output at a time.
 ///
-class NumericTargetComparisonTest : public testing::TestWithParam<NumericTargetCase>
+class NumericTargetComparisonTest : public TargetMusicComparison, public testing::WithParamInterface<NumericTargetCase>
+{
+};
+
+/// Evaluates one discrete target at a time.
+///
+class DiscreteTargetTest : public TargetResolutionDocument, public testing::WithParamInterface<DiscreteTargetCase>
 {
 };
 
 /// Compares one discrete target with the reference output at a time.
 ///
-class DiscreteTargetComparisonTest : public testing::TestWithParam<DiscreteTargetCase>
+class DiscreteTargetComparisonTest : public TargetMusicComparison,
+                                     public testing::WithParamInterface<DiscreteTargetCase>
 {
 };
 
 /// Compares one catalog parameter with the reference output at a time.
 ///
-class CatalogReferenceTest : public testing::TestWithParam<ReferenceCase>
+class CatalogReferenceTest : public CatalogLoadingDocument, public testing::WithParamInterface<ReferenceCase>
 {
 };
 
 } // namespace
 
-TEST_F(CatalogLoading, diagnosesUnknownTarget)
+TEST_F(CatalogAuditLoading, diagnosesUnknownTarget)
 {
     m_config["tracks"][1]["parameter"] = "undeclared";
 
@@ -596,7 +721,7 @@ TEST_F(CatalogLoading, diagnosesUnknownTarget)
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("Unknown animated parameter"));
 }
 
-TEST_F(CatalogLoading, retainsValidTracksAfterUnknownTarget)
+TEST_F(CatalogAuditLoading, retainsValidTracksAfterUnknownTarget)
 {
     m_config["tracks"][1]["parameter"] = "undeclared";
 
@@ -608,17 +733,14 @@ TEST_F(CatalogLoading, retainsValidTracksAfterUnknownTarget)
 
 TEST_F(FormulaTargetResolution, importsExpectedDocumentShape)
 {
-    const timeline::Document document = import_formula_document();
-
-    EXPECT_EQ(5, document.lane_count());
+    EXPECT_EQ(5, document().lane_count());
 }
 
 TEST_F(FormulaTargetResolution, resolvesFormulaGroupByName)
 {
-    const timeline::Document document = import_formula_document();
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, inspection.lanes[0].items[0].attributes);
+    const ResolvedAttributes attributes = resolved_attributes(document(), inspection.lanes[0].items[0].attributes);
 
     EXPECT_DOUBLE_EQ(1.5, *inspection.lanes[0].value);
     EXPECT_EQ("params", attributes.at("output-parameter"));
@@ -627,9 +749,8 @@ TEST_F(FormulaTargetResolution, resolvesFormulaGroupByName)
 
 TEST_F(FormulaTargetResolution, resolvesFormulaKnobCatalogByBracketName)
 {
-    const timeline::Document document = import_formula_document();
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
-    const ResolvedAttributes attributes = resolved_attributes(document, inspection.lanes[2].items[0].attributes);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
+    const ResolvedAttributes attributes = resolved_attributes(document(), inspection.lanes[2].items[0].attributes);
 
     const Json catalog = Json::parse(attributes.at("catalog-definition"));
 
@@ -638,9 +759,8 @@ TEST_F(FormulaTargetResolution, resolvesFormulaKnobCatalogByBracketName)
 
 TEST_F(FormulaTargetResolution, preservesFormulaKnobSourceDefinition)
 {
-    const timeline::Document document = import_formula_document();
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
-    const ResolvedAttributes attributes = resolved_attributes(document, inspection.lanes[2].items[0].attributes);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
+    const ResolvedAttributes attributes = resolved_attributes(document(), inspection.lanes[2].items[0].attributes);
 
     const Json source = Json::parse(attributes.at("catalog-source-definition"));
 
@@ -649,65 +769,58 @@ TEST_F(FormulaTargetResolution, preservesFormulaKnobSourceDefinition)
 
 TEST_F(FormulaTargetResolution, resolvesFormulaFunctionByDotName)
 {
-    const timeline::Document document = import_formula_document();
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
-    const std::string_view value = resolved_attributes(document, inspection.lanes[3].items[0].attributes).at("value");
+    const std::string_view value = resolved_attributes(document(), inspection.lanes[3].items[0].attributes).at("value");
 
     EXPECT_EQ("sin/cos", value);
 }
 
 TEST_F(FormulaTargetResolution, resolvesFormulaFunctionByBracketName)
 {
-    const timeline::Document document = import_formula_document();
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
-    const std::string_view value = resolved_attributes(document, inspection.lanes[4].items[0].attributes).at("value");
+    const std::string_view value = resolved_attributes(document(), inspection.lanes[4].items[0].attributes).at("value");
 
     EXPECT_EQ("sin/cos", value);
 }
 
-TEST(TargetResolution, importsExpectedDocumentShape)
+TEST_F(TargetResolutionDocument, importsExpectedDocumentShape)
 {
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-
-    EXPECT_EQ(17, document.lane_count());
+    EXPECT_EQ(17, document().lane_count());
 }
 
-TEST(TargetResolution, preservesGroupOutputMetadata)
+TEST_F(TargetResolutionDocument, preservesGroupOutputMetadata)
 {
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, inspection.lanes[1].items[0].attributes);
+    const ResolvedAttributes attributes = resolved_attributes(document(), inspection.lanes[1].items[0].attributes);
 
     EXPECT_EQ("params", attributes.at("output-parameter"));
     EXPECT_EQ("[0,1]", attributes.at("slots"));
 }
 
-TEST(TargetResolution, ownsCatalogDefinition)
+TEST_F(TargetResolutionDocument, ownsCatalogDefinition)
 {
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     const Json definition =
-        Json::parse(resolved_attributes(document, inspection.lanes[1].items[0].attributes).at("catalog-definition"));
+        Json::parse(resolved_attributes(document(), inspection.lanes[1].items[0].attributes).at("catalog-definition"));
 
     EXPECT_EQ("complex", definition.at("type"));
 }
 
-TEST(TargetResolution, ownsTrackDefinition)
+TEST_F(TargetResolutionDocument, ownsTrackDefinition)
 {
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     const Json definition =
-        Json::parse(resolved_attributes(document, inspection.lanes[1].items[0].attributes).at("track-definition"));
+        Json::parse(resolved_attributes(document(), inspection.lanes[1].items[0].attributes).at("track-definition"));
 
     EXPECT_EQ("params.c", definition.at("parameter"));
 }
 
-TEST_F(CatalogLoading, requiresDefaultCurveEvenWithExplicitKeyCurve)
+TEST_F(CatalogAuditLoading, requiresDefaultCurveEvenWithExplicitKeyCurve)
 {
     m_catalog["parameters"]["scalar"].erase("default-curve");
     m_config["tracks"][3]["keys"][1]["curve"] = "linear";
@@ -719,7 +832,7 @@ TEST_F(CatalogLoading, requiresDefaultCurveEvenWithExplicitKeyCurve)
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("default-curve"));
 }
 
-TEST_F(CatalogLoading, requiresSourceValueForAnimatedParameter)
+TEST_F(CatalogAuditLoading, requiresSourceValueForAnimatedParameter)
 {
     m_catalog["parameters"]["absent"] = m_catalog["parameters"]["maxiter"];
     m_config["tracks"][4]["parameter"] = "absent";
@@ -746,7 +859,7 @@ TEST_P(CategoricalDefaultTest, requiresDefaultCurve)
 INSTANTIATE_TEST_SUITE_P(
     CategoricalTypes, CategoricalDefaultTest, testing::ValuesIn(CATEGORICAL_TYPE_CASES), case_name<NamedStringCase>);
 
-TEST_F(CatalogLoading, requiresOrdinaryFunctionSource)
+TEST_F(CatalogAuditLoading, requiresOrdinaryFunctionSource)
 {
     m_catalog["parameters"]["function"] = {
         {"type", "function-list"}, {"description", "Functions"}, {"values", "id-functions"}, {"default-curve", "hold"}};
@@ -759,7 +872,7 @@ TEST_F(CatalogLoading, requiresOrdinaryFunctionSource)
     EXPECT_NE(std::string::npos, result.diagnostics[0].find("source parameter"));
 }
 
-TEST_F(CatalogLoading, suppliesCenterMagnificationOptionalFields)
+TEST_F(CatalogAuditLoading, suppliesCenterMagnificationOptionalFields)
 {
     m_catalog["parameters"]["scalar"] = {{"type", "center-mag"}, {"description", "Center and magnification"}};
     m_config["tracks"][3]["keys"][0]["value"] = "0/0/1";
@@ -776,7 +889,7 @@ TEST_F(CatalogLoading, suppliesCenterMagnificationOptionalFields)
     EXPECT_DOUBLE_EQ(22.5, *inspection.lanes[11].value);
 }
 
-TEST_F(CatalogLoading, preservesAuthoredCenterMagnificationValue)
+TEST_F(CatalogAuditLoading, preservesAuthoredCenterMagnificationValue)
 {
     m_catalog["parameters"]["scalar"] = {{"type", "center-mag"}, {"description", "Center and magnification"}};
     m_config["tracks"][3]["keys"][0]["value"] = "0/0/1";
@@ -789,21 +902,16 @@ TEST_F(CatalogLoading, preservesAuthoredCenterMagnificationValue)
     EXPECT_EQ("0/0/1", resolved_attributes(result, inspection.lanes[9].items[0].attributes).at("value"));
 }
 
-TEST(TargetResolution, composesWithMusicDocument)
+TEST_F(TargetMusicComparison, composesWithMusicDocument)
 {
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-
-    const timeline::Document comparison = combine_with_music(document);
-
-    EXPECT_EQ(21, comparison.lane_count());
+    EXPECT_EQ(21, comparison_document().lane_count());
 }
 
-TEST_P(NumericTargetComparisonTest, evaluatesAtFrameOne)
+TEST_P(NumericTargetTest, evaluatesAtFrameOne)
 {
     const NumericTargetCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
 
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     ASSERT_EQ(timeline::size_cast(definition.lanes), timeline::size_cast(definition.frame_one));
     for (int component = 0; component < timeline::size_cast(definition.frame_one); ++component)
@@ -815,8 +923,6 @@ TEST_P(NumericTargetComparisonTest, evaluatesAtFrameOne)
 TEST_P(NumericTargetComparisonTest, matchesParAnimatorAfterComposition)
 {
     const NumericTargetCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::Document comparison = combine_with_music(document);
     const std::vector<std::string> expected =
         read_parameter_values("fixtures/gold-target-resolution.par", definition.parameter);
 
@@ -824,7 +930,7 @@ TEST_P(NumericTargetComparisonTest, matchesParAnimatorAfterComposition)
     for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
     {
         const std::vector<double> components = parse_components(expected[frame]);
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(comparison, frame);
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(comparison_document(), frame);
         ASSERT_EQ(timeline::size_cast(definition.lanes), timeline::size_cast(components));
         for (int component = 0; component < timeline::size_cast(components); ++component)
         {
@@ -834,16 +940,18 @@ TEST_P(NumericTargetComparisonTest, matchesParAnimatorAfterComposition)
 }
 
 INSTANTIATE_TEST_SUITE_P(
+    NumericTargets, NumericTargetTest, testing::ValuesIn(NUMERIC_TARGET_CASES), case_name<NumericTargetCase>);
+
+INSTANTIATE_TEST_SUITE_P(
     NumericTargets, NumericTargetComparisonTest, testing::ValuesIn(NUMERIC_TARGET_CASES), case_name<NumericTargetCase>);
 
-TEST_P(DiscreteTargetComparisonTest, evaluatesAtFrameOne)
+TEST_P(DiscreteTargetTest, evaluatesAtFrameOne)
 {
     const DiscreteTargetCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     const ResolvedAttributes attributes =
-        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes);
+        resolved_attributes(document(), inspection.lanes[definition.lane].items[0].attributes);
 
     EXPECT_EQ(definition.frame_one, attributes.at("value"));
 }
@@ -851,30 +959,29 @@ TEST_P(DiscreteTargetComparisonTest, evaluatesAtFrameOne)
 TEST_P(DiscreteTargetComparisonTest, matchesParAnimatorAfterComposition)
 {
     const DiscreteTargetCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::Document comparison = combine_with_music(document);
     const std::vector<std::string> expected =
         read_parameter_values("fixtures/gold-target-resolution.par", definition.parameter);
 
     ASSERT_EQ(5, timeline::size_cast(expected));
     for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
     {
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(comparison, frame);
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(comparison_document(), frame);
         const ResolvedAttributes attributes =
-            resolved_attributes(comparison, inspection.lanes[definition.lane].items[0].attributes);
+            resolved_attributes(comparison_document(), inspection.lanes[definition.lane].items[0].attributes);
         EXPECT_EQ(expected[frame], attributes.at("value"));
     }
 }
 
+INSTANTIATE_TEST_SUITE_P(
+    DiscreteTargets, DiscreteTargetTest, testing::ValuesIn(DISCRETE_TARGET_CASES), case_name<DiscreteTargetCase>);
+
 INSTANTIATE_TEST_SUITE_P(DiscreteTargets, DiscreteTargetComparisonTest, testing::ValuesIn(DISCRETE_TARGET_CASES),
     case_name<DiscreteTargetCase>);
 
-TEST(TargetResolution, hitTestRetainsComparisonIdentity)
+TEST_F(TargetMusicComparison, hitTestRetainsComparisonIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/target-resolution.json");
-    const timeline::Document comparison = combine_with_music(document);
-    const timeline::Layout layout(comparison,
-        timeline::Viewport(900, 1100, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(comparison_document(),
+        timeline::Viewport(900, 1100, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(140, 20, 40, 4));
     std::optional<timeline::HitResult> result;
     std::optional<timeline::DisplayId> expected;
@@ -898,7 +1005,7 @@ TEST(TargetResolution, hitTestRetainsComparisonIdentity)
     EXPECT_EQ(expected->item_id, result->id.item_id);
 }
 
-TEST(TargetResolution, rejectsInvalidFixture)
+TEST(TargetResolutionFailure, rejectsInvalidFixture)
 {
     const JsonImportResult result = import_timeline_json("fixtures/target-resolution-invalid.json");
 
@@ -973,7 +1080,7 @@ TEST_P(UnsupportedCatalogTypeTest, omitsUnsupportedComponentLanes)
 INSTANTIATE_TEST_SUITE_P(UnsupportedTypes, UnsupportedCatalogTypeTest, testing::ValuesIn(UNSUPPORTED_TYPE_CASES),
     case_name<NamedStringCase>);
 
-TEST_F(CatalogLoading, diagnosesComplexComponentBounds)
+TEST_F(CatalogAuditLoading, diagnosesComplexComponentBounds)
 {
     m_catalog["parameters"]["scalar"] = {
         {"type", "complex"}, {"description", "Complex"}, {"default-curve", "linear"}, {"max", 5}};
@@ -989,7 +1096,7 @@ TEST_F(CatalogLoading, diagnosesComplexComponentBounds)
     EXPECT_EQ(1, timeline::size_cast(result.diagnostics));
 }
 
-TEST_F(CatalogLoading, omitsComplexLanesAfterBoundsFailure)
+TEST_F(CatalogAuditLoading, omitsComplexLanesAfterBoundsFailure)
 {
     m_catalog["parameters"]["scalar"] = {
         {"type", "complex"}, {"description", "Complex"}, {"default-curve", "linear"}, {"max", 5}};
@@ -1036,7 +1143,7 @@ TEST_P(NestedCatalogMetadataTest, rejectsUnusedNestedDefinition)
 INSTANTIATE_TEST_SUITE_P(MalformedNestedMetadata, NestedCatalogMetadataTest, testing::ValuesIn(NESTED_METADATA_CASES),
     case_name<NamedJsonCase>);
 
-TEST_F(CatalogLoading, rejectsEmptyCatalogList)
+TEST_F(CatalogAuditLoading, rejectsEmptyCatalogList)
 {
     const JsonImportResult result = import_catalogs({});
 
@@ -1064,7 +1171,7 @@ TEST_P(DuplicateCatalogSectionTest, rejectsDuplicateNames)
 INSTANTIATE_TEST_SUITE_P(
     NamedSections, DuplicateCatalogSectionTest, testing::ValuesIn(DUPLICATE_SECTION_CASES), case_name<NamedStringCase>);
 
-TEST_F(CatalogLoading, composesDistinctValidCatalogs)
+TEST_F(CatalogAuditLoading, composesDistinctValidCatalogs)
 {
     const JsonImportResult result = import_distinct_catalogs();
 
@@ -1074,7 +1181,7 @@ TEST_F(CatalogLoading, composesDistinctValidCatalogs)
     EXPECT_EQ(9, result.document->lane_count());
 }
 
-TEST_F(CatalogLoading, preservesMetadataFromFirstCatalogAfterComposition)
+TEST_F(CatalogAuditLoading, preservesMetadataFromFirstCatalogAfterComposition)
 {
     const JsonImportResult result = import_distinct_catalogs();
     const timeline::Document document = *result.document;
@@ -1086,7 +1193,7 @@ TEST_F(CatalogLoading, preservesMetadataFromFirstCatalogAfterComposition)
     EXPECT_EQ(m_catalog.at("parameters").at("position"), metadata);
 }
 
-TEST_F(CatalogLoading, evaluatesFirstCatalogAfterComposition)
+TEST_F(CatalogAuditLoading, evaluatesFirstCatalogAfterComposition)
 {
     const JsonImportResult result = import_distinct_catalogs();
 
@@ -1134,11 +1241,9 @@ TEST(CatalogCompatibility, importsValidCatalogComposition)
     EXPECT_EQ(9, result.document->lane_count());
 }
 
-TEST(CatalogCompatibility, evaluatesValidCatalogComposition)
+TEST_F(CatalogLoadingDocument, evaluatesValidCatalogComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     EXPECT_DOUBLE_EQ(2, *inspection.lanes[0].value);
 }
@@ -1184,9 +1289,8 @@ TEST(CatalogCompatibility, ownsTrackDefinitionAfterImportResultRelease)
 TEST_P(CatalogComponentTest, evaluatesAtFrameOne)
 {
     const ComponentCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
 
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     EXPECT_DOUBLE_EQ(definition.value, *inspection.lanes[definition.lane].value);
 }
@@ -1194,11 +1298,10 @@ TEST_P(CatalogComponentTest, evaluatesAtFrameOne)
 TEST_P(CatalogComponentTest, preservesComponentMetadata)
 {
     const ComponentCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     const ResolvedAttributes attributes =
-        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes);
+        resolved_attributes(document(), inspection.lanes[definition.lane].items[0].attributes);
 
     EXPECT_EQ(std::to_string(definition.component), attributes.at("component"));
     EXPECT_EQ(std::to_string(definition.arity), attributes.at("arity"));
@@ -1207,10 +1310,9 @@ TEST_P(CatalogComponentTest, preservesComponentMetadata)
 TEST_P(CatalogComponentTest, retainsOwnedCatalogDefinition)
 {
     const ComponentCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
     const ResolvedAttributes attributes =
-        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes);
+        resolved_attributes(document(), inspection.lanes[definition.lane].items[0].attributes);
 
     const Json catalog = Json::parse(attributes.at("catalog-definition"));
 
@@ -1220,10 +1322,9 @@ TEST_P(CatalogComponentTest, retainsOwnedCatalogDefinition)
 TEST_P(CatalogComponentTest, retainsOwnedTrackDefinition)
 {
     const ComponentCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
     const ResolvedAttributes attributes =
-        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes);
+        resolved_attributes(document(), inspection.lanes[definition.lane].items[0].attributes);
 
     const Json track = Json::parse(attributes.at("track-definition"));
 
@@ -1233,49 +1334,36 @@ TEST_P(CatalogComponentTest, retainsOwnedTrackDefinition)
 INSTANTIATE_TEST_SUITE_P(
     Components, CatalogComponentTest, testing::ValuesIn(COMPONENT_CASES), case_name<ComponentCase>);
 
-TEST(CatalogCompatibility, exposesRoundedIntegerOutput)
+TEST_F(CatalogLoadingDocument, exposesRoundedIntegerOutput)
 {
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     EXPECT_DOUBLE_EQ(101, *inspection.lanes[8].output_value);
 }
 
-TEST(CatalogCompatibility, omitsOutputForOrdinaryComponent)
+TEST_F(CatalogLoadingDocument, omitsOutputForOrdinaryComponent)
 {
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), 1);
 
     EXPECT_FALSE(inspection.lanes[0].output_value);
 }
 
-TEST(CatalogCompatibility, composesWithMusicDocument)
+TEST_F(CatalogMusicComparison, composesWithMusicDocument)
 {
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(13, combined.lane_count());
+    EXPECT_EQ(13, comparison_document().lane_count());
 }
 
-TEST(CatalogCompatibility, preservesValuesAfterDocumentComposition)
+TEST_F(CatalogMusicComparison, preservesValuesAfterDocumentComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-    const timeline::Document combined = combine_with_music(document);
-
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(combined, 1);
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(comparison_document(), 1);
 
     EXPECT_DOUBLE_EQ(4, *inspection.lanes[1].value);
 }
 
-TEST(CatalogCompatibility, hitTestRetainsImportedIdentity)
+TEST_F(CatalogMusicComparison, hitTestRetainsImportedIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::Layout layout(combined,
-        timeline::Viewport(600, 400, document.frame_grid()->offset(), document.frame_grid()->end_time()),
+    const timeline::Layout layout(comparison_document(),
+        timeline::Viewport(600, 400, document().frame_grid()->offset(), document().frame_grid()->end_time()),
         timeline::LayoutMetrics(100, 20, 40, 4));
     std::optional<timeline::HitResult> result;
     std::optional<timeline::DisplayId> expected;
@@ -1299,24 +1387,20 @@ TEST(CatalogCompatibility, hitTestRetainsImportedIdentity)
     EXPECT_EQ(expected->item_id, result->id.item_id);
 }
 
-TEST(CatalogCompatibility, reportsEveryInvalidSourceTrack)
+TEST_F(CatalogAuditResult, reportsEveryInvalidSourceTrack)
 {
-    const JsonImportResult result = import_timeline_json("fixtures/catalog-audit-invalid.json");
-
-    EXPECT_FALSE(result.succeeded());
-    EXPECT_EQ(16, timeline::size_cast(result.diagnostics));
+    EXPECT_FALSE(import_result().succeeded());
+    EXPECT_EQ(16, timeline::size_cast(import_result().diagnostics));
 }
 
 TEST_P(CatalogSourceDiagnosticTest, identifiesInvalidSourceTrack)
 {
     const DiagnosticCase &definition = GetParam();
 
-    const JsonImportResult result = import_timeline_json("fixtures/catalog-audit-invalid.json");
-
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.index);
+    ASSERT_GT(timeline::size_cast(import_result().diagnostics), definition.index);
     EXPECT_NE(std::string::npos,
-        result.diagnostics[definition.index].find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.index].find(definition.message));
+        import_result().diagnostics[definition.index].find("animation-" + std::to_string(definition.index) + ":"));
+    EXPECT_NE(std::string::npos, import_result().diagnostics[definition.index].find(definition.message));
 }
 
 INSTANTIATE_TEST_SUITE_P(SourceTrackFailures, CatalogSourceDiagnosticTest, testing::ValuesIn(SOURCE_DIAGNOSTIC_CASES),
@@ -1325,7 +1409,6 @@ INSTANTIATE_TEST_SUITE_P(SourceTrackFailures, CatalogSourceDiagnosticTest, testi
 TEST_P(CatalogReferenceTest, matchesParAnimatorAtEveryFrame)
 {
     const ReferenceCase &definition = GetParam();
-    const timeline::Document document = import_clean_document("fixtures/catalog-loading.json");
     const std::vector<std::string> expected =
         read_parameter_values("fixtures/gold-catalog-audit.par", definition.parameter);
 
@@ -1333,7 +1416,7 @@ TEST_P(CatalogReferenceTest, matchesParAnimatorAtEveryFrame)
     for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
     {
         const std::vector<double> components = parse_components(expected[frame]);
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(document(), frame);
         for (int component = 0; component < timeline::size_cast(components); ++component)
         {
             const double actual = definition.output ? *inspection.lanes[definition.first_lane + component].output_value
