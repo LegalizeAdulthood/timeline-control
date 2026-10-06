@@ -5,12 +5,12 @@
 `timeline-wx` presents a
 [`timeline-core`](../timeline/ReadMe.md) document as a native wxWidgets
 control. It translates wxWidgets input, sizing, fonts, colors, focus, and
-scrollbars into toolkit-neutral core operations, then renders the resulting
-core display list.
+scrollbars into toolkit-neutral core operations, then renders the
+resulting core display list.
 
-The adapter contains no ParAnimator or par-beatdown semantics. Applications
-construct or import a `timeline::Document` elsewhere and give ownership of
-that document to the control.
+The adapter contains no ParAnimator or par-beatdown semantics.
+Applications construct or import a `timeline::Document` elsewhere and
+give ownership of that document to the control.
 
 ## Data Flow
 
@@ -56,9 +56,9 @@ wxWidgets naming conventions.
 
 ## Control Ownership
 
-`wxTimelineControl` derives from `wxPanel`. A newly constructed control has
-no document and displays an empty-state message. `set_document` takes a
-`timeline::Document` by value and moves it into the control.
+`wxTimelineControl` derives from `wxPanel`. A newly constructed control
+has no document and displays an empty-state message. `set_document` takes
+a `timeline::Document` by value and moves it into the control.
 
 Replacing the document also creates fresh core state:
 
@@ -68,8 +68,8 @@ Replacing the document also creates fresh core state:
 - New layout, viewport, hit-test, hover, and metric state.
 
 The control therefore owns the complete display session for its document.
-Callers may inspect that state through optional-reference accessors for the
-document, interaction, frame inspection, and current hit result.
+Callers may inspect that state through optional-reference accessors for
+the document, interaction, frame inspection, and current hit result.
 
 ## Layout And Painting
 
@@ -135,10 +135,9 @@ Applications use the inherited `SetBackgroundColour` and
 and focus state. `set_style_color` overrides any individual role with a
 `wxColour`, while `style_color` returns the effective override or default.
 
-The renderer API has three levels:
-
-- `draw_timeline_display_list` draws the display list in paint order.
-- `draw_timeline_primitive` draws one core primitive.
+`draw_timeline_display_list` implements the core `DisplayListRenderer`
+port. The core traversal resolves text and sends primitives to it in paint
+order.
 
 Lines, rectangles, text, markers, polylines, and source-color swatches map
 directly to wxWidgets drawing primitives. The renderer applies an origin,
@@ -152,9 +151,9 @@ Enabling `TIMELINE_CONTROL_WITH_CAIRO` adds the Cairo sources and
 dependency to `timeline-wx`. It requires wxWidgets support.
 
 `wxCairoTimeline` derives from `wxTimelineControl` and overrides only the
-display-list rendering hook. `set_cairo_enabled` switches between Cairo and
-the base native renderer while preserving the owned document, navigation,
-interaction, inspection, and layout state.
+display-list rendering hook. `set_cairo_enabled` switches between Cairo
+and the base native renderer while preserving the owned document,
+navigation, interaction, inspection, and layout state.
 
 The Cairo renderer creates a device-scaled image surface for the viewport,
 clips drawing, and renders the same ordered core primitives with
@@ -163,9 +162,9 @@ wx font, so layout and glyph selection remain consistent with the
 control's metrics.
 
 The surface is converted from premultiplied Cairo pixels to a `wxImage`,
-then presented as a scale-aware `wxBitmap`. If surface creation, rendering,
-image conversion, or bitmap creation fails, drawing falls back to the
-complete native wx display list.
+then presented as a scale-aware `wxBitmap`. If surface creation,
+rendering, image conversion, or bitmap creation fails, drawing falls back
+to the complete native wx display list.
 
 The Cairo public functions are:
 
@@ -189,9 +188,9 @@ resources.
 
 Tests exercise 100%, 125%, 150%, and 200% scaling, repeated font and theme
 changes, resizing, renderer switching, document replacement, and control
-destruction. Non-Windows font behavior still requires manual verification.
-Linux CI uses Xvfb and xauth for native control tests; image checks require
-no GPU.
+destruction. Non-Windows font behavior still requires manual
+verification. Linux CI uses Xvfb and xauth for native control tests; image
+checks require no GPU.
 
 See the
 [Cairo image-surface API](https://www.cairographics.org/manual/cairo-Image-Surfaces.html)

@@ -4,9 +4,9 @@
 
 #include <wx/app.h>
 
-/// Native application lifetime for Cairo renderer and wx control checks.
+/// Native application lifetime for wx control and renderer tests.
 ///
-class CairoTestApp : public wxApp
+class WxTimelineTestApp : public wxApp
 {
 public:
     bool OnInit() override
@@ -15,7 +15,7 @@ public:
     }
 };
 
-wxIMPLEMENT_APP_NO_MAIN(CairoTestApp);
+wxIMPLEMENT_APP_NO_MAIN(WxTimelineTestApp);
 
 int main(int argc, char **argv)
 {

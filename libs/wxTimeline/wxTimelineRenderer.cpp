@@ -2,6 +2,7 @@
 
 #include <wxTimeline/wxTimelineRenderer.h>
 
+#include <timeline/DisplayListRenderer.h>
 #include <timeline/size_cast.h>
 
 #include <wx/brush.h>
@@ -11,8 +12,7 @@
 
 #include <algorithm>
 #include <string_view>
-#include <type_traits>
-#include <variant>
+#include <vector>
 
 namespace
 {
@@ -23,6 +23,35 @@ wxColour mix(const wxColour &first, const wxColour &second, int weight)
         (first.Green() * weight + second.Green() * (100 - weight)) / 100,
         (first.Blue() * weight + second.Blue() * (100 - weight)) / 100);
 }
+
+/// Adapts toolkit-neutral display-list operations to a native wxDC.
+///
+class WxDisplayListRenderer final : public timeline::DisplayListRenderer
+{
+public:
+    WxDisplayListRenderer(wxDC &dc, wxPoint origin, const wxTimelinePalette &palette,
+        const wxTimelineStyleColors &style_colors, int stroke_width, bool focused);
+
+    void draw_line(const timeline::Line &line) override;
+    void fill_rectangle(const timeline::Rectangle &rectangle) override;
+    void draw_text(const timeline::Text &text, std::string_view value) override;
+    void draw_marker(const timeline::Marker &marker) override;
+    void draw_polyline(const timeline::Polyline &polyline) override;
+    void draw_swatch(const timeline::Swatch &swatch) override;
+
+private:
+    wxColour colour(timeline::StyleRole style) const
+    {
+        return timeline_style_colour(style, m_palette, m_style_colors, m_focused);
+    }
+
+    wxDC &m_dc;
+    wxPoint m_origin;
+    const wxTimelinePalette &m_palette;
+    const wxTimelineStyleColors &m_style_colors;
+    int m_stroke_width;
+    bool m_focused;
+};
 
 } // namespace
 
@@ -79,6 +108,76 @@ wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalett
     return palette.foreground;
 }
 
+namespace
+{
+
+WxDisplayListRenderer::WxDisplayListRenderer(wxDC &dc, wxPoint origin, const wxTimelinePalette &palette,
+    const wxTimelineStyleColors &style_colors, int stroke_width, bool focused) :
+    m_dc(dc),
+    m_origin(origin),
+    m_palette(palette),
+    m_style_colors(style_colors),
+    m_stroke_width(std::max(1, stroke_width)),
+    m_focused(focused)
+{
+}
+
+void WxDisplayListRenderer::draw_line(const timeline::Line &line)
+{
+    m_dc.SetPen(wxPen(colour(line.style), m_stroke_width));
+    m_dc.DrawLine(m_origin.x + line.x1, m_origin.y + line.y1, m_origin.x + line.x2, m_origin.y + line.y2);
+}
+
+void WxDisplayListRenderer::fill_rectangle(const timeline::Rectangle &rectangle)
+{
+    m_dc.SetPen(*wxTRANSPARENT_PEN);
+    m_dc.SetBrush(wxBrush(colour(rectangle.style)));
+    m_dc.DrawRectangle(m_origin.x + rectangle.x, m_origin.y + rectangle.y, rectangle.width, rectangle.height);
+}
+
+void WxDisplayListRenderer::draw_text(const timeline::Text &text, std::string_view value)
+{
+    m_dc.SetTextForeground(colour(text.style));
+    m_dc.DrawText(wxString(value.data(), value.size()), m_origin.x + text.x, m_origin.y + text.y);
+}
+
+void WxDisplayListRenderer::draw_marker(const timeline::Marker &marker)
+{
+    m_dc.SetPen(*wxTRANSPARENT_PEN);
+    m_dc.SetBrush(wxBrush(colour(marker.style)));
+    m_dc.DrawRectangle(m_origin.x + marker.x, m_origin.y + marker.y, marker.width, marker.height);
+}
+
+void WxDisplayListRenderer::draw_polyline(const timeline::Polyline &polyline)
+{
+    std::vector<wxPoint> points;
+    points.reserve(polyline.points.size());
+    for (const timeline::Point &point : polyline.points)
+    {
+        points.emplace_back(m_origin.x + point.x, m_origin.y + point.y);
+    }
+    if (timeline::size_cast(points) >= 2)
+    {
+        m_dc.SetPen(wxPen(colour(polyline.style), 2 * m_stroke_width));
+        m_dc.DrawLines(timeline::size_cast(points), points.data());
+    }
+}
+
+void WxDisplayListRenderer::draw_swatch(const timeline::Swatch &swatch)
+{
+    m_dc.SetPen(*wxTRANSPARENT_PEN);
+    wxColour fill = colour(swatch.style);
+    if (m_style_colors.find(swatch.style) == m_style_colors.end())
+    {
+        fill = wxColour(static_cast<unsigned char>(swatch.color.red()),
+            static_cast<unsigned char>(swatch.color.green()), static_cast<unsigned char>(swatch.color.blue()));
+    }
+    m_dc.SetBrush(wxBrush(fill));
+    m_dc.DrawRectangle(m_origin.x + swatch.x, m_origin.y + swatch.y, swatch.width, swatch.height);
+}
+
+} // namespace
+
 void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin)
 {
     const wxTimelinePalette palette{
@@ -95,72 +194,6 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
 void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,
     const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors, int stroke_width, bool focused)
 {
-    stroke_width = std::max(1, stroke_width);
-    for (const timeline::Primitive &primitive : display_list.primitives())
-    {
-        draw_timeline_primitive(
-            dc, primitive, origin, display_list.strings(), palette, style_colors, stroke_width, focused);
-    }
-}
-
-void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
-    const timeline::StringTable &strings, const wxTimelinePalette &palette, int stroke_width, bool focused)
-{
-    draw_timeline_primitive(dc, primitive, origin, strings, palette, wxTimelineStyleColors{}, stroke_width, focused);
-}
-
-void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
-    const timeline::StringTable &strings, const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors,
-    int stroke_width, bool focused)
-{
-    stroke_width = std::max(1, stroke_width);
-    std::visit(
-        [&](const auto &value)
-        {
-            using Value = std::decay_t<decltype(value)>;
-            const wxColour colour = timeline_style_colour(value.style, palette, style_colors, focused);
-            const bool overridden = style_colors.find(value.style) != style_colors.end();
-            if constexpr (std::is_same_v<Value, timeline::Line>)
-            {
-                dc.SetPen(wxPen(colour, stroke_width));
-                dc.DrawLine(origin.x + value.x1, origin.y + value.y1, origin.x + value.x2, origin.y + value.y2);
-            }
-            else if constexpr (std::is_same_v<Value, timeline::Rectangle> || std::is_same_v<Value, timeline::Marker>)
-            {
-                dc.SetPen(*wxTRANSPARENT_PEN);
-                dc.SetBrush(wxBrush(colour));
-                dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
-            }
-            else if constexpr (std::is_same_v<Value, timeline::Swatch>)
-            {
-                dc.SetPen(*wxTRANSPARENT_PEN);
-                const wxColour fill = overridden ? colour
-                                                 : wxColour(static_cast<unsigned char>(value.color.red()),
-                                                       static_cast<unsigned char>(value.color.green()),
-                                                       static_cast<unsigned char>(value.color.blue()));
-                dc.SetBrush(wxBrush(fill));
-                dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
-            }
-            else if constexpr (std::is_same_v<Value, timeline::Polyline>)
-            {
-                std::vector<wxPoint> points{};
-                points.reserve(value.points.size());
-                for (const timeline::Point &point : value.points)
-                {
-                    points.emplace_back(origin.x + point.x, origin.y + point.y);
-                }
-                if (timeline::size_cast(points) >= 2)
-                {
-                    dc.SetPen(wxPen(colour, 2 * stroke_width));
-                    dc.DrawLines(timeline::size_cast(points), points.data());
-                }
-            }
-            else
-            {
-                dc.SetTextForeground(colour);
-                const std::string_view text = strings.lookup(value.value);
-                dc.DrawText(wxString(text.data(), text.size()), origin.x + value.x, origin.y + value.y);
-            }
-        },
-        primitive);
+    WxDisplayListRenderer renderer(dc, origin, palette, style_colors, stroke_width, focused);
+    timeline::render_display_list(renderer, display_list);
 }
