@@ -304,16 +304,6 @@ timeline::Document import_clean_document(const std::filesystem::path &path)
     return *import_clean_result(path).document;
 }
 
-timeline::Document import_partial_document(const std::filesystem::path &path)
-{
-    const JsonImportResult result = import_timeline_json(path);
-    if (!result.succeeded())
-    {
-        throw std::runtime_error("partial test fixture did not produce a document");
-    }
-    return *result.document;
-}
-
 timeline::FrameInspection inspect_at(const timeline::Document &document, int frame)
 {
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
@@ -534,46 +524,132 @@ class IntegerRoundingTickTest : public ParameterizedIntegerDocumentTest<Rounding
 {
 };
 
+/// Owns the integer policy document for a parameterized test case.
+///
+template <typename Case>
+class ParameterizedPolicyDocumentTest : public testing::TestWithParam<Case>
+{
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(policy_document());
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
+};
+
+/// Owns a parameter-selected inspection of the integer policy document.
+///
+template <typename Case>
+class ParameterizedPolicyInspectionTest : public ParameterizedPolicyDocumentTest<Case>
+{
+protected:
+    void SetUp() override
+    {
+        ParameterizedPolicyDocumentTest<Case>::SetUp();
+        m_inspection.emplace(inspect_at(this->document(), this->definition().frame));
+    }
+    const timeline::FrameInspection &inspection() const
+    {
+        return *m_inspection;
+    }
+
+private:
+    std::optional<timeline::FrameInspection> m_inspection;
+};
+
 /// Exercises one extrapolation or interpolation policy.
 ///
-class IntegerPolicyTest : public testing::TestWithParam<PolicyCase>
+class IntegerPolicyTest : public ParameterizedPolicyDocumentTest<PolicyCase>
 {
 };
 
-/// Exercises rounding of one fractional policy value.
+/// Owns the shared frame-three inspection for policy rounding checks.
 ///
-class IntegerPolicyRoundingTest : public testing::TestWithParam<PolicyRoundingCase>
+class IntegerPolicyRoundingTest : public ParameterizedPolicyDocumentTest<PolicyRoundingCase>
 {
+protected:
+    void SetUp() override
+    {
+        ParameterizedPolicyDocumentTest<PolicyRoundingCase>::SetUp();
+        m_inspection.emplace(inspect_at(document(), 3));
+    }
+    const timeline::FrameInspection &inspection() const
+    {
+        return *m_inspection;
+    }
+
+private:
+    std::optional<timeline::FrameInspection> m_inspection;
 };
 
 /// Exercises an omitted output outside its authored key range.
 ///
-class IntegerGapTest : public testing::TestWithParam<FrameOutputCase>
+class IntegerGapTest : public ParameterizedPolicyInspectionTest<FrameOutputCase>
 {
 };
 
 /// Exercises source-value extrapolation outside its authored key range.
 ///
-class IntegerBaseTest : public testing::TestWithParam<FrameOutputCase>
+class IntegerBaseTest : public ParameterizedPolicyInspectionTest<FrameOutputCase>
 {
 };
 
 /// Exercises repeated and reflected output beyond the authored key range.
 ///
-class IntegerExtrapolationTest : public testing::TestWithParam<FrameOutputCase>
+class IntegerExtrapolationTest : public ParameterizedPolicyInspectionTest<FrameOutputCase>
 {
 };
 
 /// Exercises hold and step output values.
 ///
-class IntegerHeldValueTest : public testing::TestWithParam<FrameOutputCase>
+class IntegerHeldValueTest : public ParameterizedPolicyInspectionTest<FrameOutputCase>
 {
 };
 
-/// Exercises source arithmetic near a halfway rounding boundary.
+/// Owns the boundary document and its shared frame-fifteen inspection.
 ///
 class IntegerArithmeticBoundaryTest : public testing::TestWithParam<ArithmeticBoundaryCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(boundary_document());
+        m_inspection.emplace(inspect_at(*m_document, 15));
+    }
+    const ArithmeticBoundaryCase &definition() const
+    {
+        return GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+    const timeline::FrameInspection &inspection() const
+    {
+        return *m_inspection;
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
+    std::optional<timeline::FrameInspection> m_inspection;
 };
 
 /// Exercises one frame of a held categorical value.
@@ -582,10 +658,44 @@ class IntegerEnumFrameTest : public ParameterizedIntegerDocumentTest<EnumFrameCa
 {
 };
 
-/// Exercises one malformed integer-output track and its diagnostic.
+/// Owns one partial integer-output import and its retained document.
+///
+class IntegerOutputPartialImportTest : public testing::Test
+{
+protected:
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+
+private:
+    JsonImportResult m_result{import_timeline_json("fixtures/integer-output-partial.json")};
+};
+
+/// Owns the partial import used for one malformed-track diagnostic.
 ///
 class IntegerOutputDiagnosticTest : public testing::TestWithParam<DiagnosticCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_result = import_timeline_json("fixtures/integer-output-partial.json");
+    }
+    const DiagnosticCase &definition() const
+    {
+        return GetParam();
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
 } // namespace
@@ -773,13 +883,11 @@ TEST(IntegerOutput, rejectsFractionalIntegerKeys)
 
 TEST_P(IntegerPolicyTest, matchesSourceGolden)
 {
-    const PolicyCase &definition = GetParam();
-    const timeline::Document document = policy_document();
-    const int frame_count = document.frame_grid()->frame_count();
+    const PolicyCase &test_case = definition();
 
-    const std::vector<std::optional<double>> actual = lane_output_values(document, definition.lane);
+    const std::vector<std::optional<double>> actual = lane_output_values(document(), test_case.lane);
     const std::vector<std::optional<double>> expected =
-        golden_values("fixtures/gold-integer-output-policies.par", definition.parameter, 0, frame_count);
+        golden_values("fixtures/gold-integer-output-policies.par", test_case.parameter, 0, frame_grid().frame_count());
 
     EXPECT_EQ(expected, actual);
 }
@@ -788,24 +896,22 @@ INSTANTIATE_TEST_SUITE_P(Policies, IntegerPolicyTest, testing::ValuesIn(POLICY_C
 
 TEST_P(IntegerPolicyRoundingTest, retainsFractionalValue)
 {
-    const PolicyRoundingCase &definition = GetParam();
-    const timeline::Document document = policy_document();
+    const PolicyRoundingCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, 3).lanes[definition.lane].value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].value;
 
     ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(definition.fractional, *value);
+    EXPECT_DOUBLE_EQ(test_case.fractional, *value);
 }
 
 TEST_P(IntegerPolicyRoundingTest, roundsOutput)
 {
-    const PolicyRoundingCase &definition = GetParam();
-    const timeline::Document document = policy_document();
+    const PolicyRoundingCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, 3).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].output_value;
 
     ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(definition.rounded, *value);
+    EXPECT_DOUBLE_EQ(test_case.rounded, *value);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -813,36 +919,33 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(IntegerGapTest, omitsOutputOutsideKeyRange)
 {
-    const FrameOutputCase &definition = GetParam();
-    const timeline::Document document = policy_document();
+    const FrameOutputCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].output_value;
 
-    EXPECT_EQ(definition.expected, value);
+    EXPECT_EQ(test_case.expected, value);
 }
 
 INSTANTIATE_TEST_SUITE_P(Gaps, IntegerGapTest, testing::ValuesIn(GAP_CASES), case_name<FrameOutputCase>);
 
 TEST_P(IntegerBaseTest, restoresSourceOutputOutsideKeyRange)
 {
-    const FrameOutputCase &definition = GetParam();
-    const timeline::Document document = policy_document();
+    const FrameOutputCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].output_value;
 
-    EXPECT_EQ(definition.expected, value);
+    EXPECT_EQ(test_case.expected, value);
 }
 
 INSTANTIATE_TEST_SUITE_P(BaseValues, IntegerBaseTest, testing::ValuesIn(BASE_CASES), case_name<FrameOutputCase>);
 
 TEST_P(IntegerExtrapolationTest, producesExpectedOutputOutsideKeyRange)
 {
-    const FrameOutputCase &definition = GetParam();
-    const timeline::Document document = policy_document();
+    const FrameOutputCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].output_value;
 
-    EXPECT_EQ(definition.expected, value);
+    EXPECT_EQ(test_case.expected, value);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -850,65 +953,53 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(IntegerHeldValueTest, preservesHeldOutput)
 {
-    const FrameOutputCase &definition = GetParam();
-    const timeline::Document document = policy_document();
+    const FrameOutputCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, definition.frame).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].output_value;
 
-    EXPECT_EQ(definition.expected, value);
+    EXPECT_EQ(test_case.expected, value);
 }
 
 INSTANTIATE_TEST_SUITE_P(HeldValues, IntegerHeldValueTest, testing::ValuesIn(HELD_CASES), case_name<FrameOutputCase>);
 
-TEST(IntegerOutputDiagnostics, reportsEveryMalformedTrack)
+TEST_F(IntegerOutputPartialImportTest, reportsEveryMalformedTrack)
 {
-    const JsonImportResult result = import_timeline_json("fixtures/integer-output-partial.json");
-
-    const int count = timeline::size_cast(result.diagnostics);
+    const int count = timeline::size_cast(import_result().diagnostics);
 
     EXPECT_EQ(6, count);
 }
 
-TEST(IntegerOutputDiagnostics, retainsOnlyValidTrack)
+TEST_F(IntegerOutputPartialImportTest, retainsOnlyValidTrack)
 {
-    const timeline::Document document = import_partial_document("fixtures/integer-output-partial.json");
-
-    const int count = document.lane_count();
+    const int count = document().lane_count();
 
     EXPECT_EQ(1, count);
 }
 
-TEST(IntegerOutputDiagnostics, retainsExpectedValidTrack)
+TEST_F(IntegerOutputPartialImportTest, retainsExpectedValidTrack)
 {
-    const timeline::Document document = import_partial_document("fixtures/integer-output-partial.json");
-    if (document.lane_count() != 1)
-    {
-        throw std::runtime_error("partial fixture has an unexpected lane count");
-    }
+    ASSERT_EQ(1, document().lane_count());
 
-    const std::string_view identity = document.strings().lookup(document.lanes()[0].id());
+    const std::string_view identity = document().strings().lookup(document().lanes()[0].id());
 
     EXPECT_EQ("animation-6", identity);
 }
 
-TEST(IntegerOutputDiagnostics, leavesValidDoubleOutputUnrounded)
+TEST_F(IntegerOutputPartialImportTest, leavesValidDoubleOutputUnrounded)
 {
-    const timeline::Document document = import_partial_document("fixtures/integer-output-partial.json");
-
-    const std::optional<double> output = inspect_at(document, 1).lanes[0].output_value;
+    const std::optional<double> output = inspect_at(document(), 1).lanes[0].output_value;
 
     EXPECT_FALSE(output);
 }
 
 TEST_P(IntegerOutputDiagnosticTest, identifiesMalformedForm)
 {
-    const DiagnosticCase &definition = GetParam();
-    const JsonImportResult result = import_timeline_json("fixtures/integer-output-partial.json");
+    const DiagnosticCase &test_case = definition();
 
-    const std::string &diagnostic = diagnostic_at(result, definition.index);
+    const std::string &diagnostic = diagnostic_at(import_result(), test_case.index);
 
-    EXPECT_NE(std::string::npos, diagnostic.find("animation-" + std::to_string(definition.index) + ":"));
-    EXPECT_NE(std::string::npos, diagnostic.find(definition.message));
+    EXPECT_NE(std::string::npos, diagnostic.find("animation-" + std::to_string(test_case.index) + ":"));
+    EXPECT_NE(std::string::npos, diagnostic.find(test_case.message));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -916,44 +1007,40 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(IntegerArithmeticBoundaryTest, matchesSourceGolden)
 {
-    const ArithmeticBoundaryCase &definition = GetParam();
-    const timeline::Document document = boundary_document();
-    const int frame_count = document.frame_grid()->frame_count();
+    const ArithmeticBoundaryCase &test_case = definition();
 
-    const std::vector<std::optional<double>> actual = lane_output_values(document, definition.lane);
+    const std::vector<std::optional<double>> actual = lane_output_values(document(), test_case.lane);
     const std::vector<std::optional<double>> expected =
-        golden_values("fixtures/gold-integer-output-boundary.par", definition.parameter, 0, frame_count);
+        golden_values("fixtures/gold-integer-output-boundary.par", test_case.parameter, 0, frame_grid().frame_count());
 
     EXPECT_EQ(expected, actual);
 }
 
 TEST_P(IntegerArithmeticBoundaryTest, preservesSourceSideOfHalfway)
 {
-    const ArithmeticBoundaryCase &definition = GetParam();
-    const timeline::Document document = boundary_document();
+    const ArithmeticBoundaryCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, 15).lanes[definition.lane].value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].value;
 
     ASSERT_TRUE(value);
-    if (definition.side == HalfwaySide::BELOW)
+    if (test_case.side == HalfwaySide::BELOW)
     {
-        EXPECT_LT(*value, definition.halfway);
+        EXPECT_LT(*value, test_case.halfway);
     }
     else
     {
-        EXPECT_GT(*value, definition.halfway);
+        EXPECT_GT(*value, test_case.halfway);
     }
 }
 
 TEST_P(IntegerArithmeticBoundaryTest, roundsSourceComputedValue)
 {
-    const ArithmeticBoundaryCase &definition = GetParam();
-    const timeline::Document document = boundary_document();
+    const ArithmeticBoundaryCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, 15).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspection().lanes[test_case.lane].output_value;
 
     ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(definition.rounded, *value);
+    EXPECT_DOUBLE_EQ(test_case.rounded, *value);
 }
 
 INSTANTIATE_TEST_SUITE_P(Boundaries, IntegerArithmeticBoundaryTest, testing::ValuesIn(ARITHMETIC_BOUNDARY_CASES),
