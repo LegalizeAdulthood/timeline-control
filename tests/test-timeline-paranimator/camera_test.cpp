@@ -528,6 +528,187 @@ private:
     timeline::Layout m_layout;
 };
 
+/// Fixed camera fixture that owns a clean imported document.
+///
+class FixedCameraImportTest : public testing::Test
+{
+protected:
+    explicit FixedCameraImportTest(const std::filesystem::path &fixture) :
+        m_document(import_clean_document(fixture))
+    {
+    }
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *m_document.frame_grid();
+    }
+
+private:
+    timeline::Document m_document;
+};
+
+/// Fixed camera fixture with a music-first composed document.
+///
+class FixedCameraCompositionTest : public FixedCameraImportTest
+{
+protected:
+    explicit FixedCameraCompositionTest(const std::filesystem::path &fixture) :
+        FixedCameraImportTest(fixture),
+        m_combined_document(
+            timeline::combine_documents(import_clean_document("fixtures/beat-keys/rms.beat-keys.json"), document()))
+    {
+    }
+    const timeline::Document &combined_document() const
+    {
+        return m_combined_document;
+    }
+
+private:
+    timeline::Document m_combined_document;
+};
+
+/// Imported analytic-eye camera document.
+///
+class AnalyticEyeTest : public FixedCameraImportTest
+{
+protected:
+    AnalyticEyeTest() :
+        FixedCameraImportTest("fixtures/camera2d-eye-center-mag.json")
+    {
+    }
+};
+
+/// Analytic-eye camera document with its standard layout.
+///
+class AnalyticEyeLayoutTest : public AnalyticEyeTest
+{
+protected:
+    AnalyticEyeLayoutTest() :
+        m_layout(document(), timeline::Viewport(500, 460, frame_grid().offset(), frame_grid().end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4))
+    {
+    }
+    const timeline::Layout &layout() const
+    {
+        return m_layout;
+    }
+
+private:
+    timeline::Layout m_layout;
+};
+
+/// Imported eye-variant camera document.
+///
+class EyeVariantsTest : public FixedCameraImportTest
+{
+protected:
+    EyeVariantsTest() :
+        FixedCameraImportTest("fixtures/camera2d-eye-variants.json")
+    {
+    }
+};
+
+/// Eye-variant camera document composed after music data.
+///
+class EyeVariantsCompositionTest : public FixedCameraCompositionTest
+{
+protected:
+    EyeVariantsCompositionTest() :
+        FixedCameraCompositionTest("fixtures/camera2d-eye-variants.json")
+    {
+    }
+};
+
+/// Imported keyed-variant camera document.
+///
+class KeyedVariantsTest : public FixedCameraImportTest
+{
+protected:
+    KeyedVariantsTest() :
+        FixedCameraImportTest("fixtures/camera2d-keyed-variants.json")
+    {
+    }
+};
+
+/// Keyed-variant camera document composed after music data.
+///
+class KeyedVariantsCompositionTest : public FixedCameraCompositionTest
+{
+protected:
+    KeyedVariantsCompositionTest() :
+        FixedCameraCompositionTest("fixtures/camera2d-keyed-variants.json")
+    {
+    }
+};
+
+/// Imported center-magnification camera document.
+///
+class CenterMagnificationTest : public FixedCameraImportTest
+{
+protected:
+    CenterMagnificationTest() :
+        FixedCameraImportTest("fixtures/camera2d-center-mag.json")
+    {
+    }
+};
+
+/// Center-magnification camera document with its standard layout.
+///
+class CenterMagnificationLayoutTest : public CenterMagnificationTest
+{
+protected:
+    CenterMagnificationLayoutTest() :
+        m_layout(document(), timeline::Viewport(500, 380, frame_grid().offset(), frame_grid().end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4))
+    {
+    }
+    const timeline::Layout &layout() const
+    {
+        return m_layout;
+    }
+
+private:
+    timeline::Layout m_layout;
+};
+
+/// Imported layer-source camera result with retained diagnostics.
+///
+class LayerSourceCameraTest : public testing::Test
+{
+protected:
+    LayerSourceCameraTest();
+    void SetUp() override;
+    const JsonImportResult &result() const
+    {
+        return m_result;
+    }
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    JsonImportResult m_result;
+};
+
+LayerSourceCameraTest::LayerSourceCameraTest() :
+    m_result(import_fixture("fixtures/camera2d-layer-sources.json"))
+{
+}
+
+void LayerSourceCameraTest::SetUp()
+{
+    ASSERT_TRUE(m_result.succeeded());
+    ASSERT_TRUE(m_result.document);
+}
+
 /// Imported nested-camera cases.
 ///
 class NestedCameraImportTest : public ParameterizedCameraImportTest<NestedCameraCase>
@@ -644,7 +825,7 @@ class CameraDiagnosticMessageTest : public ParameterizedCameraResultTest<Diagnos
 
 /// Layer-source diagnostic cases for one fixed document.
 ///
-class LayerCameraDiagnosticTest : public testing::TestWithParam<LayerDiagnosticCase>
+class LayerCameraDiagnosticTest : public LayerSourceCameraTest, public testing::WithParamInterface<LayerDiagnosticCase>
 {
 };
 
@@ -1262,186 +1443,130 @@ TEST(CameraImport, derivesRotationAfterNormalizingTinyViewUp)
     EXPECT_DOUBLE_EQ(0, rotation);
 }
 
-TEST(CameraImport, importsAnalyticEyeDocumentShape)
+TEST_F(AnalyticEyeTest, importsAnalyticEyeDocumentShape)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-eye-center-mag.json");
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(13, result.document->lane_count());
-    EXPECT_EQ(4, result.document->keyframe_count());
+    EXPECT_EQ(13, document().lane_count());
+    EXPECT_EQ(4, document().keyframe_count());
 }
 
-TEST(CameraImport, preservesAnalyticEyeRecipe)
+TEST_F(AnalyticEyeTest, preservesAnalyticEyeRecipe)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-    const timeline::Curve &eye = curve(document, 8);
+    const timeline::Curve &eye = curve(document(), 8);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, eye.attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), eye.attributes());
 
     EXPECT_NE(std::string::npos, attributes.at("path").find("circle"));
 }
 
-TEST(CameraImport, retainsAnalyticEyeDefinition)
+TEST_F(AnalyticEyeTest, retainsAnalyticEyeDefinition)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-
-    const timeline::Curve &eye = curve(document, 8);
+    const timeline::Curve &eye = curve(document(), 8);
 
     EXPECT_TRUE(eye.samples().empty());
 }
 
-TEST(CameraImport, preservesAnalyticEyeIdentity)
+TEST_F(AnalyticEyeTest, preservesAnalyticEyeIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-
-    const std::string_view identity = document.strings().lookup(document.lanes()[8].id());
+    const std::string_view identity = document().strings().lookup(document().lanes()[8].id());
 
     EXPECT_EQ("animation-0-eye[0]", identity);
 }
 
-TEST(CameraImport, evaluatesAnalyticEyeBetweenFrames)
+TEST_F(AnalyticEyeTest, evaluatesAnalyticEyeBetweenFrames)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double eye = curve(document, 8).sample(subdivided_frame(grid, 1, 2));
+    const double eye = curve(document(), 8).sample(subdivided_frame(frame_grid(), 1, 2));
 
     EXPECT_NEAR(-std::sqrt(0.5), eye, 1e-12);
 }
 
-TEST(CameraImport, derivesViewUpFromAnalyticEye)
+TEST_F(AnalyticEyeTest, derivesViewUpFromAnalyticEye)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &up = curve(document, 11);
+    const timeline::Curve &up = curve(document(), 11);
 
-    const double value = up.sample(grid.frame_start(1));
+    const double value = up.sample(frame_grid().frame_start(1));
 
-    EXPECT_EQ("eye-look-at", resolved_attributes(document, up.attributes()).at("derived-from"));
+    EXPECT_EQ("eye-look-at", resolved_attributes(document(), up.attributes()).at("derived-from"));
     EXPECT_DOUBLE_EQ(-1, value);
 }
 
-TEST(CameraImport, hitTestsAnalyticEyePath)
+TEST_F(AnalyticEyeLayoutTest, hitTestsAnalyticEyePath)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 460, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-
-    const std::optional<timeline::HitResult> hit = layout.hit_test({180, 286}, 2);
+    const std::optional<timeline::HitResult> hit = layout().hit_test({180, 286}, 2);
 
     ASSERT_TRUE(hit);
-    EXPECT_EQ("animation-0-eye[0]-path", document.strings().lookup(hit->id.item_id));
+    EXPECT_EQ("animation-0-eye[0]-path", document().strings().lookup(hit->id.item_id));
 }
 
-TEST(CameraImport, rendersDerivedViewUp)
+TEST_F(AnalyticEyeLayoutTest, rendersDerivedViewUp)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 460, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("derived-view-up"));
 }
 
-TEST(CameraImport, preservesStaticEyePrecedence)
+TEST_F(EyeVariantsTest, preservesStaticEyePrecedence)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &eye = curve(document, 8);
+    const timeline::Curve &eye = curve(document(), 8);
 
-    const double rotation = curve(document, 4).sample(grid.frame_start(1));
-    const double eye_value = eye.sample(grid.frame_start(1));
+    const double rotation = curve(document(), 4).sample(frame_grid().frame_start(1));
+    const double eye_value = eye.sample(frame_grid().frame_start(1));
 
     EXPECT_DOUBLE_EQ(90, rotation);
     EXPECT_DOUBLE_EQ(4, eye_value);
 }
 
-TEST(CameraImport, importsEyeVariantsDocumentShape)
+TEST_F(EyeVariantsTest, importsEyeVariantsDocumentShape)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-eye-variants.json");
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(28, result.document->lane_count());
+    EXPECT_EQ(28, document().lane_count());
 }
 
-TEST(CameraImport, preservesStaticEyeSourceRecipe)
+TEST_F(EyeVariantsTest, preservesStaticEyeSourceRecipe)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, curve(document, 8).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), curve(document(), 8).attributes());
 
     EXPECT_EQ("orbit.eye", attributes.at("parameter"));
 }
 
-TEST(CameraImport, preservesAuthoredViewUpSourceRecipe)
+TEST_F(EyeVariantsTest, preservesAuthoredViewUpSourceRecipe)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 13).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 13).attributes());
 
     EXPECT_EQ("orbit.view-up", attributes.at("parameter"));
 }
 
-TEST(CameraImport, evaluatesAuthoredViewUpWithStaticEye)
+TEST_F(EyeVariantsTest, evaluatesAuthoredViewUpWithStaticEye)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double x = *document.lanes()[13].evaluate_keyframes(grid.frame_start(1));
-    const double y = *document.lanes()[14].evaluate_keyframes(grid.frame_start(1));
+    const double x = *document().lanes()[13].evaluate_keyframes(frame_grid().frame_start(1));
+    const double y = *document().lanes()[14].evaluate_keyframes(frame_grid().frame_start(1));
 
     EXPECT_DOUBLE_EQ(0, x);
     EXPECT_DOUBLE_EQ(2, y);
 }
 
-TEST(CameraImport, composesEyeVariantsWithMusicDocument)
+TEST_F(EyeVariantsCompositionTest, composesEyeVariantsWithMusicDocument)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    ASSERT_TRUE(music.succeeded());
-
-    const timeline::Document combined = timeline::combine_documents(*music.document, document);
-
-    EXPECT_EQ(32, combined.lane_count());
+    EXPECT_EQ(32, combined_document().lane_count());
 }
 
-TEST(CameraImport, preservesEyeValuesAfterDocumentComposition)
+TEST_F(EyeVariantsCompositionTest, preservesEyeValuesAfterDocumentComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    ASSERT_TRUE(music.succeeded());
-
-    const timeline::Document combined = timeline::combine_documents(*music.document, document);
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 1);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined_document(), 1);
 
     ASSERT_TRUE(inspection);
     EXPECT_DOUBLE_EQ(90, *inspection->lanes[8].items.front().value);
 }
 
-TEST(CameraImport, importsKeyedVariantsDocumentShape)
+TEST_F(KeyedVariantsTest, importsKeyedVariantsDocumentShape)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-keyed-variants.json");
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(22, result.document->lane_count());
+    EXPECT_EQ(22, document().lane_count());
 }
 
-TEST(CameraImport, preservesMovingEyePrecedence)
+TEST_F(EyeVariantsTest, preservesMovingEyePrecedence)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-eye-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double rotation = curve(document, 19).sample(grid.frame_start(2));
-    const double up = curve(document, 26).sample(grid.frame_start(2));
-    const double look = *document.lanes()[21].evaluate_keyframes(grid.frame_start(2));
-    const double eye = *document.lanes()[23].evaluate_keyframes(grid.frame_start(2));
+    const double rotation = curve(document(), 19).sample(frame_grid().frame_start(2));
+    const double up = curve(document(), 26).sample(frame_grid().frame_start(2));
+    const double look = *document().lanes()[21].evaluate_keyframes(frame_grid().frame_start(2));
+    const double eye = *document().lanes()[23].evaluate_keyframes(frame_grid().frame_start(2));
 
     EXPECT_DOUBLE_EQ(0, rotation);
     EXPECT_DOUBLE_EQ(0, up);
@@ -1449,26 +1574,20 @@ TEST(CameraImport, preservesMovingEyePrecedence)
     EXPECT_DOUBLE_EQ(2, eye);
 }
 
-TEST(CameraImport, importsCenterMagnificationDocumentShape)
+TEST_F(CenterMagnificationTest, importsCenterMagnificationDocumentShape)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-center-mag.json");
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(11, result.document->lane_count());
-    EXPECT_EQ(1, result.document->track_count());
-    EXPECT_EQ(6, result.document->keyframe_count());
+    EXPECT_EQ(11, document().lane_count());
+    EXPECT_EQ(1, document().track_count());
+    EXPECT_EQ(6, document().keyframe_count());
 }
 
-TEST(CameraImport, evaluatesCenterMagnificationLikeParAnimator)
+TEST_F(CenterMagnificationTest, evaluatesCenterMagnificationLikeParAnimator)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
     const std::vector<std::array<double, 6>> expected = read_camera_frames("fixtures/gold-camera2d-center-mag.par");
 
     for (int frame = 0; frame < timeline::size_cast(expected); ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), frame);
         ASSERT_TRUE(inspection);
         for (int component = 0; component < 3; ++component)
         {
@@ -1480,35 +1599,29 @@ TEST(CameraImport, evaluatesCenterMagnificationLikeParAnimator)
     EXPECT_EQ(3, timeline::size_cast(expected));
 }
 
-TEST(CameraImport, evaluatesNestedHeightLikeParAnimator)
+TEST_F(CenterMagnificationTest, evaluatesNestedHeightLikeParAnimator)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
-
     for (int frame = 0; frame < 3; ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), frame);
         ASSERT_TRUE(inspection);
         ASSERT_TRUE(inspection->lanes[10].value);
         EXPECT_NEAR(3 * std::pow(0.5, frame / 2.0), *inspection->lanes[10].value, 1e-12);
     }
 }
 
-TEST(CameraImport, preservesCenterMagnificationAnalyticDefinition)
+TEST_F(CenterMagnificationTest, preservesCenterMagnificationAnalyticDefinition)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &magnification = curve(document, 2);
+    const timeline::Curve &magnification = curve(document(), 2);
 
     EXPECT_EQ(timeline::CurveInterpolation::ANALYTIC, magnification.interpolation());
     EXPECT_TRUE(magnification.samples().empty());
-    EXPECT_EQ(grid.frame_start(2), magnification.end());
+    EXPECT_EQ(frame_grid().frame_start(2), magnification.end());
 }
 
-TEST(CameraImport, preservesCenterMagnificationSourceMetadata)
+TEST_F(CenterMagnificationTest, preservesCenterMagnificationSourceMetadata)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, curve(document, 2).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), curve(document(), 2).attributes());
 
     EXPECT_EQ("center-mag", attributes.at("parameter"));
     EXPECT_EQ("magnification", attributes.at("component"));
@@ -1516,226 +1629,159 @@ TEST(CameraImport, preservesCenterMagnificationSourceMetadata)
     EXPECT_NE(std::string::npos, attributes.at("camera2d").find("geometric"));
 }
 
-TEST(CameraImport, preservesCenterMagnificationLookAtIdentity)
+TEST_F(CenterMagnificationTest, preservesCenterMagnificationLookAtIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
-
-    const std::string_view identity = document.strings().lookup(document.lanes()[6].id());
+    const std::string_view identity = document().strings().lookup(document().lanes()[6].id());
 
     EXPECT_EQ("animation-0-look-at[0]", identity);
 }
 
-TEST(CameraImport, hitTestsCenterMagnificationCurve)
+TEST_F(CenterMagnificationLayoutTest, hitTestsCenterMagnificationCurve)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 380, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-
-    const std::optional<timeline::HitResult> hit = layout.hit_test({233, 35}, 2);
+    const std::optional<timeline::HitResult> hit = layout().hit_test({233, 35}, 2);
 
     ASSERT_TRUE(hit);
-    EXPECT_EQ("animation-0-center-mag[0]-camera", document.strings().lookup(hit->id.item_id));
+    EXPECT_EQ("animation-0-center-mag[0]-camera", document().strings().lookup(hit->id.item_id));
 }
 
-TEST(CameraImport, rendersCenterMagnificationHeight)
+TEST_F(CenterMagnificationLayoutTest, rendersCenterMagnificationHeight)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-center-mag.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 380, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("camera / height"));
 }
 
-TEST(CameraImport, normalizesInterpolatedViewUp)
+TEST_F(KeyedVariantsTest, normalizesInterpolatedViewUp)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double x = curve(document, 8).sample(grid.frame_start(1));
-    const double y = curve(document, 9).sample(grid.frame_start(1));
+    const double x = curve(document(), 8).sample(frame_grid().frame_start(1));
+    const double y = curve(document(), 9).sample(frame_grid().frame_start(1));
 
     EXPECT_NEAR(std::sqrt(0.5), x, 1e-12);
     EXPECT_NEAR(std::sqrt(0.5), y, 1e-12);
 }
 
-TEST(CameraImport, evaluatesInterpolatedRotationAtFrameBoundary)
+TEST_F(KeyedVariantsTest, evaluatesInterpolatedRotationAtFrameBoundary)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double rotation = curve(document, 4).sample(grid.frame_start(1));
+    const double rotation = curve(document(), 4).sample(frame_grid().frame_start(1));
 
     EXPECT_NEAR(45, rotation, 1e-12);
 }
 
-TEST(CameraImport, evaluatesKeyedRotationAtFrameBoundary)
+TEST_F(KeyedVariantsTest, evaluatesKeyedRotationAtFrameBoundary)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double rotation = curve(document, 4).sample(grid.frame_start(2));
+    const double rotation = curve(document(), 4).sample(frame_grid().frame_start(2));
 
     EXPECT_NEAR(90, rotation, 1e-12);
 }
 
-TEST(CameraImport, evaluatesGeometricMagnification)
+TEST_F(KeyedVariantsTest, evaluatesGeometricMagnification)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &magnification = curve(document, 2);
+    const timeline::Curve &magnification = curve(document(), 2);
 
-    const double first = magnification.sample(grid.offset());
-    const double middle = magnification.sample(grid.frame_start(1));
-    const double last = magnification.sample(grid.frame_start(2));
+    const double first = magnification.sample(frame_grid().offset());
+    const double middle = magnification.sample(frame_grid().frame_start(1));
+    const double last = magnification.sample(frame_grid().frame_start(2));
 
     EXPECT_DOUBLE_EQ(2, first);
     EXPECT_NEAR(4.0 / 3.0, middle, 1e-12);
     EXPECT_DOUBLE_EQ(1, last);
 }
 
-TEST(CameraImport, preservesNegativeSourceStretch)
+TEST_F(KeyedVariantsTest, preservesNegativeSourceStretch)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double stretch = curve(document, 3).sample(grid.offset());
+    const double stretch = curve(document(), 3).sample(frame_grid().offset());
 
     EXPECT_DOUBLE_EQ(-2, stretch);
 }
 
-TEST(CameraImport, evaluatesHeldMagnification)
+TEST_F(KeyedVariantsTest, evaluatesHeldMagnification)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double before = curve(document, 13).sample(grid.frame_start(1));
-    const double after = curve(document, 13).sample(grid.frame_start(2));
+    const double before = curve(document(), 13).sample(frame_grid().frame_start(1));
+    const double after = curve(document(), 13).sample(frame_grid().frame_start(2));
 
     EXPECT_DOUBLE_EQ(2, before);
     EXPECT_DOUBLE_EQ(1, after);
 }
 
-TEST(CameraImport, evaluatesGeometricRotationBetweenFrames)
+TEST_F(KeyedVariantsTest, evaluatesGeometricRotationBetweenFrames)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const double rotation = curve(document, 4).sample(subdivided_frame(grid, 1, 2));
+    const double rotation = curve(document(), 4).sample(subdivided_frame(frame_grid(), 1, 2));
 
     EXPECT_NEAR(18.43494882292201, rotation, 1e-12);
 }
 
-TEST(CameraImport, preservesViewUpSourceRecipe)
+TEST_F(KeyedVariantsTest, preservesViewUpSourceRecipe)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-
-    const ResolvedAttributes attributes = resolved_attributes(document, curve(document, 8).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), curve(document(), 8).attributes());
 
     EXPECT_NE(std::string::npos, attributes.at("signal").find("0/2"));
 }
 
-TEST(CameraImport, composesKeyedVariantsWithMusicDocument)
+TEST_F(KeyedVariantsCompositionTest, composesKeyedVariantsWithMusicDocument)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    ASSERT_TRUE(music.succeeded());
-
-    const timeline::Document combined = timeline::combine_documents(*music.document, document);
-
-    EXPECT_EQ(26, combined.lane_count());
+    EXPECT_EQ(26, combined_document().lane_count());
 }
 
-TEST(CameraImport, preservesKeyedCameraValuesAfterDocumentComposition)
+TEST_F(KeyedVariantsCompositionTest, preservesKeyedCameraValuesAfterDocumentComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/camera2d-keyed-variants.json");
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    ASSERT_TRUE(music.succeeded());
-
-    const timeline::Document combined = timeline::combine_documents(*music.document, document);
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 1);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined_document(), 1);
 
     ASSERT_TRUE(inspection);
     ASSERT_TRUE(inspection->lanes[8].items.front().value);
     EXPECT_NEAR(45, *inspection->lanes[8].items.front().value, 1e-12);
 }
 
-TEST(CameraImport, importsLayerCameraDocumentShape)
+TEST_F(LayerSourceCameraTest, importsLayerCameraDocumentShape)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(22, result.document->lane_count());
+    EXPECT_EQ(22, document().lane_count());
 }
 
 TEST_P(LayerCameraDiagnosticTest, identifiesUnusableLayerSource)
 {
     const LayerDiagnosticCase &definition = GetParam();
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
 
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.diagnostic);
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.diagnostic].find(definition.source));
+    ASSERT_GT(timeline::size_cast(result().diagnostics), definition.diagnostic);
+    EXPECT_NE(std::string::npos, result().diagnostics[definition.diagnostic].find(definition.source));
 }
 
 INSTANTIATE_TEST_SUITE_P(LayerCameraFailures, LayerCameraDiagnosticTest, testing::ValuesIn(LAYER_DIAGNOSTIC_CASES),
     case_name<LayerDiagnosticCase>);
 
-TEST(CameraImport, evaluatesSelectedLayerStretch)
+TEST_F(LayerSourceCameraTest, evaluatesSelectedLayerStretch)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
-    ASSERT_TRUE(result.succeeded());
-    const timeline::FrameGrid &grid = *result.document->frame_grid();
-    const timeline::Curve &stretch = curve(*result.document, 3);
+    const timeline::Curve &stretch = curve(document(), 3);
 
-    const double value = stretch.sample(grid.offset());
+    const double value = stretch.sample(frame_grid().offset());
 
     EXPECT_DOUBLE_EQ(-2, value);
 }
 
-TEST(CameraImport, preservesSelectedLayerIdentity)
+TEST_F(LayerSourceCameraTest, preservesSelectedLayerIdentity)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
-    ASSERT_TRUE(result.succeeded());
-
-    const ResolvedAttributes attributes = resolved_attributes(result, curve(*result.document, 3).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(result(), curve(document(), 3).attributes());
 
     EXPECT_EQ("camera-0", attributes.at("layer"));
 }
 
-TEST(CameraImport, usesDefaultStretchForLayerView)
+TEST_F(LayerSourceCameraTest, usesDefaultStretchForLayerView)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
-    ASSERT_TRUE(result.succeeded());
-    const timeline::FrameGrid &grid = *result.document->frame_grid();
-
-    const double stretch = curve(*result.document, 14).sample(grid.offset());
+    const double stretch = curve(document(), 14).sample(frame_grid().offset());
 
     EXPECT_DOUBLE_EQ(1, stretch);
 }
 
-TEST(CameraImport, evaluatesLayerSourceMagnification)
+TEST_F(LayerSourceCameraTest, evaluatesLayerSourceMagnification)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
-    ASSERT_TRUE(result.succeeded());
-    const timeline::FrameGrid &grid = *result.document->frame_grid();
-    const timeline::Curve &magnification = curve(*result.document, 13);
+    const timeline::Curve &magnification = curve(document(), 13);
 
-    const double value = magnification.sample(grid.frame_start(1));
+    const double value = magnification.sample(frame_grid().frame_start(1));
 
     EXPECT_NEAR(std::sqrt(2.0), value, 1e-12);
 }
 
-TEST(CameraImport, preservesLayerSourceEntry)
+TEST_F(LayerSourceCameraTest, preservesLayerSourceEntry)
 {
-    const JsonImportResult result = import_fixture("fixtures/camera2d-layer-sources.json");
-    ASSERT_TRUE(result.succeeded());
-
-    const ResolvedAttributes attributes = resolved_attributes(result, curve(*result.document, 13).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(result(), curve(document(), 13).attributes());
 
     EXPECT_EQ("Zero_Demo", attributes.at("source-entry"));
 }
