@@ -156,6 +156,36 @@ Lane interpolation_lane(KeyframeInterpolation interpolation)
     return lane;
 }
 
+/// Output-rule document with its standard frame and range inspections.
+///
+class OutputDocumentTest : public testing::Test
+{
+protected:
+    const Document m_document{output_document()};
+    const FrameInspection m_frame_inspection{*inspect_frame(m_document, 1)};
+    const RangeInspection m_range_inspection{inspect_range(m_document, at(0), at(40))};
+};
+
+/// Frameless recipe document with its standard rendered layout.
+///
+class FramelessRecipeTest : public testing::Test
+{
+protected:
+    const Document m_document{recipe_document(false)};
+    const Layout m_layout{m_document, Viewport(600, 100, at(0), at(60)), LayoutMetrics(100, 20, 40, 4)};
+};
+
+/// Framed recipe document with its standard layout and frame inspections.
+///
+class FramedRecipeTest : public testing::Test
+{
+protected:
+    const Document m_document{recipe_document(true)};
+    const Layout m_layout{m_document, Viewport(600, 100, at(0), at(60)), LayoutMetrics(100, 20, 40, 4)};
+    const std::optional<FrameInspection> m_gap_inspection{inspect_frame(m_document, 2)};
+    const std::optional<FrameInspection> m_value_inspection{inspect_frame(m_document, 0)};
+};
+
 using KeyframeInterpolationName = std::pair<KeyframeInterpolation, std::string_view>;
 
 class KeyframeInterpolationNameTest : public testing::TestWithParam<KeyframeInterpolationName>
@@ -389,80 +419,55 @@ TEST(Lane, omitsOutputForKeyframeRecipeGap)
     EXPECT_FALSE(value);
 }
 
-TEST(FrameInspection, reportsAuthoredKeyframeValue)
+TEST_F(OutputDocumentTest, reportsAuthoredKeyframeValue)
 {
-    const Document document = output_document();
-
-    const FrameInspection inspection = *inspect_frame(document, 1);
-
-    ASSERT_EQ(1, size_cast(inspection.lanes));
-    ASSERT_TRUE(inspection.lanes[0].value);
-    EXPECT_DOUBLE_EQ(-2.25, *inspection.lanes[0].value);
+    ASSERT_EQ(1, size_cast(m_frame_inspection.lanes));
+    ASSERT_TRUE(m_frame_inspection.lanes[0].value);
+    EXPECT_DOUBLE_EQ(-2.25, *m_frame_inspection.lanes[0].value);
 }
 
-TEST(FrameInspection, reportsKeyframeOutputValue)
+TEST_F(OutputDocumentTest, reportsKeyframeOutputValue)
 {
-    const Document document = output_document();
-
-    const FrameInspection inspection = *inspect_frame(document, 1);
-
-    ASSERT_EQ(1, size_cast(inspection.lanes));
-    ASSERT_TRUE(inspection.lanes[0].output_value);
-    EXPECT_DOUBLE_EQ(-2.5, *inspection.lanes[0].output_value);
+    ASSERT_EQ(1, size_cast(m_frame_inspection.lanes));
+    ASSERT_TRUE(m_frame_inspection.lanes[0].output_value);
+    EXPECT_DOUBLE_EQ(-2.5, *m_frame_inspection.lanes[0].output_value);
 }
 
-TEST(RangeInspection, doesNotAggregateKeyframeOutput)
+TEST_F(OutputDocumentTest, doesNotAggregateKeyframeOutput)
 {
-    const Document document = output_document();
-
-    const RangeInspection inspection = inspect_range(document, at(0), at(40));
-
-    ASSERT_EQ(1, size_cast(inspection.lanes));
-    EXPECT_FALSE(inspection.lanes[0].output_value);
+    ASSERT_EQ(1, size_cast(m_range_inspection.lanes));
+    EXPECT_FALSE(m_range_inspection.lanes[0].output_value);
 }
 
-TEST(RangeInspection, preservesAuthoredKeyframeValue)
+TEST_F(OutputDocumentTest, preservesAuthoredKeyframeValue)
 {
-    const Document document = output_document();
-
-    const RangeInspection inspection = inspect_range(document, at(0), at(40));
-
-    ASSERT_EQ(1, size_cast(inspection.lanes));
-    ASSERT_FALSE(inspection.lanes[0].items.empty());
-    ASSERT_TRUE(inspection.lanes[0].items[0].value);
-    EXPECT_DOUBLE_EQ(-3, *inspection.lanes[0].items[0].value);
+    ASSERT_EQ(1, size_cast(m_range_inspection.lanes));
+    ASSERT_FALSE(m_range_inspection.lanes[0].items.empty());
+    ASSERT_TRUE(m_range_inspection.lanes[0].items[0].value);
+    EXPECT_DOUBLE_EQ(-3, *m_range_inspection.lanes[0].items[0].value);
 }
 
-TEST(Layout, framelessKeyframeRecipeDoesNotBridgeGaps)
+TEST_F(FramelessRecipeTest, keyframeRecipeDoesNotBridgeGaps)
 {
-    const Document document = recipe_document(false);
-
-    const Layout layout(document, Viewport(600, 100, at(0), at(60)), LayoutMetrics(100, 20, 40, 4));
-    const std::vector<Polyline> lines = keyframe_lines(layout);
+    const std::vector<Polyline> lines = keyframe_lines(m_layout);
 
     ASSERT_EQ(2, size_cast(lines));
     EXPECT_LT(lines[0].points.back().x, 300);
     EXPECT_GE(lines[1].points.front().x, 433);
 }
 
-TEST(Layout, framedKeyframeRecipeDoesNotBridgeGaps)
+TEST_F(FramedRecipeTest, keyframeRecipeDoesNotBridgeGaps)
 {
-    const Document document = recipe_document(true);
-
-    const Layout layout(document, Viewport(600, 100, at(0), at(60)), LayoutMetrics(100, 20, 40, 4));
-    const std::vector<Polyline> lines = keyframe_lines(layout);
+    const std::vector<Polyline> lines = keyframe_lines(m_layout);
 
     ASSERT_EQ(2, size_cast(lines));
     EXPECT_LT(lines[0].points.back().x, 300);
     EXPECT_GE(lines[1].points.front().x, 433);
 }
 
-TEST(Layout, keepsKeyframeRecipeSamplesWithinLane)
+TEST_F(FramelessRecipeTest, keepsKeyframeRecipeSamplesWithinLane)
 {
-    const Document document = recipe_document(false);
-    const Layout layout(document, Viewport(600, 100, at(0), at(60)), LayoutMetrics(100, 20, 40, 4));
-
-    const std::vector<Polyline> lines = keyframe_lines(layout);
+    const std::vector<Polyline> lines = keyframe_lines(m_layout);
 
     ASSERT_FALSE(lines.empty());
     for (const Polyline &line : lines)
@@ -475,41 +480,31 @@ TEST(Layout, keepsKeyframeRecipeSamplesWithinLane)
     }
 }
 
-TEST(Layout, preservesKeyframeRecipeHitIdentity)
+TEST_F(FramelessRecipeTest, preservesKeyframeRecipeHitIdentity)
 {
-    const Document document = recipe_document(false);
-    const Layout layout(document, Viewport(600, 100, at(0), at(60)), LayoutMetrics(100, 20, 40, 4));
-    const Polyline &line = first_keyframe_line(layout);
+    const Polyline &line = first_keyframe_line(m_layout);
 
-    const std::optional<HitResult> hit = layout.hit_test(line.points.back(), 0);
+    const std::optional<HitResult> hit = m_layout.hit_test(line.points.back(), 0);
 
     ASSERT_TRUE(hit);
-    const Lane &lane = document.lanes().front();
+    const Lane &lane = m_document.lanes().front();
     EXPECT_EQ(lane.id(), hit->id.lane_id);
     EXPECT_EQ(std::get<Keyframe>(lane.items().front()).id(), hit->id.item_id);
 }
 
-TEST(FrameInspection, reportsKeyframeRecipeGap)
+TEST_F(FramedRecipeTest, reportsKeyframeRecipeGap)
 {
-    const Document document = recipe_document(true);
-
-    const std::optional<FrameInspection> inspection = inspect_frame(document, 2);
-
-    ASSERT_TRUE(inspection);
-    ASSERT_EQ(1, size_cast(inspection->lanes));
-    EXPECT_FALSE(inspection->lanes[0].value);
+    ASSERT_TRUE(m_gap_inspection);
+    ASSERT_EQ(1, size_cast(m_gap_inspection->lanes));
+    EXPECT_FALSE(m_gap_inspection->lanes[0].value);
 }
 
-TEST(FrameInspection, reportsKeyframeRecipeValue)
+TEST_F(FramedRecipeTest, reportsKeyframeRecipeValue)
 {
-    const Document document = recipe_document(true);
-
-    const std::optional<FrameInspection> inspection = inspect_frame(document, 0);
-
-    ASSERT_TRUE(inspection);
-    ASSERT_EQ(1, size_cast(inspection->lanes));
-    ASSERT_TRUE(inspection->lanes[0].value);
-    EXPECT_DOUBLE_EQ(20, *inspection->lanes[0].value);
+    ASSERT_TRUE(m_value_inspection);
+    ASSERT_EQ(1, size_cast(m_value_inspection->lanes));
+    ASSERT_TRUE(m_value_inspection->lanes[0].value);
+    EXPECT_DOUBLE_EQ(20, *m_value_inspection->lanes[0].value);
 }
 
 TEST(Keyframe, rejectsEmptyIdentity)
