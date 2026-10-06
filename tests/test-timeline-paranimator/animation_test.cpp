@@ -220,6 +220,183 @@ class AnimationShapeImportTest : public ParameterizedAnimationImportTest<Animati
 {
 };
 
+/// Fixed animation import shared by tests for one fixture family.
+///
+class FixedAnimationImportTest : public testing::Test
+{
+protected:
+    explicit FixedAnimationImportTest(const std::filesystem::path &fixture);
+    const JsonImportResult &result() const
+    {
+        return m_result;
+    }
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+    const timeline::Document &composed_music_document();
+
+private:
+    JsonImportResult m_result;
+    std::optional<timeline::Document> m_composed_music_document;
+};
+
+FixedAnimationImportTest::FixedAnimationImportTest(const std::filesystem::path &fixture) :
+    m_result(import_fixture(fixture))
+{
+}
+
+const timeline::Document &FixedAnimationImportTest::composed_music_document()
+{
+    if (!m_composed_music_document)
+    {
+        m_composed_music_document.emplace(
+            timeline::combine_documents(import_clean_document("fixtures/beat-keys/rms.beat-keys.json"), document()));
+    }
+    return *m_composed_music_document;
+}
+
+/// Imported function-slot PWM animation.
+///
+class FunctionSlotPwmTest : public FixedAnimationImportTest
+{
+protected:
+    FunctionSlotPwmTest() :
+        FixedAnimationImportTest("fixtures/function-slot-pwm.json")
+    {
+    }
+};
+
+/// Imported function-slot variant animations.
+///
+class FunctionSlotVariantsTest : public FixedAnimationImportTest
+{
+protected:
+    FunctionSlotVariantsTest() :
+        FixedAnimationImportTest("fixtures/function-slot-variants.json")
+    {
+    }
+};
+
+/// Imported function-slot source resolution cases.
+///
+class FunctionSlotSourcesTest : public FixedAnimationImportTest
+{
+protected:
+    FunctionSlotSourcesTest() :
+        FixedAnimationImportTest("fixtures/function-slot-sources.json")
+    {
+    }
+};
+
+/// Imported yes/no PWM animation.
+///
+class YesNoPwmTest : public FixedAnimationImportTest
+{
+protected:
+    YesNoPwmTest() :
+        FixedAnimationImportTest("fixtures/yes-no-pwm.json")
+    {
+    }
+};
+
+/// Imported Catmull-Rom tuple path variants.
+///
+class CatmullRomTuplesTest : public FixedAnimationImportTest
+{
+protected:
+    CatmullRomTuplesTest() :
+        FixedAnimationImportTest("fixtures/catmull-rom-tuples.json")
+    {
+    }
+};
+
+/// Imported Bezier tuple path variants.
+///
+class BezierTuplesTest : public FixedAnimationImportTest
+{
+protected:
+    BezierTuplesTest() :
+        FixedAnimationImportTest("fixtures/bezier-tuples.json")
+    {
+    }
+};
+
+/// Imported clean spiral path variants.
+///
+class SpiralVariantsTest : public FixedAnimationImportTest
+{
+protected:
+    SpiralVariantsTest() :
+        FixedAnimationImportTest("fixtures/spiral-variants.json")
+    {
+    }
+};
+
+/// Imported partial spiral paths with retained valid output.
+///
+class PartialSpiralPathsTest : public FixedAnimationImportTest
+{
+protected:
+    PartialSpiralPathsTest() :
+        FixedAnimationImportTest("fixtures/partial-spiral-paths.json")
+    {
+    }
+};
+
+/// Imported constant and line path generators.
+///
+class PathGeneratorsTest : public FixedAnimationImportTest
+{
+protected:
+    PathGeneratorsTest() :
+        FixedAnimationImportTest("fixtures/path-generators.json")
+    {
+    }
+};
+
+/// Imported animation with one layer-qualified track.
+///
+class SingleLayerTest : public FixedAnimationImportTest
+{
+protected:
+    SingleLayerTest() :
+        FixedAnimationImportTest("fixtures/single-layer.json")
+    {
+    }
+};
+
+JsonImportOptions animation_composition_options(const JsonImportResult &music)
+{
+    JsonImportOptions options;
+    options.frames_per_second_numerator = music.document->frame_grid()->frames_per_second_numerator();
+    options.frames_per_second_denominator = music.document->frame_grid()->frames_per_second_denominator();
+    return options;
+}
+
+/// Music and animation documents imported on one synchronized frame grid.
+///
+class ComposedAnimationTest : public testing::Test
+{
+protected:
+    ComposedAnimationTest();
+
+    const JsonImportResult m_music;
+    const JsonImportResult m_animation;
+    const timeline::Document m_combined;
+};
+
+ComposedAnimationTest::ComposedAnimationTest() :
+    m_music(import_fixture("fixtures/beat-keys/rms.beat-keys.json")),
+    m_animation(import_timeline_json("fixtures/maxiter.json", animation_composition_options(m_music))),
+    m_combined(timeline::combine_documents(*m_music.document, *m_animation.document))
+{
+}
+
 } // namespace
 
 TEST_P(AnalyticPathImportTest, importsExpectedDocumentShape)
@@ -380,35 +557,33 @@ TEST_P(AnimationShapeImportTest, importsExpectedCounts)
 INSTANTIATE_TEST_SUITE_P(
     AnimationShapes, AnimationShapeImportTest, testing::ValuesIn(ANIMATION_SHAPE_CASES), animation_shape_name);
 
-TEST(AnimationImport, preservesSourceFunctionSamplesLikeParanimator)
+TEST_F(FunctionSlotPwmTest, preservesSourceFunctionSamplesLikeParanimator)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-pwm.json");
     const std::array<std::string, 4> values{"sin/tan", "sin/tan", "sin/log", "sin/log"};
     const std::string golden = read_text("fixtures/gold-function-slot-pwm.par");
-    ASSERT_TRUE(result.succeeded());
-
-    const timeline::Document &document = *result.document;
+    ASSERT_TRUE(result().succeeded());
+    const timeline::Document &imported = document();
 
     for (int frame = 0; frame < 4; ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(imported, frame);
         ASSERT_TRUE(inspection);
         EXPECT_EQ(
-            values[frame], resolved_attributes(document, inspection->lanes[0].items.front().attributes).at("value"));
+            values[frame], resolved_attributes(imported, inspection->lanes[0].items.front().attributes).at("value"));
         ASSERT_TRUE(inspection->lanes[1].value);
         EXPECT_DOUBLE_EQ(frame / 3.0, *inspection->lanes[1].value);
         EXPECT_NE(std::string::npos, golden_frame(golden, frame).find("function=" + values[frame]));
     }
 }
 
-TEST(AnimationImport, preservesSourceFunctionMetadata)
+TEST_F(FunctionSlotPwmTest, preservesSourceFunctionMetadata)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-pwm.json");
-    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result().succeeded());
 
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 0);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), 0);
     ASSERT_TRUE(inspection);
-    const ResolvedAttributes attributes = resolved_attributes(result, inspection->lanes[0].items.front().attributes);
+    const ResolvedAttributes attributes =
+        resolved_attributes(document(), inspection->lanes[0].items.front().attributes);
 
     EXPECT_EQ("1", attributes.at("slot"));
     EXPECT_EQ("sin/cos", attributes.at("source-value"));
@@ -416,57 +591,61 @@ TEST(AnimationImport, preservesSourceFunctionMetadata)
     EXPECT_EQ("function[1]", attributes.at("parameter"));
 }
 
-TEST(AnimationImport, laysOutSourceFunctionOutput)
+TEST_F(FunctionSlotPwmTest, laysOutSourceFunctionOutput)
 {
-    const timeline::Document document = import_clean_document("fixtures/function-slot-pwm.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Layout layout(document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(500, 140, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("function[1] / mix"));
 }
 
-TEST(AnimationImport, hitTestsSourceFunctionOutput)
+TEST_F(FunctionSlotPwmTest, hitTestsSourceFunctionOutput)
 {
-    const timeline::Document document = import_clean_document("fixtures/function-slot-pwm.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Layout layout(document(),
+        timeline::Viewport(500, 140, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
 
     const std::optional<timeline::HitResult> hit = layout.hit_test({350, 35}, 2);
 
     ASSERT_TRUE(hit);
-    EXPECT_EQ("animation-0-pwm-2", document.strings().lookup(hit->id.item_id));
+    EXPECT_EQ("animation-0-pwm-2", document().strings().lookup(hit->id.item_id));
 }
 
-TEST(AnimationImport, retainsAuthoredFunctionSlots)
+TEST_F(FunctionSlotVariantsTest, retainsAuthoredFunctionSlots)
 {
-    const timeline::Document document = import_clean_document("fixtures/function-slot-variants.json");
     const std::array<std::string, 4> values{"log/cos", "tan/cos", "log/cos", "tan/cos"};
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
     std::vector<std::string> actual;
     for (int frame = 0; frame < 4; ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), frame);
         actual.push_back(
-            std::string(resolved_attributes(document, inspection->lanes[0].items.front().attributes).at("value")));
+            std::string(resolved_attributes(document(), inspection->lanes[0].items.front().attributes).at("value")));
     }
 
     EXPECT_EQ(std::vector<std::string>(values.begin(), values.end()), actual);
 }
 
-TEST(AnimationImport, fillsMissingFunctionSlotsWithIdent)
+TEST_F(FunctionSlotVariantsTest, fillsMissingFunctionSlotsWithIdent)
 {
-    const timeline::Document document = import_clean_document("fixtures/function-slot-variants.json");
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
     std::vector<std::string> actual;
     for (int frame = 0; frame < 4; ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), frame);
         actual.push_back(
-            std::string(resolved_attributes(document, inspection->lanes[2].items.front().attributes).at("value")));
+            std::string(resolved_attributes(document(), inspection->lanes[2].items.front().attributes).at("value")));
     }
 
     EXPECT_EQ(
@@ -474,12 +653,11 @@ TEST(AnimationImport, fillsMissingFunctionSlotsWithIdent)
         actual);
 }
 
-TEST(AnimationImport, copiesFunctionSlotsThroughComposition)
+TEST_F(FunctionSlotVariantsTest, copiesFunctionSlotsThroughComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/function-slot-variants.json");
-    const timeline::Document music = import_clean_document("fixtures/beat-keys/rms.beat-keys.json");
-
-    const timeline::Document combined = timeline::combine_documents(music, document);
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Document &combined = composed_music_document();
     const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(combined, 2);
 
     ASSERT_TRUE(inspection);
@@ -512,84 +690,74 @@ TEST(AnimationImport, retainsValidFunctionSlotOutput)
     EXPECT_EQ("sin/log", resolved_attributes(result, inspection->lanes.front().items.front().attributes).at("value"));
 }
 
-TEST(AnimationImport, resolvesLayerAndCatalogFunctionSources)
+TEST_F(FunctionSlotSourcesTest, resolvesLayerAndCatalogFunctionSources)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-sources.json");
-    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result().succeeded());
 
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 2);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), 2);
     ASSERT_TRUE(inspection);
 
-    EXPECT_EQ("log/exp", resolved_attributes(result, inspection->lanes[0].items.front().attributes).at("value"));
-    EXPECT_EQ("fractal", resolved_attributes(result, inspection->lanes[0].items.front().attributes).at("layer"));
+    EXPECT_EQ("log/exp", resolved_attributes(document(), inspection->lanes[0].items.front().attributes).at("value"));
+    EXPECT_EQ("fractal", resolved_attributes(document(), inspection->lanes[0].items.front().attributes).at("layer"));
     EXPECT_EQ(
-        "ident/ident/log", resolved_attributes(result, inspection->lanes[2].items.front().attributes).at("value"));
-    EXPECT_EQ("sin/log/exp", resolved_attributes(result, inspection->lanes[4].items.front().attributes).at("value"));
+        "ident/ident/log", resolved_attributes(document(), inspection->lanes[2].items.front().attributes).at("value"));
     EXPECT_EQ(
-        "sin/cos/exp", resolved_attributes(result, inspection->lanes[4].items.front().attributes).at("source-value"));
+        "sin/log/exp", resolved_attributes(document(), inspection->lanes[4].items.front().attributes).at("value"));
+    EXPECT_EQ("sin/cos/exp",
+        resolved_attributes(document(), inspection->lanes[4].items.front().attributes).at("source-value"));
 }
 
-TEST(AnimationImport, diagnosesUndeclaredLayerFunctionSource)
+TEST_F(FunctionSlotSourcesTest, diagnosesUndeclaredLayerFunctionSource)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-sources.json");
-
-    ASSERT_EQ(4, timeline::size_cast(result.diagnostics));
-    EXPECT_NE(std::string::npos, result.diagnostics[0].find("animation-layer-0-1"));
-    EXPECT_NE(std::string::npos, result.diagnostics[0].find("not declared"));
+    ASSERT_EQ(4, timeline::size_cast(result().diagnostics));
+    EXPECT_NE(std::string::npos, result().diagnostics[0].find("animation-layer-0-1"));
+    EXPECT_NE(std::string::npos, result().diagnostics[0].find("not declared"));
 }
 
-TEST(AnimationImport, diagnosesMissingParFunctionSource)
+TEST_F(FunctionSlotSourcesTest, diagnosesMissingParFunctionSource)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-sources.json");
-
-    ASSERT_EQ(4, timeline::size_cast(result.diagnostics));
-    EXPECT_NE(std::string::npos, result.diagnostics[1].find("unable to open PAR source"));
+    ASSERT_EQ(4, timeline::size_cast(result().diagnostics));
+    EXPECT_NE(std::string::npos, result().diagnostics[1].find("unable to open PAR source"));
 }
 
-TEST(AnimationImport, diagnosesMissingFunctionSourceEntry)
+TEST_F(FunctionSlotSourcesTest, diagnosesMissingFunctionSourceEntry)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-sources.json");
-
-    ASSERT_EQ(4, timeline::size_cast(result.diagnostics));
-    EXPECT_NE(std::string::npos, result.diagnostics[2].find("entry not found"));
+    ASSERT_EQ(4, timeline::size_cast(result().diagnostics));
+    EXPECT_NE(std::string::npos, result().diagnostics[2].find("entry not found"));
 }
 
-TEST(AnimationImport, diagnosesUnterminatedFunctionSourceEntry)
+TEST_F(FunctionSlotSourcesTest, diagnosesUnterminatedFunctionSourceEntry)
 {
-    const JsonImportResult result = import_fixture("fixtures/function-slot-sources.json");
-
-    ASSERT_EQ(4, timeline::size_cast(result.diagnostics));
-    EXPECT_NE(std::string::npos, result.diagnostics[3].find("unterminated PAR source entry"));
+    ASSERT_EQ(4, timeline::size_cast(result().diagnostics));
+    EXPECT_NE(std::string::npos, result().diagnostics[3].find("unterminated PAR source entry"));
 }
 
-TEST(AnimationImport, samplesPwmOutputLikeParanimator)
+TEST_F(YesNoPwmTest, samplesPwmOutputLikeParanimator)
 {
-    const JsonImportResult result = import_fixture("fixtures/yes-no-pwm.json");
     const std::array<std::string, 4> values{"no", "no", "yes", "yes"};
     const std::string golden = read_text("fixtures/gold-yes-no-pwm.par");
-    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result().succeeded());
 
     for (int frame = 0; frame < 4; ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), frame);
         ASSERT_TRUE(inspection);
         EXPECT_EQ(
-            values[frame], resolved_attributes(result, inspection->lanes[0].items.front().attributes).at("value"));
+            values[frame], resolved_attributes(result(), inspection->lanes[0].items.front().attributes).at("value"));
         ASSERT_TRUE(inspection->lanes[1].value);
         EXPECT_DOUBLE_EQ(frame / 3.0, *inspection->lanes[1].value);
         EXPECT_NE(std::string::npos, golden_frame(golden, frame).find("showorbit=" + values[frame]));
     }
 }
 
-TEST(AnimationImport, preservesPwmRecipeMetadata)
+TEST_F(YesNoPwmTest, preservesPwmRecipeMetadata)
 {
-    const JsonImportResult result = import_fixture("fixtures/yes-no-pwm.json");
-    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result().succeeded());
 
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 0);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), 0);
     ASSERT_TRUE(inspection);
     const timeline::InspectionItem &item = inspection->lanes[0].items.front();
-    const ResolvedAttributes attributes = resolved_attributes(result, item.attributes);
+    const ResolvedAttributes attributes = resolved_attributes(result(), item.attributes);
 
     EXPECT_EQ(timeline::InspectionItemType::INTERVAL, item.type);
     EXPECT_FALSE(item.value);
@@ -597,40 +765,42 @@ TEST(AnimationImport, preservesPwmRecipeMetadata)
     EXPECT_NE(std::string::npos, attributes.at("pwm").find("duty"));
 }
 
-TEST(AnimationImport, representsPwmOutputAsFrameAlignedIntervals)
+TEST_F(YesNoPwmTest, representsPwmOutputAsFrameAlignedIntervals)
 {
-    const timeline::Document document = import_clean_document("fixtures/yes-no-pwm.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Lane &output = document.lanes()[0];
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Lane &output = document().lanes()[0];
     ASSERT_EQ(2, output.item_count());
 
     const timeline::Interval &first = std::get<timeline::Interval>(output.items().front());
     const timeline::Interval &last = std::get<timeline::Interval>(output.items().back());
 
-    EXPECT_EQ(grid.offset(), first.start());
-    EXPECT_EQ(grid.frame_start(2), first.end());
-    EXPECT_EQ(grid.end_time(), last.end());
+    EXPECT_EQ(frame_grid().offset(), first.start());
+    EXPECT_EQ(frame_grid().frame_start(2), first.end());
+    EXPECT_EQ(frame_grid().end_time(), last.end());
 }
 
-TEST(AnimationImport, laysOutPwmOutput)
+TEST_F(YesNoPwmTest, laysOutPwmOutput)
 {
-    const timeline::Document document = import_clean_document("fixtures/yes-no-pwm.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Layout layout(document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(500, 140, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("showorbit / mix"));
 }
 
-TEST(AnimationImport, hitTestsPwmOutput)
+TEST_F(YesNoPwmTest, hitTestsPwmOutput)
 {
-    const timeline::Document document = import_clean_document("fixtures/yes-no-pwm.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Layout layout(document(),
+        timeline::Viewport(500, 140, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
-    const timeline::Interval &first = std::get<timeline::Interval>(document.lanes()[0].items().front());
+    const timeline::Interval &first = std::get<timeline::Interval>(document().lanes()[0].items().front());
 
     const std::optional<timeline::HitResult> hit = layout.hit_test({150, 35}, 2);
 
@@ -740,45 +910,44 @@ TEST(AnimationImport, preservesSpiralBounds)
     EXPECT_DOUBLE_EQ(3.0, *item.maximum());
 }
 
-TEST(AnimationImport, supportsCatmullRomTupleVariants)
+TEST_F(CatmullRomTuplesTest, supportsCatmullRomTupleVariants)
 {
-    const timeline::Document document = import_clean_document("fixtures/catmull-rom-tuples.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
     const std::array<double, 9> x{0.0, 0.4375, 1.0, 2.0, 3.0, 3.5, 4.0, 4.9375, 6.0};
     const std::array<double, 9> y{0.0, 1.125, 2.0, 2.25, 2.0, 1.125, 0.0, -1.0, -2.0};
 
     for (int frame = 0; frame < 9; ++frame)
     {
-        EXPECT_DOUBLE_EQ(x[frame], curve(document, 0).sample(grid.frame_start(frame)));
-        EXPECT_DOUBLE_EQ(y[frame], curve(document, 1).sample(grid.frame_start(frame)));
-        EXPECT_DOUBLE_EQ(3.0 * x[frame], curve(document, 2).sample(grid.frame_start(frame)));
+        EXPECT_DOUBLE_EQ(x[frame], curve(document(), 0).sample(frame_grid().frame_start(frame)));
+        EXPECT_DOUBLE_EQ(y[frame], curve(document(), 1).sample(frame_grid().frame_start(frame)));
+        EXPECT_DOUBLE_EQ(3.0 * x[frame], curve(document(), 2).sample(frame_grid().frame_start(frame)));
     }
 }
 
-TEST(AnimationImport, supportsConstantAndLineCatmullRomTupleVariants)
+TEST_F(CatmullRomTuplesTest, supportsConstantAndLineCatmullRomTupleVariants)
 {
-    const timeline::Document document = import_clean_document("fixtures/catmull-rom-tuples.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
     for (int frame = 0; frame < 9; ++frame)
     {
-        EXPECT_DOUBLE_EQ(3.0, curve(document, 3).sample(grid.frame_start(frame)));
-        EXPECT_DOUBLE_EQ(3.0 * frame / 8.0, curve(document, 4).sample(grid.frame_start(frame)));
-        EXPECT_DOUBLE_EQ(6.0 * frame / 8.0, curve(document, 5).sample(grid.frame_start(frame)));
+        EXPECT_DOUBLE_EQ(3.0, curve(document(), 3).sample(frame_grid().frame_start(frame)));
+        EXPECT_DOUBLE_EQ(3.0 * frame / 8.0, curve(document(), 4).sample(frame_grid().frame_start(frame)));
+        EXPECT_DOUBLE_EQ(6.0 * frame / 8.0, curve(document(), 5).sample(frame_grid().frame_start(frame)));
     }
 }
 
-TEST(AnimationImport, copiesCatmullRomDefinitionsThroughComposition)
+TEST_F(CatmullRomTuplesTest, copiesCatmullRomDefinitionsThroughComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/catmull-rom-tuples.json");
-    const timeline::Document music = import_clean_document("fixtures/beat-keys/rms.beat-keys.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Document combined = timeline::combine_documents(music, document);
+    const timeline::Document &combined = composed_music_document();
     const timeline::Curve &copy = curve(combined, 5);
 
     EXPECT_EQ(10, combined.lane_count());
-    EXPECT_DOUBLE_EQ(2.25, copy.sample(grid.frame_start(3)));
+    EXPECT_DOUBLE_EQ(2.25, copy.sample(frame_grid().frame_start(3)));
     EXPECT_EQ(0, copy.sample_count());
 }
 
@@ -822,47 +991,46 @@ TEST(AnimationImport, rejectsSingleFrameCatmullRomPath)
     EXPECT_NE(std::string::npos, result.diagnostics.front().find("at least two frames"));
 }
 
-TEST(AnimationImport, supportsBezierTupleVariants)
+TEST_F(BezierTuplesTest, supportsBezierTupleVariants)
 {
-    const timeline::Document document = import_clean_document("fixtures/bezier-tuples.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
     const std::array<double, 15> midpoint{2.0, 4.0, 0.5, 0.5, 2.0, 2.0, 5.0, 2.0, 3.0, 1.0, 1.0, 2.0, 3.0, 4.0, 2.0};
 
-    for (int index = 0; index < document.lane_count(); ++index)
+    for (int index = 0; index < document().lane_count(); ++index)
     {
-        EXPECT_DOUBLE_EQ(midpoint[index], curve(document, index).sample(grid.frame_start(2)));
-        EXPECT_EQ(0, curve(document, index).sample_count());
+        EXPECT_DOUBLE_EQ(midpoint[index], curve(document(), index).sample(frame_grid().frame_start(2)));
+        EXPECT_EQ(0, curve(document(), index).sample_count());
         EXPECT_NE(std::string::npos,
-            resolved_attributes(document, curve(document, index).attributes()).at("path").find("control-points"));
+            resolved_attributes(document(), curve(document(), index).attributes()).at("path").find("control-points"));
     }
 }
 
-TEST(AnimationImport, supportsQuarticBezierVariant)
+TEST_F(BezierTuplesTest, supportsQuarticBezierVariant)
 {
-    const timeline::Document document = import_clean_document("fixtures/bezier-tuples.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &quartic = curve(document, 10);
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Curve &quartic = curve(document(), 10);
 
-    const std::array<double, 3> values{
-        quartic.sample(grid.frame_start(0)), quartic.sample(grid.frame_start(4)), quartic.sample(grid.frame_start(1))};
+    const std::array<double, 3> values{quartic.sample(frame_grid().frame_start(0)),
+        quartic.sample(frame_grid().frame_start(4)), quartic.sample(frame_grid().frame_start(1))};
 
     EXPECT_DOUBLE_EQ(0.0, values[0]);
     EXPECT_DOUBLE_EQ(16.0, values[1]);
     EXPECT_DOUBLE_EQ(0.0625, values[2]);
 }
 
-TEST(AnimationImport, copiesBezierDefinitionsThroughComposition)
+TEST_F(BezierTuplesTest, copiesBezierDefinitionsThroughComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/bezier-tuples.json");
-    const timeline::Document music = import_clean_document("fixtures/beat-keys/rms.beat-keys.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Document combined = timeline::combine_documents(music, document);
+    const timeline::Document &combined = composed_music_document();
     const timeline::Curve &copy = curve(combined, 14);
 
     EXPECT_EQ(19, combined.lane_count());
-    EXPECT_DOUBLE_EQ(1.0, copy.sample(grid.frame_start(2)));
-    EXPECT_EQ(resolved_attributes(document, curve(document, 10).attributes()).values(),
+    EXPECT_DOUBLE_EQ(1.0, copy.sample(frame_grid().frame_start(2)));
+    EXPECT_EQ(resolved_attributes(document(), curve(document(), 10).attributes()).values(),
         resolved_attributes(combined, copy.attributes()).values());
 }
 
@@ -906,16 +1074,16 @@ TEST(AnimationImport, rejectsSingleFrameBezierPath)
     EXPECT_NE(std::string::npos, result.diagnostics.front().find("at least two frames"));
 }
 
-TEST(AnimationImport, supportsReverseShrinkingSpiralVariant)
+TEST_F(SpiralVariantsTest, supportsReverseShrinkingSpiralVariant)
 {
-    const timeline::Document document = import_clean_document("fixtures/spiral-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &x = curve(document, 0);
-    const timeline::Curve &y = curve(document, 1);
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Curve &x = curve(document(), 0);
+    const timeline::Curve &y = curve(document(), 1);
 
-    const std::array<double, 8> values{x.sample(grid.frame_start(0)), y.sample(grid.frame_start(0)),
-        x.sample(grid.frame_start(2)), y.sample(grid.frame_start(2)), x.sample(grid.frame_start(4)),
-        y.sample(grid.frame_start(4)), *x.minimum(), *x.maximum()};
+    const std::array<double, 8> values{x.sample(frame_grid().frame_start(0)), y.sample(frame_grid().frame_start(0)),
+        x.sample(frame_grid().frame_start(2)), y.sample(frame_grid().frame_start(2)),
+        x.sample(frame_grid().frame_start(4)), y.sample(frame_grid().frame_start(4)), *x.minimum(), *x.maximum()};
 
     EXPECT_NEAR(1.0, values[0], 1e-12);
     EXPECT_DOUBLE_EQ(1.0, values[1]);
@@ -927,31 +1095,31 @@ TEST(AnimationImport, supportsReverseShrinkingSpiralVariant)
     EXPECT_DOUBLE_EQ(4.0, values[7]);
 }
 
-TEST(AnimationImport, supportsTranslatedSpiralVariant)
+TEST_F(SpiralVariantsTest, supportsTranslatedSpiralVariant)
 {
-    const timeline::Document document = import_clean_document("fixtures/spiral-variants.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const double x = curve(document, 0).sample(grid.frame_start(1));
-    const double y = curve(document, 1).sample(grid.frame_start(1));
+    const double x = curve(document(), 0).sample(frame_grid().frame_start(1));
+    const double y = curve(document(), 1).sample(frame_grid().frame_start(1));
 
     EXPECT_NEAR(1.0 + 2.5 / std::sqrt(2.0), x, 1e-12);
     EXPECT_NEAR(-2.0 + 2.5 / std::sqrt(2.0), y, 1e-12);
 }
 
-TEST(AnimationImport, constantRadiusSpiralMatchesCircle)
+TEST_F(SpiralVariantsTest, constantRadiusSpiralMatchesCircle)
 {
-    const timeline::Document document = import_clean_document("fixtures/spiral-variants.json");
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
     const timeline::Document circle = import_clean_document("fixtures/circle-path.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
 
     std::vector<double> differences;
     for (int component = 0; component < 2; ++component)
     {
         for (int frame = 0; frame < 5; ++frame)
         {
-            differences.push_back(curve(document, component + 2).sample(grid.frame_start(frame)) -
-                curve(circle, component).sample(grid.frame_start(frame)));
+            differences.push_back(curve(document(), component + 2).sample(frame_grid().frame_start(frame)) -
+                curve(circle, component).sample(frame_grid().frame_start(frame)));
         }
     }
 
@@ -961,44 +1129,41 @@ TEST(AnimationImport, constantRadiusSpiralMatchesCircle)
     }
 }
 
-TEST(AnimationImport, copiesSpiralDefinitionsThroughComposition)
+TEST_F(SpiralVariantsTest, copiesSpiralDefinitionsThroughComposition)
 {
-    const timeline::Document document = import_clean_document("fixtures/spiral-variants.json");
-    const timeline::Document music = import_clean_document("fixtures/beat-keys/rms.beat-keys.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Document combined = timeline::combine_documents(music, document);
+    const timeline::Document &combined = composed_music_document();
     const timeline::Curve &copy = curve(combined, 4);
 
     EXPECT_EQ(8, combined.lane_count());
-    EXPECT_DOUBLE_EQ(3.0, copy.sample(grid.frame_start(2)));
-    EXPECT_EQ(resolved_attributes(document, curve(document, 0).attributes()).values(),
+    EXPECT_DOUBLE_EQ(3.0, copy.sample(frame_grid().frame_start(2)));
+    EXPECT_EQ(resolved_attributes(document(), curve(document(), 0).attributes()).values(),
         resolved_attributes(combined, copy.attributes()).values());
 }
 
-TEST(AnimationImport, diagnosesInvalidSpiralRecipesByIndex)
+TEST_F(PartialSpiralPathsTest, diagnosesInvalidSpiralRecipesByIndex)
 {
-    const JsonImportResult result = import_fixture("fixtures/partial-spiral-paths.json");
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_EQ(8, timeline::size_cast(result.diagnostics));
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_EQ(8, timeline::size_cast(result().diagnostics));
     for (int index = 0; index < 8; ++index)
     {
-        EXPECT_NE(std::string::npos, result.diagnostics[index].find("animation-" + std::to_string(index)));
+        EXPECT_NE(std::string::npos, result().diagnostics[index].find("animation-" + std::to_string(index)));
     }
 }
 
-TEST(AnimationImport, keepsSpiralDefaults)
+TEST_F(PartialSpiralPathsTest, keepsSpiralDefaults)
 {
-    const JsonImportResult result = import_fixture("fixtures/partial-spiral-paths.json");
-    ASSERT_TRUE(result.succeeded());
-    const timeline::FrameGrid &grid = *result.document->frame_grid();
+    ASSERT_TRUE(result().succeeded());
 
-    const std::array<double, 5> values{curve(*result.document, 0).sample(grid.frame_start(0)),
-        curve(*result.document, 1).sample(grid.frame_start(0)), curve(*result.document, 0).sample(grid.frame_start(2)),
-        curve(*result.document, 1).sample(grid.frame_start(2)), curve(*result.document, 0).sample(grid.frame_start(4))};
+    const std::array<double, 5> values{curve(document(), 0).sample(frame_grid().frame_start(0)),
+        curve(document(), 1).sample(frame_grid().frame_start(0)),
+        curve(document(), 0).sample(frame_grid().frame_start(2)),
+        curve(document(), 1).sample(frame_grid().frame_start(2)),
+        curve(document(), 0).sample(frame_grid().frame_start(4))};
 
-    EXPECT_EQ("animation-8[0]", result.document->strings().lookup(result.document->lanes()[0].id()));
+    EXPECT_EQ("animation-8[0]", document().strings().lookup(document().lanes()[0].id()));
     EXPECT_DOUBLE_EQ(1.0, values[0]);
     EXPECT_DOUBLE_EQ(-2.0, values[1]);
     EXPECT_DOUBLE_EQ(0.0, values[2]);
@@ -1006,13 +1171,12 @@ TEST(AnimationImport, keepsSpiralDefaults)
     EXPECT_DOUBLE_EQ(3.0, values[4]);
 }
 
-TEST(AnimationImport, acceptsZeroRadiusSpiral)
+TEST_F(PartialSpiralPathsTest, acceptsZeroRadiusSpiral)
 {
-    const timeline::Document document = *import_fixture("fixtures/partial-spiral-paths.json").document;
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
 
-    const double x = curve(document, 2).sample(grid.frame_start(3));
-    const double y = curve(document, 3).sample(grid.frame_start(3));
+    const double x = curve(document(), 2).sample(frame_grid().frame_start(3));
+    const double y = curve(document(), 3).sample(frame_grid().frame_start(3));
 
     EXPECT_DOUBLE_EQ(1.0, x);
     EXPECT_DOUBLE_EQ(-2.0, y);
@@ -1136,16 +1300,15 @@ TEST(AnimationImport, keepsZeroRadiusPlanarDefaults)
     EXPECT_DOUBLE_EQ(-2.0, curve(*result.document, 1).sample(time));
 }
 
-TEST(AnimationImport, samplesConstantAndLinePathsLikeParanimator)
+TEST_F(PathGeneratorsTest, samplesConstantAndLinePathsLikeParanimator)
 {
-    const JsonImportResult result = import_fixture("fixtures/path-generators.json");
     const std::string golden = read_text("fixtures/gold-path-generators.par");
-    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result().succeeded());
 
     std::vector<std::array<double, 3>> values;
     for (int frame = 0; frame < 3; ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), frame);
         values.push_back({*inspection->lanes[0].value, *inspection->lanes[1].value, *inspection->lanes[2].value});
         EXPECT_NE(std::string::npos, golden_frame(golden, frame).find("maxiter=321"));
         EXPECT_NE(std::string::npos,
@@ -1160,22 +1323,21 @@ TEST(AnimationImport, samplesConstantAndLinePathsLikeParanimator)
     }
 }
 
-TEST(AnimationImport, preservesConstantAndLineRecipes)
+TEST_F(PathGeneratorsTest, preservesConstantAndLineRecipes)
 {
-    const JsonImportResult result = import_fixture("fixtures/path-generators.json");
-    ASSERT_TRUE(result.succeeded());
-    const timeline::Keyframe &constant = std::get<timeline::Keyframe>(result.document->lanes()[0].items().front());
-    const timeline::Lane &line = result.document->lanes()[1];
+    ASSERT_TRUE(result().succeeded());
+    const timeline::Keyframe &constant = std::get<timeline::Keyframe>(document().lanes()[0].items().front());
+    const timeline::Lane &line = document().lanes()[1];
 
     std::vector<ResolvedAttributes> line_attributes;
     for (const timeline::Item &item : line.items())
     {
-        line_attributes.push_back(resolved_attributes(result, std::get<timeline::Keyframe>(item).attributes()));
+        line_attributes.push_back(resolved_attributes(result(), std::get<timeline::Keyframe>(item).attributes()));
     }
 
     EXPECT_EQ(timeline::KeyframeInterpolation::HOLD, constant.interpolation());
     EXPECT_EQ(
-        "{\"kind\":\"constant\",\"value\":\"321\"}", resolved_attributes(result, constant.attributes()).at("path"));
+        "{\"kind\":\"constant\",\"value\":\"321\"}", resolved_attributes(result(), constant.attributes()).at("path"));
     for (const ResolvedAttributes &attributes : line_attributes)
     {
         EXPECT_EQ("{\"from\":\"0/1\",\"kind\":\"line\",\"to\":\"2/3\"}", attributes.at("path"));
@@ -1183,25 +1345,26 @@ TEST(AnimationImport, preservesConstantAndLineRecipes)
     }
 }
 
-TEST(AnimationImport, interpolatesLinePathBetweenFrames)
+TEST_F(PathGeneratorsTest, interpolatesLinePathBetweenFrames)
 {
-    const timeline::Document document = import_clean_document("fixtures/path-generators.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Lane &line = document.lanes()[1];
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Lane &line = document().lanes()[1];
 
     const std::optional<double> value = line.evaluate_keyframes(
-        grid.frame_start(0) + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2));
+        frame_grid().frame_start(0) + timeline::Duration::from_ticks(frame_grid().frame_duration().ticks() / 2));
 
     ASSERT_TRUE(value);
     EXPECT_DOUBLE_EQ(0.5, *value);
 }
 
-TEST(AnimationImport, laysOutConstantAndLinePaths)
+TEST_F(PathGeneratorsTest, laysOutConstantAndLinePaths)
 {
-    const timeline::Document document = import_clean_document("fixtures/path-generators.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Layout layout(document, timeline::Viewport(400, 160, grid.offset(), grid.end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(400, 160, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
 
@@ -1293,26 +1456,26 @@ TEST(AnimationImport, inspectsSplitCompoundParameters)
     EXPECT_NEAR(std::sqrt(10.0), *inspection->lanes[2].value, 1e-12);
 }
 
-TEST(AnimationImport, retainsLayerIdentity)
+TEST_F(SingleLayerTest, retainsLayerIdentity)
 {
-    const JsonImportResult result = import_fixture("fixtures/single-layer.json");
-    ASSERT_TRUE(result.succeeded());
-    const timeline::Lane &lane = result.document->lanes().front();
+    ASSERT_TRUE(result().succeeded());
+    const timeline::Lane &lane = document().lanes().front();
     const timeline::Keyframe &first = std::get<timeline::Keyframe>(lane.items().front());
 
-    const std::string label(result.document->strings().lookup(lane.label()));
-    const std::string layer(resolved_attributes(result, first.attributes()).at("layer"));
+    const std::string label(document().strings().lookup(lane.label()));
+    const std::string layer(resolved_attributes(result(), first.attributes()).at("layer"));
 
     EXPECT_EQ("base / maxiter", label);
     EXPECT_EQ("base", layer);
 }
 
-TEST(AnimationImport, displaysLayerIdentity)
+TEST_F(SingleLayerTest, displaysLayerIdentity)
 {
-    const timeline::Document document = import_clean_document("fixtures/single-layer.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const timeline::Layout layout(document, timeline::Viewport(400, 120, grid.offset(), grid.end_time()),
+    const timeline::Layout layout(document(),
+        timeline::Viewport(400, 120, frame_grid().offset(), frame_grid().end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
 
@@ -1320,81 +1483,52 @@ TEST(AnimationImport, displaysLayerIdentity)
     EXPECT_NE(std::string::npos, snapshot.find("base / maxiter"));
 }
 
-TEST(AnimationImport, inspectsLayerIdentity)
+TEST_F(SingleLayerTest, inspectsLayerIdentity)
 {
-    const JsonImportResult result = import_fixture("fixtures/single-layer.json");
-    ASSERT_TRUE(result.succeeded());
+    ASSERT_TRUE(result().succeeded());
 
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(*result.document, 1);
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document(), 1);
 
     ASSERT_TRUE(inspection);
-    EXPECT_EQ("base", resolved_attributes(result, inspection->lanes.front().items.front().attributes).at("layer"));
-    EXPECT_DOUBLE_EQ(
-        150.0, *result.document->lanes().front().evaluate_keyframes(result.document->frame_grid()->frame_start(1)));
+    EXPECT_EQ("base", resolved_attributes(result(), inspection->lanes.front().items.front().attributes).at("layer"));
+    EXPECT_DOUBLE_EQ(150.0, *document().lanes().front().evaluate_keyframes(frame_grid().frame_start(1)));
 }
 
-TEST(AnimationImport, composesMusicAndAnimationDocuments)
+TEST_F(ComposedAnimationTest, composesMusicAndAnimationDocuments)
 {
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    ASSERT_TRUE(music.succeeded());
-    JsonImportOptions options;
-    options.frames_per_second_numerator = music.document->frame_grid()->frames_per_second_numerator();
-    options.frames_per_second_denominator = music.document->frame_grid()->frames_per_second_denominator();
-    const JsonImportResult animation = import_timeline_json("fixtures/maxiter.json", options);
-    ASSERT_TRUE(animation.succeeded());
+    ASSERT_TRUE(m_music.succeeded());
+    ASSERT_TRUE(m_animation.succeeded());
 
-    const timeline::Document combined = timeline::combine_documents(*music.document, *animation.document);
-
-    EXPECT_EQ(5, combined.lane_count());
-    EXPECT_EQ(5, combined.frame_grid()->frame_count());
-    EXPECT_EQ(11, combined.keyframe_count());
-    EXPECT_EQ(music.document->lanes().front().id(), combined.lanes().front().id());
+    EXPECT_EQ(5, m_combined.lane_count());
+    EXPECT_EQ(5, m_combined.frame_grid()->frame_count());
+    EXPECT_EQ(11, m_combined.keyframe_count());
+    EXPECT_EQ(m_music.document->lanes().front().id(), m_combined.lanes().front().id());
 }
 
-TEST(AnimationImport, preservesAnimationTimingThroughComposition)
+TEST_F(ComposedAnimationTest, preservesAnimationTimingThroughComposition)
 {
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    JsonImportOptions options;
-    options.frames_per_second_numerator = music.document->frame_grid()->frames_per_second_numerator();
-    options.frames_per_second_denominator = music.document->frame_grid()->frames_per_second_denominator();
-    const JsonImportResult animation = import_timeline_json("fixtures/maxiter.json", options);
-    const timeline::Document combined = timeline::combine_documents(*music.document, *animation.document);
-    const timeline::Lane &authored = combined.lanes().back();
+    const timeline::Lane &authored = m_combined.lanes().back();
 
-    const std::optional<double> value = authored.evaluate_keyframes(combined.frame_grid()->frame_start(1));
+    const std::optional<double> value = authored.evaluate_keyframes(m_combined.frame_grid()->frame_start(1));
 
-    EXPECT_EQ("maxiter", combined.strings().lookup(authored.label()));
+    EXPECT_EQ("maxiter", m_combined.strings().lookup(authored.label()));
     EXPECT_DOUBLE_EQ(150.0, *value);
-    EXPECT_EQ(std::get<timeline::Keyframe>(animation.document->lanes().front().items().front()).time(),
+    EXPECT_EQ(std::get<timeline::Keyframe>(m_animation.document->lanes().front().items().front()).time(),
         std::get<timeline::Keyframe>(authored.items().front()).time());
 }
 
-TEST(AnimationImport, rewritesRepeatedAnimationIdentities)
+TEST_F(ComposedAnimationTest, rewritesRepeatedAnimationIdentities)
 {
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    JsonImportOptions options;
-    options.frames_per_second_numerator = music.document->frame_grid()->frames_per_second_numerator();
-    options.frames_per_second_denominator = music.document->frame_grid()->frames_per_second_denominator();
-    const JsonImportResult animation = import_timeline_json("fixtures/maxiter.json", options);
-    const timeline::Document combined = timeline::combine_documents(*music.document, *animation.document);
-
-    const timeline::Document repeated = timeline::combine_documents(combined, *animation.document);
+    const timeline::Document repeated = timeline::combine_documents(m_combined, *m_animation.document);
 
     ASSERT_EQ(6, repeated.lane_count());
     EXPECT_NE(repeated.lanes()[4].id(), repeated.lanes()[5].id());
 }
 
-TEST(AnimationImport, laysOutComposedDocuments)
+TEST_F(ComposedAnimationTest, laysOutComposedDocuments)
 {
-    const JsonImportResult music = import_fixture("fixtures/beat-keys/rms.beat-keys.json");
-    JsonImportOptions options;
-    options.frames_per_second_numerator = music.document->frame_grid()->frames_per_second_numerator();
-    options.frames_per_second_denominator = music.document->frame_grid()->frames_per_second_denominator();
-    const JsonImportResult animation = import_timeline_json("fixtures/maxiter.json", options);
-    const timeline::Document combined = timeline::combine_documents(*music.document, *animation.document);
-
-    const timeline::Layout layout(combined,
-        timeline::Viewport(600, 240, combined.frame_grid()->offset(), combined.frame_grid()->end_time()),
+    const timeline::Layout layout(m_combined,
+        timeline::Viewport(600, 240, m_combined.frame_grid()->offset(), m_combined.frame_grid()->end_time()),
         timeline::LayoutMetrics(120, 20, 30, 4));
     const std::string snapshot = timeline::render_snapshot(layout.display_list());
 
