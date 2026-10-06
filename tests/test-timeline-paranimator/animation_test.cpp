@@ -165,11 +165,58 @@ std::vector<timeline::Polyline> rendered_curves(const timeline::Document &docume
     return result;
 }
 
-class AnalyticPathImportTest : public testing::TestWithParam<AnalyticPathCase>
+/// Parameterized animation import with shared document access.
+///
+template <typename Definition>
+class ParameterizedAnimationImportTest : public testing::TestWithParam<Definition>
+{
+protected:
+    void SetUp() override;
+    const JsonImportResult &result() const
+    {
+        return m_result;
+    }
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+    const timeline::Document &composed_music_document();
+
+private:
+    JsonImportResult m_result;
+    std::optional<timeline::Document> m_composed_music_document;
+};
+
+template <typename Definition>
+void ParameterizedAnimationImportTest<Definition>::SetUp()
+{
+    m_result = import_fixture(this->GetParam().fixture);
+}
+
+template <typename Definition>
+const timeline::Document &ParameterizedAnimationImportTest<Definition>::composed_music_document()
+{
+    if (!m_composed_music_document)
+    {
+        m_composed_music_document.emplace(
+            timeline::combine_documents(import_clean_document("fixtures/beat-keys/rms.beat-keys.json"), document()));
+    }
+    return *m_composed_music_document;
+}
+
+/// Imported analytic path selected by the active test parameter.
+///
+class AnalyticPathImportTest : public ParameterizedAnimationImportTest<AnalyticPathCase>
 {
 };
 
-class AnimationShapeImportTest : public testing::TestWithParam<AnimationShapeCase>
+/// Imported animation shape selected by the active test parameter.
+///
+class AnimationShapeImportTest : public ParameterizedAnimationImportTest<AnimationShapeCase>
 {
 };
 
@@ -177,29 +224,25 @@ class AnimationShapeImportTest : public testing::TestWithParam<AnimationShapeCas
 
 TEST_P(AnalyticPathImportTest, importsExpectedDocumentShape)
 {
-    const AnalyticPathCase &definition = GetParam();
+    const JsonImportResult &imported = result();
 
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(2, result.document->lane_count());
-    EXPECT_EQ(1, result.document->track_count());
-    EXPECT_EQ(0, result.document->keyframe_count());
+    ASSERT_TRUE(imported.succeeded());
+    EXPECT_TRUE(imported.diagnostics.empty());
+    ASSERT_TRUE(imported.document);
+    EXPECT_EQ(2, imported.document->lane_count());
+    EXPECT_EQ(1, imported.document->track_count());
+    EXPECT_EQ(0, imported.document->keyframe_count());
 }
 
 TEST_P(AnalyticPathImportTest, samplesLikeParanimator)
 {
     const AnalyticPathCase &definition = GetParam();
-    const JsonImportResult result = import_fixture(definition.fixture);
-    ASSERT_TRUE(result.succeeded());
-
-    const timeline::Document &document = *result.document;
+    ASSERT_TRUE(result().succeeded());
+    const timeline::Document &imported = document();
 
     for (int frame = 0; frame < timeline::size_cast(definition.x); ++frame)
     {
-        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, frame);
+        const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(imported, frame);
         ASSERT_TRUE(inspection);
         ASSERT_EQ(2, timeline::size_cast(inspection->lanes));
         ASSERT_TRUE(inspection->lanes[0].items.front().value);
@@ -232,12 +275,14 @@ TEST_P(AnalyticPathImportTest, matchesParanimatorGoldenOutput)
 TEST_P(AnalyticPathImportTest, preservesOwnedRecipeMetadata)
 {
     const AnalyticPathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(document, 0);
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Document &imported = document();
+    const std::optional<timeline::FrameInspection> inspection = timeline::inspect_frame(imported, 0);
     ASSERT_TRUE(inspection);
 
-    const ResolvedAttributes first = resolved_attributes(document, inspection->lanes[0].items.front().attributes);
-    const ResolvedAttributes second = resolved_attributes(document, inspection->lanes[1].items.front().attributes);
+    const ResolvedAttributes first = resolved_attributes(imported, inspection->lanes[0].items.front().attributes);
+    const ResolvedAttributes second = resolved_attributes(imported, inspection->lanes[1].items.front().attributes);
 
     EXPECT_EQ("params.c", first.at("parameter"));
     EXPECT_EQ("animation-0", first.at("track"));
@@ -258,9 +303,10 @@ TEST_P(AnalyticPathImportTest, preservesOwnedRecipeMetadata)
 TEST_P(AnalyticPathImportTest, retainsAnalyticDefinition)
 {
     const AnalyticPathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Curve &item = curve(document, definition.midpoint_lane);
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Curve &item = curve(document(), definition.midpoint_lane);
+    const timeline::FrameGrid &grid = frame_grid();
 
     const double midpoint =
         item.sample(grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2));
@@ -280,9 +326,10 @@ TEST_P(AnalyticPathImportTest, retainsAnalyticDefinition)
 TEST_P(AnalyticPathImportTest, laysOutOnePolylinePerComponent)
 {
     const AnalyticPathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
 
-    const std::vector<timeline::Polyline> lines = rendered_curves(document);
+    const std::vector<timeline::Polyline> lines = rendered_curves(document());
 
     ASSERT_EQ(2, timeline::size_cast(lines));
     EXPECT_EQ(timeline::size_cast(definition.x), timeline::size_cast(lines[0].points));
@@ -292,11 +339,13 @@ TEST_P(AnalyticPathImportTest, laysOutOnePolylinePerComponent)
 TEST_P(AnalyticPathImportTest, hitTestsRenderedComponents)
 {
     const AnalyticPathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().diagnostics.empty());
+    const timeline::Document &imported = document();
+    const timeline::FrameGrid &grid = frame_grid();
+    const timeline::Layout layout(imported, timeline::Viewport(500, 140, grid.offset(), grid.end_time()),
         timeline::LayoutMetrics(100, 20, 30, 4));
-    const std::vector<timeline::Polyline> lines = rendered_curves(document);
+    const std::vector<timeline::Polyline> lines = rendered_curves(imported);
 
     const std::optional<timeline::HitResult> first = layout.hit_test(lines[0].points[definition.hit_point], 2);
     const std::optional<timeline::HitResult> second = layout.hit_test(lines[1].points[definition.hit_point], 2);
@@ -313,19 +362,18 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(AnimationShapeImportTest, importsExpectedCounts)
 {
     const AnimationShapeCase &definition = GetParam();
+    const JsonImportResult &imported = result();
 
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(definition.lanes, result.document->lane_count());
+    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(imported.document);
+    EXPECT_EQ(definition.lanes, imported.document->lane_count());
     if (definition.tracks)
     {
-        EXPECT_EQ(*definition.tracks, result.document->track_count());
+        EXPECT_EQ(*definition.tracks, imported.document->track_count());
     }
     if (definition.keyframes)
     {
-        EXPECT_EQ(*definition.keyframes, result.document->keyframe_count());
+        EXPECT_EQ(*definition.keyframes, imported.document->keyframe_count());
     }
 }
 
