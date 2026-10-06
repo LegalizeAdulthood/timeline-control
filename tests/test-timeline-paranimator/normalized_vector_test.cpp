@@ -382,24 +382,61 @@ class NormalizedVectorInvalidDocumentTest : public testing::TestWithParam<Invali
 {
 };
 
-TEST(NormalizedVectorSource, matchesExtremeOutputAtFramesAndBetweenFrames)
+/// Imported extreme normalized-vector document and its source oracle.
+///
+class ExtremeNormalizedVectorTest : public testing::Test
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const std::string golden = read_text(fixture("gold-extreme-normalized-vectors.par"));
-    const timeline::FrameGrid &grid = *document.frame_grid();
+protected:
+    const timeline::Document m_document{import_clean_document("extreme-normalized-vectors.json")};
+    const timeline::FrameGrid m_grid{*m_document.frame_grid()};
+    const std::string m_golden{read_text(fixture("gold-extreme-normalized-vectors.par"))};
+};
 
+/// Imported keyed normalized-vector document and its source oracle.
+///
+class KeyedNormalizedVectorTest : public testing::Test
+{
+protected:
+    const timeline::Document m_document{import_clean_document("normalized-keyed-vectors.json")};
+    const timeline::FrameGrid m_grid{*m_document.frame_grid()};
+    const std::string m_golden{read_text(fixture("gold-normalized-keyed-vectors.par"))};
+};
+
+/// Imported Bezier normalized-vector document.
+///
+class BezierNormalizedVectorTest : public testing::Test
+{
+protected:
+    const timeline::Document m_document{import_clean_document("normalized-bezier-vectors.json")};
+    const timeline::FrameGrid m_grid{*m_document.frame_grid()};
+};
+
+/// Extreme normalized-vector document composed with music and laid out.
+///
+class ExtremeNormalizedVectorLayoutTest : public ExtremeNormalizedVectorTest
+{
+protected:
+    const timeline::Document m_combined{combine_with_music(m_document)};
+    const timeline::FrameGrid m_combined_grid{*m_combined.frame_grid()};
+    const timeline::Layout m_layout{m_combined,
+        timeline::Viewport(600, 1300, m_combined_grid.offset(), m_combined_grid.end_time()),
+        timeline::LayoutMetrics(100, 20, 40, 4)};
+};
+
+TEST_F(ExtremeNormalizedVectorTest, matchesExtremeOutputAtFramesAndBetweenFrames)
+{
     for (int sample = 0; sample < 9; ++sample)
     {
         SCOPED_TRACE(sample);
         const timeline::Time time =
-            grid.offset() + timeline::Duration::from_ticks(sample * grid.frame_duration().ticks() / 2);
-        const std::string entry = vector_golden_entry(golden, sample);
+            m_grid.offset() + timeline::Duration::from_ticks(sample * m_grid.frame_duration().ticks() / 2);
+        const std::string entry = vector_golden_entry(m_golden, sample);
         ASSERT_FALSE(entry.empty());
-        for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
+        for (int lane_index = 0; lane_index < m_document.lane_count(); ++lane_index)
         {
             SCOPED_TRACE(lane_index);
-            const timeline::Lane &lane = document.lanes()[lane_index];
-            const ResolvedAttributes attributes = resolved_attributes(document, lane_attributes(lane));
+            const timeline::Lane &lane = m_document.lanes()[lane_index];
+            const ResolvedAttributes attributes = resolved_attributes(m_document, lane_attributes(lane));
             const double expected = vector_golden_component(
                 entry, attributes.at("parameter"), std::stoi(std::string(attributes.at("component"))));
             const double actual = sample_lane(lane, time);
@@ -408,22 +445,19 @@ TEST(NormalizedVectorSource, matchesExtremeOutputAtFramesAndBetweenFrames)
     }
 }
 
-TEST(NormalizedVectorSource, preservesExtremeSignedZero)
+TEST_F(ExtremeNormalizedVectorTest, preservesExtremeSignedZero)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const std::string golden = read_text(fixture("gold-extreme-normalized-vectors.par"));
-    const timeline::FrameGrid &grid = *document.frame_grid();
     int zero_count = 0;
 
     for (int sample = 0; sample < 9; ++sample)
     {
         const timeline::Time time =
-            grid.offset() + timeline::Duration::from_ticks(sample * grid.frame_duration().ticks() / 2);
-        const std::string entry = vector_golden_entry(golden, sample);
-        for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
+            m_grid.offset() + timeline::Duration::from_ticks(sample * m_grid.frame_duration().ticks() / 2);
+        const std::string entry = vector_golden_entry(m_golden, sample);
+        for (int lane_index = 0; lane_index < m_document.lane_count(); ++lane_index)
         {
-            const timeline::Lane &lane = document.lanes()[lane_index];
-            const ResolvedAttributes attributes = resolved_attributes(document, lane_attributes(lane));
+            const timeline::Lane &lane = m_document.lanes()[lane_index];
+            const ResolvedAttributes attributes = resolved_attributes(m_document, lane_attributes(lane));
             const double expected = vector_golden_component(
                 entry, attributes.at("parameter"), std::stoi(std::string(attributes.at("component"))));
             if (expected == 0)
@@ -436,19 +470,16 @@ TEST(NormalizedVectorSource, preservesExtremeSignedZero)
     EXPECT_GT(zero_count, 0);
 }
 
-TEST(NormalizedVectorInspection, matchesExtremeLaneOutput)
+TEST_F(ExtremeNormalizedVectorTest, matchesExtremeLaneOutput)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    for (timeline::Ticks frame = 0; frame < grid.frame_count(); ++frame)
+    for (timeline::Ticks frame = 0; frame < m_grid.frame_count(); ++frame)
     {
         SCOPED_TRACE(frame);
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
-        for (int lane_index = 0; lane_index < document.lane_count(); ++lane_index)
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(m_document, frame);
+        for (int lane_index = 0; lane_index < m_document.lane_count(); ++lane_index)
         {
-            const timeline::Lane &lane = document.lanes()[lane_index];
-            const double expected = sample_lane(lane, grid.frame_start(frame));
+            const timeline::Lane &lane = m_document.lanes()[lane_index];
+            const double expected = sample_lane(lane, m_grid.frame_start(frame));
             const std::optional<double> actual = std::holds_alternative<timeline::Keyframe>(lane.items()[0])
                 ? inspection.lanes[lane_index].output_value
                 : inspection.lanes[lane_index].items[0].value;
@@ -458,17 +489,14 @@ TEST(NormalizedVectorInspection, matchesExtremeLaneOutput)
     }
 }
 
-TEST(NormalizedVectorSource, matchesKeyedOutputAtEveryFrame)
+TEST_F(KeyedNormalizedVectorTest, matchesKeyedOutputAtEveryFrame)
 {
-    const timeline::Document document = import_clean_document("normalized-keyed-vectors.json");
-    const std::string golden = read_text(fixture("gold-normalized-keyed-vectors.par"));
-
-    for (timeline::Ticks frame = 0; frame < document.frame_grid()->frame_count(); ++frame)
+    for (timeline::Ticks frame = 0; frame < m_grid.frame_count(); ++frame)
     {
         SCOPED_TRACE(frame);
-        const std::string entry = vector_golden_entry(golden, static_cast<int>(frame));
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
-        for (int lane = 0; lane < document.lane_count(); ++lane)
+        const std::string entry = vector_golden_entry(m_golden, static_cast<int>(frame));
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(m_document, frame);
+        for (int lane = 0; lane < m_document.lane_count(); ++lane)
         {
             SCOPED_TRACE(lane);
             const std::optional<double> value =
@@ -479,13 +507,11 @@ TEST(NormalizedVectorSource, matchesKeyedOutputAtEveryFrame)
     }
 }
 
-TEST(NormalizedVectorInspection, distinguishesNormalizedAndRawKeyedLanes)
+TEST_F(KeyedNormalizedVectorTest, distinguishesNormalizedAndRawKeyedLanes)
 {
-    const timeline::Document document = import_clean_document("normalized-keyed-vectors.json");
+    const timeline::FrameInspection inspection = *timeline::inspect_frame(m_document, 0);
 
-    const timeline::FrameInspection inspection = *timeline::inspect_frame(document, 0);
-
-    for (int lane = 0; lane < document.lane_count(); ++lane)
+    for (int lane = 0; lane < m_document.lane_count(); ++lane)
     {
         EXPECT_EQ(lane < 12, inspection.lanes[lane].output_value.has_value());
     }
@@ -599,21 +625,16 @@ TEST_P(NormalizedVectorCopyTest, preservesComparedOutput)
     }
 }
 
-TEST(NormalizedVectorLayout, drawsEveryExtremeComponent)
+TEST_F(ExtremeNormalizedVectorLayoutTest, drawsEveryExtremeComponent)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *combined.frame_grid();
-    const timeline::Layout layout(combined, timeline::Viewport(600, 1300, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
     int found = 0;
 
-    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    for (const timeline::Primitive &primitive : m_layout.display_list().primitives())
     {
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
+            if (m_layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
             {
                 ++found;
             }
@@ -623,21 +644,16 @@ TEST(NormalizedVectorLayout, drawsEveryExtremeComponent)
     EXPECT_EQ(25, found);
 }
 
-TEST(NormalizedVectorLayout, producesFiniteExtremePoints)
+TEST_F(ExtremeNormalizedVectorLayoutTest, producesFiniteExtremePoints)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *combined.frame_grid();
-    const timeline::Layout layout(combined, timeline::Viewport(600, 1300, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
     int point_count = 0;
 
-    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    for (const timeline::Primitive &primitive : m_layout.display_list().primitives())
     {
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
+            if (m_layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
             {
                 for (const timeline::Point &point : line.points)
                 {
@@ -681,23 +697,18 @@ TEST_P(NormalizedVectorLayoutTest, preservesHitIdentity)
     EXPECT_EQ(GetParam().item_id, layout.display_list().strings().lookup(hit->id.item_id));
 }
 
-TEST(NormalizedVectorHit, preservesExtremeLaneIdentity)
+TEST_F(ExtremeNormalizedVectorLayoutTest, preservesExtremeLaneIdentity)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *combined.frame_grid();
-    const timeline::Layout layout(combined, timeline::Viewport(600, 1300, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
     int hit_count = 0;
 
-    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    for (const timeline::Primitive &primitive : m_layout.display_list().primitives())
     {
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
+            if (m_layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
             {
-                const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
+                const std::optional<timeline::HitResult> hit = m_layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(hit);
                 EXPECT_EQ(line.id.lane_id, hit->id.lane_id);
                 ++hit_count;
@@ -708,23 +719,18 @@ TEST(NormalizedVectorHit, preservesExtremeLaneIdentity)
     EXPECT_EQ(25, hit_count);
 }
 
-TEST(NormalizedVectorHit, assignsExtremeItemIdentity)
+TEST_F(ExtremeNormalizedVectorLayoutTest, assignsExtremeItemIdentity)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *combined.frame_grid();
-    const timeline::Layout layout(combined, timeline::Viewport(600, 1300, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
     int hit_count = 0;
 
-    for (const timeline::Primitive &primitive : layout.display_list().primitives())
+    for (const timeline::Primitive &primitive : m_layout.display_list().primitives())
     {
         if (std::holds_alternative<timeline::Polyline>(primitive))
         {
             const timeline::Polyline &line = std::get<timeline::Polyline>(primitive);
-            if (layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
+            if (m_layout.display_list().strings().lookup(line.id.lane_id).substr(0, 10) == "animation-")
             {
-                const std::optional<timeline::HitResult> hit = layout.hit_test(line.points.front(), 0);
+                const std::optional<timeline::HitResult> hit = m_layout.hit_test(line.points.front(), 0);
                 ASSERT_TRUE(hit);
                 EXPECT_FALSE(hit->id.item_id.empty());
                 ++hit_count;
@@ -735,12 +741,10 @@ TEST(NormalizedVectorHit, assignsExtremeItemIdentity)
     EXPECT_EQ(25, hit_count);
 }
 
-TEST(NormalizedVectorTiming, normalizesKeyedValuesAfterInterpolation)
+TEST_F(KeyedNormalizedVectorTest, normalizesKeyedValuesAfterInterpolation)
 {
-    const timeline::Document document = import_clean_document("normalized-keyed-vectors.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
-    const timeline::Lane &lane = document.lanes()[0];
+    const timeline::Time half = m_grid.offset() + timeline::Duration::from_ticks(m_grid.frame_duration().ticks() / 2);
+    const timeline::Lane &lane = m_document.lanes()[0];
 
     const double authored = *lane.evaluate_keyframes(half);
     const double normalized = *lane.evaluate_keyframe_output(half);
@@ -749,13 +753,11 @@ TEST(NormalizedVectorTiming, normalizesKeyedValuesAfterInterpolation)
     EXPECT_NEAR(8.75 / std::sqrt(8.75 * 8.75 + 2.5 * 2.5), normalized, 1e-14);
 }
 
-TEST(NormalizedVectorTiming, normalizesCurvesAfterInterpolation)
+TEST_F(BezierNormalizedVectorTest, normalizesCurvesAfterInterpolation)
 {
-    const timeline::Document document = import_clean_document("normalized-bezier-vectors.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time half = grid.offset() + timeline::Duration::from_ticks(grid.frame_duration().ticks() / 2);
-    const timeline::Curve &x = std::get<timeline::Curve>(document.lanes()[0].items()[0]);
-    const timeline::Curve &y = std::get<timeline::Curve>(document.lanes()[1].items()[0]);
+    const timeline::Time half = m_grid.offset() + timeline::Duration::from_ticks(m_grid.frame_duration().ticks() / 2);
+    const timeline::Curve &x = std::get<timeline::Curve>(m_document.lanes()[0].items()[0]);
+    const timeline::Curve &y = std::get<timeline::Curve>(m_document.lanes()[1].items()[0]);
     const double length = std::sqrt(8.75 * 8.75 + 2.5 * 2.5);
 
     const double normalized_x = x.sample(half);
@@ -765,17 +767,15 @@ TEST(NormalizedVectorTiming, normalizesCurvesAfterInterpolation)
     EXPECT_NEAR(2.5 / length, normalized_y, 1e-14);
 }
 
-TEST(NormalizedVectorCleanup, cleansTinyCurveComponentsAtFrameBoundaries)
+TEST_F(BezierNormalizedVectorTest, cleansTinyCurveComponentsAtFrameBoundaries)
 {
-    const timeline::Document document = import_clean_document("normalized-bezier-vectors.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &zero = std::get<timeline::Curve>(document.lanes()[8].items()[0]);
-    const timeline::Curve &one = std::get<timeline::Curve>(document.lanes()[9].items()[0]);
+    const timeline::Curve &zero = std::get<timeline::Curve>(m_document.lanes()[8].items()[0]);
+    const timeline::Curve &one = std::get<timeline::Curve>(m_document.lanes()[9].items()[0]);
 
     std::vector<std::pair<double, double>> values;
-    for (timeline::Ticks frame = 0; frame < grid.frame_count(); ++frame)
+    for (timeline::Ticks frame = 0; frame < m_grid.frame_count(); ++frame)
     {
-        values.emplace_back(zero.sample(grid.frame_start(frame)), one.sample(grid.frame_start(frame)));
+        values.emplace_back(zero.sample(m_grid.frame_start(frame)), one.sample(m_grid.frame_start(frame)));
     }
 
     for (const std::pair<double, double> &value : values)
@@ -785,42 +785,34 @@ TEST(NormalizedVectorCleanup, cleansTinyCurveComponentsAtFrameBoundaries)
     }
 }
 
-TEST(NormalizedVectorCleanup, leavesPointTargetUnnormalized)
+TEST_F(BezierNormalizedVectorTest, leavesPointTargetUnnormalized)
 {
-    const timeline::Document document = import_clean_document("normalized-bezier-vectors.json");
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[5].items()[0]);
+    const timeline::Curve &curve = std::get<timeline::Curve>(m_document.lanes()[5].items()[0]);
 
-    const double value = curve.sample(grid.frame_start(2));
-    const ResolvedAttributes attributes = resolved_attributes(document, curve.attributes());
+    const double value = curve.sample(m_grid.frame_start(2));
+    const ResolvedAttributes attributes = resolved_attributes(m_document, curve.attributes());
 
     EXPECT_DOUBLE_EQ(1.5, value);
     EXPECT_EQ(0, attributes.count("normalize"));
 }
 
-TEST(NormalizedVectorOutput, normalizesExtremeKeyedValue)
+TEST_F(ExtremeNormalizedVectorTest, normalizesExtremeKeyedValue)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-
-    const double output = *document.lanes()[0].evaluate_keyframe_output(document.frame_grid()->frame_start(2));
+    const double output = *m_document.lanes()[0].evaluate_keyframe_output(m_grid.frame_start(2));
 
     EXPECT_DOUBLE_EQ(0, output);
 }
 
-TEST(NormalizedVectorOutput, normalizesTinyExtremeValue)
+TEST_F(ExtremeNormalizedVectorTest, normalizesTinyExtremeValue)
 {
-    const timeline::Document document = import_clean_document("extreme-normalized-vectors.json");
-
-    const double output = *document.lanes()[6].evaluate_keyframe_output(document.frame_grid()->frame_start(2));
+    const double output = *m_document.lanes()[6].evaluate_keyframe_output(m_grid.frame_start(2));
 
     EXPECT_GT(output, 0);
 }
 
-TEST(NormalizedVectorOutput, normalizesTinyKeyedValue)
+TEST_F(KeyedNormalizedVectorTest, normalizesTinyKeyedValue)
 {
-    const timeline::Document document = import_clean_document("normalized-keyed-vectors.json");
-
-    const double output = *document.lanes()[10].evaluate_keyframe_output(document.frame_grid()->frame_start(2));
+    const double output = *m_document.lanes()[10].evaluate_keyframe_output(m_grid.frame_start(2));
 
     EXPECT_NEAR(1 / std::sqrt(17.0), output, 1e-14);
 }
