@@ -102,26 +102,8 @@ void wxTimelineControl::set_document(timeline::Document document)
     {
         ReleaseMouse();
     }
-    m_document = std::move(document);
-    m_interaction.emplace(*m_document);
-    m_inspection.reset();
-    m_hit_result.reset();
+    m_state.set_document(std::move(document));
     m_hover_point.reset();
-    m_layout.reset();
-    m_layout_metrics.reset();
-    m_navigation.reset();
-    m_viewport.reset();
-    if (m_document->frame_grid() && m_document->frame_grid()->frame_count() > 0)
-    {
-        m_interaction->move_playhead_frame(0);
-        m_inspection = timeline::inspect_frame(*m_document, 0);
-    }
-    const std::optional<timeline::Time> content_start = m_document->content_start();
-    const std::optional<timeline::Time> content_end = m_document->content_end();
-    if (content_start && content_end && *content_start < *content_end)
-    {
-        m_navigation.emplace(*content_start, *content_end, m_document->lane_count());
-    }
     notify_inspection_changed();
     update_scrollbars();
     Refresh(false);
@@ -139,12 +121,11 @@ void wxTimelineControl::zoom_out()
 
 void wxTimelineControl::fit_view()
 {
-    if (!m_navigation)
+    if (!m_state.navigation())
     {
         return;
     }
-    m_navigation->fit();
-    m_layout.reset();
+    m_state.fit_view();
     Refresh(false);
 }
 
@@ -153,20 +134,17 @@ std::string wxTimelineControl::snapshot()
     wxClientDC dc(this);
     dc.SetFont(GetFont());
     rebuild_layout(dc);
-    return m_layout ? timeline::render_snapshot(m_layout->display_list())
-                    : timeline::render_snapshot(timeline::DisplayList{});
+    return m_state.layout() ? timeline::render_snapshot(m_state.layout()->display_list())
+                            : timeline::render_snapshot(timeline::DisplayList{});
 }
 
 void wxTimelineControl::zoom_by(double factor)
 {
-    if (!m_navigation || !m_viewport)
+    if (!m_state.navigation() || !m_state.viewport())
     {
         return;
     }
-    const timeline::Ticks middle_tick =
-        m_viewport->start().ticks() + (m_viewport->end().ticks() - m_viewport->start().ticks()) / 2;
-    m_navigation->zoom_by(factor, timeline::Time::from_ticks(middle_tick));
-    m_layout.reset();
+    m_state.zoom_by(factor);
     Refresh(false);
 }
 
@@ -179,35 +157,28 @@ void wxTimelineControl::notify_inspection_changed()
 
 void wxTimelineControl::on_mouse_move(wxMouseEvent &event)
 {
-    if (!m_layout)
+    if (!m_state.layout())
     {
         wxClientDC dc(this);
         dc.SetFont(GetFont());
         rebuild_layout(dc);
     }
     m_hover_point = timeline::Point{event.GetX(), event.GetY()};
-    if (HasCapture() && event.LeftIsDown() && m_interaction && m_viewport && m_layout_metrics)
+    if (HasCapture() && event.LeftIsDown() && m_state.interaction() && m_state.viewport() && m_state.layout_metrics())
     {
-        m_interaction->extend_range(timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics));
-        update_interaction();
+        m_state.extend_range(*m_hover_point);
+        update_control();
         return;
     }
-    const std::optional<timeline::HitResult> hit =
-        m_layout ? m_layout->hit_test(timeline::Point{event.GetX(), event.GetY()}, FromDIP(3)) : std::nullopt;
-    bool changed = hit != m_hit_result;
-    m_hit_result = hit;
-    if (m_document && m_document->frame_grid() && m_layout_metrics && m_viewport &&
-        m_layout_metrics->lane_label_width() <= event.GetX() && event.GetX() < m_viewport->width() &&
-        0 <= event.GetY() && event.GetY() < m_viewport->height())
-    {
-        const timeline::Time time = timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics);
-        const std::optional<timeline::Ticks> frame = m_document->frame_grid()->nearest_frame(time);
-        if (frame && (!m_inspection || m_inspection->frame != *frame))
-        {
-            m_inspection = timeline::inspect_frame(*m_document, *frame);
-            changed = true;
-        }
-    }
+    const std::optional<timeline::HitResult> old_hit = m_state.hit_result();
+    const std::optional<timeline::Ticks> old_frame =
+        m_state.inspection() ? std::optional<timeline::Ticks>(m_state.inspection()->frame) : std::nullopt;
+    const bool inspect_frame = m_state.viewport() && 0 <= event.GetX() && event.GetX() < m_state.viewport()->width() &&
+        0 <= event.GetY() && event.GetY() < m_state.viewport()->height();
+    m_state.hover_at(*m_hover_point, FromDIP(3), inspect_frame);
+    const std::optional<timeline::Ticks> frame =
+        m_state.inspection() ? std::optional<timeline::Ticks>(m_state.inspection()->frame) : std::nullopt;
+    const bool changed = m_state.hit_result() != old_hit || frame != old_frame;
     if (changed)
     {
         notify_inspection_changed();
@@ -217,21 +188,20 @@ void wxTimelineControl::on_mouse_move(wxMouseEvent &event)
 
 void wxTimelineControl::clear_hit()
 {
-    if (m_hit_result)
+    if (m_state.hit_result())
     {
-        m_hit_result.reset();
+        m_state.clear_hover();
         notify_inspection_changed();
     }
 }
 
-void wxTimelineControl::update_interaction()
+void wxTimelineControl::update_control()
 {
-    if (m_document && m_interaction && m_interaction->playhead_frame())
+    if (m_hover_point && m_state.layout())
     {
-        m_inspection = timeline::inspect_frame(*m_document, *m_interaction->playhead_frame());
+        m_state.hover_at(*m_hover_point, FromDIP(3), false);
     }
     notify_inspection_changed();
-    m_layout.reset();
     Refresh(false);
 }
 
@@ -241,73 +211,60 @@ void wxTimelineControl::clear_selection()
     {
         ReleaseMouse();
     }
-    if (m_interaction)
+    if (m_state.interaction())
     {
-        m_interaction->clear_selection();
-        update_interaction();
+        m_state.clear_selection();
+        update_control();
     }
 }
 
 void wxTimelineControl::step_playhead(int frames, bool extend_selection)
 {
-    if (!m_interaction)
+    if (!m_state.interaction())
     {
         return;
     }
-    m_interaction->step_playhead(frames, extend_selection);
-    if (m_navigation && m_interaction->playhead())
-    {
-        m_navigation->reveal(*m_interaction->playhead());
-    }
-    update_interaction();
+    m_state.step_playhead(frames, extend_selection);
+    update_control();
 }
 
 void wxTimelineControl::on_mouse_down(wxMouseEvent &event)
 {
     SetFocus();
     Update();
-    if (!m_layout || !m_interaction || !m_viewport || !m_layout_metrics || event.GetY() < 0 ||
-        m_viewport->height() <= event.GetY())
+    if (!m_state.layout() || !m_state.interaction() || !m_state.viewport() || !m_state.layout_metrics() ||
+        event.GetY() < 0 || m_state.viewport()->height() <= event.GetY())
     {
         event.Skip();
         return;
     }
     const timeline::Point point{event.GetX(), event.GetY()};
     m_hover_point = point;
-    m_hit_result = m_layout->hit_test(point, FromDIP(3));
-    m_interaction->select_hit(m_hit_result, event.ControlDown());
-    if (m_layout_metrics->lane_label_width() <= point.x)
+    if (m_state.begin_selection(point, FromDIP(3), event.ControlDown()))
     {
-        m_interaction->begin_range(timeline::time_at_x(point.x, *m_viewport, *m_layout_metrics));
         if (!HasCapture())
         {
             CaptureMouse();
         }
     }
-    update_interaction();
+    update_control();
 }
 
 void wxTimelineControl::on_mouse_up(wxMouseEvent &event)
 {
     if (HasCapture())
     {
-        if (m_interaction && m_viewport && m_layout_metrics)
-        {
-            m_interaction->extend_range(timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics));
-            m_interaction->end_range();
-        }
+        m_state.extend_range(timeline::Point{event.GetX(), event.GetY()});
+        m_state.end_range();
         ReleaseMouse();
-        update_interaction();
+        update_control();
     }
     event.Skip();
 }
 
 void wxTimelineControl::on_capture_lost(wxMouseCaptureLostEvent &)
 {
-    if (m_interaction)
-    {
-        m_interaction->end_range();
-    }
+    m_state.end_range();
 }
 
 void wxTimelineControl::on_key_down(wxKeyEvent &event)
@@ -327,7 +284,7 @@ void wxTimelineControl::on_key_down(wxKeyEvent &event)
         clear_selection();
         return;
     }
-    if (m_interaction && (event.GetKeyCode() == WXK_LEFT || event.GetKeyCode() == WXK_RIGHT))
+    if (m_state.interaction() && (event.GetKeyCode() == WXK_LEFT || event.GetKeyCode() == WXK_RIGHT))
     {
         step_playhead(event.GetKeyCode() == WXK_LEFT ? -1 : 1, event.ShiftDown());
         return;
@@ -344,7 +301,7 @@ void wxTimelineControl::on_mouse_leave(wxMouseEvent &event)
 
 void wxTimelineControl::on_mouse_wheel(wxMouseEvent &event)
 {
-    if (!m_navigation || !m_viewport || !m_layout_metrics || event.GetWheelDelta() == 0)
+    if (!m_state.navigation() || !m_state.viewport() || !m_state.layout_metrics() || event.GetWheelDelta() == 0)
     {
         event.Skip();
         return;
@@ -358,31 +315,25 @@ void wxTimelineControl::on_mouse_wheel(wxMouseEvent &event)
 
     if (event.ControlDown())
     {
-        const timeline::Time anchor = timeline::time_at_x(event.GetX(), *m_viewport, *m_layout_metrics);
-        m_navigation->zoom_by(std::pow(zoom_step, steps), anchor);
+        m_state.zoom_at(std::pow(zoom_step, steps), event.GetX());
     }
     else if (event.ShiftDown())
     {
-        const timeline::Ticks visible_ticks = m_viewport->end().ticks() - m_viewport->start().ticks();
-        const auto delta = std::max<timeline::Ticks>(1, visible_ticks / 10);
-        m_navigation->scroll_to(
-            timeline::Time::from_ticks(m_viewport->start().ticks() - static_cast<timeline::Ticks>(steps) * delta));
+        const timeline::Ticks visible_ticks = m_state.viewport()->end().ticks() - m_state.viewport()->start().ticks();
+        const timeline::Ticks delta = std::max<timeline::Ticks>(1, visible_ticks / 10);
+        m_state.scroll_by(timeline::Duration::from_ticks(-static_cast<timeline::Ticks>(steps) * delta));
     }
     else
     {
-        const int visible_lanes = std::max(1, timeline::visible_lane_count(*m_viewport, *m_layout_metrics));
-        m_navigation->scroll_to_lane(m_viewport->first_lane() - steps, visible_lanes);
+        m_state.scroll_lanes(-steps);
     }
-    m_layout.reset();
     Refresh(false);
 }
 
 void wxTimelineControl::invalidate_layout()
 {
-    m_layout.reset();
-    m_layout_metrics.reset();
-    m_viewport.reset();
     clear_hit();
+    m_state.clear_layout();
     Refresh(false);
 }
 
@@ -410,10 +361,7 @@ void wxTimelineControl::on_focus(wxFocusEvent &event)
 {
     if (event.GetEventType() == wxEVT_KILL_FOCUS)
     {
-        if (m_interaction)
-        {
-            m_interaction->end_range();
-        }
+        m_state.end_range();
         if (HasCapture())
         {
             ReleaseMouse();
@@ -425,7 +373,7 @@ void wxTimelineControl::on_focus(wxFocusEvent &event)
 
 void wxTimelineControl::on_scroll(wxScrollWinEvent &event)
 {
-    if (!m_navigation || !m_viewport || !m_layout_metrics)
+    if (!m_state.navigation() || !m_state.viewport() || !m_state.layout_metrics())
     {
         return;
     }
@@ -435,20 +383,18 @@ void wxTimelineControl::on_scroll(wxScrollWinEvent &event)
     {
         const int maximum = GetScrollRange(wxHORIZONTAL) - GetScrollThumb(wxHORIZONTAL);
         const double fraction = maximum > 0 ? static_cast<double>(position) / maximum : 0.0;
-        m_navigation->scroll_to_fraction(fraction);
+        m_state.scroll_to_fraction(fraction);
     }
     else
     {
-        const int visible_lanes = std::max(1, timeline::visible_lane_count(*m_viewport, *m_layout_metrics));
-        m_navigation->scroll_to_lane(position, visible_lanes);
+        m_state.scroll_lanes(position - m_state.viewport()->first_lane());
     }
-    m_layout.reset();
     Refresh(false);
 }
 
 void wxTimelineControl::update_scrollbars()
 {
-    if (!m_document || !m_navigation || !m_viewport || !m_layout_metrics)
+    if (!m_state.document() || !m_state.navigation() || !m_state.viewport() || !m_state.layout_metrics())
     {
         SetScrollbar(wxHORIZONTAL, 0, 1, 1, true);
         SetScrollbar(wxVERTICAL, 0, 1, 1, true);
@@ -456,14 +402,14 @@ void wxTimelineControl::update_scrollbars()
     }
 
     const int horizontal_thumb =
-        std::clamp(static_cast<int>(std::lround(scroll_range / m_navigation->zoom_scale())), 1, scroll_range);
+        std::clamp(static_cast<int>(std::lround(scroll_range / m_state.navigation()->zoom_scale())), 1, scroll_range);
     const int horizontal_maximum = scroll_range - horizontal_thumb;
     const int horizontal_position =
-        static_cast<int>(std::lround(m_navigation->horizontal_fraction() * horizontal_maximum));
-    const int vertical_range = std::max(1, m_document->lane_count());
+        static_cast<int>(std::lround(m_state.navigation()->horizontal_fraction() * horizontal_maximum));
+    const int vertical_range = std::max(1, m_state.document()->lane_count());
     const int vertical_thumb =
-        std::clamp(timeline::visible_lane_count(*m_viewport, *m_layout_metrics), 1, vertical_range);
-    const int vertical_position = m_viewport->first_lane();
+        std::clamp(timeline::visible_lane_count(*m_state.viewport(), *m_state.layout_metrics()), 1, vertical_range);
+    const int vertical_position = m_state.viewport()->first_lane();
 
     SetScrollbar(wxHORIZONTAL, horizontal_position, horizontal_thumb, scroll_range, true);
     SetScrollbar(wxVERTICAL, vertical_position, vertical_thumb, vertical_range, true);
@@ -471,46 +417,46 @@ void wxTimelineControl::update_scrollbars()
 
 void wxTimelineControl::rebuild_layout(wxDC &dc)
 {
-    m_layout.reset();
-    m_layout_metrics.reset();
-    m_viewport.reset();
+    const std::optional<timeline::HitResult> old_hit = m_state.hit_result();
+    m_state.clear_layout();
 
     const wxSize client_size = GetClientSize();
-    if (!m_document || !m_navigation)
+    if (!m_state.document() || !m_state.navigation())
     {
         update_scrollbars();
         return;
     }
     if (client_size.GetWidth() <= FromDIP(160) || client_size.GetHeight() <= FromDIP(40))
     {
-        clear_hit();
+        if (old_hit)
+        {
+            notify_inspection_changed();
+        }
         update_scrollbars();
         return;
     }
 
     int label_width = FromDIP(80);
-    for (const timeline::Lane &lane : m_document->lanes())
+    for (const timeline::Lane &lane : m_state.document()->lanes())
     {
-        const std::string_view label = m_document->strings().lookup(lane.label());
+        const std::string_view label = m_state.document()->strings().lookup(lane.label());
         label_width =
             std::max(label_width, dc.GetTextExtent(wxString(label.data(), label.size())).GetWidth() + FromDIP(16));
     }
     label_width = std::min(label_width, client_size.GetWidth() / 2);
     const timeline::LayoutMetrics layout_metrics(
         label_width, dc.GetCharHeight() + FromDIP(8), dc.GetCharHeight() + FromDIP(16), FromDIP(4));
-    timeline::Viewport viewport = m_navigation->viewport(client_size.GetWidth(), client_size.GetHeight());
-    const int visible_lanes = std::max(1, timeline::visible_lane_count(viewport, layout_metrics));
-    m_navigation->scroll_to_lane(viewport.first_lane(), visible_lanes);
-    viewport = m_navigation->viewport(client_size.GetWidth(), client_size.GetHeight());
-    m_layout.emplace(*m_document, viewport, layout_metrics, *m_interaction);
-    m_layout_metrics = layout_metrics;
-    m_viewport = viewport;
-
-    const std::optional<timeline::HitResult> hit =
-        m_hover_point ? m_layout->hit_test(*m_hover_point, FromDIP(3)) : std::nullopt;
-    if (hit != m_hit_result)
+    if (!m_state.rebuild_layout(client_size.GetWidth(), client_size.GetHeight(), layout_metrics))
     {
-        m_hit_result = hit;
+        update_scrollbars();
+        return;
+    }
+    if (m_hover_point)
+    {
+        m_state.hover_at(*m_hover_point, FromDIP(3), false);
+    }
+    if (m_state.hit_result() != old_hit)
+    {
         notify_inspection_changed();
     }
     update_scrollbars();
@@ -525,17 +471,17 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
     dc.SetTextForeground(GetForegroundColour());
     rebuild_layout(dc);
 
-    if (!m_document || !m_navigation)
+    if (!m_state.document() || !m_state.navigation())
     {
-        dc.DrawText(m_document ? "No timeline content." : "No timeline loaded.", FromDIP(wxPoint(12, 12)));
+        dc.DrawText(m_state.document() ? "No timeline content." : "No timeline loaded.", FromDIP(wxPoint(12, 12)));
         return;
     }
-    if (m_layout)
+    if (m_state.layout())
     {
         const wxTimelinePalette palette{
             GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
         const wxDCClipper clip(dc, GetClientRect());
-        draw_display_list(dc, m_layout->display_list(), palette, FromDIP(1), HasFocus());
+        draw_display_list(dc, m_state.layout()->display_list(), palette, FromDIP(1), HasFocus());
         if (HasFocus())
         {
             wxRendererNative::Get().DrawFocusRect(this, dc, GetClientRect(), wxCONTROL_FOCUSED);

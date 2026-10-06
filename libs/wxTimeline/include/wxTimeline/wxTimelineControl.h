@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include <timeline/Interaction.h>
-#include <timeline/Layout.h>
-#include <timeline/Query.h>
-
 #include <wxTimeline/wxTimelineRenderer.h>
+
+#include <timeline/ControlState.h>
 
 #include <wx/panel.h>
 
@@ -42,24 +40,24 @@ public:
 
     bool has_document() const
     {
-        return m_document.has_value();
+        return m_state.document().has_value();
     }
     const std::optional<timeline::Document> &document() const
     {
-        return m_document;
+        return m_state.document();
     }
     const std::optional<timeline::FrameInspection> &inspection() const
     {
-        return m_inspection;
+        return m_state.inspection();
     }
     const std::optional<timeline::HitResult> &hit_result() const
     {
-        return m_hit_result;
+        return m_state.hit_result();
     }
 
     const std::optional<timeline::Interaction> &interaction() const
     {
-        return m_interaction;
+        return m_state.interaction();
     }
 
 protected:
@@ -72,7 +70,7 @@ protected:
 
 private:
     void rebuild_layout(wxDC &dc);
-    void update_interaction();
+    void update_control();
     void on_mouse_down(wxMouseEvent &event);
     void on_mouse_up(wxMouseEvent &event);
     void on_capture_lost(wxMouseCaptureLostEvent &event);
@@ -92,13 +90,6 @@ private:
     void update_scrollbars();
     void zoom_by(double factor);
 
-    std::optional<timeline::Document> m_document;
-    std::optional<timeline::Interaction> m_interaction;
-    std::optional<timeline::FrameInspection> m_inspection;
-    std::optional<timeline::HitResult> m_hit_result;
+    timeline::ControlState m_state;
     std::optional<timeline::Point> m_hover_point;
-    std::optional<timeline::Layout> m_layout;
-    std::optional<timeline::LayoutMetrics> m_layout_metrics;
-    std::optional<timeline::Navigation> m_navigation;
-    std::optional<timeline::Viewport> m_viewport;
 };
