@@ -438,42 +438,212 @@ std::vector<std::array<double, 6>> inspect_camera_frames(const timeline::Documen
     return result;
 }
 
-class NestedCameraImportTest : public testing::TestWithParam<NestedCameraCase>
+/// Parameterized camera fixture that owns a clean imported document.
+///
+template <typename Case>
+class ParameterizedCameraImportTest : public testing::TestWithParam<Case>
+{
+protected:
+    ParameterizedCameraImportTest() :
+        m_document(import_clean_document(this->GetParam().fixture))
+    {
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *m_document.frame_grid();
+    }
+
+private:
+    timeline::Document m_document;
+};
+
+/// Parameterized camera fixture that owns a raw import result.
+///
+template <typename Case>
+class ParameterizedCameraResultTest : public testing::TestWithParam<Case>
+{
+protected:
+    ParameterizedCameraResultTest() :
+        m_result(import_fixture(this->GetParam().fixture))
+    {
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const JsonImportResult &result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result;
+};
+
+/// Parameterized camera fixture with a composed music document.
+///
+template <typename Case>
+class ParameterizedCameraCompositionTest : public ParameterizedCameraImportTest<Case>
+{
+protected:
+    ParameterizedCameraCompositionTest() :
+        m_combined_document(combine_with_music(this->document()))
+    {
+    }
+    const timeline::Document &combined_document() const
+    {
+        return m_combined_document;
+    }
+
+private:
+    timeline::Document m_combined_document;
+};
+
+/// Parameterized camera fixture with the standard composed layout.
+///
+template <typename Case>
+class ParameterizedCameraLayoutTest : public ParameterizedCameraCompositionTest<Case>
+{
+protected:
+    ParameterizedCameraLayoutTest() :
+        m_layout(this->combined_document(),
+            timeline::Viewport(500, 600, this->frame_grid().offset(), this->frame_grid().end_time()),
+            timeline::LayoutMetrics(100, 20, 30, 4))
+    {
+    }
+    const timeline::Layout &layout() const
+    {
+        return m_layout;
+    }
+
+private:
+    timeline::Layout m_layout;
+};
+
+/// Imported nested-camera cases.
+///
+class NestedCameraImportTest : public ParameterizedCameraImportTest<NestedCameraCase>
 {
 };
 
-class NestedEyeImportTest : public testing::TestWithParam<NestedCameraCase>
+/// Composed nested-camera cases.
+///
+class NestedCameraCompositionTest : public ParameterizedCameraCompositionTest<NestedCameraCase>
 {
 };
 
-class MovingCameraImportTest : public testing::TestWithParam<MovingCameraCase>
+/// Laid-out nested-camera cases.
+///
+class NestedCameraLayoutTest : public ParameterizedCameraLayoutTest<NestedCameraCase>
 {
 };
 
-class EyePathImportTest : public testing::TestWithParam<EyePathCase>
+/// Imported nested-eye cases.
+///
+class NestedEyeImportTest : public ParameterizedCameraImportTest<NestedCameraCase>
 {
 };
 
-class CurvedLookImportTest : public testing::TestWithParam<CurvedLookCase>
+/// Imported moving-camera cases.
+///
+class MovingCameraImportTest : public ParameterizedCameraImportTest<MovingCameraCase>
 {
 };
 
-class StraightCameraImportTest : public testing::TestWithParam<StraightCameraCase>
+/// Composed moving-camera cases.
+///
+class MovingCameraCompositionTest : public ParameterizedCameraCompositionTest<MovingCameraCase>
 {
 };
 
-class CameraComparisonTest : public testing::TestWithParam<CameraComparisonCase>
+/// Laid-out moving-camera cases.
+///
+class MovingCameraLayoutTest : public ParameterizedCameraLayoutTest<MovingCameraCase>
 {
 };
 
-class CameraDiagnosticFixtureTest : public testing::TestWithParam<DiagnosticFixtureCase>
+/// Imported eye-path cases.
+///
+class EyePathImportTest : public ParameterizedCameraImportTest<EyePathCase>
 {
 };
 
-class CameraDiagnosticMessageTest : public testing::TestWithParam<DiagnosticMessageCase>
+/// Composed eye-path cases.
+///
+class EyePathCompositionTest : public ParameterizedCameraCompositionTest<EyePathCase>
 {
 };
 
+/// Laid-out eye-path cases.
+///
+class EyePathLayoutTest : public ParameterizedCameraLayoutTest<EyePathCase>
+{
+};
+
+/// Imported curved-look cases.
+///
+class CurvedLookImportTest : public ParameterizedCameraImportTest<CurvedLookCase>
+{
+};
+
+/// Composed curved-look cases.
+///
+class CurvedLookCompositionTest : public ParameterizedCameraCompositionTest<CurvedLookCase>
+{
+};
+
+/// Laid-out curved-look cases.
+///
+class CurvedLookLayoutTest : public ParameterizedCameraLayoutTest<CurvedLookCase>
+{
+};
+
+/// Imported straight-camera cases.
+///
+class StraightCameraImportTest : public ParameterizedCameraImportTest<StraightCameraCase>
+{
+};
+
+/// Composed straight-camera cases.
+///
+class StraightCameraCompositionTest : public ParameterizedCameraCompositionTest<StraightCameraCase>
+{
+};
+
+/// Laid-out straight-camera cases.
+///
+class StraightCameraLayoutTest : public ParameterizedCameraLayoutTest<StraightCameraCase>
+{
+};
+
+/// Imported camera comparison cases.
+///
+class CameraComparisonTest : public ParameterizedCameraImportTest<CameraComparisonCase>
+{
+};
+
+/// Camera diagnostic fixture imports selected by parameter.
+///
+class CameraDiagnosticFixtureTest : public ParameterizedCameraResultTest<DiagnosticFixtureCase>
+{
+};
+
+/// Camera diagnostic message imports selected by parameter.
+///
+class CameraDiagnosticMessageTest : public ParameterizedCameraResultTest<DiagnosticMessageCase>
+{
+};
+
+/// Layer-source diagnostic cases for one fixed document.
+///
 class LayerCameraDiagnosticTest : public testing::TestWithParam<LayerDiagnosticCase>
 {
 };
@@ -482,11 +652,10 @@ class LayerCameraDiagnosticTest : public testing::TestWithParam<LayerDiagnosticC
 
 TEST_P(CameraComparisonTest, matchesParAnimatorOutput)
 {
-    const CameraComparisonCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const std::vector<std::array<double, 6>> expected = read_camera_frames(definition.golden);
+    const CameraComparisonCase &test_case = definition();
+    const std::vector<std::array<double, 6>> expected = read_camera_frames(test_case.golden);
 
-    const std::vector<std::array<double, 6>> actual = inspect_camera_frames(document, timeline::size_cast(expected));
+    const std::vector<std::array<double, 6>> actual = inspect_camera_frames(document(), timeline::size_cast(expected));
 
     ASSERT_EQ(5, timeline::size_cast(expected));
     ASSERT_EQ(timeline::size_cast(expected), timeline::size_cast(actual));
@@ -497,7 +666,7 @@ TEST_P(CameraComparisonTest, matchesParAnimatorOutput)
             const double difference = component == 4
                 ? std::remainder(actual[frame][component] - expected[frame][component], 360)
                 : actual[frame][component] - expected[frame][component];
-            EXPECT_NEAR(0, difference, definition.tolerance);
+            EXPECT_NEAR(0, difference, test_case.tolerance);
         }
     }
 }
@@ -507,46 +676,30 @@ INSTANTIATE_TEST_SUITE_P(CameraComparisons, CameraComparisonTest, testing::Value
 
 TEST_P(NestedCameraImportTest, importsExpectedDocumentShape)
 {
-    const NestedCameraCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(definition.lanes, result.document->lane_count());
+    EXPECT_EQ(definition().lanes, document().lane_count());
 }
 
 TEST_P(NestedCameraImportTest, preservesAnalyticMagnification)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Curve &magnification = curve(document, 2);
+    const timeline::Curve &magnification = curve(document(), 2);
 
     EXPECT_TRUE(magnification.samples().empty());
 }
 
 TEST_P(NestedCameraImportTest, preservesHeightSourceRecipe)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 10).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 10).attributes());
 
     EXPECT_FALSE(attributes.at("signal").empty());
 }
 
 TEST_P(NestedCameraImportTest, keepsMagnificationWithinPathBounds)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Curve &magnification = curve(document, 2);
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Curve &magnification = curve(document(), 2);
 
     for (int subdivision = 0; subdivision <= 24; ++subdivision)
     {
-        const double value = magnification.sample(subdivided_frame(grid, subdivision, 6));
+        const double value = magnification.sample(subdivided_frame(frame_grid(), subdivision, 6));
         EXPECT_LE(*magnification.minimum(), value);
         EXPECT_GE(*magnification.maximum(), value);
     }
@@ -554,39 +707,23 @@ TEST_P(NestedCameraImportTest, keepsMagnificationWithinPathBounds)
 
 TEST_P(NestedCameraImportTest, normalizesViewUp)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
     for (int subdivision = 0; subdivision <= 24; ++subdivision)
     {
-        const timeline::Time time = subdivided_frame(grid, subdivision, 6);
-        const double x = curve(document, definition.up_lane).sample(time);
-        const double y = curve(document, definition.up_lane + 1).sample(time);
+        const timeline::Time time = subdivided_frame(frame_grid(), subdivision, 6);
+        const double x = curve(document(), definition().up_lane).sample(time);
+        const double y = curve(document(), definition().up_lane + 1).sample(time);
         EXPECT_NEAR(1, std::hypot(x, y), 1e-12);
     }
 }
 
-TEST_P(NestedCameraImportTest, composesWithMusicDocument)
+TEST_P(NestedCameraCompositionTest, composesWithMusicDocument)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(document.lane_count() + 4, combined.lane_count());
+    EXPECT_EQ(document().lane_count() + 4, combined_document().lane_count());
 }
 
-TEST_P(NestedCameraImportTest, rendersCameraLanesAfterComposition)
+TEST_P(NestedCameraLayoutTest, rendersCameraLanesAfterComposition)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("view-up"));
     EXPECT_NE(std::string::npos, snapshot.find("height"));
@@ -594,32 +731,30 @@ TEST_P(NestedCameraImportTest, rendersCameraLanesAfterComposition)
 
 TEST_P(NestedEyeImportTest, preservesAuthoredViewUpOutsideCameraComposition)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Lane &authored = document.lanes()[13];
+    const timeline::Lane &authored = document().lanes()[13];
 
-    const ResolvedAttributes attributes = resolved_attributes(document, keyframe(document, 13).attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), keyframe(document(), 13).attributes());
 
-    EXPECT_EQ("keyframes", document.strings().lookup(authored.kind()));
+    EXPECT_EQ("keyframes", document().strings().lookup(authored.kind()));
     EXPECT_EQ("false", attributes.at("used-by-camera"));
     EXPECT_NE(std::string::npos, attributes.at("signal").find("keys"));
 }
 
 TEST_P(NestedEyeImportTest, evaluatesAuthoredViewUpAcrossCrossing)
 {
-    const NestedCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    const timeline::Time crossing = frame_grid().offset() +
+        timeline::Duration::from_ticks(3 * (frame_grid().frame_start(4) - frame_grid().offset()).ticks() / 10);
 
-    const timeline::Time crossing =
-        grid.offset() + timeline::Duration::from_ticks(3 * (grid.frame_start(4) - grid.offset()).ticks() / 10);
-
-    EXPECT_NEAR(0, *document.lanes()[13].evaluate_keyframes(crossing), 1e-12);
-    EXPECT_NEAR(0, *document.lanes()[14].evaluate_keyframes(crossing), 1e-12);
+    EXPECT_NEAR(0, *document().lanes()[13].evaluate_keyframes(crossing), 1e-12);
+    EXPECT_NEAR(0, *document().lanes()[14].evaluate_keyframes(crossing), 1e-12);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     NestedCameras, NestedCameraImportTest, testing::ValuesIn(NESTED_CAMERA_CASES), case_name<NestedCameraCase>);
+INSTANTIATE_TEST_SUITE_P(
+    NestedCameras, NestedCameraCompositionTest, testing::ValuesIn(NESTED_CAMERA_CASES), case_name<NestedCameraCase>);
+INSTANTIATE_TEST_SUITE_P(
+    NestedCameras, NestedCameraLayoutTest, testing::ValuesIn(NESTED_CAMERA_CASES), case_name<NestedCameraCase>);
 INSTANTIATE_TEST_SUITE_P(
     NestedEyes, NestedEyeImportTest, testing::ValuesIn(NESTED_EYE_CASES), case_name<NestedCameraCase>);
 
@@ -666,36 +801,26 @@ TEST(CameraImport, evaluatesHeldNestedMagnification)
 
 TEST_P(MovingCameraImportTest, importsExpectedDocumentShape)
 {
-    const MovingCameraCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(15, result.document->lane_count());
-    EXPECT_EQ(definition.keyframes, result.document->keyframe_count());
+    EXPECT_EQ(15, document().lane_count());
+    EXPECT_EQ(definition().keyframes, document().keyframe_count());
 }
 
 TEST_P(MovingCameraImportTest, preservesSourceRecipes)
 {
-    const MovingCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
     for (int lane = 6; lane < 10; ++lane)
     {
-        const timeline::Item &item = document.lanes()[lane].items().front();
+        const timeline::Item &item = document().lanes()[lane].items().front();
         if (std::holds_alternative<timeline::Curve>(item))
         {
             const timeline::Curve &item_curve = std::get<timeline::Curve>(item);
-            const ResolvedAttributes attributes = resolved_attributes(document, item_curve.attributes());
+            const ResolvedAttributes attributes = resolved_attributes(document(), item_curve.attributes());
             EXPECT_NE(std::string::npos, attributes.at("signal").find("path"));
             EXPECT_FALSE(attributes.at("path").empty());
         }
         else
         {
             const ResolvedAttributes attributes =
-                resolved_attributes(document, std::get<timeline::Keyframe>(item).attributes());
+                resolved_attributes(document(), std::get<timeline::Keyframe>(item).attributes());
             EXPECT_FALSE(attributes.at("signal").empty());
         }
     }
@@ -703,13 +828,11 @@ TEST_P(MovingCameraImportTest, preservesSourceRecipes)
 
 TEST_P(MovingCameraImportTest, retainsAnalyticSourceDefinitions)
 {
-    const MovingCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
     int analytic_sources = 0;
 
     for (int lane = 6; lane < 10; ++lane)
     {
-        const timeline::Item &item = document.lanes()[lane].items().front();
+        const timeline::Item &item = document().lanes()[lane].items().front();
         if (std::holds_alternative<timeline::Curve>(item))
         {
             ++analytic_sources;
@@ -721,34 +844,28 @@ TEST_P(MovingCameraImportTest, retainsAnalyticSourceDefinitions)
 
 TEST_P(MovingCameraImportTest, derivesViewUpFromMovingEyeAndLookAt)
 {
-    const MovingCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &up_x = curve(document, 11);
-    const timeline::Curve &up_y = curve(document, 12);
+    const timeline::Curve &up_x = curve(document(), 11);
+    const timeline::Curve &up_y = curve(document(), 12);
 
     for (int subdivision = 0; subdivision <= 24; ++subdivision)
     {
-        const timeline::Time time = subdivided_frame(grid, subdivision, 6);
-        const double dx = sample_lane(document.lanes()[8], time) - sample_lane(document.lanes()[6], time);
-        const double dy = sample_lane(document.lanes()[9], time) - sample_lane(document.lanes()[7], time);
+        const timeline::Time time = subdivided_frame(frame_grid(), subdivision, 6);
+        const double dx = sample_lane(document().lanes()[8], time) - sample_lane(document().lanes()[6], time);
+        const double dy = sample_lane(document().lanes()[9], time) - sample_lane(document().lanes()[7], time);
         EXPECT_NEAR(dx / std::hypot(dx, dy), up_x.sample(time), 1e-12);
         EXPECT_NEAR(dy / std::hypot(dx, dy), up_y.sample(time), 1e-12);
     }
-    EXPECT_EQ("eye-look-at", resolved_attributes(document, up_x.attributes()).at("derived-from"));
+    EXPECT_EQ("eye-look-at", resolved_attributes(document(), up_x.attributes()).at("derived-from"));
     EXPECT_TRUE(up_x.samples().empty());
 }
 
 TEST_P(MovingCameraImportTest, keepsAnalyticSourcesWithinPathBounds)
 {
-    const MovingCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
     int analytic_sources = 0;
 
     for (int lane = 6; lane < 10; ++lane)
     {
-        const timeline::Item &item = document.lanes()[lane].items().front();
+        const timeline::Item &item = document().lanes()[lane].items().front();
         if (!std::holds_alternative<timeline::Curve>(item))
         {
             continue;
@@ -757,7 +874,7 @@ TEST_P(MovingCameraImportTest, keepsAnalyticSourcesWithinPathBounds)
         const timeline::Curve &item_curve = std::get<timeline::Curve>(item);
         for (int subdivision = 0; subdivision <= 24; ++subdivision)
         {
-            const double value = item_curve.sample(subdivided_frame(grid, subdivision, 6));
+            const double value = item_curve.sample(subdivided_frame(frame_grid(), subdivision, 6));
             EXPECT_LE(*item_curve.minimum(), value);
             EXPECT_GE(*item_curve.maximum(), value);
         }
@@ -765,32 +882,24 @@ TEST_P(MovingCameraImportTest, keepsAnalyticSourcesWithinPathBounds)
     EXPECT_GT(analytic_sources, 0);
 }
 
-TEST_P(MovingCameraImportTest, composesWithMusicDocument)
+TEST_P(MovingCameraCompositionTest, composesWithMusicDocument)
 {
-    const MovingCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(19, combined.lane_count());
+    EXPECT_EQ(19, combined_document().lane_count());
 }
 
-TEST_P(MovingCameraImportTest, rendersEyeAfterComposition)
+TEST_P(MovingCameraLayoutTest, rendersEyeAfterComposition)
 {
-    const MovingCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("animation-0-eye[0]"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     MovingCameras, MovingCameraImportTest, testing::ValuesIn(MOVING_CAMERA_CASES), case_name<MovingCameraCase>);
+INSTANTIATE_TEST_SUITE_P(
+    MovingCameras, MovingCameraCompositionTest, testing::ValuesIn(MOVING_CAMERA_CASES), case_name<MovingCameraCase>);
+INSTANTIATE_TEST_SUITE_P(
+    MovingCameras, MovingCameraLayoutTest, testing::ValuesIn(MOVING_CAMERA_CASES), case_name<MovingCameraCase>);
 
 TEST(CameraImport, evaluatesHeldMovingLookAt)
 {
@@ -806,77 +915,56 @@ TEST(CameraImport, evaluatesHeldMovingLookAt)
 
 TEST_P(EyePathImportTest, importsExpectedDocumentShape)
 {
-    const EyePathCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(15, result.document->lane_count());
-    EXPECT_EQ(6, result.document->keyframe_count());
+    EXPECT_EQ(15, document().lane_count());
+    EXPECT_EQ(6, document().keyframe_count());
 }
 
 TEST_P(EyePathImportTest, preservesOwnedAnalyticEyeRecipe)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Curve &eye = curve(document, 8);
+    const timeline::Curve &eye = curve(document(), 8);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, eye.attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), eye.attributes());
 
-    if (!definition.path_needle.empty())
+    if (!definition().path_needle.empty())
     {
-        EXPECT_NE(std::string::npos, attributes.at("path").find(definition.path_needle));
+        EXPECT_NE(std::string::npos, attributes.at("path").find(definition().path_needle));
     }
-    EXPECT_NE(std::string::npos, attributes.at("signal").find(definition.signal_needle));
+    EXPECT_NE(std::string::npos, attributes.at("signal").find(definition().signal_needle));
 }
 
 TEST_P(EyePathImportTest, retainsAnalyticEyeDefinition)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Curve &eye = curve(document, 8);
+    const timeline::Curve &eye = curve(document(), 8);
 
     EXPECT_TRUE(eye.samples().empty());
 }
 
 TEST_P(EyePathImportTest, retainsAnalyticViewUpDefinition)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Curve &up = curve(document, 11);
+    const timeline::Curve &up = curve(document(), 11);
 
     EXPECT_TRUE(up.samples().empty());
 }
 
 TEST_P(EyePathImportTest, recordsDerivedViewUpProvenance)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
+    const timeline::Curve &up = curve(document(), 11);
 
-    const timeline::Curve &up = curve(document, 11);
-
-    EXPECT_EQ("eye-look-at", resolved_attributes(document, up.attributes()).at("derived-from"));
+    EXPECT_EQ("eye-look-at", resolved_attributes(document(), up.attributes()).at("derived-from"));
 }
 
 TEST_P(EyePathImportTest, derivesViewUpFromEyeAndLookAt)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Curve &eye_x = curve(document, 8);
-    const timeline::Curve &eye_y = curve(document, 9);
-    const timeline::Curve &up_x = curve(document, 11);
-    const timeline::Curve &up_y = curve(document, 12);
+    const timeline::Curve &eye_x = curve(document(), 8);
+    const timeline::Curve &eye_y = curve(document(), 9);
+    const timeline::Curve &up_x = curve(document(), 11);
+    const timeline::Curve &up_y = curve(document(), 12);
 
-    for (int subdivision = 0; subdivision <= definition.last_subdivision; ++subdivision)
+    for (int subdivision = 0; subdivision <= definition().last_subdivision; ++subdivision)
     {
-        const timeline::Time time = subdivided_frame(grid, subdivision, definition.subdivisions);
-        const double dx = eye_x.sample(time) - *document.lanes()[6].evaluate_keyframes(time);
-        const double dy = eye_y.sample(time) - *document.lanes()[7].evaluate_keyframes(time);
+        const timeline::Time time = subdivided_frame(frame_grid(), subdivision, definition().subdivisions);
+        const double dx = eye_x.sample(time) - *document().lanes()[6].evaluate_keyframes(time);
+        const double dy = eye_y.sample(time) - *document().lanes()[7].evaluate_keyframes(time);
         EXPECT_NEAR(dx / std::hypot(dx, dy), up_x.sample(time), 1e-12);
         EXPECT_NEAR(dy / std::hypot(dx, dy), up_y.sample(time), 1e-12);
     }
@@ -884,47 +972,33 @@ TEST_P(EyePathImportTest, derivesViewUpFromEyeAndLookAt)
 
 TEST_P(EyePathImportTest, keepsEyeWithinPathBounds)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    for (int lane = 8; lane < 8 + definition.bounded_components; ++lane)
+    for (int lane = 8; lane < 8 + definition().bounded_components; ++lane)
     {
-        const timeline::Curve &eye = curve(document, lane);
-        for (int subdivision = 0; subdivision <= definition.last_subdivision; ++subdivision)
+        const timeline::Curve &eye = curve(document(), lane);
+        for (int subdivision = 0; subdivision <= definition().last_subdivision; ++subdivision)
         {
-            const double value = eye.sample(subdivided_frame(grid, subdivision, definition.subdivisions));
+            const double value = eye.sample(subdivided_frame(frame_grid(), subdivision, definition().subdivisions));
             EXPECT_LE(*eye.minimum(), value);
             EXPECT_GE(*eye.maximum(), value);
         }
     }
 }
 
-TEST_P(EyePathImportTest, composesWithMusicDocument)
+TEST_P(EyePathCompositionTest, composesWithMusicDocument)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(19, combined.lane_count());
+    EXPECT_EQ(19, combined_document().lane_count());
 }
 
-TEST_P(EyePathImportTest, rendersEyePathAfterComposition)
+TEST_P(EyePathLayoutTest, rendersEyePathAfterComposition)
 {
-    const EyePathCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("animation-0-eye[0]-path"));
 }
 
 INSTANTIATE_TEST_SUITE_P(EyePaths, EyePathImportTest, testing::ValuesIn(EYE_PATH_CASES), case_name<EyePathCase>);
+INSTANTIATE_TEST_SUITE_P(EyePaths, EyePathCompositionTest, testing::ValuesIn(EYE_PATH_CASES), case_name<EyePathCase>);
+INSTANTIATE_TEST_SUITE_P(EyePaths, EyePathLayoutTest, testing::ValuesIn(EYE_PATH_CASES), case_name<EyePathCase>);
 
 TEST(CameraImport, evaluatesBezierEyePath)
 {
@@ -973,51 +1047,35 @@ TEST(CameraImport, evaluatesLissajousEyePhase)
 
 TEST_P(CurvedLookImportTest, importsExpectedDocumentShape)
 {
-    const CurvedLookCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(11, result.document->lane_count());
-    EXPECT_EQ(4, result.document->keyframe_count());
+    EXPECT_EQ(11, document().lane_count());
+    EXPECT_EQ(4, document().keyframe_count());
 }
 
 TEST_P(CurvedLookImportTest, preservesOwnedLookAtRecipe)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
     for (int component = 0; component < 2; ++component)
     {
-        const timeline::Curve &look = curve(document, component + 6);
-        const ResolvedAttributes attributes = resolved_attributes(document, look.attributes());
-        EXPECT_NE(std::string::npos, attributes.at("path").find(definition.kind));
-        EXPECT_NE(std::string::npos, attributes.at("signal").find(definition.kind));
+        const timeline::Curve &look = curve(document(), component + 6);
+        const ResolvedAttributes attributes = resolved_attributes(document(), look.attributes());
+        EXPECT_NE(std::string::npos, attributes.at("path").find(definition().kind));
+        EXPECT_NE(std::string::npos, attributes.at("signal").find(definition().kind));
     }
 }
 
 TEST_P(CurvedLookImportTest, retainsAnalyticLookAtDefinition)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
     for (int component = 0; component < 2; ++component)
     {
-        EXPECT_TRUE(curve(document, component + 6).samples().empty());
+        EXPECT_TRUE(curve(document(), component + 6).samples().empty());
     }
 }
 
 TEST_P(CurvedLookImportTest, propagatesLookAtBoundsToCameraCenter)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
     for (int component = 0; component < 2; ++component)
     {
-        const timeline::Curve &center = curve(document, component);
-        const timeline::Curve &look = curve(document, component + 6);
+        const timeline::Curve &center = curve(document(), component);
+        const timeline::Curve &look = curve(document(), component + 6);
         EXPECT_TRUE(center.samples().empty());
         EXPECT_EQ(look.minimum(), center.minimum());
         EXPECT_EQ(look.maximum(), center.maximum());
@@ -1026,78 +1084,55 @@ TEST_P(CurvedLookImportTest, propagatesLookAtBoundsToCameraCenter)
 
 TEST_P(CurvedLookImportTest, evaluatesCameraCenterFromLookAtPath)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Time between = subdivided_frame(grid, 1, 2);
+    const timeline::Time between = subdivided_frame(frame_grid(), 1, 2);
 
     for (int component = 0; component < 2; ++component)
     {
-        EXPECT_DOUBLE_EQ(curve(document, component + 6).sample(between), curve(document, component).sample(between));
+        EXPECT_DOUBLE_EQ(
+            curve(document(), component + 6).sample(between), curve(document(), component).sample(between));
     }
 }
 
 TEST_P(CurvedLookImportTest, keepsCameraCenterWithinPathBounds)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
     for (int component = 0; component < 2; ++component)
     {
-        const timeline::Curve &center = curve(document, component);
-        const double value = center.sample(grid.frame_start(2));
+        const timeline::Curve &center = curve(document(), component);
+        const double value = center.sample(frame_grid().frame_start(2));
         EXPECT_LE(*center.minimum(), value);
         EXPECT_GE(*center.maximum(), value);
     }
 }
 
-TEST_P(CurvedLookImportTest, composesWithMusicDocument)
+TEST_P(CurvedLookCompositionTest, composesWithMusicDocument)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(15, combined.lane_count());
+    EXPECT_EQ(15, combined_document().lane_count());
 }
 
-TEST_P(CurvedLookImportTest, rendersLookAtPathAfterComposition)
+TEST_P(CurvedLookLayoutTest, rendersLookAtPathAfterComposition)
 {
-    const CurvedLookCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("animation-0-look-at[0]-path"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     CurvedLookPaths, CurvedLookImportTest, testing::ValuesIn(CURVED_LOOK_CASES), case_name<CurvedLookCase>);
+INSTANTIATE_TEST_SUITE_P(
+    CurvedLookPaths, CurvedLookCompositionTest, testing::ValuesIn(CURVED_LOOK_CASES), case_name<CurvedLookCase>);
+INSTANTIATE_TEST_SUITE_P(
+    CurvedLookPaths, CurvedLookLayoutTest, testing::ValuesIn(CURVED_LOOK_CASES), case_name<CurvedLookCase>);
 
 TEST_P(StraightCameraImportTest, importsExpectedDocumentShape)
 {
-    const StraightCameraCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    EXPECT_TRUE(result.diagnostics.empty());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(definition.lanes, result.document->lane_count());
+    EXPECT_EQ(definition().lanes, document().lane_count());
 }
 
 TEST_P(StraightCameraImportTest, preservesOwnedLookAtRecipe)
 {
-    const StraightCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Keyframe &look = keyframe(document, 6);
+    const timeline::Keyframe &look = keyframe(document(), 6);
 
-    const ResolvedAttributes attributes = resolved_attributes(document, look.attributes());
+    const ResolvedAttributes attributes = resolved_attributes(document(), look.attributes());
 
     EXPECT_NE(std::string::npos, attributes.at("path").find("line"));
     EXPECT_NE(std::string::npos, attributes.at("signal").find("path"));
@@ -1105,51 +1140,36 @@ TEST_P(StraightCameraImportTest, preservesOwnedLookAtRecipe)
 
 TEST_P(StraightCameraImportTest, preservesLookAtKeyIdentity)
 {
-    const StraightCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
+    const timeline::Keyframe &look = keyframe(document(), 6);
 
-    const timeline::Keyframe &look = keyframe(document, 6);
-
-    EXPECT_EQ("animation-0-look-at-key-0", document.strings().lookup(look.id()));
+    EXPECT_EQ("animation-0-look-at-key-0", document().strings().lookup(look.id()));
 }
 
 TEST_P(StraightCameraImportTest, evaluatesLookAtPathBetweenFrames)
 {
-    const StraightCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::FrameGrid &grid = *document.frame_grid();
+    const double value = *document().lanes()[6].evaluate_keyframes(subdivided_frame(frame_grid(), 1, 2));
 
-    const double value = *document.lanes()[6].evaluate_keyframes(subdivided_frame(grid, 1, 2));
-
-    EXPECT_DOUBLE_EQ(definition.midpoint, value);
+    EXPECT_DOUBLE_EQ(definition().midpoint, value);
 }
 
-TEST_P(StraightCameraImportTest, composesWithMusicDocument)
+TEST_P(StraightCameraCompositionTest, composesWithMusicDocument)
 {
-    const StraightCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(document.lane_count() + 4, combined.lane_count());
+    EXPECT_EQ(document().lane_count() + 4, combined_document().lane_count());
 }
 
-TEST_P(StraightCameraImportTest, rendersLookAtAfterComposition)
+TEST_P(StraightCameraLayoutTest, rendersLookAtAfterComposition)
 {
-    const StraightCameraCase &definition = GetParam();
-    const timeline::Document document = import_clean_document(definition.fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *document.frame_grid();
-
-    const timeline::Layout layout(combined, timeline::Viewport(500, 600, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 30, 4));
-    const std::string snapshot = timeline::render_snapshot(layout.display_list());
+    const std::string snapshot = timeline::render_snapshot(layout().display_list());
 
     EXPECT_NE(std::string::npos, snapshot.find("animation-0-look-at"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     StraightCameras, StraightCameraImportTest, testing::ValuesIn(STRAIGHT_CAMERA_CASES), case_name<StraightCameraCase>);
+INSTANTIATE_TEST_SUITE_P(StraightCameras, StraightCameraCompositionTest, testing::ValuesIn(STRAIGHT_CAMERA_CASES),
+    case_name<StraightCameraCase>);
+INSTANTIATE_TEST_SUITE_P(
+    StraightCameras, StraightCameraLayoutTest, testing::ValuesIn(STRAIGHT_CAMERA_CASES), case_name<StraightCameraCase>);
 
 TEST(CameraImport, preservesConstantEyeRecipeForStraightComposition)
 {
@@ -1172,42 +1192,31 @@ TEST(CameraImport, evaluatesConstantEyeForStraightComposition)
 
 TEST_P(CameraDiagnosticFixtureTest, importsRemainingValidCameras)
 {
-    const DiagnosticFixtureCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_TRUE(result.document);
-    EXPECT_EQ(definition.diagnostics, timeline::size_cast(result.diagnostics));
-    EXPECT_EQ(definition.lanes, result.document->lane_count());
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().document);
+    EXPECT_EQ(definition().diagnostics, timeline::size_cast(result().diagnostics));
+    EXPECT_EQ(definition().lanes, result().document->lane_count());
 }
 
 TEST_P(CameraDiagnosticFixtureTest, identifiesEachFailedAnimationSource)
 {
-    const DiagnosticFixtureCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_EQ(timeline::size_cast(definition.source_indices), timeline::size_cast(result.diagnostics));
-    for (int diagnostic = 0; diagnostic < timeline::size_cast(definition.source_indices); ++diagnostic)
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_EQ(timeline::size_cast(definition().source_indices), timeline::size_cast(result().diagnostics));
+    for (int diagnostic = 0; diagnostic < timeline::size_cast(definition().source_indices); ++diagnostic)
     {
-        const std::string prefix = "animation-" + std::to_string(definition.source_indices[diagnostic]) + ":";
-        EXPECT_NE(std::string::npos, result.diagnostics[diagnostic].find(prefix));
+        const std::string prefix = "animation-" + std::to_string(definition().source_indices[diagnostic]) + ":";
+        EXPECT_NE(std::string::npos, result().diagnostics[diagnostic].find(prefix));
     }
 }
 
 TEST_P(CameraDiagnosticFixtureTest, omitsPartialLanesFromFailedCameras)
 {
-    const DiagnosticFixtureCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_TRUE(result.document);
-    for (const std::pair<int, std::string> &retained : definition.retained_lanes)
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_TRUE(result().document);
+    for (const std::pair<int, std::string> &retained : definition().retained_lanes)
     {
-        EXPECT_EQ(retained.second, result.document->strings().lookup(result.document->lanes()[retained.first].id()));
+        EXPECT_EQ(
+            retained.second, result().document->strings().lookup(result().document->lanes()[retained.first].id()));
     }
 }
 
@@ -1216,13 +1225,9 @@ INSTANTIATE_TEST_SUITE_P(CameraDiagnostics, CameraDiagnosticFixtureTest, testing
 
 TEST_P(CameraDiagnosticMessageTest, reportsSpecificFailureClass)
 {
-    const DiagnosticMessageCase &definition = GetParam();
-
-    const JsonImportResult result = import_fixture(definition.fixture);
-
-    ASSERT_TRUE(result.succeeded());
-    ASSERT_GT(timeline::size_cast(result.diagnostics), definition.diagnostic);
-    EXPECT_NE(std::string::npos, result.diagnostics[definition.diagnostic].find(definition.message));
+    ASSERT_TRUE(result().succeeded());
+    ASSERT_GT(timeline::size_cast(result().diagnostics), definition().diagnostic);
+    EXPECT_NE(std::string::npos, result().diagnostics[definition().diagnostic].find(definition().message));
 }
 
 INSTANTIATE_TEST_SUITE_P(CameraFailureClasses, CameraDiagnosticMessageTest, testing::ValuesIn(DIAGNOSTIC_MESSAGE_CASES),
