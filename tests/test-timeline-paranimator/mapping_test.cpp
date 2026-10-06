@@ -213,92 +213,251 @@ BeatKeysMapping overlapping_note_mapping()
         source, {recipe}, {{"music.note_pulse", 0, 1.0}, {"music.note_pulse", 1, 1.0}}, valid_output(), "mapping.json");
 }
 
-std::string mapping_snapshot()
+std::string mapping_snapshot(const timeline::Document &document)
 {
-    const JsonImportResult result = import_clean_mapping("rms.beat-keys.json");
-    const timeline::Document &document = *result.document;
     const timeline::Viewport viewport(600, 240, document.content_start().value(), document.content_end().value());
     const timeline::Layout layout(document, viewport, timeline::LayoutMetrics(130, 24, 36, 4));
     return timeline::render_snapshot(layout.display_list());
 }
 
+/// Owns the mapping import selected by a parameterized fixture case.
+///
 class MappingFixtureTest : public testing::TestWithParam<MappingCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_result = import_clean_mapping(GetParam().mapping_file);
+    }
+    const MappingCase &definition() const
+    {
+        return GetParam();
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
+/// Owns one imported recipe and its generated lane.
+///
 class MappingRealizationTest : public testing::TestWithParam<RealizationCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_result = import_clean_mapping(GetParam().mapping_file);
+    }
+    const RealizationCase &definition() const
+    {
+        return GetParam();
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+    const MappingRecipe &recipe() const
+    {
+        return m_result.mapping->recipes()[definition().recipe];
+    }
+    const timeline::Lane &lane() const
+    {
+        return generated_lane(m_result, definition().recipe);
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
+/// Owns the RMS mapping imported for fixed semantic and layout checks.
+///
+class RmsMappingTest : public testing::Test
+{
+protected:
+    const BeatKeysMapping &mapping() const
+    {
+        return *m_result.mapping;
+    }
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+    const MappingRecipe &recipe() const
+    {
+        return mapping().recipes()[0];
+    }
+
+private:
+    JsonImportResult m_result{import_clean_mapping("rms.beat-keys.json")};
+};
+
+/// Owns the RMS mapping used by one presentation-text parameter.
+///
 class MappingTextTest : public testing::TestWithParam<TextCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_result = import_clean_mapping("rms.beat-keys.json");
+    }
+    const TextCase &definition() const
+    {
+        return GetParam();
+    }
+    const BeatKeysMapping &mapping() const
+    {
+        return *m_result.mapping;
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
+/// Owns the failed mapping import selected by a parameterized fixture case.
+///
 class InvalidImportTest : public testing::TestWithParam<InvalidImportCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_result = import_timeline_json(fixture(GetParam().mapping_file));
+    }
+    const InvalidImportCase &definition() const
+    {
+        return GetParam();
+    }
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result;
 };
 
+/// Owns the failed fractional-frame mapping import.
+///
+class FractionalFrameMappingTest : public testing::Test
+{
+protected:
+    const JsonImportResult &import_result() const
+    {
+        return m_result;
+    }
+
+private:
+    JsonImportResult m_result{import_timeline_json(fixture("fractional-frame.beat-keys.json"))};
+};
+
+/// Exercises independently supplied invalid mapping recipes.
+///
 class InvalidRecipeTest : public testing::TestWithParam<InvalidRecipeCase>
 {
 };
 
+/// Exercises independently supplied invalid frame-addressed inputs.
+///
 class InvalidInputTest : public testing::TestWithParam<InvalidInputCase>
 {
 };
 
+/// Owns one materialized overlapping pulse mapping.
+///
+class OverlappingMappingTest : public testing::Test
+{
+protected:
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+    const timeline::Lane &lane() const
+    {
+        return m_document.lanes()[0];
+    }
+
+private:
+    BeatKeysMapping m_mapping{overlapping_note_mapping()};
+    timeline::Document m_document{m_mapping.materialize()};
+};
+
+/// Owns one materialized overlapping pulse mapping per expected key value.
+///
 class OverlappingDecayTest : public testing::TestWithParam<PulseKeyCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_mapping.emplace(overlapping_note_mapping());
+        m_document.emplace(m_mapping->materialize());
+    }
+    const PulseKeyCase &definition() const
+    {
+        return GetParam();
+    }
+    const timeline::Lane &lane() const
+    {
+        return m_document->lanes()[0];
+    }
+
+private:
+    std::optional<BeatKeysMapping> m_mapping;
+    std::optional<timeline::Document> m_document;
+};
+
+/// Owns the offset mapping used for synchronization checks.
+///
+class SynchronizationMappingTest : public testing::Test
+{
+protected:
+    const timeline::Document &document() const
+    {
+        return *m_result.document;
+    }
+
+private:
+    JsonImportResult m_result{import_clean_mapping("offset-pulses.beat-keys.json")};
 };
 
 TEST_P(MappingFixtureTest, materializesOneLanePerRecipe)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const int source_lanes = result.mapping->source_document().lane_count();
+    const int source_lanes = import_result().mapping->source_document().lane_count();
 
-    const int generated_lanes = result.document->lane_count() - source_lanes;
+    const int generated_lanes = import_result().document->lane_count() - source_lanes;
 
-    EXPECT_EQ(timeline::size_cast(result.mapping->recipes()), generated_lanes);
+    EXPECT_EQ(timeline::size_cast(import_result().mapping->recipes()), generated_lanes);
 }
 
 TEST_P(MappingFixtureTest, matchesGoldenKeyframeCount)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const Json golden = load_json(fixture(GetParam().golden_file));
+    const Json golden = load_json(fixture(definition().golden_file));
 
     const int expected = timeline::size_cast(golden.at("keyframes"));
 
-    EXPECT_EQ(expected, result.document->keyframe_count());
+    EXPECT_EQ(expected, import_result().document->keyframe_count());
 }
 
 TEST_P(MappingRealizationTest, usesKeyframeLaneKind)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const timeline::Lane &lane = generated_lane(result, GetParam().recipe);
-
-    const std::string_view kind = result.document->strings().lookup(lane.kind());
+    const std::string_view kind = import_result().document->strings().lookup(lane().kind());
 
     EXPECT_EQ("keyframes", kind);
 }
 
 TEST_P(MappingRealizationTest, usesRecipeTargetAsLabel)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const timeline::Lane &lane = generated_lane(result, GetParam().recipe);
-    const MappingRecipe &recipe = result.mapping->recipes()[GetParam().recipe];
+    const std::string_view label = import_result().document->strings().lookup(lane().label());
 
-    const std::string_view label = result.document->strings().lookup(lane.label());
-
-    EXPECT_EQ(recipe.target, label);
+    EXPECT_EQ(recipe().target, label);
 }
 
 TEST_P(MappingRealizationTest, matchesGoldenValues)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const timeline::Lane &lane = generated_lane(result, GetParam().recipe);
-    const MappingRecipe &recipe = result.mapping->recipes()[GetParam().recipe];
-    const std::map<timeline::Ticks, double> expected = golden_keys(fixture(GetParam().golden_file), recipe.target);
+    const std::map<timeline::Ticks, double> expected = golden_keys(fixture(definition().golden_file), recipe().target);
 
-    const std::map<timeline::Ticks, double> actual = lane_keys(lane, *result.document->frame_grid());
+    const std::map<timeline::Ticks, double> actual = lane_keys(lane(), *import_result().document->frame_grid());
 
     ASSERT_EQ(expected.size(), actual.size());
     for (const std::pair<const timeline::Ticks, double> &entry : expected)
@@ -311,41 +470,33 @@ TEST_P(MappingRealizationTest, matchesGoldenValues)
 
 TEST_P(MappingRealizationTest, preservesOperationMetadata)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const timeline::Lane &lane = generated_lane(result, GetParam().recipe);
-    const MappingRecipe &recipe = result.mapping->recipes()[GetParam().recipe];
-
     std::vector<std::string_view> operations;
-    for (const timeline::Item &item : lane.items())
+    for (const timeline::Item &item : lane().items())
     {
         const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
-        operations.push_back(resolved_attributes(result, key.attributes()).at("op"));
+        operations.push_back(resolved_attributes(import_result(), key.attributes()).at("op"));
     }
 
-    ASSERT_EQ(lane.item_count(), timeline::size_cast(operations));
+    ASSERT_EQ(lane().item_count(), timeline::size_cast(operations));
     for (const std::string_view operation : operations)
     {
-        EXPECT_EQ(recipe.operation, operation);
+        EXPECT_EQ(recipe().operation, operation);
     }
 }
 
 TEST_P(MappingRealizationTest, preservesSourceMetadata)
 {
-    const JsonImportResult result = import_clean_mapping(GetParam().mapping_file);
-    const timeline::Lane &lane = generated_lane(result, GetParam().recipe);
-    const MappingRecipe &recipe = result.mapping->recipes()[GetParam().recipe];
-
     std::vector<std::string_view> sources;
-    for (const timeline::Item &item : lane.items())
+    for (const timeline::Item &item : lane().items())
     {
         const timeline::Keyframe &key = std::get<timeline::Keyframe>(item);
-        sources.push_back(resolved_attributes(result, key.attributes()).at("source"));
+        sources.push_back(resolved_attributes(import_result(), key.attributes()).at("source"));
     }
 
-    ASSERT_EQ(lane.item_count(), timeline::size_cast(sources));
+    ASSERT_EQ(lane().item_count(), timeline::size_cast(sources));
     for (const std::string_view source : sources)
     {
-        EXPECT_EQ(recipe.source, source);
+        EXPECT_EQ(recipe().source, source);
     }
 }
 
@@ -368,19 +519,16 @@ TEST(BeatKeysMappingNotePulse, extendsFrameGridForDecay)
     EXPECT_EQ(7, frame_count);
 }
 
-TEST(BeatKeysMappingRecipe, preservesScale)
+TEST_F(RmsMappingTest, preservesScale)
 {
-    const JsonImportResult result = import_clean_mapping("rms.beat-keys.json");
-
-    const double scale = result.mapping->recipes()[0].scale;
+    const double scale = recipe().scale;
 
     EXPECT_DOUBLE_EQ(2.0, scale);
 }
 
-TEST(BeatKeysMappingRecipe, preservesClampUpperBound)
+TEST_F(RmsMappingTest, preservesClampUpperBound)
 {
-    const JsonImportResult result = import_clean_mapping("rms.beat-keys.json");
-    const std::optional<std::pair<double, double>> &clamp = result.mapping->recipes()[0].clamp;
+    const std::optional<std::pair<double, double>> &clamp = recipe().clamp;
 
     const double upper_bound = clamp.value_or(std::pair<double, double>{0.0, 0.0}).second;
 
@@ -388,19 +536,16 @@ TEST(BeatKeysMappingRecipe, preservesClampUpperBound)
     EXPECT_DOUBLE_EQ(0.875, upper_bound);
 }
 
-TEST(BeatKeysMappingSource, retainsSourceDocument)
+TEST_F(RmsMappingTest, retainsSourceDocument)
 {
-    const JsonImportResult result = import_clean_mapping("rms.beat-keys.json");
-
-    const int lane_count = result.mapping->source_document().lane_count();
+    const int lane_count = mapping().source_document().lane_count();
 
     EXPECT_EQ(1, lane_count);
 }
 
-TEST(BeatKeysMappingCache, rebuildsWithoutDisposableCacheLane)
+TEST_F(RmsMappingTest, rebuildsWithoutDisposableCacheLane)
 {
-    const JsonImportResult result = import_clean_mapping("rms.beat-keys.json");
-    timeline::Document cache = result.mapping->materialize();
+    timeline::Document cache = mapping().materialize();
     const int expected = cache.lane_count();
     const timeline::Time start = cache.frame_grid()->offset();
     const timeline::Time end = cache.frame_grid()->end_time();
@@ -409,23 +554,23 @@ TEST(BeatKeysMappingCache, rebuildsWithoutDisposableCacheLane)
         builder.intern("cache-only"), builder.intern("Temporary"), builder.intern("events"), start, end));
     cache = std::move(builder).build();
 
-    const timeline::Document rebuilt = result.mapping->materialize();
+    const timeline::Document rebuilt = mapping().materialize();
 
     EXPECT_EQ(expected, rebuilt.lane_count());
 }
 
-TEST(BeatKeysMappingLayout, rendersMappedTarget)
+TEST_F(RmsMappingTest, rendersMappedTarget)
 {
-    const std::string snapshot = mapping_snapshot();
+    const std::string snapshot = mapping_snapshot(document());
 
     const std::size_t position = snapshot.find("camera.zoom");
 
     EXPECT_NE(std::string::npos, position);
 }
 
-TEST(BeatKeysMappingLayout, rendersSourceLane)
+TEST_F(RmsMappingTest, rendersSourceLane)
 {
-    const std::string snapshot = mapping_snapshot();
+    const std::string snapshot = mapping_snapshot(document());
 
     const std::size_t position = snapshot.find("RMS");
 
@@ -434,64 +579,50 @@ TEST(BeatKeysMappingLayout, rendersSourceLane)
 
 TEST_P(MappingTextTest, includesExpectedFragment)
 {
-    const JsonImportResult result = import_clean_mapping("rms.beat-keys.json");
+    const std::string text = to_string(mapping());
 
-    const std::string text = to_string(*result.mapping);
-
-    EXPECT_NE(std::string::npos, text.find(GetParam().expected));
+    EXPECT_NE(std::string::npos, text.find(definition().expected));
 }
 
 TEST_P(InvalidImportTest, rejectsImport)
 {
-    const JsonImportResult result = import_timeline_json(fixture(GetParam().mapping_file));
-
-    const bool succeeded = result.succeeded();
+    const bool succeeded = import_result().succeeded();
 
     EXPECT_FALSE(succeeded);
 }
 
 TEST_P(InvalidImportTest, omitsMapping)
 {
-    const JsonImportResult result = import_timeline_json(fixture(GetParam().mapping_file));
-
-    const bool has_mapping = result.mapping.has_value();
+    const bool has_mapping = import_result().mapping.has_value();
 
     EXPECT_FALSE(has_mapping);
 }
 
 TEST_P(InvalidImportTest, reportsCause)
 {
-    const JsonImportResult result = import_timeline_json(fixture(GetParam().mapping_file));
-
-    const std::vector<std::string> &diagnostics = result.diagnostics;
+    const std::vector<std::string> &diagnostics = import_result().diagnostics;
 
     ASSERT_FALSE(diagnostics.empty());
-    EXPECT_NE(std::string::npos, diagnostics.back().find(GetParam().expected_diagnostic));
+    EXPECT_NE(std::string::npos, diagnostics.back().find(definition().expected_diagnostic));
 }
 
-TEST(BeatKeysMappingFractionalFrame, rejectsImport)
+TEST_F(FractionalFrameMappingTest, rejectsImport)
 {
-    const JsonImportResult result = import_timeline_json(fixture("fractional-frame.beat-keys.json"));
-
-    const bool succeeded = result.succeeded();
+    const bool succeeded = import_result().succeeded();
 
     EXPECT_FALSE(succeeded);
 }
 
-TEST(BeatKeysMappingFractionalFrame, omitsMapping)
+TEST_F(FractionalFrameMappingTest, omitsMapping)
 {
-    const JsonImportResult result = import_timeline_json(fixture("fractional-frame.beat-keys.json"));
-
-    const bool has_mapping = result.mapping.has_value();
+    const bool has_mapping = import_result().mapping.has_value();
 
     EXPECT_FALSE(has_mapping);
 }
 
-TEST(BeatKeysMappingFractionalFrame, reportsSourceFrame)
+TEST_F(FractionalFrameMappingTest, reportsSourceFrame)
 {
-    const JsonImportResult result = import_timeline_json(fixture("fractional-frame.beat-keys.json"));
-
-    const std::vector<std::string> &diagnostics = result.diagnostics;
+    const std::vector<std::string> &diagnostics = import_result().diagnostics;
 
     ASSERT_FALSE(diagnostics.empty());
     EXPECT_NE(std::string::npos, diagnostics.back().find("source frame"));
@@ -541,50 +672,39 @@ TEST_P(InvalidInputTest, rejectsFrameAddressedInput)
     EXPECT_TRUE(throws_invalid_argument);
 }
 
-TEST(BeatKeysMappingOverlap, materializesFourPulseKeys)
+TEST_F(OverlappingMappingTest, materializesFourPulseKeys)
 {
-    const BeatKeysMapping mapping = overlapping_note_mapping();
-
-    const timeline::Document document = mapping.materialize();
-
-    ASSERT_EQ(1, document.lane_count());
-    EXPECT_EQ(4, document.lanes()[0].item_count());
+    ASSERT_EQ(1, document().lane_count());
+    EXPECT_EQ(4, lane().item_count());
 }
 
 TEST_P(OverlappingDecayTest, materializesExpectedValue)
 {
-    const BeatKeysMapping mapping = overlapping_note_mapping();
-    const timeline::Document document = mapping.materialize();
+    const timeline::Keyframe &key = std::get<timeline::Keyframe>(lane().items()[definition().item]);
 
-    const timeline::Keyframe &key = std::get<timeline::Keyframe>(document.lanes()[0].items()[GetParam().item]);
-
-    EXPECT_DOUBLE_EQ(GetParam().expected, key.value());
+    EXPECT_DOUBLE_EQ(definition().expected, key.value());
 }
 
-TEST(BeatKeysMappingSynchronization, appliesOffset)
+TEST_F(SynchronizationMappingTest, appliesOffset)
 {
-    const JsonImportResult result = import_clean_mapping("offset-pulses.beat-keys.json");
-
-    const timeline::Ticks offset = result.document->frame_grid()->offset().ticks();
+    const timeline::Ticks offset = document().frame_grid()->offset().ticks();
 
     EXPECT_EQ(-18000, offset);
 }
 
-TEST(BeatKeysMappingSynchronization, alignsSourceEventAndMappedKey)
+TEST_F(SynchronizationMappingTest, alignsSourceEventAndMappedKey)
 {
-    const JsonImportResult result = import_clean_mapping("offset-pulses.beat-keys.json");
-    const timeline::Instant &event = std::get<timeline::Instant>(result.document->lanes()[0].items()[0]);
-    const timeline::Keyframe &key = std::get<timeline::Keyframe>(result.document->lanes()[1].items()[0]);
+    const timeline::Instant &event = std::get<timeline::Instant>(document().lanes()[0].items()[0]);
+    const timeline::Keyframe &key = std::get<timeline::Keyframe>(document().lanes()[1].items()[0]);
 
     const bool aligned = event.time() == key.time();
 
     EXPECT_TRUE(aligned);
 }
 
-TEST(BeatKeysMappingSynchronization, placesMappedKeyAtOffset)
+TEST_F(SynchronizationMappingTest, placesMappedKeyAtOffset)
 {
-    const JsonImportResult result = import_clean_mapping("offset-pulses.beat-keys.json");
-    const timeline::Keyframe &key = std::get<timeline::Keyframe>(result.document->lanes()[1].items()[0]);
+    const timeline::Keyframe &key = std::get<timeline::Keyframe>(document().lanes()[1].items()[0]);
 
     const timeline::Ticks ticks = key.time().ticks();
 
