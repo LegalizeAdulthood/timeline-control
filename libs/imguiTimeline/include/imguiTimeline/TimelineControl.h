@@ -75,7 +75,6 @@ private:
     static const double m_zoom_step;
 
     void update_layout(ImVec2 size);
-    void update_inspection();
     void update_input(timeline::Point point, bool hovered, bool active, bool focused);
     void zoom_by(double factor);
     void end_drag();

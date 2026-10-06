@@ -24,50 +24,24 @@ void Control::set_document(timeline::Document document)
 
 void Control::fit_view()
 {
-    if (m_state.navigation())
-    {
-        m_state.navigation()->fit();
-        m_state.invalidate_layout();
-    }
+    m_state.fit_view();
 }
 
 void Control::clear_selection()
 {
     end_drag();
-    if (m_state.interaction())
-    {
-        m_state.interaction()->clear_selection();
-        update_inspection();
-        m_state.invalidate_layout();
-    }
+    m_state.clear_selection();
 }
 
 void Control::zoom_by(double factor)
 {
-    if (m_state.navigation() && m_state.viewport())
-    {
-        const timeline::Ticks middle = m_state.viewport()->start().ticks() +
-            (m_state.viewport()->end().ticks() - m_state.viewport()->start().ticks()) / 2;
-        m_state.navigation()->zoom_by(factor, timeline::Time::from_ticks(middle));
-        m_state.invalidate_layout();
-    }
+    m_state.zoom_by(factor);
 }
 
 void Control::end_drag()
 {
-    if (m_state.interaction())
-    {
-        m_state.interaction()->end_range();
-    }
+    m_state.end_range();
     m_dragging = false;
-}
-
-void Control::update_inspection()
-{
-    if (m_state.document() && m_state.interaction() && m_state.interaction()->playhead_frame())
-    {
-        m_state.inspection() = timeline::inspect_frame(*m_state.document(), *m_state.interaction()->playhead_frame());
-    }
 }
 
 void Control::update_layout(ImVec2 size)
@@ -79,7 +53,7 @@ void Control::update_layout(ImVec2 size)
     if (!m_state.navigation() || width < 2 || height <= font_height + 2 * padding)
     {
         m_state.clear_layout();
-        m_state.hit_result().reset();
+        m_state.clear_hover();
         end_drag();
         return;
     }
@@ -106,11 +80,10 @@ void Control::update_input(timeline::Point point, bool hovered, bool active, boo
     if (io.AppFocusLost)
     {
         end_drag();
-        m_state.hit_result().reset();
+        m_state.clear_hover();
         return;
     }
     bool interaction_changed = false;
-    bool view_changed = false;
     if (hovered)
     {
         ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelX);
@@ -118,21 +91,14 @@ void Control::update_input(timeline::Point point, bool hovered, bool active, boo
     }
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        m_state.interaction()->select_hit(m_state.layout()->hit_test(point, 3), io.KeyCtrl);
-        if (point.x >= m_state.layout_metrics()->lane_label_width())
-        {
-            m_state.interaction()->begin_range(
-                timeline::time_at_x(point.x, *m_state.viewport(), *m_state.layout_metrics()));
-            m_dragging = true;
-        }
+        m_dragging = m_state.begin_selection(point, 3, io.KeyCtrl);
         interaction_changed = true;
     }
     if (m_dragging)
     {
         if (active || ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         {
-            m_state.interaction()->extend_range(
-                timeline::time_at_x(point.x, *m_state.viewport(), *m_state.layout_metrics()));
+            m_state.extend_range(point);
             interaction_changed = true;
         }
         if (!active || !io.MouseDown[ImGuiMouseButton_Left])
@@ -144,16 +110,16 @@ void Control::update_input(timeline::Point point, bool hovered, bool active, boo
     {
         if (io.KeyCtrl)
         {
-            m_state.navigation()->zoom_by(std::pow(m_zoom_step, io.MouseWheel),
-                timeline::time_at_x(point.x, *m_state.viewport(), *m_state.layout_metrics()));
+            m_state.zoom_at(std::pow(m_zoom_step, io.MouseWheel), point.x);
         }
         else if (io.KeyShift || io.MouseWheelH != 0.0F)
         {
             const float wheel = io.KeyShift ? io.MouseWheel : io.MouseWheelH;
             const timeline::Ticks delta = std::max<timeline::Ticks>(
                 1, (m_state.viewport()->end().ticks() - m_state.viewport()->start().ticks()) / 10);
-            m_state.navigation()->scroll_to(timeline::Time::from_ticks(m_state.viewport()->start().ticks() -
-                static_cast<timeline::Ticks>(std::llround(static_cast<double>(wheel) * static_cast<double>(delta)))));
+            const timeline::Ticks distance =
+                -static_cast<timeline::Ticks>(std::llround(static_cast<double>(wheel) * static_cast<double>(delta)));
+            m_state.scroll_by(timeline::Duration::from_ticks(distance));
         }
         else
         {
@@ -162,10 +128,8 @@ void Control::update_input(timeline::Point point, bool hovered, bool active, boo
             {
                 steps = io.MouseWheel < 0.0F ? -1 : 1;
             }
-            m_state.navigation()->scroll_to_lane(m_state.viewport()->first_lane() - steps,
-                std::max(1, timeline::visible_lane_count(*m_state.viewport(), *m_state.layout_metrics())));
+            m_state.scroll_lanes(-steps);
         }
-        view_changed = true;
     }
     if (focused && !io.KeyCtrl && !io.KeyAlt && !io.KeySuper)
     {
@@ -183,34 +147,17 @@ void Control::update_input(timeline::Point point, bool hovered, bool active, boo
         else if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) || ImGui::IsKeyPressed(ImGuiKey_RightArrow))
         {
             ImGui::SetNavCursorVisible(true);
-            m_state.interaction()->step_playhead(ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? -1 : 1, io.KeyShift);
-            if (m_state.interaction()->playhead())
-            {
-                m_state.navigation()->reveal(*m_state.interaction()->playhead());
-            }
+            m_state.step_playhead(ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? -1 : 1, io.KeyShift);
             interaction_changed = true;
         }
     }
-    if (interaction_changed)
+    if (hovered)
     {
-        update_inspection();
+        m_state.hover_at(point, 3, !interaction_changed);
     }
-    if (interaction_changed || view_changed)
+    else
     {
-        const ImVec2 size(
-            static_cast<float>(m_state.viewport()->width()), static_cast<float>(m_state.viewport()->height()));
-        update_layout(size);
-    }
-    m_state.hit_result() = hovered ? m_state.layout()->hit_test(point, 3) : std::nullopt;
-    if (hovered && !interaction_changed && m_state.document()->frame_grid() &&
-        point.x >= m_state.layout_metrics()->lane_label_width())
-    {
-        const std::optional<timeline::Ticks> frame = m_state.document()->frame_grid()->nearest_frame(
-            timeline::time_at_x(point.x, *m_state.viewport(), *m_state.layout_metrics()));
-        if (frame && (!m_state.inspection() || m_state.inspection()->frame != *frame))
-        {
-            m_state.inspection() = timeline::inspect_frame(*m_state.document(), *frame);
-        }
+        m_state.clear_hover();
     }
 }
 
@@ -233,7 +180,7 @@ void draw_timeline(std::string_view id, Control &control, ImVec2 size)
     control.update_layout(size);
     if (!ImGui::IsItemVisible())
     {
-        control.m_state.hit_result().reset();
+        control.m_state.clear_hover();
         ImGui::PopID();
         return;
     }

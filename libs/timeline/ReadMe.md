@@ -39,7 +39,10 @@ toolkit-neutral geometry, and view state.
 `ControlState` owns the document and its toolkit-neutral display state for
 one control. It creates fresh interaction, navigation, and inspection
 state when the document changes, then rebuilds layout from host dimensions
-and `LayoutMetrics`. GUI adapters retain native event and resource state.
+and `LayoutMetrics`. Its commands implement zooming, scrolling, playhead
+movement, selection, range dragging, hit testing, and hover inspection.
+GUI adapters retain native event and resource state and translate their
+input into these commands.
 
 ## Time
 

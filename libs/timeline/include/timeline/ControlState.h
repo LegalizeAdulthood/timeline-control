@@ -30,42 +30,34 @@ public:
     void set_document(Document document);
     bool rebuild_layout(int width, int height, LayoutMetrics metrics);
     void clear_layout();
-    void invalidate_layout()
-    {
-        m_layout.reset();
-    }
+    void fit_view();
+    void zoom_by(double factor);
+    void zoom_at(double factor, int x);
+    void scroll_by(Duration distance);
+    void scroll_lanes(int lanes);
+    bool begin_selection(Point point, int hit_tolerance, bool additive);
+    void extend_range(Point point);
+    void end_range();
+    void clear_selection();
+    void step_playhead(int frames, bool extend_selection);
+    void hover_at(Point point, int hit_tolerance, bool inspect_frame);
+    void clear_hover();
 
     const std::optional<Document> &document() const
     {
         return m_document;
     }
-    std::optional<Interaction> &interaction()
-    {
-        return m_interaction;
-    }
     const std::optional<Interaction> &interaction() const
     {
         return m_interaction;
-    }
-    std::optional<Navigation> &navigation()
-    {
-        return m_navigation;
     }
     const std::optional<Navigation> &navigation() const
     {
         return m_navigation;
     }
-    std::optional<FrameInspection> &inspection()
-    {
-        return m_inspection;
-    }
     const std::optional<FrameInspection> &inspection() const
     {
         return m_inspection;
-    }
-    std::optional<HitResult> &hit_result()
-    {
-        return m_hit_result;
     }
     const std::optional<HitResult> &hit_result() const
     {
@@ -85,6 +77,13 @@ public:
     }
 
 private:
+    void invalidate_layout()
+    {
+        m_layout.reset();
+    }
+    void rebuild_current_layout();
+    void update_inspection();
+
     std::optional<Document> m_document;
     std::optional<Interaction> m_interaction;
     std::optional<Navigation> m_navigation;
