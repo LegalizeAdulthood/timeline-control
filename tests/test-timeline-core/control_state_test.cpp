@@ -169,6 +169,16 @@ TEST_F(ControlStateCommandTest, scrollsByExactDuration)
     EXPECT_EQ(at(85), m_state.viewport()->end());
 }
 
+TEST_F(ControlStateCommandTest, scrollsToAbsoluteFraction)
+{
+    m_state.zoom_by(2.0);
+
+    m_state.scroll_to_fraction(1.0);
+
+    EXPECT_EQ(at(50), m_state.viewport()->start());
+    EXPECT_EQ(at(100), m_state.viewport()->end());
+}
+
 TEST_F(ControlStateCommandTest, scrollsVisibleLanes)
 {
     m_state.scroll_lanes(2);

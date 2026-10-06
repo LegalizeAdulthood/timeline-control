@@ -34,6 +34,7 @@ public:
     void zoom_by(double factor);
     void zoom_at(double factor, int x);
     void scroll_by(Duration distance);
+    void scroll_to_fraction(double fraction);
     void scroll_lanes(int lanes);
     bool begin_selection(Point point, int hit_tolerance, bool additive);
     void extend_range(Point point);

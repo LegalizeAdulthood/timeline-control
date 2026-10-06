@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include <timeline/Interaction.h>
-#include <timeline/Layout.h>
-#include <timeline/Query.h>
+#include <timeline/ControlState.h>
 
 #include <QAbstractScrollArea>
 
@@ -32,31 +30,31 @@ public:
     std::string snapshot() const;
     const std::optional<timeline::Document> &document() const
     {
-        return m_document;
+        return m_state.document();
     }
     const std::optional<timeline::Interaction> &interaction() const
     {
-        return m_interaction;
+        return m_state.interaction();
     }
     const std::optional<timeline::FrameInspection> &inspection() const
     {
-        return m_inspection;
+        return m_state.inspection();
     }
     const std::optional<timeline::HitResult> &hit_result() const
     {
-        return m_hit;
+        return m_state.hit_result();
     }
     const std::optional<timeline::Layout> &layout() const
     {
-        return m_layout;
+        return m_state.layout();
     }
     const std::optional<timeline::Viewport> &timeline_viewport() const
     {
-        return m_viewport;
+        return m_state.viewport();
     }
     const std::optional<timeline::LayoutMetrics> &layout_metrics() const
     {
-        return m_metrics;
+        return m_state.layout_metrics();
     }
 
 signals:
@@ -65,7 +63,7 @@ signals:
 private:
     explicit QTimelineWidget(QWidget *parent);
     void rebuild();
-    void update_inspection();
+    void update_control();
     void zoom_by(double factor);
     void end_drag();
     void paintEvent(QPaintEvent *event) override;
@@ -80,16 +78,9 @@ private:
     void changeEvent(QEvent *event) override;
     bool viewportEvent(QEvent *event) override;
     void scrollContentsBy(int dx, int dy) override;
-    std::optional<timeline::Navigation> m_navigation;
+    timeline::ControlState m_state;
     std::optional<timeline::Point> m_hover;
     bool m_dragging{false};
     bool m_rebuilding{false};
     int m_wheel_remainder{0};
-    std::optional<timeline::Document> m_document;
-    std::optional<timeline::Interaction> m_interaction;
-    std::optional<timeline::FrameInspection> m_inspection;
-    std::optional<timeline::HitResult> m_hit;
-    std::optional<timeline::Layout> m_layout;
-    std::optional<timeline::Viewport> m_viewport;
-    std::optional<timeline::LayoutMetrics> m_metrics;
 };

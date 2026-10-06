@@ -92,6 +92,15 @@ void ControlState::scroll_by(Duration distance)
     }
 }
 
+void ControlState::scroll_to_fraction(double fraction)
+{
+    if (m_navigation)
+    {
+        m_navigation->scroll_to_fraction(fraction);
+        rebuild_current_layout();
+    }
+}
+
 void ControlState::scroll_lanes(int lanes)
 {
     if (m_navigation && m_viewport && m_layout_metrics)
@@ -108,7 +117,8 @@ bool ControlState::begin_selection(Point point, int hit_tolerance, bool additive
     {
         return false;
     }
-    m_interaction->select_hit(m_layout->hit_test(point, hit_tolerance), additive);
+    m_hit_result = m_layout->hit_test(point, hit_tolerance);
+    m_interaction->select_hit(m_hit_result, additive);
     const bool range_started = point.x >= m_layout_metrics->lane_label_width();
     if (range_started)
     {
