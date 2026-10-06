@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <iterator>
+#include <system_error>
 
 using timeline_imgui_viewer::Command;
 using timeline_imgui_viewer::Viewer;
@@ -26,9 +27,28 @@ protected:
     void SetUp() override;
     void TearDown() override
     {
+        std::error_code error;
+        std::filesystem::remove(m_snapshot_path, error);
         ImGui::DestroyContext();
     }
     Command frame(Viewer &viewer);
+
+    Viewer m_viewer;
+    const std::filesystem::path m_snapshot_path{std::filesystem::current_path() / "timeline-imgui-viewer-test.txt"};
+};
+
+/// Viewer loaded with the shared animation and submitted through initial frames.
+///
+class LoadedImGuiViewer : public ImGuiViewer
+{
+protected:
+    void SetUp() override
+    {
+        ImGuiViewer::SetUp();
+        ASSERT_TRUE(m_viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
+        frame(m_viewer);
+        frame(m_viewer);
+    }
 };
 
 void ImGuiViewer::SetUp()
@@ -47,6 +67,8 @@ void ImGuiViewer::SetUp()
     int height = 0;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
     io.Fonts->SetTexID(ImTextureID{1});
+    std::error_code error;
+    std::filesystem::remove(m_snapshot_path, error);
 }
 
 Command ImGuiViewer::frame(Viewer &viewer)
@@ -59,232 +81,178 @@ Command ImGuiViewer::frame(Viewer &viewer)
 
 TEST_F(ImGuiViewer, loadsSharedAnimation)
 {
-    Viewer viewer;
-
-    const bool loaded = viewer.load_file(fixtures / "extreme-normalized-vectors.json", false);
+    const bool loaded = m_viewer.load_file(fixtures / "extreme-normalized-vectors.json", false);
 
     ASSERT_TRUE(loaded);
-    EXPECT_EQ(25, viewer.control().document()->lane_count());
+    EXPECT_EQ(25, m_viewer.control().document()->lane_count());
 }
 
-TEST_F(ImGuiViewer, drawsTheCompleteHost)
+TEST_F(LoadedImGuiViewer, drawsTheCompleteHost)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-
-    const Command command = frame(viewer);
+    const Command command = frame(m_viewer);
 
     EXPECT_EQ(Command::NONE, command);
-    ASSERT_TRUE(viewer.control().layout());
+    ASSERT_TRUE(m_viewer.control().layout());
     EXPECT_GT(ImGui::GetDrawData()->TotalVtxCount, 0);
 }
 
-TEST_F(ImGuiViewer, presentsParameterOutputInTheInspector)
+TEST_F(LoadedImGuiViewer, presentsParameterOutputInTheInspector)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-
-    frame(viewer);
-    const std::string text = viewer.inspector_text();
+    const std::string text = m_viewer.inspector_text();
 
     EXPECT_NE(std::string::npos, text.find("Lanes: 25"));
     EXPECT_NE(std::string::npos, text.find("Parameter output:"));
     EXPECT_NE(std::string::npos, text.find("(exact)"));
 }
 
-TEST_F(ImGuiViewer, composesMusicWithTheDocument)
+TEST_F(LoadedImGuiViewer, composesMusicWithTheDocument)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-
-    const bool loaded = viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true);
+    const bool loaded = m_viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true);
 
     ASSERT_TRUE(loaded);
-    EXPECT_EQ(29, viewer.control().document()->lane_count());
+    EXPECT_EQ(29, m_viewer.control().document()->lane_count());
 }
 
-TEST_F(ImGuiViewer, presentsMappingRecipesInTheInspector)
+TEST_F(LoadedImGuiViewer, presentsMappingRecipesInTheInspector)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-
-    const bool loaded = viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true);
-    const std::string text = viewer.inspector_text();
+    const bool loaded = m_viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true);
+    const std::string text = m_viewer.inspector_text();
 
     ASSERT_TRUE(loaded);
-    ASSERT_EQ(1, timeline::size_cast(viewer.mappings()));
-    EXPECT_EQ(3, timeline::size_cast(viewer.mappings().front().recipes()));
+    ASSERT_EQ(1, timeline::size_cast(m_viewer.mappings()));
+    EXPECT_EQ(3, timeline::size_cast(m_viewer.mappings().front().recipes()));
     EXPECT_NE(std::string::npos, text.find("music.rms -> camera.zoom"));
 }
 
-TEST_F(ImGuiViewer, replacesTheDocumentAndRecipes)
+TEST_F(LoadedImGuiViewer, replacesTheDocumentAndRecipes)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    ASSERT_TRUE(viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true));
+    ASSERT_TRUE(m_viewer.load_file(fixtures / "beat-keys/rms.beat-keys.json", true));
 
-    const bool loaded = viewer.load_file(fixtures / "extreme-normalized-vectors.json", false);
+    const bool loaded = m_viewer.load_file(fixtures / "extreme-normalized-vectors.json", false);
 
     ASSERT_TRUE(loaded);
-    EXPECT_EQ(25, viewer.control().document()->lane_count());
-    EXPECT_TRUE(viewer.mappings().empty());
+    EXPECT_EQ(25, m_viewer.control().document()->lane_count());
+    EXPECT_TRUE(m_viewer.mappings().empty());
 }
 
-TEST_F(ImGuiViewer, preservesOwnedStateWhenImportFails)
+TEST_F(LoadedImGuiViewer, preservesOwnedStateWhenImportFails)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    frame(viewer);
-    const std::string before = timeline::render_snapshot(viewer.control().layout()->display_list());
+    const std::string before = timeline::render_snapshot(m_viewer.control().layout()->display_list());
 
-    const bool loaded = viewer.load_file(fixtures / "invalid-schema.json", false);
+    const bool loaded = m_viewer.load_file(fixtures / "invalid-schema.json", false);
 
     EXPECT_FALSE(loaded);
-    EXPECT_FALSE(viewer.diagnostics().empty());
-    EXPECT_EQ(25, viewer.control().document()->lane_count());
-    EXPECT_EQ(before, timeline::render_snapshot(viewer.control().layout()->display_list()));
-    EXPECT_EQ(0, *viewer.control().interaction()->playhead_frame());
+    EXPECT_FALSE(m_viewer.diagnostics().empty());
+    EXPECT_EQ(25, m_viewer.control().document()->lane_count());
+    EXPECT_EQ(before, timeline::render_snapshot(m_viewer.control().layout()->display_list()));
+    EXPECT_EQ(0, *m_viewer.control().interaction()->playhead_frame());
 }
 
 TEST_F(ImGuiViewer, rejectsSnapshotExportWithoutLayout)
 {
-    Viewer viewer;
-    const std::filesystem::path path = std::filesystem::current_path() / "timeline-imgui-viewer-test.txt";
-
-    const bool exported = viewer.export_snapshot(path);
+    const bool exported = m_viewer.export_snapshot(m_snapshot_path);
 
     EXPECT_FALSE(exported);
 }
 
-TEST_F(ImGuiViewer, exportsTheCoreSnapshot)
+TEST_F(LoadedImGuiViewer, exportsTheCoreSnapshot)
 {
-    Viewer viewer;
-    const std::filesystem::path path = std::filesystem::current_path() / "timeline-imgui-viewer-test.txt";
-    std::filesystem::remove(path);
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    frame(viewer);
-
-    const bool exported = viewer.export_snapshot(path);
+    const bool exported = m_viewer.export_snapshot(m_snapshot_path);
 
     ASSERT_TRUE(exported);
-    std::ifstream input(path);
+    std::ifstream input(m_snapshot_path);
     const std::string actual((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    EXPECT_EQ(timeline::render_snapshot(viewer.control().layout()->display_list()), actual);
-
-    input.close();
-    std::filesystem::remove(path);
+    EXPECT_EQ(timeline::render_snapshot(m_viewer.control().layout()->display_list()), actual);
 }
 
-TEST_F(ImGuiViewer, reportsSnapshotWriteFailure)
+TEST_F(LoadedImGuiViewer, reportsSnapshotWriteFailure)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    frame(viewer);
     const std::filesystem::path path =
         std::filesystem::current_path() / "timeline-imgui-viewer-absent" / "snapshot.txt";
 
-    const bool exported = viewer.export_snapshot(path);
+    const bool exported = m_viewer.export_snapshot(path);
 
     EXPECT_FALSE(exported);
-    EXPECT_FALSE(viewer.diagnostics().empty());
+    EXPECT_FALSE(m_viewer.diagnostics().empty());
 }
 
 TEST_F(ImGuiViewer, drawsWithoutADocument)
 {
-    Viewer viewer;
-
-    const Command command = frame(viewer);
+    const Command command = frame(m_viewer);
 
     EXPECT_EQ(Command::NONE, command);
-    EXPECT_FALSE(viewer.control().document());
+    EXPECT_FALSE(m_viewer.control().document());
 }
 
 TEST_F(ImGuiViewer, displaysAnEmptyDocument)
 {
-    Viewer viewer;
-
-    const bool loaded = viewer.load_file(fixtures / "empty-animation.json", false);
-    frame(viewer);
+    const bool loaded = m_viewer.load_file(fixtures / "empty-animation.json", false);
+    frame(m_viewer);
 
     ASSERT_TRUE(loaded);
-    EXPECT_EQ(0, viewer.control().document()->lane_count());
+    EXPECT_EQ(0, m_viewer.control().document()->lane_count());
 }
 
 TEST_F(ImGuiViewer, displaysAMusicDocument)
 {
-    Viewer viewer;
-
-    const bool loaded = viewer.load_file(fixtures / "par-beatdown/gold-write-windowed-features.json", false);
-    frame(viewer);
+    const bool loaded = m_viewer.load_file(fixtures / "par-beatdown/gold-write-windowed-features.json", false);
+    frame(m_viewer);
 
     ASSERT_TRUE(loaded);
-    EXPECT_GT(viewer.control().document()->lane_count(), 0);
-    EXPECT_NE(std::string::npos, viewer.inspector_text().find("Schema:"));
+    EXPECT_GT(m_viewer.control().document()->lane_count(), 0);
+    EXPECT_NE(std::string::npos, m_viewer.inspector_text().find("Schema:"));
 }
 
-TEST_F(ImGuiViewer, keepsKeyboardFrameNavigationOnTheNestedTimeline)
+TEST_F(LoadedImGuiViewer, keepsKeyboardFrameNavigationOnTheNestedTimeline)
 {
-    Viewer viewer;
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    frame(viewer);
-    frame(viewer);
     ImGuiIO &io = ImGui::GetIO();
     io.AddMousePosEvent(250, 80);
-    frame(viewer);
+    frame(m_viewer);
     io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
-    frame(viewer);
+    frame(m_viewer);
     io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-    frame(viewer);
-    const timeline::Ticks first = *viewer.control().interaction()->playhead_frame();
+    frame(m_viewer);
+    const timeline::Ticks first = *m_viewer.control().interaction()->playhead_frame();
     ASSERT_LT(first, 4);
 
     io.AddKeyEvent(ImGuiKey_RightArrow, true);
-    frame(viewer);
+    frame(m_viewer);
 
-    EXPECT_EQ(first + 1, *viewer.control().interaction()->playhead_frame());
+    EXPECT_EQ(first + 1, *m_viewer.control().interaction()->playhead_frame());
 }
 
 TEST_F(ImGuiViewer, adaptsToANarrowHost)
 {
-    Viewer viewer;
     ImGuiIO &io = ImGui::GetIO();
     io.DisplaySize = ImVec2(500, 600);
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
+    ASSERT_TRUE(m_viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
 
-    frame(viewer);
-    frame(viewer);
+    frame(m_viewer);
+    frame(m_viewer);
 
-    ASSERT_TRUE(viewer.control().viewport());
-    EXPECT_LT(viewer.control().viewport()->height(), 400);
+    ASSERT_TRUE(m_viewer.control().viewport());
+    EXPECT_LT(m_viewer.control().viewport()->height(), 400);
 }
 
-TEST_F(ImGuiViewer, routesTheOpenShortcut)
+TEST_F(LoadedImGuiViewer, routesTheOpenShortcut)
 {
-    Viewer viewer;
     ImGuiIO &io = ImGui::GetIO();
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    frame(viewer);
-    frame(viewer);
 
     io.AddKeyEvent(ImGuiMod_Ctrl, true);
     io.AddKeyEvent(ImGuiKey_O, true);
-    const Command command = frame(viewer);
+    const Command command = frame(m_viewer);
 
     EXPECT_EQ(Command::OPEN, command);
 }
 
-TEST_F(ImGuiViewer, routesTheAddShortcut)
+TEST_F(LoadedImGuiViewer, routesTheAddShortcut)
 {
-    Viewer viewer;
     ImGuiIO &io = ImGui::GetIO();
-    ASSERT_TRUE(viewer.load_file(fixtures / "extreme-normalized-vectors.json", false));
-    frame(viewer);
-    frame(viewer);
 
     io.AddKeyEvent(ImGuiMod_Ctrl, true);
     io.AddKeyEvent(ImGuiMod_Shift, true);
     io.AddKeyEvent(ImGuiKey_O, true);
-    const Command command = frame(viewer);
+    const Command command = frame(m_viewer);
 
     EXPECT_EQ(Command::ADD, command);
 }
