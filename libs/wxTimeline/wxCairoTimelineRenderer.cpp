@@ -2,6 +2,7 @@
 
 #include <wxTimeline/wxCairoTimelineRenderer.h>
 
+#include <timeline/DisplayListRenderer.h>
 #include <timeline/size_cast.h>
 
 #include <cairo.h>
@@ -15,7 +16,6 @@
 #include <limits>
 #include <memory>
 #include <string_view>
-#include <type_traits>
 
 namespace
 {
@@ -49,20 +49,20 @@ Context drawing_context(const Surface &surface, wxRect clip, double device_scale
     return context;
 }
 
-void draw_curve(const Context &context, const timeline::Polyline &curve, wxPoint origin, int stroke_width)
+void draw_curve(cairo_t &context, const timeline::Polyline &curve, wxPoint origin, int stroke_width)
 {
     if (timeline::size_cast(curve.points) < 2)
     {
         return;
     }
-    cairo_set_line_width(context.get(), 2.0 * std::max(1, stroke_width));
-    cairo_move_to(context.get(), origin.x + curve.points.front().x, origin.y + curve.points.front().y);
+    cairo_set_line_width(&context, 2.0 * std::max(1, stroke_width));
+    cairo_move_to(&context, origin.x + curve.points.front().x, origin.y + curve.points.front().y);
     for (int index = 1; index < timeline::size_cast(curve.points); ++index)
     {
         const timeline::Point &point = curve.points[index];
-        cairo_line_to(context.get(), origin.x + point.x, origin.y + point.y);
+        cairo_line_to(&context, origin.x + point.x, origin.y + point.y);
     }
-    cairo_stroke(context.get());
+    cairo_stroke(&context);
 }
 
 Surface text_mask(const wxString &text, const wxFont &font, double device_scale)
@@ -151,62 +151,162 @@ wxImage surface_image(const Surface &surface)
     return image;
 }
 
-bool draw_primitive(const Context &context, const timeline::Primitive &primitive, wxPoint origin,
-    const timeline::StringTable &strings, const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors,
-    int stroke_width, bool focused, const wxFont &font, double device_scale)
+/// Adapts toolkit-neutral display-list operations to a Cairo context.
+///
+class CairoDisplayListRenderer final : public timeline::DisplayListRenderer
 {
-    return std::visit(
-        [&](const auto &value)
+public:
+    CairoDisplayListRenderer(cairo_t &context, wxPoint origin, const wxTimelinePalette &palette,
+        const wxTimelineStyleColors &style_colors, int stroke_width, bool focused, const wxFont &font,
+        double device_scale);
+
+    void draw_line(const timeline::Line &line) override;
+    void fill_rectangle(const timeline::Rectangle &rectangle) override;
+    void draw_text(const timeline::Text &text, std::string_view value) override;
+    void draw_marker(const timeline::Marker &marker) override;
+    void draw_polyline(const timeline::Polyline &polyline) override;
+    void draw_swatch(const timeline::Swatch &swatch) override;
+
+    bool ok() const
+    {
+        return m_ok;
+    }
+
+private:
+    wxColour colour(timeline::StyleRole style) const
+    {
+        return timeline_style_colour(style, m_palette, m_style_colors, m_focused);
+    }
+
+    void set_source(timeline::StyleRole style);
+    void fill(int x, int y, int width, int height);
+    void update_status();
+
+    cairo_t &m_context;
+    wxPoint m_origin;
+    const wxTimelinePalette &m_palette;
+    const wxTimelineStyleColors &m_style_colors;
+    int m_stroke_width;
+    bool m_focused;
+    const wxFont &m_font;
+    double m_device_scale;
+    bool m_ok{true};
+};
+
+CairoDisplayListRenderer::CairoDisplayListRenderer(cairo_t &context, wxPoint origin, const wxTimelinePalette &palette,
+    const wxTimelineStyleColors &style_colors, int stroke_width, bool focused, const wxFont &font,
+    double device_scale) :
+    m_context(context),
+    m_origin(origin),
+    m_palette(palette),
+    m_style_colors(style_colors),
+    m_stroke_width(std::max(1, stroke_width)),
+    m_focused(focused),
+    m_font(font),
+    m_device_scale(device_scale)
+{
+}
+
+void CairoDisplayListRenderer::draw_line(const timeline::Line &line)
+{
+    if (!m_ok)
+    {
+        return;
+    }
+    set_source(line.style);
+    cairo_set_line_width(&m_context, m_stroke_width);
+    cairo_move_to(&m_context, m_origin.x + line.x1, m_origin.y + line.y1);
+    cairo_line_to(&m_context, m_origin.x + line.x2, m_origin.y + line.y2);
+    cairo_stroke(&m_context);
+    update_status();
+}
+
+void CairoDisplayListRenderer::fill_rectangle(const timeline::Rectangle &rectangle)
+{
+    if (!m_ok)
+    {
+        return;
+    }
+    set_source(rectangle.style);
+    fill(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+}
+
+void CairoDisplayListRenderer::draw_text(const timeline::Text &text, std::string_view value)
+{
+    if (!m_ok)
+    {
+        return;
+    }
+    set_source(text.style);
+    if (!value.empty())
+    {
+        const Surface mask = text_mask(wxString(value.data(), value.size()), m_font, m_device_scale);
+        if (!mask)
         {
-            using Value = std::decay_t<decltype(value)>;
-            const wxColour colour = timeline_style_colour(value.style, palette, style_colors, focused);
-            const bool overridden = style_colors.find(value.style) != style_colors.end();
-            cairo_set_source_rgb(context.get(), colour.Red() / 255.0, colour.Green() / 255.0, colour.Blue() / 255.0);
-            if constexpr (std::is_same_v<Value, timeline::Line>)
-            {
-                cairo_set_line_width(context.get(), std::max(1, stroke_width));
-                cairo_move_to(context.get(), origin.x + value.x1, origin.y + value.y1);
-                cairo_line_to(context.get(), origin.x + value.x2, origin.y + value.y2);
-                cairo_stroke(context.get());
-            }
-            else if constexpr (std::is_same_v<Value, timeline::Rectangle> || std::is_same_v<Value, timeline::Marker> ||
-                std::is_same_v<Value, timeline::Swatch>)
-            {
-                if constexpr (std::is_same_v<Value, timeline::Swatch>)
-                {
-                    if (!overridden)
-                    {
-                        cairo_set_source_rgb(context.get(), value.color.red() / 255.0, value.color.green() / 255.0,
-                            value.color.blue() / 255.0);
-                    }
-                }
-                if (value.width > 0 && value.height > 0)
-                {
-                    cairo_rectangle(context.get(), origin.x + value.x, origin.y + value.y, value.width, value.height);
-                    cairo_fill(context.get());
-                }
-            }
-            else if constexpr (std::is_same_v<Value, timeline::Polyline>)
-            {
-                draw_curve(context, value, origin, stroke_width);
-            }
-            else
-            {
-                const std::string_view text = strings.lookup(value.value);
-                if (!text.empty())
-                {
-                    const Surface mask = text_mask(wxString(text.data(), text.size()), font, device_scale);
-                    if (!mask)
-                    {
-                        return false;
-                    }
-                    cairo_mask_surface(context.get(), mask.get(), origin.x + value.x - 2.0 / device_scale,
-                        origin.y + value.y - 2.0 / device_scale);
-                }
-            }
-            return cairo_status(context.get()) == CAIRO_STATUS_SUCCESS;
-        },
-        primitive);
+            m_ok = false;
+            return;
+        }
+        cairo_mask_surface(&m_context, mask.get(), m_origin.x + text.x - 2.0 / m_device_scale,
+            m_origin.y + text.y - 2.0 / m_device_scale);
+    }
+    update_status();
+}
+
+void CairoDisplayListRenderer::draw_marker(const timeline::Marker &marker)
+{
+    if (!m_ok)
+    {
+        return;
+    }
+    set_source(marker.style);
+    fill(marker.x, marker.y, marker.width, marker.height);
+}
+
+void CairoDisplayListRenderer::draw_polyline(const timeline::Polyline &polyline)
+{
+    if (!m_ok)
+    {
+        return;
+    }
+    set_source(polyline.style);
+    draw_curve(m_context, polyline, m_origin, m_stroke_width);
+    update_status();
+}
+
+void CairoDisplayListRenderer::draw_swatch(const timeline::Swatch &swatch)
+{
+    if (!m_ok)
+    {
+        return;
+    }
+    set_source(swatch.style);
+    if (m_style_colors.find(swatch.style) == m_style_colors.end())
+    {
+        cairo_set_source_rgb(
+            &m_context, swatch.color.red() / 255.0, swatch.color.green() / 255.0, swatch.color.blue() / 255.0);
+    }
+    fill(swatch.x, swatch.y, swatch.width, swatch.height);
+}
+
+void CairoDisplayListRenderer::set_source(timeline::StyleRole style)
+{
+    const wxColour value = colour(style);
+    cairo_set_source_rgb(&m_context, value.Red() / 255.0, value.Green() / 255.0, value.Blue() / 255.0);
+}
+
+void CairoDisplayListRenderer::fill(int x, int y, int width, int height)
+{
+    if (width > 0 && height > 0)
+    {
+        cairo_rectangle(&m_context, m_origin.x + x, m_origin.y + y, width, height);
+        cairo_fill(&m_context);
+    }
+    update_status();
+}
+
+void CairoDisplayListRenderer::update_status()
+{
+    m_ok = cairo_status(&m_context) == CAIRO_STATUS_SUCCESS;
 }
 
 } // namespace
@@ -221,7 +321,7 @@ wxImage render_cairo_curve(const timeline::Polyline &curve, wxSize size, wxPoint
     }
     const Context context = drawing_context(surface, clip, device_scale);
     cairo_set_source_rgb(context.get(), colour.Red() / 255.0, colour.Green() / 255.0, colour.Blue() / 255.0);
-    draw_curve(context, curve, origin, stroke_width);
+    draw_curve(*context, curve, origin, stroke_width);
     return cairo_status(context.get()) == CAIRO_STATUS_SUCCESS ? surface_image(surface) : wxImage{};
 }
 
@@ -242,15 +342,10 @@ wxImage render_cairo_display_list(const timeline::DisplayList &display_list, wxS
         return {};
     }
     const Context context = drawing_context(surface, clip, device_scale);
-    for (const timeline::Primitive &primitive : display_list.primitives())
-    {
-        if (!draw_primitive(context, primitive, origin, display_list.strings(), palette, style_colors, stroke_width,
-                focused, font, device_scale))
-        {
-            return {};
-        }
-    }
-    return cairo_status(context.get()) == CAIRO_STATUS_SUCCESS ? surface_image(surface) : wxImage{};
+    CairoDisplayListRenderer renderer(
+        *context, origin, palette, style_colors, stroke_width, focused, font, device_scale);
+    timeline::render_display_list(renderer, display_list);
+    return renderer.ok() && cairo_status(context.get()) == CAIRO_STATUS_SUCCESS ? surface_image(surface) : wxImage{};
 }
 
 void draw_cairo_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,

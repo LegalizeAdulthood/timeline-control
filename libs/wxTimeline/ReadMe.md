@@ -161,6 +161,10 @@ antialiased geometry. Text uses coverage generated from the current native
 wx font, so layout and glyph selection remain consistent with the
 control's metrics.
 
+The renderer implements the core `DisplayListRenderer` port. Core
+traversal resolves text and sends each primitive to Cairo in display-list
+order; Cairo remains responsible for rasterization and presentation.
+
 The surface is converted from premultiplied Cairo pixels to a `wxImage`,
 then presented as a scale-aware `wxBitmap`. If surface creation,
 rendering, image conversion, or bitmap creation fails, drawing falls back
