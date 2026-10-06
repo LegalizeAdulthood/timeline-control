@@ -14,6 +14,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -338,44 +339,146 @@ double authored_value(const timeline::Document &document, const AuthoredValueCas
     return *lane.evaluate_keyframes(document.frame_grid()->frame_start(test_case.frame));
 }
 
+/// Parameterized normalized-vector control-point source fixture.
+///
 class NormalizedVectorControlPointTest : public testing::TestWithParam<ControlPointCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document(GetParam().fixture));
+        m_golden = read_text(fixture(GetParam().golden));
+    }
+
+    std::optional<timeline::Document> m_document;
+    std::string m_golden;
 };
 
+/// Parameterized normalized-vector authored-value fixture.
+///
 class NormalizedVectorAuthoredValueTest : public testing::TestWithParam<AuthoredValueCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document(GetParam().fixture));
+    }
+
+    std::optional<timeline::Document> m_document;
 };
 
+/// Parameterized normalized-vector recipe fixture.
+///
 class NormalizedVectorRecipeTest : public testing::TestWithParam<RecipeCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document(GetParam().fixture));
+    }
+
+    std::optional<timeline::Document> m_document;
 };
 
+/// Parameterized normalized-vector bounds fixture.
+///
 class NormalizedVectorBoundsTest : public testing::TestWithParam<BoundsCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document(GetParam().fixture));
+    }
+
+    std::optional<timeline::Document> m_document;
 };
 
+/// Parameterized normalized-vector document-combination fixture.
+///
 class NormalizedVectorCopyTest : public testing::TestWithParam<CopyCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document(GetParam().fixture));
+        m_combined.emplace(combine_with_music(*m_document));
+    }
+
+    std::optional<timeline::Document> m_document;
+    std::optional<timeline::Document> m_combined;
 };
 
+/// Parameterized normalized-vector composed-layout fixture.
+///
 class NormalizedVectorLayoutTest : public testing::TestWithParam<LayoutCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(import_clean_document(GetParam().fixture));
+        m_combined.emplace(combine_with_music(*m_document));
+        const timeline::FrameGrid &grid = *m_combined->frame_grid();
+        m_layout.emplace(*m_combined, timeline::Viewport(600, GetParam().height, grid.offset(), grid.end_time()),
+            timeline::LayoutMetrics(100, 20, 40, 4));
+        m_line.emplace(find_polyline(*m_layout, GetParam().lane_id));
+    }
+
+    std::optional<timeline::Document> m_document;
+    std::optional<timeline::Document> m_combined;
+    std::optional<timeline::Layout> m_layout;
+    std::optional<std::reference_wrapper<const timeline::Polyline>> m_line;
 };
 
+/// Parameterized rejected normalized-vector track fixture.
+///
 class NormalizedVectorInvalidTrackTest : public testing::TestWithParam<InvalidTrackCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_imported = import_timeline_json(fixture(GetParam().fixture));
+    }
+
+    JsonImportResult m_imported;
 };
 
+/// Parameterized partially valid normalized-vector import fixture.
+///
 class NormalizedVectorPartialImportTest : public testing::TestWithParam<PartialImportCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_imported = import_timeline_json(fixture(GetParam().fixture));
+    }
+
+    JsonImportResult m_imported;
 };
 
+/// Parameterized retained normalized-vector lane fixture.
+///
 class NormalizedVectorRetainedLaneTest : public testing::TestWithParam<RetainedLaneCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_imported = import_timeline_json(fixture(GetParam().fixture));
+    }
+
+    JsonImportResult m_imported;
 };
 
+/// Parameterized partial normalized-vector value fixture.
+///
 class NormalizedVectorPartialValueTest : public testing::TestWithParam<PartialValueCase>
 {
+protected:
+    void SetUp() override
+    {
+        m_imported = import_timeline_json(fixture(GetParam().fixture));
+    }
+
+    JsonImportResult m_imported;
 };
 
 class NormalizedVectorInvalidDocumentTest : public testing::TestWithParam<InvalidDocumentCase>
@@ -519,16 +622,13 @@ TEST_F(KeyedNormalizedVectorTest, distinguishesNormalizedAndRawKeyedLanes)
 
 TEST_P(NormalizedVectorControlPointTest, matchesSourceOutputAtEveryFrame)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-    const std::string golden = read_text(fixture(GetParam().golden));
-
-    ASSERT_EQ(GetParam().lane_count, document.lane_count());
-    for (timeline::Ticks frame = 0; frame < document.frame_grid()->frame_count(); ++frame)
+    ASSERT_EQ(GetParam().lane_count, m_document->lane_count());
+    for (timeline::Ticks frame = 0; frame < m_document->frame_grid()->frame_count(); ++frame)
     {
         SCOPED_TRACE(frame);
-        const std::string entry = vector_golden_entry(golden, static_cast<int>(frame));
-        const timeline::FrameInspection inspection = *timeline::inspect_frame(document, frame);
-        for (int lane = 0; lane < document.lane_count(); ++lane)
+        const std::string entry = vector_golden_entry(m_golden, static_cast<int>(frame));
+        const timeline::FrameInspection inspection = *timeline::inspect_frame(*m_document, frame);
+        for (int lane = 0; lane < m_document->lane_count(); ++lane)
         {
             SCOPED_TRACE(lane);
             ASSERT_EQ(1, timeline::size_cast(inspection.lanes[lane].items));
@@ -541,18 +641,15 @@ TEST_P(NormalizedVectorControlPointTest, matchesSourceOutputAtEveryFrame)
 
 TEST_P(NormalizedVectorAuthoredValueTest, preservesValue)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-
-    const double actual = authored_value(document, GetParam());
+    const double actual = authored_value(*m_document, GetParam());
 
     EXPECT_DOUBLE_EQ(GetParam().expected, actual);
 }
 
 TEST_P(NormalizedVectorRecipeTest, preservesMetadata)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
     const ResolvedAttributes attributes =
-        resolved_attributes(document, lane_attributes(document.lanes()[GetParam().lane]));
+        resolved_attributes(*m_document, lane_attributes(m_document->lanes()[GetParam().lane]));
 
     const std::string_view actual = attributes.at(GetParam().attribute);
 
@@ -568,12 +665,10 @@ TEST_P(NormalizedVectorRecipeTest, preservesMetadata)
 
 TEST_P(NormalizedVectorBoundsTest, usesUnitComponentBounds)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-
     std::vector<std::pair<double, double>> bounds;
     for (int lane = GetParam().first_lane; lane < GetParam().first_lane + GetParam().lane_count; ++lane)
     {
-        const timeline::Curve &curve = std::get<timeline::Curve>(document.lanes()[lane].items()[0]);
+        const timeline::Curve &curve = std::get<timeline::Curve>(m_document->lanes()[lane].items()[0]);
         bounds.emplace_back(*curve.minimum(), *curve.maximum());
     }
 
@@ -587,41 +682,30 @@ TEST_P(NormalizedVectorBoundsTest, usesUnitComponentBounds)
 
 TEST_P(NormalizedVectorCopyTest, preservesLaneIdentity)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    ASSERT_GE(combined.lane_count(), document.lane_count());
-    for (int lane = 0; lane < document.lane_count(); ++lane)
+    ASSERT_GE(m_combined->lane_count(), m_document->lane_count());
+    for (int lane = 0; lane < m_document->lane_count(); ++lane)
     {
-        EXPECT_EQ(document.lanes()[lane].id(), combined.lanes()[lane].id());
+        EXPECT_EQ(m_document->lanes()[lane].id(), m_combined->lanes()[lane].id());
     }
 }
 
 TEST_P(NormalizedVectorCopyTest, preservesItemAttributes)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-
-    const timeline::Document combined = combine_with_music(document);
-
-    ASSERT_GE(combined.lane_count(), document.lane_count());
-    for (int lane = 0; lane < document.lane_count(); ++lane)
+    ASSERT_GE(m_combined->lane_count(), m_document->lane_count());
+    for (int lane = 0; lane < m_document->lane_count(); ++lane)
     {
-        EXPECT_EQ(lane_attributes(document.lanes()[lane]), lane_attributes(combined.lanes()[lane]));
+        EXPECT_EQ(lane_attributes(m_document->lanes()[lane]), lane_attributes(m_combined->lanes()[lane]));
     }
 }
 
 TEST_P(NormalizedVectorCopyTest, preservesComparedOutput)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-    const timeline::Time time = document.frame_grid()->frame_start(2);
+    const timeline::Time time = m_document->frame_grid()->frame_start(2);
 
-    const timeline::Document combined = combine_with_music(document);
-
-    ASSERT_GE(combined.lane_count(), document.lane_count());
-    for (int lane = 0; lane < document.lane_count(); ++lane)
+    ASSERT_GE(m_combined->lane_count(), m_document->lane_count());
+    for (int lane = 0; lane < m_document->lane_count(); ++lane)
     {
-        EXPECT_DOUBLE_EQ(sample_lane(document.lanes()[lane], time), sample_lane(combined.lanes()[lane], time));
+        EXPECT_DOUBLE_EQ(sample_lane(m_document->lanes()[lane], time), sample_lane(m_combined->lanes()[lane], time));
     }
 }
 
@@ -670,31 +754,18 @@ TEST_F(ExtremeNormalizedVectorLayoutTest, producesFiniteExtremePoints)
 
 TEST_P(NormalizedVectorLayoutTest, drawsExpectedPolyline)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *combined.frame_grid();
-    const timeline::Layout layout(combined, timeline::Viewport(600, GetParam().height, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
+    const int point_count = timeline::size_cast(m_line->get().points);
 
-    const timeline::Polyline &line = find_polyline(layout, GetParam().lane_id);
-
-    EXPECT_EQ(GetParam().point_count, timeline::size_cast(line.points));
+    EXPECT_EQ(GetParam().point_count, point_count);
 }
 
 TEST_P(NormalizedVectorLayoutTest, preservesHitIdentity)
 {
-    const timeline::Document document = import_clean_document(GetParam().fixture);
-    const timeline::Document combined = combine_with_music(document);
-    const timeline::FrameGrid &grid = *combined.frame_grid();
-    const timeline::Layout layout(combined, timeline::Viewport(600, GetParam().height, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
-    const timeline::Polyline &line = find_polyline(layout, GetParam().lane_id);
-
-    const std::optional<timeline::HitResult> hit = layout.hit_test(line.points[GetParam().hit_point], 0);
+    const std::optional<timeline::HitResult> hit = m_layout->hit_test(m_line->get().points[GetParam().hit_point], 0);
 
     ASSERT_TRUE(hit);
-    EXPECT_EQ(GetParam().lane_id, layout.display_list().strings().lookup(hit->id.lane_id));
-    EXPECT_EQ(GetParam().item_id, layout.display_list().strings().lookup(hit->id.item_id));
+    EXPECT_EQ(GetParam().lane_id, m_layout->display_list().strings().lookup(hit->id.lane_id));
+    EXPECT_EQ(GetParam().item_id, m_layout->display_list().strings().lookup(hit->id.item_id));
 }
 
 TEST_F(ExtremeNormalizedVectorLayoutTest, preservesExtremeLaneIdentity)
@@ -819,9 +890,7 @@ TEST_F(KeyedNormalizedVectorTest, normalizesTinyKeyedValue)
 
 TEST_P(NormalizedVectorInvalidTrackTest, reportsRejectedTrackAndReason)
 {
-    const JsonImportResult imported = import_timeline_json(fixture(GetParam().fixture));
-
-    const std::vector<std::string> &diagnostics = imported.diagnostics;
+    const std::vector<std::string> &diagnostics = m_imported.diagnostics;
 
     ASSERT_GT(timeline::size_cast(diagnostics), GetParam().diagnostic);
     EXPECT_NE(std::string::npos,
@@ -831,40 +900,33 @@ TEST_P(NormalizedVectorInvalidTrackTest, reportsRejectedTrackAndReason)
 
 TEST_P(NormalizedVectorPartialImportTest, reportsExpectedDiagnosticCount)
 {
-    const JsonImportResult imported = import_timeline_json(fixture(GetParam().fixture));
-
-    const int diagnostic_count = timeline::size_cast(imported.diagnostics);
+    const int diagnostic_count = timeline::size_cast(m_imported.diagnostics);
 
     EXPECT_EQ(GetParam().diagnostic_count, diagnostic_count);
 }
 
 TEST_P(NormalizedVectorPartialImportTest, retainsOnlyCompleteLanes)
 {
-    const JsonImportResult imported = import_timeline_json(fixture(GetParam().fixture));
+    const int lane_count = m_imported.document ? m_imported.document->lane_count() : 0;
 
-    const int lane_count = imported.document ? imported.document->lane_count() : 0;
-
-    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(m_imported.succeeded());
     EXPECT_EQ(GetParam().lane_count, lane_count);
 }
 
 TEST_P(NormalizedVectorRetainedLaneTest, preservesLaneIdentity)
 {
-    const JsonImportResult imported = import_timeline_json(fixture(GetParam().fixture));
-
-    const std::string_view lane_id = imported.document
-        ? imported.document->strings().lookup(imported.document->lanes()[GetParam().lane].id())
+    const std::string_view lane_id = m_imported.document
+        ? m_imported.document->strings().lookup(m_imported.document->lanes()[GetParam().lane].id())
         : std::string_view{};
 
-    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(m_imported.succeeded());
     EXPECT_EQ(GetParam().lane_id, lane_id);
 }
 
 TEST_P(NormalizedVectorPartialValueTest, preservesCleanedOutput)
 {
-    const JsonImportResult imported = import_timeline_json(fixture(GetParam().fixture));
-    const std::optional<timeline::FrameInspection> inspection = imported.document
-        ? timeline::inspect_frame(*imported.document, GetParam().frame)
+    const std::optional<timeline::FrameInspection> inspection = m_imported.document
+        ? timeline::inspect_frame(*m_imported.document, GetParam().frame)
         : std::optional<timeline::FrameInspection>{};
     const std::optional<double> value = !inspection     ? std::optional<double>{}
         : GetParam().kind == InspectedValueKind::OUTPUT ? inspection->lanes[GetParam().lane].output_value
@@ -872,7 +934,7 @@ TEST_P(NormalizedVectorPartialValueTest, preservesCleanedOutput)
 
     const double actual = value.value_or(std::numeric_limits<double>::quiet_NaN());
 
-    ASSERT_TRUE(imported.succeeded());
+    ASSERT_TRUE(m_imported.succeeded());
     ASSERT_TRUE(value);
     EXPECT_DOUBLE_EQ(GetParam().expected, actual);
 }
