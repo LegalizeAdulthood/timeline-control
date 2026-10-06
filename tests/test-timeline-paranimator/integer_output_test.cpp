@@ -406,15 +406,131 @@ timeline::HitResult animation_zero_hit(const timeline::Layout &layout)
     throw std::runtime_error("integer-output curve is not hit-testable");
 }
 
+/// Owns the base integer-output document for fixed test cases.
+///
+class IntegerDocumentTest : public testing::Test
+{
+protected:
+    const timeline::Document &document() const
+    {
+        return m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *m_document.frame_grid();
+    }
+
+private:
+    timeline::Document m_document{integer_document()};
+};
+
+/// Owns the base integer-output document for a parameterized test case.
+///
+template <typename Case>
+class ParameterizedIntegerDocumentTest : public testing::TestWithParam<Case>
+{
+protected:
+    void SetUp() override
+    {
+        m_document.emplace(integer_document());
+    }
+    const Case &definition() const
+    {
+        return this->GetParam();
+    }
+    const timeline::Document &document() const
+    {
+        return *m_document;
+    }
+    const timeline::FrameGrid &frame_grid() const
+    {
+        return *document().frame_grid();
+    }
+
+private:
+    std::optional<timeline::Document> m_document;
+};
+
+/// Exercises the continuous double lane in the base integer document.
+///
+class IntegerOutputDoubleTest : public IntegerDocumentTest
+{
+};
+
+/// Exercises the categorical lane in the base integer document.
+///
+class IntegerOutputEnumTest : public IntegerDocumentTest
+{
+};
+
+/// Owns an independently copied integer-output document.
+///
+class IntegerOutputCopyTest : public IntegerDocumentTest
+{
+protected:
+    IntegerOutputCopyTest() :
+        m_imported(import_clean_result("fixtures/integer-output.json")),
+        m_copied_document(*m_imported.document)
+    {
+    }
+    void release_imported_document()
+    {
+        m_imported.document.reset();
+    }
+    const timeline::Document &copied_document() const
+    {
+        return m_copied_document;
+    }
+
+private:
+    JsonImportResult m_imported;
+    timeline::Document m_copied_document;
+};
+
+/// Owns the base integer-output document composed with music.
+///
+class IntegerOutputCompositionTest : public IntegerDocumentTest
+{
+protected:
+    const timeline::Document &combined_document() const
+    {
+        return m_combined_document;
+    }
+
+private:
+    timeline::Document m_combined_document{combine_with_music(document())};
+};
+
+/// Owns the standard layout for the music-composed integer document.
+///
+class IntegerOutputLayoutTest : public IntegerOutputCompositionTest
+{
+protected:
+    IntegerOutputLayoutTest() :
+        m_layout(combined_document(),
+            timeline::Viewport(
+                600, 400, combined_document().frame_grid()->offset(), combined_document().frame_grid()->end_time()),
+            timeline::LayoutMetrics(100, 20, 40, 4))
+    {
+    }
+    const timeline::Layout &layout() const
+    {
+        return m_layout;
+    }
+
+private:
+    timeline::Layout m_layout;
+};
+
 /// Exercises one integer-valued output lane.
 ///
-class RoundedIntegerLaneTest : public testing::TestWithParam<RoundedLaneCase>
+class RoundedIntegerLaneTest : public ParameterizedIntegerDocumentTest<RoundedLaneCase>
 {
 };
 
 /// Exercises one tick adjacent to a halfway rounding boundary.
 ///
-class IntegerRoundingTickTest : public testing::TestWithParam<RoundingTickCase>
+class IntegerRoundingTickTest : public ParameterizedIntegerDocumentTest<RoundingTickCase>
 {
 };
 
@@ -462,7 +578,7 @@ class IntegerArithmeticBoundaryTest : public testing::TestWithParam<ArithmeticBo
 
 /// Exercises one frame of a held categorical value.
 ///
-class IntegerEnumFrameTest : public testing::TestWithParam<EnumFrameCase>
+class IntegerEnumFrameTest : public ParameterizedIntegerDocumentTest<EnumFrameCase>
 {
 };
 
@@ -476,59 +592,53 @@ class IntegerOutputDiagnosticTest : public testing::TestWithParam<DiagnosticCase
 
 TEST_P(RoundedIntegerLaneTest, retainsFractionalCurveValue)
 {
-    const RoundedLaneCase &definition = GetParam();
-    const timeline::Document document = integer_document();
+    const RoundedLaneCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, 1).lanes[definition.lane].value;
+    const std::optional<double> value = inspect_at(document(), 1).lanes[test_case.lane].value;
 
     ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(definition.fractional, *value);
+    EXPECT_DOUBLE_EQ(test_case.fractional, *value);
 }
 
 TEST_P(RoundedIntegerLaneTest, declaresOutputRounding)
 {
-    const RoundedLaneCase &definition = GetParam();
-    const timeline::Document document = integer_document();
-    const timeline::FrameInspection inspection = inspect_at(document, 1);
+    const RoundedLaneCase &test_case = definition();
+    const timeline::FrameInspection inspection = inspect_at(document(), 1);
 
     const int count =
-        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes).count("output-rounding");
+        resolved_attributes(document(), inspection.lanes[test_case.lane].items[0].attributes).count("output-rounding");
 
     EXPECT_EQ(1, count);
 }
 
 TEST_P(RoundedIntegerLaneTest, namesOutputRoundingPolicy)
 {
-    const RoundedLaneCase &definition = GetParam();
-    const timeline::Document document = integer_document();
-    const timeline::FrameInspection inspection = inspect_at(document, 1);
+    const RoundedLaneCase &test_case = definition();
+    const timeline::FrameInspection inspection = inspect_at(document(), 1);
 
     const std::string_view policy =
-        resolved_attributes(document, inspection.lanes[definition.lane].items[0].attributes).at("output-rounding");
+        resolved_attributes(document(), inspection.lanes[test_case.lane].items[0].attributes).at("output-rounding");
 
     EXPECT_EQ("nearest-half-away-from-zero", policy);
 }
 
 TEST_P(RoundedIntegerLaneTest, roundsOutputHalfAwayFromZero)
 {
-    const RoundedLaneCase &definition = GetParam();
-    const timeline::Document document = integer_document();
+    const RoundedLaneCase &test_case = definition();
 
-    const std::optional<double> value = inspect_at(document, 1).lanes[definition.lane].output_value;
+    const std::optional<double> value = inspect_at(document(), 1).lanes[test_case.lane].output_value;
 
     ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(definition.rounded, *value);
+    EXPECT_DOUBLE_EQ(test_case.rounded, *value);
 }
 
 TEST_P(RoundedIntegerLaneTest, matchesSourceGolden)
 {
-    const RoundedLaneCase &definition = GetParam();
-    const timeline::Document document = integer_document();
-    const int frame_count = document.frame_grid()->frame_count();
+    const RoundedLaneCase &test_case = definition();
 
-    const std::vector<std::optional<double>> actual = lane_output_values(document, definition.lane);
-    const std::vector<std::optional<double>> expected =
-        golden_values("fixtures/gold-integer-output.par", definition.parameter, definition.component, frame_count);
+    const std::vector<std::optional<double>> actual = lane_output_values(document(), test_case.lane);
+    const std::vector<std::optional<double>> expected = golden_values(
+        "fixtures/gold-integer-output.par", test_case.parameter, test_case.component, frame_grid().frame_count());
 
     EXPECT_EQ(expected, actual);
 }
@@ -538,35 +648,30 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(IntegerRoundingTickTest, roundsAtExpectedSideOfHalfway)
 {
-    const RoundingTickCase &definition = GetParam();
-    const timeline::Document document = integer_document();
-    const timeline::Time half = document.frame_grid()->frame_start(1);
-    const timeline::Time time = timeline::Time::from_ticks(half.ticks() + definition.adjustment);
+    const RoundingTickCase &test_case = definition();
+    const timeline::Time half = frame_grid().frame_start(1);
+    const timeline::Time time = timeline::Time::from_ticks(half.ticks() + test_case.adjustment);
 
-    const std::optional<double> value = document.lanes()[definition.lane].evaluate_keyframe_output(time);
+    const std::optional<double> value = document().lanes()[test_case.lane].evaluate_keyframe_output(time);
 
     ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(definition.expected, *value);
+    EXPECT_DOUBLE_EQ(test_case.expected, *value);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     AdjacentTicks, IntegerRoundingTickTest, testing::ValuesIn(ROUNDING_TICK_CASES), case_name<RoundingTickCase>);
 
-TEST(IntegerOutputDouble, retainsFractionalCurveValue)
+TEST_F(IntegerOutputDoubleTest, retainsFractionalCurveValue)
 {
-    const timeline::Document document = integer_document();
-
-    const std::optional<double> value = inspect_at(document, 1).lanes[5].value;
+    const std::optional<double> value = inspect_at(document(), 1).lanes[5].value;
 
     ASSERT_TRUE(value);
     EXPECT_DOUBLE_EQ(1.5, *value);
 }
 
-TEST(IntegerOutputDouble, omitsRoundedOutput)
+TEST_F(IntegerOutputDoubleTest, omitsRoundedOutput)
 {
-    const timeline::Document document = integer_document();
-
-    const std::vector<std::optional<double>> outputs = lane_output_values(document, 5);
+    const std::vector<std::optional<double>> outputs = lane_output_values(document(), 5);
 
     for (const std::optional<double> &value : outputs)
     {
@@ -574,23 +679,18 @@ TEST(IntegerOutputDouble, omitsRoundedOutput)
     }
 }
 
-TEST(IntegerOutputDouble, matchesSourceGolden)
+TEST_F(IntegerOutputDoubleTest, matchesSourceGolden)
 {
-    const timeline::Document document = integer_document();
-    const int frame_count = document.frame_grid()->frame_count();
-
-    const std::vector<std::optional<double>> actual = lane_values(document, 5);
+    const std::vector<std::optional<double>> actual = lane_values(document(), 5);
     const std::vector<std::optional<double>> expected =
-        golden_values("fixtures/gold-integer-output.par", "bailout", 0, frame_count);
+        golden_values("fixtures/gold-integer-output.par", "bailout", 0, frame_grid().frame_count());
 
     EXPECT_EQ(expected, actual);
 }
 
-TEST(IntegerOutputEnum, omitsNumericValue)
+TEST_F(IntegerOutputEnumTest, omitsNumericValue)
 {
-    const timeline::Document document = integer_document();
-
-    const std::vector<std::optional<double>> values = lane_values(document, 6);
+    const std::vector<std::optional<double>> values = lane_values(document(), 6);
 
     for (const std::optional<double> &value : values)
     {
@@ -598,11 +698,9 @@ TEST(IntegerOutputEnum, omitsNumericValue)
     }
 }
 
-TEST(IntegerOutputEnum, omitsRoundedOutput)
+TEST_F(IntegerOutputEnumTest, omitsRoundedOutput)
 {
-    const timeline::Document document = integer_document();
-
-    const std::vector<std::optional<double>> outputs = lane_output_values(document, 6);
+    const std::vector<std::optional<double>> outputs = lane_output_values(document(), 6);
 
     for (const std::optional<double> &value : outputs)
     {
@@ -612,72 +710,54 @@ TEST(IntegerOutputEnum, omitsRoundedOutput)
 
 TEST_P(IntegerEnumFrameTest, preservesHeldSourceValue)
 {
-    const EnumFrameCase &definition = GetParam();
-    const timeline::Document document = integer_document();
-    const timeline::FrameInspection inspection = inspect_at(document, definition.frame);
+    const EnumFrameCase &test_case = definition();
+    const timeline::FrameInspection inspection = inspect_at(document(), test_case.frame);
 
-    const std::string_view value = resolved_attributes(document, inspection.lanes[6].items[0].attributes).at("value");
+    const std::string_view value = resolved_attributes(document(), inspection.lanes[6].items[0].attributes).at("value");
 
-    EXPECT_EQ(definition.value, value);
+    EXPECT_EQ(test_case.value, value);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     EnumFrames, IntegerEnumFrameTest, testing::ValuesIn(ENUM_FRAME_CASES), case_name<EnumFrameCase>);
 
-TEST(IntegerOutputCopy, survivesImportResultRelease)
+TEST_F(IntegerOutputCopyTest, survivesImportResultRelease)
 {
-    JsonImportResult imported = import_clean_result("fixtures/integer-output.json");
-    const timeline::Document document = *imported.document;
+    const std::optional<double> expected = inspect_at(document(), 1).lanes[0].output_value;
 
-    imported.document.reset();
-    const std::optional<double> value = inspect_at(document, 1).lanes[0].output_value;
+    release_imported_document();
+    const std::optional<double> actual = inspect_at(copied_document(), 1).lanes[0].output_value;
+
+    ASSERT_TRUE(expected);
+    ASSERT_TRUE(actual);
+    EXPECT_DOUBLE_EQ(*expected, *actual);
+}
+
+TEST_F(IntegerOutputCompositionTest, combinesWithMusicDocument)
+{
+    EXPECT_EQ(11, combined_document().lane_count());
+}
+
+TEST_F(IntegerOutputCompositionTest, preservesRoundedOutput)
+{
+    const std::optional<double> value = inspect_at(combined_document(), 1).lanes[0].output_value;
 
     ASSERT_TRUE(value);
     EXPECT_DOUBLE_EQ(101, *value);
 }
 
-TEST(IntegerOutputComposition, combinesWithMusicDocument)
+TEST_F(IntegerOutputLayoutTest, hitTestsLaneIdentity)
 {
-    const timeline::Document document = integer_document();
-
-    const timeline::Document combined = combine_with_music(document);
-
-    EXPECT_EQ(11, combined.lane_count());
-}
-
-TEST(IntegerOutputComposition, preservesRoundedOutput)
-{
-    const timeline::Document document = integer_document();
-
-    const timeline::Document combined = combine_with_music(document);
-    const std::optional<double> value = inspect_at(combined, 1).lanes[0].output_value;
-
-    ASSERT_TRUE(value);
-    EXPECT_DOUBLE_EQ(101, *value);
-}
-
-TEST(IntegerOutputLayout, hitTestsLaneIdentity)
-{
-    const timeline::Document document = combine_with_music(integer_document());
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(600, 400, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
-
-    const timeline::HitResult hit = animation_zero_hit(layout);
-    const std::string_view identity = layout.display_list().strings().lookup(hit.id.lane_id);
+    const timeline::HitResult hit = animation_zero_hit(layout());
+    const std::string_view identity = layout().display_list().strings().lookup(hit.id.lane_id);
 
     EXPECT_EQ("animation-0", identity);
 }
 
-TEST(IntegerOutputLayout, hitTestsKeyIdentity)
+TEST_F(IntegerOutputLayoutTest, hitTestsKeyIdentity)
 {
-    const timeline::Document document = combine_with_music(integer_document());
-    const timeline::FrameGrid &grid = *document.frame_grid();
-    const timeline::Layout layout(document, timeline::Viewport(600, 400, grid.offset(), grid.end_time()),
-        timeline::LayoutMetrics(100, 20, 40, 4));
-
-    const timeline::HitResult hit = animation_zero_hit(layout);
-    const std::string_view identity = layout.display_list().strings().lookup(hit.id.item_id);
+    const timeline::HitResult hit = animation_zero_hit(layout());
+    const std::string_view identity = layout().display_list().strings().lookup(hit.id.item_id);
 
     EXPECT_EQ("animation-0-key-0", identity);
 }
