@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <wx/app.h>
 #include <wx/dcmemory.h>
 #include <wx/frame.h>
 
@@ -242,6 +243,62 @@ void expect_interaction(const wxCairoTimeline &control, const InteractionState &
     EXPECT_EQ(expected.first, control.interaction()->selected_frames()->first());
     EXPECT_EQ(expected.last, control.interaction()->selected_frames()->last());
     EXPECT_EQ(expected.frame, control.inspection()->frame);
+}
+
+/// Shown Cairo control displaying the shared combined document.
+///
+class CairoControlTest : public testing::Test
+{
+protected:
+    CairoControlTest();
+    void TearDown() override;
+
+    const timeline::Document m_document;
+    wxFrame &m_frame;
+    wxCairoTimeline &m_control;
+};
+
+/// Shown Cairo control with its first frame selected.
+///
+class SelectedCairoControlTest : public CairoControlTest
+{
+protected:
+    SelectedCairoControlTest();
+
+    const InteractionState m_before;
+};
+
+/// Selected Cairo control with changed size and theme presentation.
+///
+class PresentationChangedCairoControlTest : public SelectedCairoControlTest
+{
+protected:
+    PresentationChangedCairoControlTest();
+};
+
+CairoControlTest::CairoControlTest() :
+    m_document(combined_document()),
+    m_frame(*new wxFrame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480))),
+    m_control(show_control(m_frame, m_document))
+{
+}
+
+void CairoControlTest::TearDown()
+{
+    m_frame.Destroy();
+    wxTheApp->ProcessPendingEvents();
+}
+
+SelectedCairoControlTest::SelectedCairoControlTest() :
+    m_before(select_first_frame(m_control))
+{
+}
+
+PresentationChangedCairoControlTest::PresentationChangedCairoControlTest()
+{
+    m_control.SetSize(440, 280);
+    m_control.SetBackgroundColour(DARK.background);
+    m_control.SetForegroundColour(DARK.foreground);
 }
 
 bool partial_repaints_match(const timeline::DisplayList &list, const wxRect &clip)
@@ -646,77 +703,59 @@ TEST(CairoRenderer, drawsMarkersOverText)
     }
 }
 
-TEST(CairoControl, switchesRenderer)
+TEST_F(CairoControlTest, switchesRenderer)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
+    m_control.set_cairo_enabled(false);
+    refresh_layout(m_control);
 
-    control.set_cairo_enabled(false);
-    refresh_layout(control);
-
-    EXPECT_FALSE(control.cairo_enabled());
+    EXPECT_FALSE(m_control.cairo_enabled());
 }
 
-TEST(CairoControl, enablesCairoRenderer)
+TEST_F(CairoControlTest, enablesCairoRenderer)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    control.set_cairo_enabled(false);
+    m_control.set_cairo_enabled(false);
 
-    control.set_cairo_enabled(true);
-    refresh_layout(control);
+    m_control.set_cairo_enabled(true);
+    refresh_layout(m_control);
 
-    EXPECT_TRUE(control.cairo_enabled());
+    EXPECT_TRUE(m_control.cairo_enabled());
 }
 
-TEST(CairoControl, rendererSwitchPreservesDocument)
+TEST_F(CairoControlTest, rendererSwitchPreservesDocument)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
+    m_control.set_cairo_enabled(false);
+    refresh_layout(m_control);
 
-    control.set_cairo_enabled(false);
-    refresh_layout(control);
-
-    ASSERT_TRUE(control.document());
-    EXPECT_EQ(29, control.document()->lane_count());
+    ASSERT_TRUE(m_control.document());
+    EXPECT_EQ(29, m_control.document()->lane_count());
 }
 
-TEST(CairoControl, rendererSwitchPreservesSnapshot)
+TEST_F(CairoControlTest, rendererSwitchPreservesSnapshot)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const std::string before = control.snapshot();
+    const std::string before = m_control.snapshot();
 
-    control.set_cairo_enabled(false);
-    refresh_layout(control);
+    m_control.set_cairo_enabled(false);
+    refresh_layout(m_control);
 
-    EXPECT_EQ(before, control.snapshot());
+    EXPECT_EQ(before, m_control.snapshot());
 }
 
-TEST(CairoControl, rendererSwitchPreservesInteraction)
+TEST_F(SelectedCairoControlTest, rendererSwitchPreservesInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const InteractionState before = select_first_frame(control);
+    m_control.set_cairo_enabled(false);
+    refresh_layout(m_control);
 
-    control.set_cairo_enabled(false);
-    refresh_layout(control);
-
-    expect_interaction(control, before);
+    expect_interaction(m_control, m_before);
 }
 
-TEST(CairoControl, replacementResetsInteraction)
+TEST_F(SelectedCairoControlTest, replacementResetsInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo control test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    select_first_frame(control);
+    m_control.set_document(animation_document());
+    refresh_layout(m_control);
 
-    control.set_document(animation_document());
-    refresh_layout(control);
-
-    ASSERT_TRUE(control.document());
-    EXPECT_EQ(25, control.document()->lane_count());
-    EXPECT_FALSE(control.interaction()->selected_frames());
+    ASSERT_TRUE(m_control.document());
+    EXPECT_EQ(25, m_control.document()->lane_count());
+    EXPECT_FALSE(m_control.interaction()->selected_frames());
 }
 
 TEST(CairoRenderer, partialRepaintsPreserveDevicePixelAlignment)
@@ -865,122 +904,88 @@ TEST_F(DiagonalCairoRendererTest, recoversAfterInvalidSurfaceRequest)
     EXPECT_TRUE(recovered.IsOk());
 }
 
-TEST(CairoControl, resizePreservesInteraction)
+TEST_F(SelectedCairoControlTest, resizePreservesInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const InteractionState before = select_first_frame(control);
+    m_control.SetSize(440, 280);
+    m_control.Refresh(false);
+    refresh_layout(m_control);
 
-    control.SetSize(440, 280);
-    control.Refresh(false);
-    refresh_layout(control);
-
-    expect_interaction(control, before);
+    expect_interaction(m_control, m_before);
 }
 
-TEST(CairoControl, fontChangePreservesInteraction)
+TEST_F(SelectedCairoControlTest, fontChangePreservesInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const InteractionState before = select_first_frame(control);
-    wxFont larger_font(control.GetFont());
-    larger_font.SetFractionalPointSize(control.GetFont().GetFractionalPointSize() * 1.5);
+    wxFont larger_font(m_control.GetFont());
+    larger_font.SetFractionalPointSize(m_control.GetFont().GetFractionalPointSize() * 1.5);
 
-    control.SetFont(larger_font);
-    control.Refresh(false);
-    refresh_layout(control);
+    m_control.SetFont(larger_font);
+    m_control.Refresh(false);
+    refresh_layout(m_control);
 
-    expect_interaction(control, before);
+    expect_interaction(m_control, m_before);
 }
 
-TEST(CairoControl, themeChangePreservesInteraction)
+TEST_F(SelectedCairoControlTest, themeChangePreservesInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const InteractionState before = select_first_frame(control);
+    m_control.SetBackgroundColour(DARK.background);
+    m_control.SetForegroundColour(DARK.foreground);
+    m_control.Refresh(false);
+    refresh_layout(m_control);
 
-    control.SetBackgroundColour(DARK.background);
-    control.SetForegroundColour(DARK.foreground);
-    control.Refresh(false);
-    refresh_layout(control);
-
-    expect_interaction(control, before);
+    expect_interaction(m_control, m_before);
 }
 
-TEST(CairoControl, dpiChangePreservesInteraction)
+TEST_F(SelectedCairoControlTest, dpiChangePreservesInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const InteractionState before = select_first_frame(control);
     wxDPIChangedEvent dpi(wxSize(96, 96), wxSize(144, 144));
 
-    control.ProcessWindowEvent(dpi);
-    refresh_layout(control);
+    m_control.ProcessWindowEvent(dpi);
+    refresh_layout(m_control);
 
-    expect_interaction(control, before);
+    expect_interaction(m_control, m_before);
 }
 
-TEST(CairoControl, systemColourChangePreservesInteraction)
+TEST_F(SelectedCairoControlTest, systemColourChangePreservesInteraction)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    const InteractionState before = select_first_frame(control);
     wxSysColourChangedEvent theme;
 
-    control.ProcessWindowEvent(theme);
-    refresh_layout(control);
+    m_control.ProcessWindowEvent(theme);
+    refresh_layout(m_control);
 
-    expect_interaction(control, before);
+    expect_interaction(m_control, m_before);
 }
 
-TEST(CairoControl, presentationChangesPreserveHitIdentity)
+TEST_F(PresentationChangedCairoControlTest, presentationChangesPreserveHitIdentity)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
     wxMouseEvent motion(wxEVT_MOTION);
-    motion.SetPosition(wxPoint(4, control.FromDIP(40)));
+    motion.SetPosition(wxPoint(4, m_control.FromDIP(40)));
 
-    control.SetSize(440, 280);
-    control.SetBackgroundColour(DARK.background);
-    control.SetForegroundColour(DARK.foreground);
-    control.ProcessWindowEvent(motion);
+    m_control.ProcessWindowEvent(motion);
 
-    ASSERT_TRUE(control.hit_result());
-    EXPECT_EQ("animation-0[0]", control.document()->strings().lookup(control.hit_result()->id.lane_id));
+    ASSERT_TRUE(m_control.hit_result());
+    EXPECT_EQ("animation-0[0]", m_control.document()->strings().lookup(m_control.hit_result()->id.lane_id));
 }
 
-TEST(CairoControl, paletteReplacementWorksAfterPresentationChanges)
+TEST_F(PresentationChangedCairoControlTest, paletteReplacementWorksAfterPresentationChanges)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    select_first_frame(control);
-    control.SetSize(440, 280);
-    control.SetBackgroundColour(DARK.background);
-    control.SetForegroundColour(DARK.foreground);
+    m_control.set_document(palette_document());
+    refresh_layout(m_control);
 
-    control.set_document(palette_document());
-    refresh_layout(control);
-
-    ASSERT_TRUE(control.document());
-    EXPECT_EQ(1, control.document()->lane_count());
-    EXPECT_FALSE(control.interaction()->selected_frames());
-    EXPECT_NE(std::string::npos, control.snapshot().find("swatch PALETTE"));
+    ASSERT_TRUE(m_control.document());
+    EXPECT_EQ(1, m_control.document()->lane_count());
+    EXPECT_FALSE(m_control.interaction()->selected_frames());
+    EXPECT_NE(std::string::npos, m_control.snapshot().find("swatch PALETTE"));
 }
 
-TEST(CairoControl, animationReplacementWorksAfterPresentationChanges)
+TEST_F(PresentationChangedCairoControlTest, animationReplacementWorksAfterPresentationChanges)
 {
-    wxFrame frame(nullptr, wxID_ANY, "Cairo lifecycle test", wxDefaultPosition, wxSize(640, 480));
-    wxCairoTimeline &control = show_control(frame, combined_document());
-    control.SetSize(440, 280);
-    control.SetBackgroundColour(DARK.background);
-    control.SetForegroundColour(DARK.foreground);
-    control.set_document(palette_document());
+    m_control.set_document(palette_document());
 
-    control.set_document(animation_document());
-    refresh_layout(control);
+    m_control.set_document(animation_document());
+    refresh_layout(m_control);
 
-    ASSERT_TRUE(control.document());
-    EXPECT_EQ(25, control.document()->lane_count());
+    ASSERT_TRUE(m_control.document());
+    EXPECT_EQ(25, m_control.document()->lane_count());
 }
 
 TEST(CairoControl, supportsRepeatedDestruction)
