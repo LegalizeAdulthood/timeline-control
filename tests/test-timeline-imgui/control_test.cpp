@@ -189,6 +189,16 @@ TEST_F(ImGuiControl, leavesMissingDocumentUnlaidOut)
     EXPECT_FALSE(control.layout());
 }
 
+TEST_F(ImGuiControl, roundTripsStyleColor)
+{
+    Control control;
+    const ImU32 expected = IM_COL32(12, 34, 56, 78);
+
+    control.set_style_color(StyleRole::CURVE, expected);
+
+    EXPECT_EQ(expected, control.style_color(StyleRole::CURVE));
+}
+
 TEST_F(ImGuiControl, leavesEmptyDocumentUnlaidOut)
 {
     Control control(Document(100));

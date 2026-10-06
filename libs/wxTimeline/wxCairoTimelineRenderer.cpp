@@ -152,14 +152,15 @@ wxImage surface_image(const Surface &surface)
 }
 
 bool draw_primitive(const Context &context, const timeline::Primitive &primitive, wxPoint origin,
-    const timeline::StringTable &strings, const wxTimelinePalette &palette, int stroke_width, bool focused,
-    const wxFont &font, double device_scale)
+    const timeline::StringTable &strings, const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors,
+    int stroke_width, bool focused, const wxFont &font, double device_scale)
 {
     return std::visit(
         [&](const auto &value)
         {
             using Value = std::decay_t<decltype(value)>;
-            const wxColour colour = timeline_style_colour(value.style, palette, focused);
+            const wxColour colour = timeline_style_colour(value.style, palette, style_colors, focused);
+            const bool overridden = style_colors.find(value.style) != style_colors.end();
             cairo_set_source_rgb(context.get(), colour.Red() / 255.0, colour.Green() / 255.0, colour.Blue() / 255.0);
             if constexpr (std::is_same_v<Value, timeline::Line>)
             {
@@ -173,8 +174,11 @@ bool draw_primitive(const Context &context, const timeline::Primitive &primitive
             {
                 if constexpr (std::is_same_v<Value, timeline::Swatch>)
                 {
-                    cairo_set_source_rgb(context.get(), value.color.red() / 255.0, value.color.green() / 255.0,
-                        value.color.blue() / 255.0);
+                    if (!overridden)
+                    {
+                        cairo_set_source_rgb(context.get(), value.color.red() / 255.0, value.color.green() / 255.0,
+                            value.color.blue() / 255.0);
+                    }
                 }
                 if (value.width > 0 && value.height > 0)
                 {
@@ -224,6 +228,14 @@ wxImage render_cairo_curve(const timeline::Polyline &curve, wxSize size, wxPoint
 wxImage render_cairo_display_list(const timeline::DisplayList &display_list, wxSize size, wxPoint origin, wxRect clip,
     const wxTimelinePalette &palette, int stroke_width, bool focused, const wxFont &font, double device_scale)
 {
+    return render_cairo_display_list(
+        display_list, size, origin, clip, palette, wxTimelineStyleColors{}, stroke_width, focused, font, device_scale);
+}
+
+wxImage render_cairo_display_list(const timeline::DisplayList &display_list, wxSize size, wxPoint origin, wxRect clip,
+    const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors, int stroke_width, bool focused,
+    const wxFont &font, double device_scale)
+{
     const Surface surface = image_surface(size, device_scale);
     if (!surface || cairo_surface_status(surface.get()) != CAIRO_STATUS_SUCCESS)
     {
@@ -232,8 +244,8 @@ wxImage render_cairo_display_list(const timeline::DisplayList &display_list, wxS
     const Context context = drawing_context(surface, clip, device_scale);
     for (const timeline::Primitive &primitive : display_list.primitives())
     {
-        if (!draw_primitive(
-                context, primitive, origin, display_list.strings(), palette, stroke_width, focused, font, device_scale))
+        if (!draw_primitive(context, primitive, origin, display_list.strings(), palette, style_colors, stroke_width,
+                focused, font, device_scale))
         {
             return {};
         }
@@ -244,6 +256,14 @@ wxImage render_cairo_display_list(const timeline::DisplayList &display_list, wxS
 void draw_cairo_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,
     const wxTimelinePalette &palette, int stroke_width, bool focused, wxSize size, double device_scale)
 {
+    draw_cairo_timeline_display_list(
+        dc, display_list, origin, palette, wxTimelineStyleColors{}, stroke_width, focused, size, device_scale);
+}
+
+void draw_cairo_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,
+    const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors, int stroke_width, bool focused,
+    wxSize size, double device_scale)
+{
     wxRect clip;
     dc.GetClippingBox(clip);
     clip.Intersect(wxRect(wxPoint(0, 0), size));
@@ -253,7 +273,7 @@ void draw_cairo_timeline_display_list(wxDC &dc, const timeline::DisplayList &dis
     }
     // Keep rasterization anchored to the viewport, even for partial repaints.
     const wxImage image = render_cairo_display_list(display_list, size, origin, wxRect(wxPoint(0, 0), size), palette,
-        stroke_width, focused, dc.GetFont(), device_scale);
+        style_colors, stroke_width, focused, dc.GetFont(), device_scale);
     if (image.IsOk())
     {
         const wxBitmap bitmap(image, wxBITMAP_SCREEN_DEPTH, device_scale);
@@ -263,5 +283,5 @@ void draw_cairo_timeline_display_list(wxDC &dc, const timeline::DisplayList &dis
             return;
         }
     }
-    draw_timeline_display_list(dc, display_list, origin, palette, stroke_width, focused);
+    draw_timeline_display_list(dc, display_list, origin, palette, style_colors, stroke_width, focused);
 }

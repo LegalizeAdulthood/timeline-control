@@ -158,7 +158,11 @@ The `layout` accessor also permits toolkit-neutral snapshot export through
 
 `style_colour` maps `timeline::StyleRole` values to the current
 `ImGuiStyle`. It uses text, window, plot, header, slider, and navigation
-colors while respecting global style alpha and focus state.
+colors while respecting global style alpha and focus state. Applications
+customize the defaults through `ImGuiStyle::Colors` like other ImGui items.
+`Control::set_style_color` overrides any individual role with an `ImU32`,
+while `Control::style_color` returns the effective override or style
+default.
 
 `draw_display_list` visits primitives in their original paint order:
 
@@ -173,7 +177,8 @@ colors while respecting global style alpha and focus state.
 Geometry is translated from item-local coordinates to screen coordinates.
 Lane labels are clipped to the label column. Stroke width follows the
 current font size, and source-color swatches retain their RGB values while
-applying the current ImGui alpha.
+applying the current ImGui alpha unless the application overrides the
+`PALETTE` role.
 
 ## Header Guide
 

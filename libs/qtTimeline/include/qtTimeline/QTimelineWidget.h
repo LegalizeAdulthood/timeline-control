@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <qtTimeline/Renderer.h>
+
 #include <timeline/ControlState.h>
 
 #include <QAbstractScrollArea>
@@ -17,14 +19,18 @@ public:
     QTimelineWidget();
     explicit QTimelineWidget(QWidget &parent);
     void set_document(timeline::Document document);
+    void set_style_color(timeline::StyleRole style, const QColor &color);
+    QColor style_color(timeline::StyleRole style) const;
     void zoom_in()
     {
         zoom_by(1.25);
     }
+
     void zoom_out()
     {
         zoom_by(1.0 / 1.25);
     }
+
     void fit_view();
     void clear_selection();
     std::string snapshot() const;
@@ -32,26 +38,32 @@ public:
     {
         return m_state.document();
     }
+
     const std::optional<timeline::Interaction> &interaction() const
     {
         return m_state.interaction();
     }
+
     const std::optional<timeline::FrameInspection> &inspection() const
     {
         return m_state.inspection();
     }
+
     const std::optional<timeline::HitResult> &hit_result() const
     {
         return m_state.hit_result();
     }
+
     const std::optional<timeline::Layout> &layout() const
     {
         return m_state.layout();
     }
+
     const std::optional<timeline::Viewport> &timeline_viewport() const
     {
         return m_state.viewport();
     }
+
     const std::optional<timeline::LayoutMetrics> &layout_metrics() const
     {
         return m_state.layout_metrics();
@@ -80,6 +92,7 @@ private:
     void scrollContentsBy(int dx, int dy) override;
     timeline::ControlState m_state;
     std::optional<timeline::Point> m_hover;
+    timeline_qt::StyleColors m_style_colors;
     bool m_dragging{false};
     bool m_rebuilding{false};
     int m_wheel_remainder{0};

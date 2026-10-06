@@ -71,8 +71,6 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxHSCROLL | wxVSCROLL)
 {
     wxPanel::SetBackgroundStyle(wxBG_STYLE_PAINT);
-    wxPanel::SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-    wxPanel::SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
     Bind(wxEVT_MOTION, &wxTimelineControl::on_mouse_move, this);
     Bind(wxEVT_LEFT_DOWN, &wxTimelineControl::on_mouse_down, this);
     Bind(wxEVT_LEFT_UP, &wxTimelineControl::on_mouse_up, this);
@@ -94,6 +92,19 @@ wxTimelineControl::wxTimelineControl(wxWindow *parent, wxWindowID id) :
     Bind(wxEVT_SCROLLWIN_PAGEDOWN, &wxTimelineControl::on_scroll, this);
     Bind(wxEVT_SCROLLWIN_THUMBTRACK, &wxTimelineControl::on_scroll, this);
     Bind(wxEVT_SCROLLWIN_THUMBRELEASE, &wxTimelineControl::on_scroll, this);
+}
+
+void wxTimelineControl::set_style_color(timeline::StyleRole style, const wxColour &color)
+{
+    m_style_colors.insert_or_assign(style, color);
+    Refresh(false);
+}
+
+wxColour wxTimelineControl::style_color(timeline::StyleRole style) const
+{
+    const wxTimelinePalette palette{
+        GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
+    return timeline_style_colour(style, palette, m_style_colors, HasFocus());
 }
 
 void wxTimelineControl::set_document(timeline::Document document)
@@ -351,8 +362,6 @@ void wxTimelineControl::on_dpi_changed(wxDPIChangedEvent &event)
 
 void wxTimelineControl::on_system_colour_changed(wxSysColourChangedEvent &event)
 {
-    SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-    SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
     invalidate_layout();
     event.Skip();
 }
@@ -481,7 +490,7 @@ void wxTimelineControl::on_paint(wxPaintEvent &)
         const wxTimelinePalette palette{
             GetBackgroundColour(), GetForegroundColour(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
         const wxDCClipper clip(dc, GetClientRect());
-        draw_display_list(dc, m_state.layout()->display_list(), palette, FromDIP(1), HasFocus());
+        draw_display_list(dc, m_state.layout()->display_list(), palette, m_style_colors, FromDIP(1), HasFocus());
         if (HasFocus())
         {
             wxRendererNative::Get().DrawFocusRect(this, dc, GetClientRect(), wxCONTROL_FOCUSED);

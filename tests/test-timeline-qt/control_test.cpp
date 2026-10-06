@@ -99,6 +99,15 @@ TEST_F(QtTimeline, exposesTheImportedDocument)
     EXPECT_EQ(25, lanes);
 }
 
+TEST_F(QtTimeline, roundTripsStyleColor)
+{
+    const QColor expected(12, 34, 56);
+
+    m_widget.set_style_color(timeline::StyleRole::CURVE, expected);
+
+    EXPECT_EQ(expected, m_widget.style_color(timeline::StyleRole::CURVE));
+}
+
 TEST_F(QtTimeline, usesTheCoreDisplayList)
 {
     ASSERT_TRUE(m_widget.layout());

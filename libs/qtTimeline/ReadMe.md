@@ -137,9 +137,13 @@ antialiasing. It then delegates the current core display list to
 When no layout exists, the widget draws either `No timeline loaded.` or
 `No timeline content.` using the current palette.
 
-`style_color` maps `timeline::StyleRole` values through `QPalette` and
-light or dark background variants. Selection uses the Qt highlight color
-while focused and a readable foreground blend while inactive.
+`style_color` maps `timeline::StyleRole` values to `QPalette` roles such as
+text, base, alternate base, link, accent, and highlight. Applications use
+`QWidget::setPalette` to customize these colors through Qt's normal
+styling mechanism. Selection uses the highlight color while focused and a
+readable foreground blend while inactive. `set_style_color` overrides any
+individual role with a `QColor`, while the widget's `style_color` method
+returns the effective override or palette default.
 
 `draw_display_list` visits primitives in their original paint order:
 
@@ -153,7 +157,8 @@ while focused and a readable foreground blend while inactive.
 
 Layout coordinates are already widget-local logical coordinates, so the
 renderer does not recompute geometry. Lane labels are clipped to the label
-column, and source-color swatches retain their authored RGB values.
+column. Source-color swatches retain their authored RGB values unless the
+application overrides the `PALETTE` role.
 
 ## Snapshots
 
@@ -183,7 +188,7 @@ the shared wxWidgets and SDL3 prerequisites.
 | Header | Main Responsibility |
 | --- | --- |
 | `QTimelineWidget.h` | Widget ownership, commands, and signals. |
-| `Renderer.h` | Qt palette mapping and display-list delegation. |
+| `Renderer.h` | Qt colors and display-list delegation. |
 
 Consumers link the `timeline-qt` CMake target and include
 `<qtTimeline/QTimelineWidget.h>`. The target enables Qt `AUTOMOC` and

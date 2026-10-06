@@ -711,6 +711,15 @@ TEST_F(CairoControlTest, switchesRenderer)
     EXPECT_FALSE(m_control.cairo_enabled());
 }
 
+TEST_F(CairoControlTest, roundTripsStyleColor)
+{
+    const wxColour expected(12, 34, 56);
+
+    m_control.set_style_color(timeline::StyleRole::CURVE, expected);
+
+    EXPECT_EQ(expected, m_control.style_color(timeline::StyleRole::CURVE));
+}
+
 TEST_F(CairoControlTest, enablesCairoRenderer)
 {
     m_control.set_cairo_enabled(false);
@@ -953,6 +962,16 @@ TEST_F(SelectedCairoControlTest, systemColourChangePreservesInteraction)
     refresh_layout(m_control);
 
     expect_interaction(m_control, m_before);
+}
+
+TEST_F(PresentationChangedCairoControlTest, systemColourChangePreservesApplicationColors)
+{
+    wxSysColourChangedEvent theme;
+
+    m_control.ProcessWindowEvent(theme);
+
+    EXPECT_EQ(DARK.background, m_control.GetBackgroundColour());
+    EXPECT_EQ(DARK.foreground, m_control.GetForegroundColour());
 }
 
 TEST_F(PresentationChangedCairoControlTest, presentationChangesPreserveHitIdentity)

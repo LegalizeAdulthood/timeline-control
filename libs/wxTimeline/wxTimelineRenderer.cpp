@@ -28,7 +28,17 @@ wxColour mix(const wxColour &first, const wxColour &second, int weight)
 
 wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalette &palette, bool focused)
 {
-    const bool dark = palette.background.GetLuminance() < 0.5;
+    return timeline_style_colour(style, palette, wxTimelineStyleColors{}, focused);
+}
+
+wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalette &palette,
+    const wxTimelineStyleColors &style_colors, bool focused)
+{
+    const wxTimelineStyleColors::const_iterator found = style_colors.find(style);
+    if (found != style_colors.end())
+    {
+        return found->second;
+    }
     switch (style)
     {
     case timeline::StyleRole::RULER:
@@ -40,23 +50,23 @@ wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalett
     case timeline::StyleRole::LANE_LABEL:
         return palette.foreground;
     case timeline::StyleRole::INSTANT_MARKER:
-        return dark ? wxColour(240, 110, 100) : wxColour(196, 58, 48);
+        return palette.highlight;
     case timeline::StyleRole::INTERVAL_SPAN:
-        return dark ? wxColour(80, 190, 180) : wxColour(32, 126, 120);
+        return mix(palette.highlight, palette.background, 55);
     case timeline::StyleRole::ENVELOPE_ATTACK:
-        return dark ? wxColour(235, 190, 80) : wxColour(170, 110, 25);
+        return mix(palette.highlight, palette.foreground, 70);
     case timeline::StyleRole::ENVELOPE_SUSTAIN:
-        return dark ? wxColour(115, 195, 130) : wxColour(67, 132, 78);
+        return mix(palette.highlight, palette.background, 75);
     case timeline::StyleRole::ENVELOPE_DECAY:
-        return dark ? wxColour(115, 160, 230) : wxColour(66, 100, 166);
+        return mix(palette.foreground, palette.background, 75);
     case timeline::StyleRole::CURVE:
-        return dark ? wxColour(195, 135, 220) : wxColour(126, 72, 154);
+        return palette.foreground;
     case timeline::StyleRole::PALETTE:
         return palette.foreground;
     case timeline::StyleRole::KEYFRAME_SEGMENT:
-        return dark ? wxColour(100, 160, 230) : wxColour(47, 95, 164);
+        return mix(palette.foreground, palette.background, 75);
     case timeline::StyleRole::KEYFRAME_MARKER:
-        return dark ? wxColour(245, 185, 90) : wxColour(190, 105, 20);
+        return palette.highlight;
     case timeline::StyleRole::SELECTED_LANE:
         return mix(focused ? palette.highlight : palette.foreground, palette.background, 25);
     case timeline::StyleRole::SELECTED_ITEM:
@@ -64,7 +74,7 @@ wxColour timeline_style_colour(timeline::StyleRole style, const wxTimelinePalett
     case timeline::StyleRole::SELECTED_RANGE:
         return mix(focused ? palette.highlight : palette.foreground, palette.background, 18);
     case timeline::StyleRole::PLAYHEAD:
-        return dark ? wxColour(245, 100, 120) : wxColour(185, 35, 55);
+        return mix(palette.highlight, palette.foreground, 80);
     }
     return palette.foreground;
 }
@@ -73,28 +83,43 @@ void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_l
 {
     const wxTimelinePalette palette{
         dc.GetBackground().GetColour(), dc.GetTextForeground(), wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)};
-    draw_timeline_display_list(dc, display_list, origin, palette, 1, true);
+    draw_timeline_display_list(dc, display_list, origin, palette, wxTimelineStyleColors{}, 1, true);
 }
 
 void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,
     const wxTimelinePalette &palette, int stroke_width, bool focused)
 {
+    draw_timeline_display_list(dc, display_list, origin, palette, wxTimelineStyleColors{}, stroke_width, focused);
+}
+
+void draw_timeline_display_list(wxDC &dc, const timeline::DisplayList &display_list, wxPoint origin,
+    const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors, int stroke_width, bool focused)
+{
     stroke_width = std::max(1, stroke_width);
     for (const timeline::Primitive &primitive : display_list.primitives())
     {
-        draw_timeline_primitive(dc, primitive, origin, display_list.strings(), palette, stroke_width, focused);
+        draw_timeline_primitive(
+            dc, primitive, origin, display_list.strings(), palette, style_colors, stroke_width, focused);
     }
 }
 
 void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
     const timeline::StringTable &strings, const wxTimelinePalette &palette, int stroke_width, bool focused)
 {
+    draw_timeline_primitive(dc, primitive, origin, strings, palette, wxTimelineStyleColors{}, stroke_width, focused);
+}
+
+void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxPoint origin,
+    const timeline::StringTable &strings, const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors,
+    int stroke_width, bool focused)
+{
     stroke_width = std::max(1, stroke_width);
     std::visit(
         [&](const auto &value)
         {
             using Value = std::decay_t<decltype(value)>;
-            const wxColour colour = timeline_style_colour(value.style, palette, focused);
+            const wxColour colour = timeline_style_colour(value.style, palette, style_colors, focused);
+            const bool overridden = style_colors.find(value.style) != style_colors.end();
             if constexpr (std::is_same_v<Value, timeline::Line>)
             {
                 dc.SetPen(wxPen(colour, stroke_width));
@@ -109,8 +134,11 @@ void draw_timeline_primitive(wxDC &dc, const timeline::Primitive &primitive, wxP
             else if constexpr (std::is_same_v<Value, timeline::Swatch>)
             {
                 dc.SetPen(*wxTRANSPARENT_PEN);
-                dc.SetBrush(wxBrush(wxColour(static_cast<unsigned char>(value.color.red()),
-                    static_cast<unsigned char>(value.color.green()), static_cast<unsigned char>(value.color.blue()))));
+                const wxColour fill = overridden ? colour
+                                                 : wxColour(static_cast<unsigned char>(value.color.red()),
+                                                       static_cast<unsigned char>(value.color.green()),
+                                                       static_cast<unsigned char>(value.color.blue()));
+                dc.SetBrush(wxBrush(fill));
                 dc.DrawRectangle(origin.x + value.x, origin.y + value.y, value.width, value.height);
             }
             else if constexpr (std::is_same_v<Value, timeline::Polyline>)

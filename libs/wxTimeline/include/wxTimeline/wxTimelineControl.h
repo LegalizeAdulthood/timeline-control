@@ -29,6 +29,8 @@ public:
     }
 
     void set_document(timeline::Document document);
+    void set_style_color(timeline::StyleRole style, const wxColour &color);
+    wxColour style_color(timeline::StyleRole style) const;
     void zoom_in();
     void zoom_out();
     void fit_view();
@@ -42,14 +44,17 @@ public:
     {
         return m_state.document().has_value();
     }
+
     const std::optional<timeline::Document> &document() const
     {
         return m_state.document();
     }
+
     const std::optional<timeline::FrameInspection> &inspection() const
     {
         return m_state.inspection();
     }
+
     const std::optional<timeline::HitResult> &hit_result() const
     {
         return m_state.hit_result();
@@ -63,9 +68,9 @@ public:
 protected:
     /// Presentation hook; layout and interaction remain owned by this control.
     virtual void draw_display_list(wxDC &dc, const timeline::DisplayList &display_list,
-        const wxTimelinePalette &palette, int stroke_width, bool focused)
+        const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors, int stroke_width, bool focused)
     {
-        draw_timeline_display_list(dc, display_list, wxPoint(0, 0), palette, stroke_width, focused);
+        draw_timeline_display_list(dc, display_list, wxPoint(0, 0), palette, style_colors, stroke_width, focused);
     }
 
 private:
@@ -92,4 +97,5 @@ private:
 
     timeline::ControlState m_state;
     std::optional<timeline::Point> m_hover_point;
+    wxTimelineStyleColors m_style_colors;
 };

@@ -31,6 +31,16 @@ ImVec4 mix(const ImVec4 &first, const ImVec4 &second, float weight)
 
 ImU32 style_colour(timeline::StyleRole role, const ImGuiStyle &style, bool focused)
 {
+    return style_colour(role, style, StyleColors{}, focused);
+}
+
+ImU32 style_colour(timeline::StyleRole role, const ImGuiStyle &style, const StyleColors &style_colors, bool focused)
+{
+    const StyleColors::const_iterator found = style_colors.find(role);
+    if (found != style_colors.end())
+    {
+        return found->second;
+    }
     const ImVec4 &foreground = style.Colors[ImGuiCol_Text];
     const ImVec4 &background = style.Colors[ImGuiCol_WindowBg];
     const ImVec4 &selection = focused ? style.Colors[ImGuiCol_HeaderActive] : foreground;
@@ -85,6 +95,12 @@ ImU32 style_colour(timeline::StyleRole role, const ImGuiStyle &style, bool focus
 void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &display_list, ImVec2 origin,
     const ImGuiStyle &style, bool focused, int label_width)
 {
+    draw_display_list(draw_list, display_list, origin, style, StyleColors{}, focused, label_width);
+}
+
+void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &display_list, ImVec2 origin,
+    const ImGuiStyle &style, const StyleColors &style_colors, bool focused, int label_width)
+{
     const float stroke_width = std::max(1.0F, ImGui::GetFontSize() / 13.0F);
     for (const timeline::Primitive &primitive : display_list.primitives())
     {
@@ -92,7 +108,8 @@ void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &displ
             [&](const auto &value)
             {
                 using Value = std::decay_t<decltype(value)>;
-                const ImU32 colour = style_colour(value.style, style, focused);
+                const ImU32 colour = style_colour(value.style, style, style_colors, focused);
+                const bool overridden = style_colors.find(value.style) != style_colors.end();
                 if constexpr (std::is_same_v<Value, timeline::Line>)
                 {
                     draw_list.AddLine(screen_point(origin, value.x1, value.y1),
@@ -125,8 +142,11 @@ void draw_display_list(ImDrawList &draw_list, const timeline::DisplayList &displ
                     ImU32 fill = colour;
                     if constexpr (std::is_same_v<Value, timeline::Swatch>)
                     {
-                        fill = IM_COL32(value.color.red(), value.color.green(), value.color.blue(),
-                            static_cast<int>(std::lround(255.0F * style.Alpha)));
+                        if (!overridden)
+                        {
+                            fill = IM_COL32(value.color.red(), value.color.green(), value.color.blue(),
+                                static_cast<int>(std::lround(255.0F * style.Alpha)));
+                        }
                     }
                     draw_list.AddRectFilled(screen_point(origin, value.x, value.y),
                         screen_point(origin, value.x + value.width, value.y + value.height), fill);

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <imguiTimeline/TimelineRenderer.h>
+
 #include <timeline/ControlState.h>
 
 #include <imgui.h>
@@ -29,6 +31,8 @@ public:
     }
 
     void set_document(timeline::Document document);
+    void set_style_color(timeline::StyleRole style, ImU32 color);
+    ImU32 style_color(timeline::StyleRole style) const;
     void zoom_in()
     {
         zoom_by(m_zoom_step);
@@ -80,7 +84,9 @@ private:
     void end_drag();
 
     timeline::ControlState m_state;
+    StyleColors m_style_colors;
     bool m_dragging{false};
+    bool m_focused{false};
     int m_last_frame{-1};
 };
 

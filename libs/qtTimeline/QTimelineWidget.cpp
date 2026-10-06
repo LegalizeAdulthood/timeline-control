@@ -37,10 +37,12 @@ QTimelineWidget::QTimelineWidget() :
     QTimelineWidget(nullptr)
 {
 }
+
 QTimelineWidget::QTimelineWidget(QWidget &parent) :
     QTimelineWidget(&parent)
 {
 }
+
 QTimelineWidget::QTimelineWidget(QWidget *parent) :
     QAbstractScrollArea(parent)
 {
@@ -50,6 +52,18 @@ QTimelineWidget::QTimelineWidget(QWidget *parent) :
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setMinimumSize(200, 100);
 }
+
+void QTimelineWidget::set_style_color(timeline::StyleRole style, const QColor &color)
+{
+    m_style_colors.insert_or_assign(style, color);
+    viewport()->update();
+}
+
+QColor QTimelineWidget::style_color(timeline::StyleRole style) const
+{
+    return timeline_qt::style_color(style, palette(), m_style_colors, hasFocus());
+}
+
 void QTimelineWidget::set_document(timeline::Document document)
 {
     end_drag();
@@ -59,6 +73,7 @@ void QTimelineWidget::set_document(timeline::Document document)
     rebuild();
     emit inspection_changed();
 }
+
 void QTimelineWidget::fit_view()
 {
     if (m_state.navigation())
@@ -67,6 +82,7 @@ void QTimelineWidget::fit_view()
         rebuild();
     }
 }
+
 void QTimelineWidget::clear_selection()
 {
     end_drag();
@@ -76,6 +92,7 @@ void QTimelineWidget::clear_selection()
         update_control();
     }
 }
+
 std::string QTimelineWidget::snapshot() const
 {
     if (m_state.layout())
@@ -173,7 +190,7 @@ void QTimelineWidget::paintEvent(QPaintEvent *)
     painter.setRenderHint(QPainter::Antialiasing);
     if (m_state.layout())
     {
-        timeline_qt::draw_display_list(painter, m_state.layout()->display_list(), palette(), hasFocus(),
+        timeline_qt::draw_display_list(painter, m_state.layout()->display_list(), palette(), m_style_colors, hasFocus(),
             m_state.layout_metrics()->lane_label_width());
     }
     else

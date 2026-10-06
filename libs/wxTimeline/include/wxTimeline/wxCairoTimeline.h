@@ -22,6 +22,6 @@ public:
 
 private:
     void draw_display_list(wxDC &dc, const timeline::DisplayList &display_list, const wxTimelinePalette &palette,
-        int stroke_width, bool focused) override;
+        const wxTimelineStyleColors &style_colors, int stroke_width, bool focused) override;
     bool m_cairo_enabled{true};
 };

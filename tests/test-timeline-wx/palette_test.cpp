@@ -45,3 +45,13 @@ TEST(WxPalette, adaptsEveryStyleToLightAndDarkBackgrounds)
         EXPECT_NE(DARK.background, dark);
     }
 }
+
+TEST(WxPalette, usesApplicationStyleColor)
+{
+    wxTimelineStyleColors colors;
+    colors.emplace(StyleRole::CURVE, wxColour(12, 34, 56));
+
+    const wxColour actual = timeline_style_colour(StyleRole::CURVE, LIGHT, colors, false);
+
+    EXPECT_EQ(wxColour(12, 34, 56), actual);
+}

@@ -27,36 +27,45 @@ namespace timeline_qt
 
 QColor style_color(timeline::StyleRole role, const QPalette &palette, bool focused)
 {
+    return style_color(role, palette, StyleColors{}, focused);
+}
+
+QColor style_color(timeline::StyleRole role, const QPalette &palette, const StyleColors &style_colors, bool focused)
+{
+    const StyleColors::const_iterator found = style_colors.find(role);
+    if (found != style_colors.end())
+    {
+        return found->second;
+    }
     const QColor background = palette.color(QPalette::Base);
     const QColor foreground = palette.color(QPalette::Text);
     const QColor highlight = focused ? palette.color(QPalette::Highlight) : foreground;
-    const bool dark = background.lightnessF() < 0.5F;
     switch (role)
     {
     case timeline::StyleRole::RULER:
-        return mix(foreground, background, 60);
+        return palette.color(QPalette::Mid);
     case timeline::StyleRole::RULER_LABEL:
     case timeline::StyleRole::LANE_LABEL:
     case timeline::StyleRole::PALETTE:
         return foreground;
     case timeline::StyleRole::LANE_BACKGROUND:
-        return mix(foreground, background, 6);
+        return palette.color(QPalette::AlternateBase);
     case timeline::StyleRole::INSTANT_MARKER:
-        return dark ? QColor(240, 110, 100) : QColor(196, 58, 48);
+        return palette.color(QPalette::Accent);
     case timeline::StyleRole::INTERVAL_SPAN:
-        return dark ? QColor(80, 190, 180) : QColor(32, 126, 120);
+        return palette.color(QPalette::Link);
     case timeline::StyleRole::ENVELOPE_ATTACK:
-        return dark ? QColor(235, 190, 80) : QColor(170, 110, 25);
+        return palette.color(QPalette::Accent);
     case timeline::StyleRole::ENVELOPE_SUSTAIN:
-        return dark ? QColor(115, 195, 130) : QColor(67, 132, 78);
+        return palette.color(QPalette::Link);
     case timeline::StyleRole::ENVELOPE_DECAY:
-        return dark ? QColor(115, 160, 230) : QColor(66, 100, 166);
+        return palette.color(QPalette::LinkVisited);
     case timeline::StyleRole::CURVE:
-        return dark ? QColor(195, 135, 220) : QColor(126, 72, 154);
+        return palette.color(QPalette::Link);
     case timeline::StyleRole::KEYFRAME_SEGMENT:
-        return dark ? QColor(100, 160, 230) : QColor(47, 95, 164);
+        return palette.color(QPalette::Link);
     case timeline::StyleRole::KEYFRAME_MARKER:
-        return dark ? QColor(245, 185, 90) : QColor(190, 105, 20);
+        return palette.color(QPalette::Accent);
     case timeline::StyleRole::SELECTED_LANE:
         return mix(highlight, background, 25);
     case timeline::StyleRole::SELECTED_ITEM:
@@ -64,12 +73,19 @@ QColor style_color(timeline::StyleRole role, const QPalette &palette, bool focus
     case timeline::StyleRole::SELECTED_RANGE:
         return mix(highlight, background, 18);
     case timeline::StyleRole::PLAYHEAD:
-        return dark ? QColor(245, 100, 120) : QColor(185, 35, 55);
+        return palette.color(QPalette::Accent);
     }
     return foreground;
 }
+
 void draw_display_list(
     QPainter &painter, const timeline::DisplayList &list, const QPalette &palette, bool focused, int label_width)
+{
+    draw_display_list(painter, list, palette, StyleColors{}, focused, label_width);
+}
+
+void draw_display_list(QPainter &painter, const timeline::DisplayList &list, const QPalette &palette,
+    const StyleColors &style_colors, bool focused, int label_width)
 {
     painter.save();
     for (const timeline::Primitive &primitive : list.primitives())
@@ -78,7 +94,8 @@ void draw_display_list(
             [&](const auto &value)
             {
                 using Value = std::decay_t<decltype(value)>;
-                const QColor color = style_color(value.style, palette, focused);
+                const QColor color = timeline_qt::style_color(value.style, palette, style_colors, focused);
+                const bool overridden = style_colors.find(value.style) != style_colors.end();
                 if constexpr (std::is_same_v<Value, timeline::Line>)
                 {
                     painter.setPen(QPen(color, 1));
@@ -91,8 +108,9 @@ void draw_display_list(
                 }
                 else if constexpr (std::is_same_v<Value, timeline::Swatch>)
                 {
-                    painter.fillRect(value.x, value.y, value.width, value.height,
-                        QColor(value.color.red(), value.color.green(), value.color.blue()));
+                    const QColor fill =
+                        overridden ? color : QColor(value.color.red(), value.color.green(), value.color.blue());
+                    painter.fillRect(value.x, value.y, value.width, value.height, fill);
                 }
                 else if constexpr (std::is_same_v<Value, timeline::Polyline>)
                 {

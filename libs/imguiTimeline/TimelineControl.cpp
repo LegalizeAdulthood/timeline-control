@@ -15,6 +15,16 @@ namespace timeline_imgui
 
 const double Control::m_zoom_step{1.25};
 
+void Control::set_style_color(timeline::StyleRole style, ImU32 color)
+{
+    m_style_colors.insert_or_assign(style, color);
+}
+
+ImU32 Control::style_color(timeline::StyleRole style) const
+{
+    return style_colour(style, ImGui::GetStyle(), m_style_colors, m_focused);
+}
+
 void Control::set_document(timeline::Document document)
 {
     m_state.set_document(std::move(document));
@@ -172,6 +182,7 @@ void draw_timeline(std::string_view id, Control &control, ImVec2 size)
     const bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_NoNavOverride);
     const bool active = ImGui::IsItemActive();
     const bool focused = ImGui::IsItemFocused();
+    control.m_focused = focused;
     if (control.m_last_frame != ImGui::GetFrameCount() - 1 || !ImGui::IsItemVisible())
     {
         control.end_drag();
@@ -194,8 +205,8 @@ void draw_timeline(std::string_view id, Control &control, ImVec2 size)
     ImDrawList &draw_list = *ImGui::GetWindowDrawList();
     if (control.m_state.layout())
     {
-        draw_display_list(draw_list, control.m_state.layout()->display_list(), origin, ImGui::GetStyle(), focused,
-            control.m_state.layout_metrics()->lane_label_width());
+        draw_display_list(draw_list, control.m_state.layout()->display_list(), origin, ImGui::GetStyle(),
+            control.m_style_colors, focused, control.m_state.layout_metrics()->lane_label_width());
     }
     else if (!control.m_state.navigation())
     {

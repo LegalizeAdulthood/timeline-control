@@ -127,20 +127,24 @@ host-side inspection content.
 
 ## Native Renderer
 
-`wxTimelinePalette` supplies background, foreground, and highlight colors.
-`timeline_style_colour` maps each `timeline::StyleRole` to a readable
-native color, accounting for light or dark backgrounds and focused or
-inactive selection.
+`wxTimelinePalette` supplies the control background and foreground colors
+plus the current system highlight color. `timeline_style_colour` maps each
+`timeline::StyleRole` to those native colors and readable blends of them.
+Applications use the inherited `SetBackgroundColour` and
+`SetForegroundColour` widget methods. Selection follows the system theme
+and focus state. `set_style_color` overrides any individual role with a
+`wxColour`, while `style_color` returns the effective override or default.
 
 The renderer API has three levels:
 
 - `draw_timeline_display_list` draws the display list in paint order.
-- Its simple overload derives a palette from the supplied `wxDC`.
 - `draw_timeline_primitive` draws one core primitive.
 
 Lines, rectangles, text, markers, polylines, and source-color swatches map
 directly to wxWidgets drawing primitives. The renderer applies an origin,
 palette, stroke width, and focus state; it does not recompute layout.
+Swatches retain their authored RGB values unless the application overrides
+the `PALETTE` role.
 
 ## Cairo Renderer
 
@@ -198,7 +202,7 @@ for the underlying pixel representation.
 | Header | Main Responsibility |
 | --- | --- |
 | `wxTimelineControl.h` | Control ownership, commands, and state access. |
-| `wxTimelineRenderer.h` | Palette and native display-list rendering. |
+| `wxTimelineRenderer.h` | Native colors and display-list rendering. |
 | `wxCairoTimeline.h` | Cairo-selectable control subclass. |
 | `wxCairoTimelineRenderer.h` | Cairo image rendering and presentation. |
 

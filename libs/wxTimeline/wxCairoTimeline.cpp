@@ -23,15 +23,15 @@ void wxCairoTimeline::set_cairo_enabled(bool enabled)
 }
 
 void wxCairoTimeline::draw_display_list(wxDC &dc, const timeline::DisplayList &display_list,
-    const wxTimelinePalette &palette, int stroke_width, bool focused)
+    const wxTimelinePalette &palette, const wxTimelineStyleColors &style_colors, int stroke_width, bool focused)
 {
     if (m_cairo_enabled)
     {
-        draw_cairo_timeline_display_list(
-            dc, display_list, wxPoint(0, 0), palette, stroke_width, focused, GetClientSize(), GetContentScaleFactor());
+        draw_cairo_timeline_display_list(dc, display_list, wxPoint(0, 0), palette, style_colors, stroke_width, focused,
+            GetClientSize(), GetContentScaleFactor());
     }
     else
     {
-        wxTimelineControl::draw_display_list(dc, display_list, palette, stroke_width, focused);
+        wxTimelineControl::draw_display_list(dc, display_list, palette, style_colors, stroke_width, focused);
     }
 }

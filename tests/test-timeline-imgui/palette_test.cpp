@@ -49,3 +49,13 @@ TEST(ImGuiPalette, distinguishesFocusedSelectionAndHonorsStyleAlpha)
         ImGui::ColorConvertU32ToFloat4(timeline_imgui::style_colour(StyleRole::LANE_LABEL, style, true));
     EXPECT_NEAR(0.5F, colour.w, 1.0F / 255.0F);
 }
+
+TEST(ImGuiPalette, usesApplicationStyleColor)
+{
+    timeline_imgui::StyleColors colors;
+    colors.emplace(StyleRole::CURVE, IM_COL32(12, 34, 56, 78));
+
+    const ImU32 actual = timeline_imgui::style_colour(StyleRole::CURVE, ImGuiStyle{}, colors, false);
+
+    EXPECT_EQ(IM_COL32(12, 34, 56, 78), actual);
+}
