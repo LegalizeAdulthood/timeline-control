@@ -8,9 +8,9 @@ translates Qt input, scrollbars, sizing, font metrics, focus, and palette
 values into toolkit-neutral core operations, then renders the resulting
 display list with `QPainter`.
 
-The adapter contains no ParAnimator or par-beatdown semantics. Applications
-construct or import a `timeline::Document` elsewhere and give ownership of
-that document to `QTimelineWidget`.
+The adapter contains no ParAnimator or par-beatdown semantics.
+Applications construct or import a `timeline::Document` elsewhere and
+give ownership of that document to `QTimelineWidget`.
 
 ## Data Flow
 
@@ -52,10 +52,10 @@ functions are in the `timeline_qt` namespace.
 
 ## Widget Ownership
 
-`QTimelineWidget` derives from `QAbstractScrollArea`. It may be constructed
-without a parent or with a parent reference. The widget enables strong
-focus, viewport mouse tracking, and persistent horizontal and vertical
-scrollbars.
+`QTimelineWidget` derives from `QAbstractScrollArea`. It may be
+constructed without a parent or with a parent reference. The widget
+enables strong focus, viewport mouse tracking, and persistent horizontal
+and vertical scrollbars.
 
 `set_document` takes a `timeline::Document` by value and moves it into the
 widget. Replacing the document creates fresh core state:
@@ -77,17 +77,18 @@ combines those values with fixed logical padding to create
 `timeline::LayoutMetrics`. The scroll-area viewport dimensions and core
 navigation produce a `timeline::Viewport`.
 
-The widget passes the document, viewport, metrics, and interaction state to
-`timeline::Layout`. The resulting display list supplies drawing operations,
-and the same layout supplies hit-test geometry.
+The widget passes the document, viewport, metrics, and interaction state
+to `timeline::Layout`. The resulting display list supplies drawing
+operations, and the same layout supplies hit-test geometry.
 
 Horizontal scroll position represents the visible fraction of the complete
 time extent. Its page step represents the current zoom. Vertical scrollbar
 values map directly to the first visible lane and number of visible rows.
 
 Rebuild uses a guard against recursive rebuilding and blocks scrollbar
-signals while synchronizing their ranges and values. User scrollbar changes
-are translated back into core `Navigation`, followed by another rebuild.
+signals while synchronizing their ranges and values. User scrollbar
+changes are translated back into core `Navigation`, followed by another
+rebuild.
 
 Resize, font, palette, and Qt style changes rebuild presentation state
 without replacing the document or interaction state. Very small viewports
@@ -114,18 +115,19 @@ Losing focus or mouse capture ends an active range drag. Leaving the
 viewport clears hover and hit state. Focus transitions repaint selection
 with the appropriate active or inactive style.
 
-The `zoom_in`, `zoom_out`, `fit_view`, and `clear_selection` methods expose
-the same operations to host actions and menus.
+The `zoom_in`, `zoom_out`, `fit_view`, and `clear_selection` methods
+expose the same operations to host actions and menus.
 
 ## Inspection Signal
 
-`inspection_changed` is emitted when host-visible inspection state changes.
-This includes document replacement, selection and playhead changes, hover
-frame or hit changes, and presentation changes that may alter hit geometry.
+`inspection_changed` is emitted when host-visible inspection state
+changes. This includes document replacement, selection and playhead
+changes, hover frame or hit changes, and presentation changes that may
+alter hit geometry.
 
-Connected slots read `inspection`, `hit_result`, and `interaction` from the
-widget. Detailed core data remains in typed accessors rather than being
-duplicated in signal parameters.
+Connected slots read `inspection`, `hit_result`, and `interaction` from
+the widget. Detailed core data remains in typed accessors rather than
+being duplicated in signal parameters.
 
 ## Painting
 
@@ -137,15 +139,17 @@ antialiasing. It then delegates the current core display list to
 When no layout exists, the widget draws either `No timeline loaded.` or
 `No timeline content.` using the current palette.
 
-`style_color` maps `timeline::StyleRole` values to `QPalette` roles such as
-text, base, alternate base, link, accent, and highlight. Applications use
-`QWidget::setPalette` to customize these colors through Qt's normal
-styling mechanism. Selection uses the highlight color while focused and a
-readable foreground blend while inactive. `set_style_color` overrides any
-individual role with a `QColor`, while the widget's `style_color` method
-returns the effective override or palette default.
+`style_color` maps `timeline::StyleRole` values to `QPalette` roles such
+as text, base, alternate base, link, accent, and highlight. Applications
+use `QWidget::setPalette` to customize these colors through Qt's normal
+styling mechanism. Selection uses the highlight color while focused and
+a readable foreground blend while inactive. `set_style_color` overrides
+any individual role with a `QColor`, while the widget's `style_color`
+method returns the effective override or palette default.
 
-`draw_display_list` visits primitives in their original paint order:
+`draw_display_list` implements the core `DisplayListRenderer` port. The
+core traversal resolves text and sends primitives to it in their original
+paint order:
 
 | Core Primitive | Qt Operation |
 | --- | --- |
@@ -169,10 +173,11 @@ roles, not Qt pixels or host-side inspection content.
 
 ## Build And Validation
 
-The optional `qt` vcpkg feature selects Qt Widgets and the Qt test library.
-Linux additionally requires fontconfig and XCB support. CMake discovery,
-the adapter, and its tests are gated on `TIMELINE_CONTROL_WITH_QT`;
-disabled builds add no Qt library targets and require no Qt packages.
+The optional `qt` vcpkg feature selects Qt Widgets and the Qt test
+library. Linux additionally requires fontconfig and XCB support. CMake
+discovery, the adapter, and its tests are gated on
+`TIMELINE_CONTROL_WITH_QT`; disabled builds add no Qt library targets and
+require no Qt packages.
 
 The build deploys Qt's `minimal` platform plugin beside test executables.
 The smoke check creates and destroys a Qt Widgets application and renders

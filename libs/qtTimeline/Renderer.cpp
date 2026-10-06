@@ -2,13 +2,13 @@
 
 #include <qtTimeline/Renderer.h>
 
+#include <timeline/DisplayListRenderer.h>
 #include <timeline/size_cast.h>
 
 #include <QPolygon>
 
 #include <algorithm>
 #include <string_view>
-#include <type_traits>
 
 namespace
 {
@@ -24,6 +24,39 @@ QColor mix(const QColor &first, const QColor &second, int weight)
 
 namespace timeline_qt
 {
+
+namespace
+{
+
+/// Adapts toolkit-neutral display-list operations to QPainter.
+///
+class QtDisplayListRenderer final : public timeline::DisplayListRenderer
+{
+public:
+    QtDisplayListRenderer(
+        QPainter &painter, const QPalette &palette, const StyleColors &style_colors, bool focused, int label_width);
+
+    void draw_line(const timeline::Line &line) override;
+    void fill_rectangle(const timeline::Rectangle &rectangle) override;
+    void draw_text(const timeline::Text &text, std::string_view value) override;
+    void draw_marker(const timeline::Marker &marker) override;
+    void draw_polyline(const timeline::Polyline &polyline) override;
+    void draw_swatch(const timeline::Swatch &swatch) override;
+
+private:
+    QColor color(timeline::StyleRole role) const
+    {
+        return style_color(role, m_palette, m_style_colors, m_focused);
+    }
+
+    QPainter &m_painter;
+    const QPalette &m_palette;
+    const StyleColors &m_style_colors;
+    bool m_focused;
+    int m_label_width;
+};
+
+} // namespace
 
 QColor style_color(timeline::StyleRole role, const QPalette &palette, bool focused)
 {
@@ -78,6 +111,73 @@ QColor style_color(timeline::StyleRole role, const QPalette &palette, const Styl
     return foreground;
 }
 
+namespace
+{
+
+QtDisplayListRenderer::QtDisplayListRenderer(
+    QPainter &painter, const QPalette &palette, const StyleColors &style_colors, bool focused, int label_width) :
+    m_painter(painter),
+    m_palette(palette),
+    m_style_colors(style_colors),
+    m_focused(focused),
+    m_label_width(label_width)
+{
+}
+
+void QtDisplayListRenderer::draw_line(const timeline::Line &line)
+{
+    m_painter.setPen(QPen(color(line.style), 1));
+    m_painter.drawLine(line.x1, line.y1, line.x2, line.y2);
+}
+
+void QtDisplayListRenderer::fill_rectangle(const timeline::Rectangle &rectangle)
+{
+    m_painter.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height, color(rectangle.style));
+}
+
+void QtDisplayListRenderer::draw_text(const timeline::Text &text, std::string_view value)
+{
+    m_painter.save();
+    if (text.style == timeline::StyleRole::LANE_LABEL)
+    {
+        m_painter.setClipRect(text.x, text.y, std::max(0, m_label_width - text.x - 4), m_painter.fontMetrics().height(),
+            Qt::IntersectClip);
+    }
+    m_painter.setPen(color(text.style));
+    m_painter.drawText(
+        text.x, text.y + m_painter.fontMetrics().ascent(), QString::fromUtf8(value.data(), timeline::size_cast(value)));
+    m_painter.restore();
+}
+
+void QtDisplayListRenderer::draw_marker(const timeline::Marker &marker)
+{
+    m_painter.fillRect(marker.x, marker.y, marker.width, marker.height, color(marker.style));
+}
+
+void QtDisplayListRenderer::draw_polyline(const timeline::Polyline &polyline)
+{
+    QPolygon points;
+    points.reserve(timeline::size_cast(polyline.points));
+    for (const timeline::Point &point : polyline.points)
+    {
+        points.append(QPoint(point.x, point.y));
+    }
+    m_painter.setPen(QPen(color(polyline.style), 2));
+    m_painter.drawPolyline(points);
+}
+
+void QtDisplayListRenderer::draw_swatch(const timeline::Swatch &swatch)
+{
+    QColor fill = color(swatch.style);
+    if (m_style_colors.find(swatch.style) == m_style_colors.end())
+    {
+        fill = QColor(swatch.color.red(), swatch.color.green(), swatch.color.blue());
+    }
+    m_painter.fillRect(swatch.x, swatch.y, swatch.width, swatch.height, fill);
+}
+
+} // namespace
+
 void draw_display_list(
     QPainter &painter, const timeline::DisplayList &list, const QPalette &palette, bool focused, int label_width)
 {
@@ -88,58 +188,8 @@ void draw_display_list(QPainter &painter, const timeline::DisplayList &list, con
     const StyleColors &style_colors, bool focused, int label_width)
 {
     painter.save();
-    for (const timeline::Primitive &primitive : list.primitives())
-    {
-        std::visit(
-            [&](const auto &value)
-            {
-                using Value = std::decay_t<decltype(value)>;
-                const QColor color = timeline_qt::style_color(value.style, palette, style_colors, focused);
-                const bool overridden = style_colors.find(value.style) != style_colors.end();
-                if constexpr (std::is_same_v<Value, timeline::Line>)
-                {
-                    painter.setPen(QPen(color, 1));
-                    painter.drawLine(value.x1, value.y1, value.x2, value.y2);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Rectangle> ||
-                    std::is_same_v<Value, timeline::Marker>)
-                {
-                    painter.fillRect(value.x, value.y, value.width, value.height, color);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Swatch>)
-                {
-                    const QColor fill =
-                        overridden ? color : QColor(value.color.red(), value.color.green(), value.color.blue());
-                    painter.fillRect(value.x, value.y, value.width, value.height, fill);
-                }
-                else if constexpr (std::is_same_v<Value, timeline::Polyline>)
-                {
-                    QPolygon points;
-                    points.reserve(timeline::size_cast(value.points));
-                    for (const timeline::Point &point : value.points)
-                    {
-                        points.append(QPoint(point.x, point.y));
-                    }
-                    painter.setPen(QPen(color, 2));
-                    painter.drawPolyline(points);
-                }
-                else
-                {
-                    const std::string_view text = list.strings().lookup(value.value);
-                    painter.save();
-                    if (value.style == timeline::StyleRole::LANE_LABEL)
-                    {
-                        painter.setClipRect(value.x, value.y, std::max(0, label_width - value.x - 4),
-                            painter.fontMetrics().height(), Qt::IntersectClip);
-                    }
-                    painter.setPen(color);
-                    painter.drawText(value.x, value.y + painter.fontMetrics().ascent(),
-                        QString::fromUtf8(text.data(), timeline::size_cast(text)));
-                    painter.restore();
-                }
-            },
-            primitive);
-    }
+    QtDisplayListRenderer renderer(painter, palette, style_colors, focused, label_width);
+    timeline::render_display_list(renderer, list);
     painter.restore();
 }
 
