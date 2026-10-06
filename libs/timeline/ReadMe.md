@@ -36,6 +36,11 @@ document. The GUI adapter owns native controls and rendering resources.
 The types between them contain only exact time, generic timeline content,
 toolkit-neutral geometry, and view state.
 
+`ControlState` owns the document and its toolkit-neutral display state for
+one control. It creates fresh interaction, navigation, and inspection
+state when the document changes, then rebuilds layout from host dimensions
+and `LayoutMetrics`. GUI adapters retain native event and resource state.
+
 ## Time
 
 | Type | Responsibility |
@@ -183,6 +188,7 @@ Output uses locale-independent numbers and LF separators.
 | `Time.h` | Exact time, conversion, and frame projection. |
 | `StringTable.h` | Interned identities and immutable string lookup. |
 | `Attributes.h` | Immutable interned attribute keys and values. |
+| `ControlState.h` | Owned document and toolkit-neutral control state. |
 | `Document.h` | Root model, provenance, construction, and composition. |
 | `Lane.h` | Lane ownership, item variants, and keyframe evaluation. |
 | `Event.h` | Instant events. |

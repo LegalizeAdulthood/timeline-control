@@ -1,5 +1,6 @@
 add_library(timeline-core
     include/timeline/Attributes.h
+    include/timeline/ControlState.h
     include/timeline/Curve.h
     include/timeline/Document.h
     include/timeline/DisplayList.h
@@ -17,6 +18,7 @@ add_library(timeline-core
     include/timeline/StringTable.h
     include/timeline/Time.h
     Attributes.cpp
+    ControlState.cpp
     Curve.cpp
     DisplayList.cpp
     Document.cpp

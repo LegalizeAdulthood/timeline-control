@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include <timeline/Interaction.h>
-#include <timeline/Query.h>
+#include <timeline/ControlState.h>
 
 #include <imgui.h>
 
@@ -43,31 +42,31 @@ public:
 
     const std::optional<timeline::Document> &document() const
     {
-        return m_document;
+        return m_state.document();
     }
     const std::optional<timeline::Interaction> &interaction() const
     {
-        return m_interaction;
+        return m_state.interaction();
     }
     const std::optional<timeline::FrameInspection> &inspection() const
     {
-        return m_inspection;
+        return m_state.inspection();
     }
     const std::optional<timeline::HitResult> &hit_result() const
     {
-        return m_hit_result;
+        return m_state.hit_result();
     }
     const std::optional<timeline::Layout> &layout() const
     {
-        return m_layout;
+        return m_state.layout();
     }
     const std::optional<timeline::Viewport> &viewport() const
     {
-        return m_viewport;
+        return m_state.viewport();
     }
     const std::optional<timeline::LayoutMetrics> &layout_metrics() const
     {
-        return m_layout_metrics;
+        return m_state.layout_metrics();
     }
 
 private:
@@ -81,14 +80,7 @@ private:
     void zoom_by(double factor);
     void end_drag();
 
-    std::optional<timeline::Document> m_document;
-    std::optional<timeline::Interaction> m_interaction;
-    std::optional<timeline::Navigation> m_navigation;
-    std::optional<timeline::FrameInspection> m_inspection;
-    std::optional<timeline::HitResult> m_hit_result;
-    std::optional<timeline::Layout> m_layout;
-    std::optional<timeline::Viewport> m_viewport;
-    std::optional<timeline::LayoutMetrics> m_layout_metrics;
+    timeline::ControlState m_state;
     bool m_dragging{false};
     int m_last_frame{-1};
 };

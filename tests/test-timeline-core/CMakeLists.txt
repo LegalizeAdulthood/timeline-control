@@ -4,6 +4,7 @@ find_package(GTest CONFIG REQUIRED)
 
 add_executable(test-timeline-core
     attributes_test.cpp
+    control_state_test.cpp
     palette_test.cpp
     curve_test.cpp
     display_list_test.cpp
