@@ -123,7 +123,8 @@
     {
       "name": "default",
       "displayName": "Build with default settings",
-      "configurePreset": "default"
+      "configurePreset": "default",
+      "configuration": "Release"
     },
     {
       "name": "default-imgui",
@@ -152,6 +153,7 @@
       "name": "default",
       "displayName": "Test with default settings",
       "configurePreset": "default",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }
