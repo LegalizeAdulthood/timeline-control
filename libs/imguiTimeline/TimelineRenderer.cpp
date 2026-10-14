@@ -17,9 +17,9 @@ namespace timeline_imgui
 namespace
 {
 
-ImVec2 screen_point(ImVec2 origin, int x, int y)
+ImVec2 screen_point(ImVec2 origin, float x, float y)
 {
-    return ImVec2(origin.x + static_cast<float>(x), origin.y + static_cast<float>(y));
+    return ImVec2(origin.x + x, origin.y + y);
 }
 
 ImVec4 mix(const ImVec4 &first, const ImVec4 &second, float weight)

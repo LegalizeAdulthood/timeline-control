@@ -77,7 +77,7 @@ std::optional<QPoint> QtTimeline::source_item_point() const
             line && list.strings().lookup(line->id.lane_id) == "animation-0[0]")
         {
             const timeline::Point point = line->points[line->points.size() / 4];
-            return QPoint(point.x, point.y);
+            return QPoint(qRound(point.x), qRound(point.y));
         }
     }
     return {};

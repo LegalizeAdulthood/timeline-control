@@ -239,7 +239,7 @@ TEST(Layout, samplesGeometricKeyframeSegmentsAtGridBoundaries)
     const Polyline &line = primitive_with_style<Polyline>(layout, StyleRole::KEYFRAME_SEGMENT);
 
     ASSERT_EQ(3, size_cast(line.points));
-    EXPECT_EQ(40, line.points[1].y);
+    EXPECT_FLOAT_EQ(39.75F, line.points[1].y);
 }
 
 TEST_F(EmptyLaneLayoutTest, emitsRuler)
@@ -295,7 +295,7 @@ TEST(Layout, samplesAnalyticCurvesWithoutAFrameGrid)
     ASSERT_EQ(101, size_cast(line.points));
     EXPECT_EQ(100, line.points.front().x);
     EXPECT_EQ(200, line.points.back().x);
-    EXPECT_EQ(40, line.points[50].y);
+    EXPECT_FLOAT_EQ(39.75F, line.points[50].y);
 }
 
 TEST_F(EventLayoutTest, emitsInstantMarker)
@@ -344,16 +344,28 @@ TEST(Layout, emitsCurvePolylineSampledAtFrameBoundaries)
     const Polyline &polyline = primitive_with_style<Polyline>(layout, StyleRole::CURVE);
 
     ASSERT_EQ(4, size_cast(polyline.points));
-    EXPECT_EQ(100, polyline.points[0].x);
-    EXPECT_EQ(45, polyline.points[0].y);
-    EXPECT_EQ(200, polyline.points[1].x);
-    EXPECT_EQ(34, polyline.points[1].y);
-    EXPECT_EQ(300, polyline.points[2].x);
-    EXPECT_EQ(24, polyline.points[2].y);
-    EXPECT_EQ(400, polyline.points[3].x);
-    EXPECT_EQ(34, polyline.points[3].y);
+    EXPECT_FLOAT_EQ(100.0F, polyline.points[0].x);
+    EXPECT_FLOAT_EQ(45.0F, polyline.points[0].y);
+    EXPECT_FLOAT_EQ(200.0F, polyline.points[1].x);
+    EXPECT_FLOAT_EQ(34.5F, polyline.points[1].y);
+    EXPECT_FLOAT_EQ(300.0F, polyline.points[2].x);
+    EXPECT_FLOAT_EQ(24.0F, polyline.points[2].y);
+    EXPECT_FLOAT_EQ(400.0F, polyline.points[3].x);
+    EXPECT_FLOAT_EQ(34.5F, polyline.points[3].y);
     EXPECT_EQ(rms_id, polyline.id.lane_id);
     EXPECT_EQ(rms_id, polyline.id.item_id);
+}
+
+TEST(Layout, preservesSubpixelPolylineCoordinates)
+{
+    const Document document = curve_document();
+
+    const Layout layout(document, Viewport(501, 100, at(0), at(40)), LayoutMetrics(100, 20, 30, 4));
+    const Polyline &polyline = primitive_with_style<Polyline>(layout, StyleRole::CURVE);
+
+    ASSERT_EQ(4, size_cast(polyline.points));
+    EXPECT_FLOAT_EQ(200.25F, polyline.points[1].x);
+    EXPECT_FLOAT_EQ(34.5F, polyline.points[1].y);
 }
 
 TEST_F(KeyframeLayoutTest, emitsLinearKeyframeSegment)

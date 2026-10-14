@@ -95,12 +95,23 @@ struct Marker
     DisplayId id;
 };
 
-/// Toolkit-neutral integral point.
+/// Toolkit-neutral point with subpixel precision.
 ///
 struct Point
 {
-    int x;
-    int y;
+    Point(int point_x, int point_y) :
+        Point(static_cast<float>(point_x), static_cast<float>(point_y))
+    {
+    }
+
+    Point(float point_x, float point_y) :
+        x(point_x),
+        y(point_y)
+    {
+    }
+
+    float x;
+    float y;
 };
 
 /// Toolkit-neutral connected line segments.

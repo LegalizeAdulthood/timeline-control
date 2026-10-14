@@ -74,7 +74,7 @@ void ControlState::zoom_by(double factor)
     }
 }
 
-void ControlState::zoom_at(double factor, int x)
+void ControlState::zoom_at(double factor, float x)
 {
     if (m_navigation && m_viewport && m_layout_metrics)
     {

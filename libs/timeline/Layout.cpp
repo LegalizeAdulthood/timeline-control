@@ -16,13 +16,18 @@ namespace timeline
 namespace
 {
 
-int time_x(Time time, const Viewport &viewport, const LayoutMetrics &metrics)
+float time_x_coordinate(Time time, const Viewport &viewport, const LayoutMetrics &metrics)
 {
     const Ticks ticks = std::clamp(time.ticks(), viewport.start().ticks(), viewport.end().ticks());
     const double elapsed = static_cast<double>(ticks - viewport.start().ticks());
     const double duration = static_cast<double>(viewport.end().ticks() - viewport.start().ticks());
     const int timeline_width = viewport.width() - metrics.lane_label_width();
-    return metrics.lane_label_width() + static_cast<int>(std::lround(elapsed * timeline_width / duration));
+    return static_cast<float>(metrics.lane_label_width() + elapsed * timeline_width / duration);
+}
+
+int time_x(Time time, const Viewport &viewport, const LayoutMetrics &metrics)
+{
+    return static_cast<int>(std::lround(time_x_coordinate(time, viewport, metrics)));
 }
 
 void add_span(DisplayList &display_list, Time start, Time end, StyleRole style, DisplayId id, int y, int height,
@@ -178,8 +183,8 @@ void add_curve(DisplayList &display_list, const Curve &curve, int y, int height,
             continue;
         }
         const double normalized = maximum == minimum ? 0.5 : (sample.value() - minimum) / (maximum - minimum);
-        const int point_y = y + height - 1 - static_cast<int>(std::lround(normalized * (height - 1)));
-        points.push_back(Point{time_x(sample.time(), viewport, metrics), point_y});
+        const float point_y = static_cast<float>(y + height - 1 - normalized * (height - 1));
+        points.push_back(Point{time_x_coordinate(sample.time(), viewport, metrics), point_y});
     }
     if (size_cast(points) >= 2)
     {
@@ -187,10 +192,10 @@ void add_curve(DisplayList &display_list, const Curve &curve, int y, int height,
     }
 }
 
-int keyframe_y(double value, double minimum, double maximum, int y, int height)
+float keyframe_y(double value, double minimum, double maximum, int y, int height)
 {
     const double normalized = maximum == minimum ? 0.5 : (value - minimum) / (maximum - minimum);
-    return y + height - 1 - static_cast<int>(std::lround(normalized * (height - 1)));
+    return static_cast<float>(y + height - 1 - normalized * (height - 1));
 }
 
 void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int height, const Viewport &viewport,
@@ -262,8 +267,8 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
         {
             if (value)
             {
-                points.push_back(Point{
-                    time_x(time, viewport, metrics), keyframe_y(*value, minimum_value, maximum_value, y, height)});
+                points.push_back(Point{time_x_coordinate(time, viewport, metrics),
+                    keyframe_y(*value, minimum_value, maximum_value, y, height)});
             }
             else
             {
@@ -290,9 +295,9 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
         {
             continue;
         }
-        const Point left_point{
-            time_x(left.time(), viewport, metrics), keyframe_y(left.value(), minimum_value, maximum_value, y, height)};
-        const Point right_point{time_x(right.time(), viewport, metrics),
+        const Point left_point{time_x_coordinate(left.time(), viewport, metrics),
+            keyframe_y(left.value(), minimum_value, maximum_value, y, height)};
+        const Point right_point{time_x_coordinate(right.time(), viewport, metrics),
             keyframe_y(right.value(), minimum_value, maximum_value, y, height)};
         std::vector<Point> points{left_point};
         if (left.interpolation() == KeyframeInterpolation::HOLD)
@@ -315,7 +320,7 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
                     }
                     if (left.time() < time && start <= time)
                     {
-                        points.push_back(Point{time_x(time, viewport, metrics),
+                        points.push_back(Point{time_x_coordinate(time, viewport, metrics),
                             keyframe_y(*lane.evaluate_keyframes(time), minimum_value, maximum_value, y, height)});
                     }
                 }
@@ -327,7 +332,7 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
                 {
                     const Ticks ticks = static_cast<Ticks>(static_cast<double>((end - start).ticks()) * step / width);
                     const Time time = start + Duration::from_ticks(ticks);
-                    points.push_back(Point{time_x(time, viewport, metrics),
+                    points.push_back(Point{time_x_coordinate(time, viewport, metrics),
                         keyframe_y(*lane.evaluate_keyframes(time), minimum_value, maximum_value, y, height)});
                 }
             }
@@ -344,7 +349,8 @@ void add_keyframes(DisplayList &display_list, const Lane &lane, int y, int heigh
             continue;
         }
         const int x = time_x(keyframe.time(), viewport, metrics);
-        const int point_y = keyframe_y(keyframe.value(), minimum_value, maximum_value, y, height);
+        const int point_y =
+            static_cast<int>(std::lround(keyframe_y(keyframe.value(), minimum_value, maximum_value, y, height)));
         const int marker_width = std::min(5, viewport.width() - metrics.lane_label_width());
         const int marker_height = std::min(5, height);
         const int marker_x =
@@ -737,16 +743,16 @@ std::optional<HitResult> Layout::hit_test(Point point, int tolerance) const
     return std::nullopt;
 }
 
-Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics)
+Time time_at_x(float x, const Viewport &viewport, const LayoutMetrics &metrics)
 {
     if (metrics.lane_label_width() >= viewport.width())
     {
         throw std::invalid_argument("timeline lane labels leave no content width");
     }
 
-    const int left = metrics.lane_label_width();
-    const int position = std::clamp(x, left, viewport.width()) - left;
-    const int width = viewport.width() - left;
+    const float left = static_cast<float>(metrics.lane_label_width());
+    const float position = std::clamp(x, left, static_cast<float>(viewport.width())) - left;
+    const int width = viewport.width() - metrics.lane_label_width();
     const Ticks duration = viewport.end().ticks() - viewport.start().ticks();
     const auto elapsed = static_cast<Ticks>(std::llround(static_cast<double>(position) * duration / width));
     return Time::from_ticks(viewport.start().ticks() + elapsed);

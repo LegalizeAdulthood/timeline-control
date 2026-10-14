@@ -402,6 +402,19 @@ TEST_F(DiagonalCairoRendererTest, drawsNonblankAntialiasedCurvesInDarkColours)
     EXPECT_EQ(0, image.GetAlpha(0, 27));
 }
 
+TEST(CairoRenderer, rendersShallowSubpixelCurveGeometry)
+{
+    const timeline::Polyline curve{{{2.0F, 10.25F}, {30.0F, 9.75F}}, timeline::StyleRole::CURVE, {}};
+
+    const wxImage image =
+        render_cairo_curve(curve, wxSize(32, 20), wxPoint(0, 0), wxRect(0, 0, 32, 20), LIGHT.foreground, 1, 1.0);
+
+    ASSERT_TRUE(image.IsOk());
+    EXPECT_GT(image.GetAlpha(4, 9), 0);
+    EXPECT_LT(image.GetAlpha(4, 9), 255);
+    EXPECT_GT(image.GetAlpha(28, 9), image.GetAlpha(4, 9));
+}
+
 TEST_F(DiagonalCairoRendererTest, clipsTranslatedCurves)
 {
     const wxRect clip(10, 8, 12, 10);

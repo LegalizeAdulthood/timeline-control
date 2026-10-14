@@ -192,7 +192,7 @@ private:
 };
 
 /// Maps a horizontal host position into the viewport's exact time range.
-Time time_at_x(int x, const Viewport &viewport, const LayoutMetrics &metrics);
+Time time_at_x(float x, const Viewport &viewport, const LayoutMetrics &metrics);
 
 /// Returns the inclusive frame range intersecting a viewport.
 std::optional<FrameRange> visible_frame_range(const FrameGrid &grid, const Viewport &viewport);

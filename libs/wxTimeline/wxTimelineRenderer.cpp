@@ -11,6 +11,7 @@
 #include <wx/settings.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string_view>
 #include <vector>
 
@@ -154,7 +155,8 @@ void WxDisplayListRenderer::draw_polyline(const timeline::Polyline &polyline)
     points.reserve(polyline.points.size());
     for (const timeline::Point &point : polyline.points)
     {
-        points.emplace_back(m_origin.x + point.x, m_origin.y + point.y);
+        points.emplace_back(
+            m_origin.x + static_cast<int>(std::lround(point.x)), m_origin.y + static_cast<int>(std::lround(point.y)));
     }
     if (timeline::size_cast(points) >= 2)
     {

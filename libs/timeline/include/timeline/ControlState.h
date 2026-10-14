@@ -32,7 +32,7 @@ public:
     void clear_layout();
     void fit_view();
     void zoom_by(double factor);
-    void zoom_at(double factor, int x);
+    void zoom_at(double factor, float x);
     void scroll_by(Duration distance);
     void scroll_to_fraction(double fraction);
     void scroll_lanes(int lanes);

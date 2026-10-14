@@ -156,11 +156,11 @@ void QtDisplayListRenderer::draw_marker(const timeline::Marker &marker)
 
 void QtDisplayListRenderer::draw_polyline(const timeline::Polyline &polyline)
 {
-    QPolygon points;
+    QPolygonF points;
     points.reserve(timeline::size_cast(polyline.points));
     for (const timeline::Point &point : polyline.points)
     {
-        points.append(QPoint(point.x, point.y));
+        points.append(QPointF(point.x, point.y));
     }
     m_painter.setPen(QPen(color(polyline.style), 2));
     m_painter.drawPolyline(points);
