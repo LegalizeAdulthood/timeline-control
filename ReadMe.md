@@ -68,6 +68,9 @@ cmake --workflow --preset default
 Hidden `*-on` and `*-off` configure presets enable or disable each option.
 The Cairo option requires the wxWidgets option.
 
+The `all` workflow preset enables every option, builds all variants of the
+controls and viewers, and runs all tests.
+
 Each workflow performs configure, build, and test steps and writes its
 output to a sibling directory. `default-cairo` enables both Cairo and
 wxWidgets and builds the native `wx-timeline-viewer` alongside

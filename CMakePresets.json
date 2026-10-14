@@ -106,6 +106,11 @@
       "displayName": "Configure Cairo and wxWidgets",
       "inherits": [ "cairo-on", "default" ],
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "all",
+      "displayName": "Configure with all options",
+      "inherits": [ "wx-on", "imgui-on", "qt-on", "cairo-on", "default" ]
     }
   ],
   "buildPresets": [
@@ -131,6 +136,12 @@
       "displayName": "Build with Dear ImGui",
       "configurePreset": "default-imgui",
       "configuration": "Debug"
+    },
+    {
+      "name": "all",
+      "displayName": "Build with all options",
+      "configurePreset": "all",
+      "configuration": "Release"
     }
   ],
   "testPresets": [
@@ -163,6 +174,15 @@
       "displayName": "Test with Dear ImGui",
       "configurePreset": "default-imgui",
       "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "all",
+      "displayName": "Test with all options",
+      "configurePreset": "all",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }
@@ -220,6 +240,24 @@
         {
           "type": "test",
           "name": "default-imgui"
+        }
+      ]
+    },
+    {
+      "name": "all",
+      "displayName": "All options workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "all"
+        },
+        {
+          "type": "build",
+          "name": "all"
+        },
+        {
+          "type": "test",
+          "name": "all"
         }
       ]
     }
