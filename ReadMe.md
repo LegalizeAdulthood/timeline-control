@@ -103,6 +103,14 @@ the current core display list as text. With Cairo enabled,
 side by side. The Cairo viewer adds a View > Renderer menu for switching
 renderers without changing the control state.
 
+The native wxWidgets viewer:
+
+![wxWidgets timeline viewer showing keyframe interpolation](images/wx-timeline-viewer.png)
+
+The Cairo-backed wxWidgets viewer:
+
+![Cairo timeline viewer showing keyframe interpolation](images/cairo-timeline-viewer.png)
+
 # ImGui Timeline Viewer
 
 Run `imgui-timeline-viewer` from the build's `tools/imgui-timeline-viewer`
@@ -120,6 +128,8 @@ selection, playhead, ranges, and frame samples. View commands provide
 zoom, fit, and clear selection. File > Export Snapshot writes the current
 core display list as text. All viewers use the same adapters and core;
 font metrics and theme colors remain toolkit-specific.
+
+![Dear ImGui timeline viewer showing keyframe interpolation](images/imgui-timeline-viewer.png)
 
 Viewer tests include a bounded SDL dummy-video/software-renderer smoke
 check, requiring no desktop or GPU. CI runs all four public workflows.
@@ -146,6 +156,4 @@ mapping recipes, hovered identities, selection, frame samples, parameter
 outputs, attributes, and palettes. View-menu commands delegate zoom, fit,
 and clear-selection operations to the control.
 
-[Utah C++ Programmers](https://meetup.com/utah-cpp-programmers)\
-[Past Topics](https://utahcpp.wordpress.com/past-meeting-topics/)\
-[Future Topics](https://utahcpp.wordpress.com/future-meeting-topics/)
+![Qt timeline viewer showing keyframe interpolation](images/qt-timeline-viewer.png)
