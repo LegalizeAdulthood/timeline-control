@@ -519,6 +519,7 @@ set(TIMELINE_PARANIMATOR_TEST_FIXTURES
 add_executable(test-timeline-paranimator
     ${TIMELINE_PARANIMATOR_TEST_FIXTURES}
     test.cpp
+    examples_test.cpp
     mapping_test.cpp
     animation_test.cpp
     extrapolation_test.cpp
@@ -548,6 +549,13 @@ foreach(fixture IN LISTS TIMELINE_PARANIMATOR_TEST_FIXTURES)
     get_filename_component(fixture_directory "${fixture}" DIRECTORY)
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${fixture_directory}")
     configure_file("${fixture}" "${fixture}" COPYONLY)
+endforeach()
+
+foreach(example IN LISTS TIMELINE_CONTROL_EXAMPLES)
+    file(RELATIVE_PATH example_relative "${PROJECT_SOURCE_DIR}" "${example}")
+    get_filename_component(example_directory "${example_relative}" DIRECTORY)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${example_directory}")
+    configure_file("${example}" "${example_relative}" COPYONLY)
 endforeach()
 
 include(GoogleTest)

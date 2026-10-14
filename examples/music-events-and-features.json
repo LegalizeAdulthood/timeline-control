@@ -1,0 +1,35 @@
+{
+  "schema": "par-beatdown.tracker-timeline",
+  "version": 1,
+  "render": {
+    "fps": 30.0,
+    "offset_seconds": 0.0
+  },
+  "timeline": {
+    "duration_seconds": 4.0,
+    "frames": 121,
+    "first_frame": 0,
+    "last_frame": 120
+  },
+  "events": [
+    { "kind": "row", "frame": 0, "order": 0, "row": 0 },
+    { "kind": "note", "frame": 15, "channel": 0, "note": "C-4", "strength": 0.7 },
+    { "kind": "note", "frame": 30, "channel": 1, "note": "E-4", "strength": 0.9 },
+    { "kind": "effect", "frame": 45, "channel": 2, "effect": "0A", "strength": 0.5 },
+    { "kind": "row", "frame": 60, "order": 0, "row": 16 },
+    { "kind": "note", "frame": 75, "channel": 0, "note": "G-4", "strength": 1.0 },
+    { "kind": "effect", "frame": 90, "channel": 3, "effect": "0F", "strength": 0.8 },
+    { "kind": "row", "frame": 120, "order": 1, "row": 0 }
+  ],
+  "features": [
+    { "frame": 0, "rms": 0.1 },
+    { "frame": 15, "rms": 0.25 },
+    { "frame": 30, "rms": 0.8 },
+    { "frame": 45, "rms": 0.45 },
+    { "frame": 60, "rms": 0.65 },
+    { "frame": 75, "rms": 0.95 },
+    { "frame": 90, "rms": 0.35 },
+    { "frame": 105, "rms": 0.6 },
+    { "frame": 120, "rms": 0.15 }
+  ]
+}

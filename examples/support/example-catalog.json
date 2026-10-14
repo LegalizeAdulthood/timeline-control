@@ -1,0 +1,84 @@
+{
+  "parameters": {
+    "linear-value": {
+      "type": "double",
+      "description": "Linear keyframe interpolation",
+      "default-curve": "linear",
+      "extrapolate": "clamp",
+      "min": 0,
+      "max": 1
+    },
+    "hold-value": {
+      "type": "double",
+      "description": "Held keyframe values",
+      "default-curve": "hold",
+      "extrapolate": "clamp",
+      "min": 0,
+      "max": 1
+    },
+    "center-mag": {
+      "type": "center-mag",
+      "description": "Geometric magnification interpolation",
+      "format": "slash",
+      "default-curve": "geometric",
+      "extrapolate": "clamp"
+    },
+    "mode": {
+      "type": "enum",
+      "description": "Categorical operating mode",
+      "values": [ "idle", "active", "done" ],
+      "default-curve": "hold",
+      "extrapolate": "clamp"
+    },
+    "pulse": {
+      "type": "yes-no",
+      "description": "Pulse-width-modulated output",
+      "default-curve": "hold",
+      "extrapolate": "clamp"
+    },
+    "maxiter": {
+      "type": "integer",
+      "description": "Constant scalar path",
+      "default-curve": "linear",
+      "min": 2
+    },
+    "circle-path": {
+      "type": "point2",
+      "description": "Circular planar path"
+    },
+    "ellipse-path": {
+      "type": "point2",
+      "description": "Elliptical planar path"
+    },
+    "lissajous-path": {
+      "type": "point2",
+      "description": "Lissajous planar path"
+    },
+    "spiral-path": {
+      "type": "point2",
+      "description": "Spiral planar path"
+    },
+    "bezier-path": {
+      "type": "point2",
+      "description": "Bezier planar path"
+    },
+    "catmull-rom-path": {
+      "type": "point2",
+      "description": "Catmull-Rom planar path"
+    }
+  },
+  "fractal-types": {
+    "julia": {
+      "params": {
+        "groups": {
+          "c": {
+            "type": "complex",
+            "description": "Linear complex path",
+            "slots": [ 0, 1 ],
+            "default-curve": "linear"
+          }
+        }
+      }
+    }
+  }
+}

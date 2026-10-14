@@ -1,0 +1,55 @@
+{
+  "$schema": "https://legalize.github.io/paranimator/schemas/config.schema.json",
+  "parameter-catalogs": [ "support/example-catalog.json" ],
+  "source": {
+    "file": "support/example.par",
+    "name": "Timeline_Examples"
+  },
+  "output": {},
+  "video": "F6",
+  "num-frames": 121,
+  "tracks": [
+    {
+      "parameter": "static-palette",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "static-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          { "index": 0, "color": "black" },
+          { "index": 64, "color": "red" },
+          { "index": 128, "color": "yellow" },
+          { "index": 192, "color": "cyan" },
+          { "index": 255, "color": "white" }
+        ]
+      }
+    },
+    {
+      "parameter": "animated-palette",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "animated-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          { "index": 0, "color": "black" },
+          { "index": 85, "color": "magenta" },
+          { "index": 170, "color": "lime" },
+          { "index": 255, "color": "white" }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "hue-shift",
+          "amount": {
+            "keys": [
+              { "frame": 0, "value": 0 },
+              { "frame": 120, "value": 360 }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

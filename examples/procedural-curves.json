@@ -1,0 +1,80 @@
+{
+  "$schema": "https://legalize.github.io/paranimator/schemas/config.schema.json",
+  "parameter-catalogs": [ "support/example-catalog.json" ],
+  "source": {
+    "file": "support/example.par",
+    "name": "Timeline_Examples"
+  },
+  "output": {},
+  "video": "F6",
+  "num-frames": 121,
+  "tracks": [
+    {
+      "parameter": "maxiter",
+      "path": { "kind": "constant", "value": "300" }
+    },
+    {
+      "parameter": "params.c",
+      "path": {
+        "kind": "line",
+        "from": "-1/-0.5",
+        "to": "1/0.5"
+      }
+    },
+    {
+      "parameter": "circle-path",
+      "path": {
+        "kind": "circle",
+        "center": "0/0",
+        "radius": 1,
+        "turns": 2
+      }
+    },
+    {
+      "parameter": "ellipse-path",
+      "path": {
+        "kind": "ellipse",
+        "center": "0/0",
+        "x-radius": 1.5,
+        "y-radius": 0.5,
+        "turns": 2
+      }
+    },
+    {
+      "parameter": "lissajous-path",
+      "path": {
+        "kind": "lissajous",
+        "center": "0/0",
+        "x-radius": 1,
+        "y-radius": 1,
+        "x-frequency": 2,
+        "y-frequency": 3,
+        "phase": 45
+      }
+    },
+    {
+      "parameter": "spiral-path",
+      "path": {
+        "kind": "spiral",
+        "center": "0/0",
+        "from-radius": 0.2,
+        "to-radius": 1.5,
+        "turns": 2
+      }
+    },
+    {
+      "parameter": "bezier-path",
+      "path": {
+        "kind": "bezier",
+        "control-points": [ "-1/0", "-0.5/1", "0.5/-1", "1/0" ]
+      }
+    },
+    {
+      "parameter": "catmull-rom-path",
+      "path": {
+        "kind": "catmull-rom",
+        "control-points": [ "-1/0", "-0.5/1", "0.5/-1", "1/0" ]
+      }
+    }
+  ]
+}

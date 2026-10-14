@@ -1,0 +1,10 @@
+; SPDX-License-Identifier: GPL-3.0-only
+;
+Timeline_Examples  {
+  reset type=julia center-mag=-0.5/0/1 params=0/0
+  inside=0 showorbit=no maxiter=100
+  linear-value=0.1 hold-value=0.2 mode=idle pulse=no
+  circle-path=1/0
+  ellipse-path=1.5/0 lissajous-path=0/0 spiral-path=0.2/0
+  bezier-path=-1/0 catmull-rom-path=-1/0
+}

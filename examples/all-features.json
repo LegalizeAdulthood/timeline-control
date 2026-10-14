@@ -1,0 +1,101 @@
+{
+  "$schema": "https://legalize.github.io/paranimator/schemas/config.schema.json",
+  "parameter-catalogs": [ "support/example-catalog.json" ],
+  "source": {
+    "file": "support/example.par",
+    "name": "Timeline_Examples"
+  },
+  "output": {},
+  "video": "F6",
+  "num-frames": 121,
+  "tracks": [
+    {
+      "parameter": "linear-value",
+      "keys": [
+        { "frame": 0, "value": "0.1" },
+        { "frame": 40, "value": "0.9" },
+        { "frame": 80, "value": "0.2" },
+        { "frame": 120, "value": "0.8" }
+      ]
+    },
+    {
+      "parameter": "hold-value",
+      "keys": [
+        { "frame": 0, "value": "0.2" },
+        { "frame": 40, "value": "0.8" },
+        { "frame": 80, "value": "0.4" },
+        { "frame": 120, "value": "1.0" }
+      ]
+    },
+    {
+      "parameter": "center-mag",
+      "keys": [
+        { "frame": 0, "value": "-0.5/0/1" },
+        { "frame": 40, "value": "-0.5/0/16" },
+        { "frame": 80, "value": "-0.5/0/2" },
+        { "frame": 120, "value": "-0.5/0/32" }
+      ]
+    },
+    {
+      "parameter": "mode",
+      "keys": [
+        { "frame": 0, "value": "idle" },
+        { "frame": 40, "value": "active" },
+        { "frame": 80, "value": "done" },
+        { "frame": 120, "value": "idle" }
+      ]
+    },
+    {
+      "parameter": "pulse",
+      "mode": "pwm",
+      "window": 12,
+      "keys": [
+        { "frame": 0, "duty": 0.1 },
+        { "frame": 120, "duty": 1.0 }
+      ]
+    },
+    {
+      "parameter": "circle-path",
+      "path": {
+        "kind": "circle",
+        "center": "0/0",
+        "radius": 1,
+        "turns": 2
+      }
+    },
+    {
+      "parameter": "bezier-path",
+      "path": {
+        "kind": "bezier",
+        "control-points": [ "-1/0", "-0.5/1", "0.5/-1", "1/0" ]
+      }
+    },
+    {
+      "parameter": "animated-palette",
+      "type": "color-map",
+      "format": "at-file",
+      "output": "all-features-%04d.map",
+      "source": {
+        "kind": "gradient",
+        "stops": [
+          { "index": 0, "color": "black" },
+          { "index": 64, "color": "red" },
+          { "index": 128, "color": "yellow" },
+          { "index": 192, "color": "cyan" },
+          { "index": 255, "color": "white" }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "hue-shift",
+          "amount": {
+            "keys": [
+              { "frame": 0, "value": 0 },
+              { "frame": 120, "value": 360 }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

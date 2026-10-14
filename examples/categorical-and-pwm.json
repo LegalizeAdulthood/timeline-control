@@ -1,0 +1,31 @@
+{
+  "$schema": "https://legalize.github.io/paranimator/schemas/config.schema.json",
+  "parameter-catalogs": [ "support/example-catalog.json" ],
+  "source": {
+    "file": "support/example.par",
+    "name": "Timeline_Examples"
+  },
+  "output": {},
+  "video": "F6",
+  "num-frames": 121,
+  "tracks": [
+    {
+      "parameter": "mode",
+      "keys": [
+        { "frame": 0, "value": "idle" },
+        { "frame": 30, "value": "active" },
+        { "frame": 75, "value": "done" },
+        { "frame": 105, "value": "idle" }
+      ]
+    },
+    {
+      "parameter": "pulse",
+      "mode": "pwm",
+      "window": 12,
+      "keys": [
+        { "frame": 0, "duty": 0.1 },
+        { "frame": 120, "duty": 1.0 }
+      ]
+    }
+  ]
+}

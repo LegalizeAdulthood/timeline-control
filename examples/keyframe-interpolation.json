@@ -1,0 +1,40 @@
+{
+  "$schema": "https://legalize.github.io/paranimator/schemas/config.schema.json",
+  "parameter-catalogs": [ "support/example-catalog.json" ],
+  "source": {
+    "file": "support/example.par",
+    "name": "Timeline_Examples"
+  },
+  "output": {},
+  "video": "F6",
+  "num-frames": 121,
+  "tracks": [
+    {
+      "parameter": "linear-value",
+      "keys": [
+        { "frame": 0, "value": "0.1" },
+        { "frame": 40, "value": "0.9" },
+        { "frame": 80, "value": "0.2" },
+        { "frame": 120, "value": "0.8" }
+      ]
+    },
+    {
+      "parameter": "hold-value",
+      "keys": [
+        { "frame": 0, "value": "0.2" },
+        { "frame": 40, "value": "0.8" },
+        { "frame": 80, "value": "0.4" },
+        { "frame": 120, "value": "1.0" }
+      ]
+    },
+    {
+      "parameter": "center-mag",
+      "keys": [
+        { "frame": 0, "value": "-0.5/0/1" },
+        { "frame": 40, "value": "-0.5/0/16" },
+        { "frame": 80, "value": "-0.5/0/2" },
+        { "frame": 120, "value": "-0.5/0/32" }
+      ]
+    }
+  ]
+}

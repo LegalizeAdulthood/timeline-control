@@ -44,6 +44,17 @@ endif()
 
 include(CTest)
 
+set(TIMELINE_CONTROL_EXAMPLES
+    "${PROJECT_SOURCE_DIR}/examples/ReadMe.md"
+    "${PROJECT_SOURCE_DIR}/examples/all-features.json"
+    "${PROJECT_SOURCE_DIR}/examples/categorical-and-pwm.json"
+    "${PROJECT_SOURCE_DIR}/examples/keyframe-interpolation.json"
+    "${PROJECT_SOURCE_DIR}/examples/music-events-and-features.json"
+    "${PROJECT_SOURCE_DIR}/examples/palettes.json"
+    "${PROJECT_SOURCE_DIR}/examples/procedural-curves.json"
+    "${PROJECT_SOURCE_DIR}/examples/support/example-catalog.json"
+    "${PROJECT_SOURCE_DIR}/examples/support/example.par")
+
 add_subdirectory(libs)
 add_subdirectory(tools)
 if(TIMELINE_CONTROL_WITH_WX)
@@ -77,3 +88,5 @@ misc_group_sources("GitHub" FILES
     ".github/workflows/cmake.yml")
 misc_group_sources("VcPkg" FILES
     "vcpkg.json")
+misc_group_sources("Examples" FILES
+    ${TIMELINE_CONTROL_EXAMPLES})
