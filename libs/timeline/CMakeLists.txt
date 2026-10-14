@@ -36,6 +36,7 @@ add_library(timeline-core
     Snapshot.cpp
     StringTable.cpp
     Time.cpp
+    ReadMe.md
 )
 
 target_include_directories(timeline-core PUBLIC include)

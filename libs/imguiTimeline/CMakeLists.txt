@@ -5,6 +5,7 @@ add_library(timeline-imgui
     include/imguiTimeline/TimelineRenderer.h
     TimelineControl.cpp
     TimelineRenderer.cpp
+    ReadMe.md
 )
 target_include_directories(timeline-imgui PUBLIC include)
 target_link_libraries(timeline-imgui PUBLIC timeline-core imgui::imgui)

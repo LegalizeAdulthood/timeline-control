@@ -13,6 +13,7 @@ add_library(timeline-paranimator
     ParameterCatalog.h
     ParameterCatalog.cpp
     TimelineJson.cpp
+    ReadMe.md
 )
 
 target_include_directories(timeline-paranimator

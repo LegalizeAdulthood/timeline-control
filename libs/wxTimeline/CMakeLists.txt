@@ -5,6 +5,7 @@ add_library(timeline-wx
     include/wxTimeline/wxTimelineRenderer.h
     wxTimelineControl.cpp
     wxTimelineRenderer.cpp
+    ReadMe.md
 )
 target_include_directories(timeline-wx PUBLIC include)
 target_link_libraries(timeline-wx
