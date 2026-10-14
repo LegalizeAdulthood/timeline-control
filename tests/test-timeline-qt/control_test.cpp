@@ -312,7 +312,7 @@ TEST_F(QtTimeline, updatesViewportAfterResize)
 
     ASSERT_TRUE(m_widget.timeline_viewport());
     EXPECT_LT(m_widget.timeline_viewport()->width(), width);
-    EXPECT_LT(m_widget.timeline_viewport()->width(), 240);
+    EXPECT_EQ(m_widget.viewport()->width(), m_widget.timeline_viewport()->width());
 }
 
 TEST_F(QtTimeline, preservesSourceItemIdentity)
