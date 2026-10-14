@@ -12,6 +12,8 @@ and display-list generation. Its APIs and display-list contract are the
 ports through which the surrounding application uses the control. The
 core depends on neither a UI framework nor an application file format.
 
+![Hexagonal architecture](images/hexagonal-architecture.png)
+
 The wxWidgets, Dear ImGui, and Qt libraries are presentation adapters.
 They translate native input into core interaction, supply font metrics,
 DPI-aware geometry, and semantic theme values, and render the resulting

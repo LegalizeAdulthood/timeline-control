@@ -1,0 +1,147 @@
+// Copyright (c) 2026 Richard Thomson
+// Render with: dot -Kneato -n2 -Tpng hexagonal-architecture.dot -o hexagonal-architecture.png
+
+digraph timeline_control
+{
+    graph [
+        layout=neato,
+        bgcolor="white",
+        outputorder=edgesfirst,
+        overlap=true,
+        splines=curved,
+        pad=0.35
+    ];
+    node [
+        fontname="Arial",
+        fontsize=18,
+        color="#253238",
+        fontcolor="#172126",
+        penwidth=2.0
+    ];
+    edge [
+        fontname="Arial",
+        fontsize=16,
+        color="#52656d",
+        fontcolor="#3b4a50",
+        penwidth=2.0,
+        arrowsize=1.0
+    ];
+
+    core [
+        shape=hexagon,
+        fixedsize=true,
+        width=8.4,
+        height=6.0,
+        pos="0,0!",
+        style=filled,
+        fillcolor="#edf3f4",
+        color="#263b42",
+        penwidth=3.0,
+        fontname="Arial Bold",
+        fontsize=26,
+        label="timeline-core\n\nDocument and time model\nNavigation and interaction\nLayout and hit testing\nDisplay-list generation"
+    ];
+
+    document_port [
+        shape=box,
+        fixedsize=true,
+        width=2.5,
+        height=1.1,
+        style="rounded,filled",
+        fillcolor="#dbe9f6",
+        pos="-302,0!",
+        label="Document\nmodel API"
+    ];
+    interaction_port [
+        shape=box,
+        fixedsize=true,
+        width=2.7,
+        height=1.1,
+        style="rounded,filled",
+        fillcolor="#dbe9f6",
+        pos="65,216!",
+        label="Interaction and\nnavigation API"
+    ];
+    metrics_port [
+        shape=box,
+        fixedsize=true,
+        width=2.9,
+        height=1.1,
+        style="rounded,filled",
+        fillcolor="#dbe9f6",
+        pos="302,70!",
+        label="Layout metrics\ninput"
+    ];
+    display_port [
+        shape=box,
+        fixedsize=true,
+        width=2.9,
+        height=1.1,
+        style="rounded,filled",
+        fillcolor="#dbe9f6",
+        pos="302,-70!",
+        label="Display-list\ncontract"
+    ];
+    query_port [
+        shape=box,
+        fixedsize=true,
+        width=2.7,
+        height=1.1,
+        style="rounded,filled",
+        fillcolor="#dbe9f6",
+        pos="-65,-216!",
+        label="Query and inspection\nAPI"
+    ];
+
+    format_adapters [
+        shape=Mrecord,
+        fixedsize=true,
+        style=filled,
+        fillcolor="#f7e8c8",
+        color="#805f20",
+        width=3.4,
+        height=3.5,
+        pos="-560,0!",
+        label="{Format adapters|ParAnimator\nJSON|par-beatdown\nJSON}"
+    ];
+    presentation_adapters [
+        shape=Mrecord,
+        fixedsize=true,
+        style=filled,
+        fillcolor="#ddefdc",
+        color="#39653a",
+        width=3.2,
+        height=5.0,
+        pos="620,0!",
+        label="{Presentation\nadapters|wxWidgets|Dear ImGui|Qt}"
+    ];
+
+    presentation_input [
+        shape=point,
+        width=0,
+        height=0,
+        pos="505,70!",
+        style=invis
+    ];
+    presentation_output [
+        shape=point,
+        width=0,
+        height=0,
+        pos="505,-70!",
+        style=invis
+    ];
+
+    format_adapters:e -> document_port:w;
+    presentation_adapters:n -> interaction_port:n [
+        pos="e,65,256 620,180 580,300 470,330 360,330 260,340 65,340 65,290 65,280 65,270 65,265"
+    ];
+    presentation_input -> metrics_port:e [
+        pos="e,406,70 505,70 477,70 449,70 421,70"
+    ];
+    display_port:e -> presentation_output [
+        pos="e,505,-70 406,-70 434,-70 462,-70 490,-70"
+    ];
+    query_port:s -> presentation_adapters:s [
+        pos="e,620,-180 -65,-256 -20,-315 140,-330 260,-330 380,-340 620,-340 620,-230 620,-215 620,-200 620,-194"
+    ];
+}
