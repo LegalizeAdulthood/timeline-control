@@ -1,4 +1,5 @@
 {
+  "$schema": "https://legalize.github.io/paranimator/schemas/config.schema.json",
   "parameter-catalogs": [ "input/core-catalog.json" ],
   "source": {
     "file": "input/source.par",

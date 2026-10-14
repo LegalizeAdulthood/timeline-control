@@ -37,7 +37,8 @@ using detail::resolve_attributes;
 
 using Json = nlohmann::json;
 
-constexpr std::array<std::string_view, 8> SUPPORTED_PAR_ANIMATOR_ROOT_FIELDS{
+constexpr std::array<std::string_view, 9> SUPPORTED_PAR_ANIMATOR_ROOT_FIELDS{
+    "$schema",
     "parameter-catalogs",
     "source",
     "output",
@@ -135,6 +136,12 @@ bool validate_par_animator_root(const Json &config, std::vector<std::string> &di
     require_type("video", config.contains("video") && config.at("video").is_string(), "a string");
     require_type(
         "num-frames", config.contains("num-frames") && config.at("num-frames").is_number_integer(), "an integer");
+
+    if (config.contains("$schema") && !config.at("$schema").is_string())
+    {
+        diagnostics.emplace_back("ParAnimator property '$schema' must be a string.");
+        valid = false;
+    }
 
     const bool has_tracks = config.contains("tracks");
     const bool has_layers = config.contains("layers");

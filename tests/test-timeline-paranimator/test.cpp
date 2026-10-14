@@ -75,6 +75,14 @@ TEST(TimelineJson, reportsMultiTrackCounts)
     EXPECT_EQ(4, result.document->keyframe_count());
 }
 
+TEST(TimelineJson, acceptsJsonSchemaMetadata)
+{
+    const JsonImportResult result = import_timeline_json(fixture_path("multi-track.json"), TEST_OPTIONS);
+
+    EXPECT_TRUE(result.succeeded());
+    EXPECT_TRUE(result.diagnostics.empty());
+}
+
 TEST(TimelineJson, rejectsInvalidSchema)
 {
     const JsonImportResult result = import_timeline_json(fixture_path("invalid-schema.json"), TEST_OPTIONS);
