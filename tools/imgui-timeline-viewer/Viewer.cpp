@@ -14,6 +14,34 @@
 namespace timeline_imgui_viewer
 {
 
+namespace
+{
+
+void draw_timeline_pane(Viewer &viewer, ImVec2 size, bool dialog_pending)
+{
+    ImGui::BeginDisabled(dialog_pending);
+    if (ImGui::BeginChild("timeline", size, ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollWithMouse))
+    {
+        timeline_imgui::draw_timeline("control", viewer.control());
+    }
+    ImGui::EndChild();
+    ImGui::EndDisabled();
+}
+
+void draw_inspector_pane(const Viewer &viewer, ImVec2 size)
+{
+    if (ImGui::BeginChild("inspector", size))
+    {
+        ImGui::PushTextWrapPos(0.0F);
+        const std::string text = viewer.inspector_text();
+        ImGui::TextUnformatted(text.c_str());
+        ImGui::PopTextWrapPos();
+    }
+    ImGui::EndChild();
+}
+
+} // namespace
+
 bool Viewer::load_file(const std::filesystem::path &path, bool append)
 {
     timeline_viewer::LoadResult result = timeline_viewer::load_timeline(path, append, m_control.document(), m_mappings);
@@ -123,29 +151,27 @@ Command draw_viewer(Viewer &viewer, bool dialog_pending)
     const float status_height = ImGui::GetFrameHeightWithSpacing();
     const bool narrow = available.x < 720.0F;
     const float content_height = std::max(1.0F, available.y - status_height);
-    const ImVec2 timeline_size(
-        narrow ? available.x : std::max(1.0F, available.x - 340.0F), narrow ? content_height * 0.55F : content_height);
-    ImGui::BeginDisabled(dialog_pending);
-    if (ImGui::BeginChild("timeline", timeline_size, ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollWithMouse))
+    if (narrow)
     {
-        timeline_imgui::draw_timeline("control", viewer.control());
+        const ImVec2 timeline_size(available.x, content_height * 0.55F);
+        draw_timeline_pane(viewer, timeline_size, dialog_pending);
+        const ImVec2 inspector_size(
+            available.x, std::max(1.0F, content_height - timeline_size.y - ImGui::GetStyle().ItemSpacing.y));
+        draw_inspector_pane(viewer, inspector_size);
     }
-    ImGui::EndChild();
-    ImGui::EndDisabled();
-    if (!narrow)
+    else if (ImGui::BeginTable("viewer-panes", 2,
+                 ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_BordersInnerV,
+                 ImVec2(available.x, content_height)))
     {
-        ImGui::SameLine();
+        ImGui::TableSetupColumn("Timeline", ImGuiTableColumnFlags_WidthStretch, 2.0F);
+        ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthStretch, 1.0F);
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        draw_timeline_pane(viewer, ImVec2(0.0F, 0.0F), dialog_pending);
+        ImGui::TableSetColumnIndex(1);
+        draw_inspector_pane(viewer, ImVec2(0.0F, 0.0F));
+        ImGui::EndTable();
     }
-    const ImVec2 inspector_size(narrow ? available.x : 0.0F,
-        narrow ? std::max(1.0F, content_height - timeline_size.y - ImGui::GetStyle().ItemSpacing.y) : content_height);
-    if (ImGui::BeginChild("inspector", inspector_size))
-    {
-        ImGui::PushTextWrapPos(0.0F);
-        const std::string text = viewer.inspector_text();
-        ImGui::TextUnformatted(text.c_str());
-        ImGui::PopTextWrapPos();
-    }
-    ImGui::EndChild();
     ImGui::TextUnformatted(viewer.status().c_str());
     ImGui::End();
     return command;

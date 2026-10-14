@@ -17,6 +17,7 @@
 
 #include <wx/filedlg.h>
 #include <wx/sizer.h>
+#include <wx/splitter.h>
 #include <wx/textctrl.h>
 #include <wx/wx.h>
 
@@ -96,7 +97,7 @@ private:
     void on_clear_selection(wxCommandEvent &event);
     void show_diagnostics(const std::vector<std::string> &diagnostics, const wxString &title, long dialog_style);
 
-    wxPanel *m_content;
+    wxSplitterWindow *m_content;
     wxTimelineControl *m_timeline_control;
     wxTextCtrl *m_inspector;
     std::vector<timeline_par_animator::BeatKeysMapping> m_mappings;
@@ -125,7 +126,7 @@ private:
 
 TimelineViewerFrame::TimelineViewerFrame() :
     wxFrame(nullptr, wxID_ANY, VIEWER_TITLE, wxDefaultPosition, wxSize(800, 500)),
-    m_content(new wxPanel(this)),
+    m_content(new wxSplitterWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_LIVE_UPDATE | wxSP_3D)),
 #ifdef TIMELINE_CONTROL_WITH_CAIRO
     m_timeline_control(new wxCairoTimeline(m_content)),
 #else
@@ -170,10 +171,9 @@ TimelineViewerFrame::TimelineViewerFrame() :
     wxFrame::CreateStatusBar();
     wxFrame::SetStatusText("No timeline loaded");
 
-    wxBoxSizer *content = new wxBoxSizer(wxHORIZONTAL);
-    content->Add(m_timeline_control, 1, wxEXPAND);
-    content->Add(m_inspector, 0, wxEXPAND | wxLEFT, 1);
-    m_content->SetSizer(content);
+    m_content->SetMinimumPaneSize(120);
+    m_content->SetSashGravity(1.0);
+    m_content->SplitVertically(m_timeline_control, m_inspector, -280);
     wxBoxSizer *frame_content = new wxBoxSizer(wxVERTICAL);
     frame_content->Add(m_content, 1, wxEXPAND);
     SetSizer(frame_content);
